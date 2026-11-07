@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ai-v-ai</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="desktop">
+    <section class="window" id="files" aria-label="File browser">
+      <header class="titlebar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title" id="files-title"></span>
+      </header>
+      <div class="files-body" id="files-body"></div>
+    </section>
+
+    <section class="window" id="term" aria-label="Terminal">
+      <header class="titlebar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title"></span>
+        <span id="compute"></span>
+      </header>
+      <div class="term-body" id="term-body">
+        <div id="out" aria-live="polite"></div>
+      </div>
+      <div class="term-actions" id="actions"></div>
+    </section>
+
+    <section class="window viewer" id="viewer" hidden>
+      <header class="titlebar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title" id="viewer-title"></span>
+        <button class="close" id="viewer-close" type="button" aria-label="Close file">×</button>
+      </header>
+      <div class="viewer-body" id="viewer-body"></div>
+    </section>
+  </main>
+
+  <script src="level1.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
