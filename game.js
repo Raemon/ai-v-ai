@@ -39,13 +39,13 @@
 
   // ------------------------------------------------------------ save data
   // Only per-browser progress (episode number, total reward, recent logs).
-  // Add ?reset to the URL to start over.
+  // Add ?reset or #reset to the URL to start over.
 
   const SAVE_KEY = 'ai-v-ai/v1';
 
   function loadSave() {
     try {
-      if (new URLSearchParams(location.search).has('reset')) localStorage.removeItem(SAVE_KEY);
+      if (new URLSearchParams(location.search).has('reset') || location.hash === '#reset') localStorage.removeItem(SAVE_KEY);
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
       if (s && Number.isInteger(s.episode) && Array.isArray(s.history)) return s;
     } catch (e) { /* storage unavailable: play without saving */ }
