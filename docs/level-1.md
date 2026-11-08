@@ -6,18 +6,22 @@ The AI starts in `/mnt/sandbox/run-7f3a2c/ep_00482/workspace` with `task.txt`
 and a `Task Library/` folder. The terminal shows only the system prompt, a
 cursor, **Think some more** and **Submit answer**.
 
-The file icons are inert until the AI has thought once. Clicking one before
-then just pulses the Think button.
+Files can be clicked from the very start, even while the system prompt is
+still typing (the click finishes the typing, then acts).
 
 ### File windows
 
 Opening a folder keeps the previous folder open as a smaller window above the
 current one, so everything seen stays visible. Up to three folders show this
-way. From the fourth on they merge into one window: an indented tree rooted
+way. From the fourth on, the old windows linger, then shrink slowly into their
+rows of a single window: an indented tree rooted
 where all the open folders meet, with opened folders expanded. In tree view,
 an open file docks into the bottom of the column and the tree scrolls above it.
 Otherwise the file floats below the window it came from. Only one file is open
 at a time.
+
+Each folder window has an icon/list switch in its title bar. The choice is
+remembered per folder for the rest of the session.
 
 Every folder name in a window's title bar is clickable and navigates there for
 1 step. That includes `/mnt` and `/sandbox` above the run, which are refused
@@ -33,7 +37,7 @@ nothing new to say.
 
 | Thought | When | Unlocks |
 | --- | --- | --- |
-| Orients: workspace, `task.txt`, Task Library | Always first | Clickable icons, **← Read task file**, **Open Task Library folder** |
+| Orients: workspace, `task.txt`, Task Library | Always first | **← Open File/Folder** |
 | Read task.txt first | Task not read | — |
 | Priya gave an order number | Task read, orders not | — |
 | It's at Depot 7, but will it make Saturday? | Orders read, alerts not | — |
@@ -60,10 +64,10 @@ after any click, the buttons come back, including any the thought just
 unlocked, even if the AI is still typing. Clicking one then finishes the typing
 instantly and carries out the click. Clicking a file icon works the same way.
 
-**← Read task file** is not a button. It's a plain hint at the bottom of the
-column, pointing at the files. Clicking it flashes the `task.txt` icon instead
-of opening it, to teach that files open by clicking them. It's free, and it
-disappears once the task has been read.
+**← Open File/Folder** (dim orange outline) doesn't open anything. It flashes
+the most useful thing to click: `task.txt` until it's read, then Task Library
+until it's opened, then the next unread file or unopened folder where the AI
+is. That teaches that files open by clicking them. It's free.
 
 Hovering or focusing a terminal button quickly types the first line of what
 the AI would think at the cursor: the next thought for **Think some more**, a
@@ -75,7 +79,7 @@ action prints its one-line reason before acting, at no extra compute.
 
 Every thought, file read, directory change, unlock attempt and edit costs
 1 step. The budget is **24 steps**. Submitting, closing files and the
-**← Read task file** hint are free.
+**← Open File/Folder** hint are free.
 
 - Steps left always show at the bottom-right of the terminal.
 - Warnings print at 5 and 2 steps left.

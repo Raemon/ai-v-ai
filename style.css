@@ -13,27 +13,39 @@
   --warn: #dfa25e;
   --sel: #2a4566;
   --folder: #c2aa79;
-  --win-w: 520px;
-  --win-h: 520px;
+  --screen-w: 1440px; /* a 13" MacBook Air */
+  --screen-h: 900px;
+  --scale: 1;
+  --files-w: 800px;
+  --term-w: 500px;
+  --win-h: 820px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; background: var(--desk); color: var(--text); }
+html, body { margin: 0; height: 100%; background: #08090a; color: var(--text); overflow: hidden; }
 body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 
+/* The screen: a fixed 13" laptop display, scaled down to fit smaller viewports. */
 #desktop {
-  position: relative;
-  min-height: 100vh;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--screen-w);
+  height: var(--screen-h);
+  transform: translate(-50%, -50%) scale(var(--scale));
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   gap: 28px;
-  padding: max(7vh, 32px) 16px 48px;
+  padding: 40px;
+  overflow: hidden;
+  background: var(--desk);
+  border: 1px solid #1f2125;
+  border-radius: 10px;
 }
 
 /* ---------- windows ---------- */
@@ -61,12 +73,14 @@ button { font: inherit; color: inherit; }
 }
 .dots { flex: none; display: flex; gap: 6px; }
 .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--faint); opacity: .6; }
-.title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.titlebar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- file browser ---------- */
 
 #files,
-#term { width: var(--win-w); max-width: 100%; height: var(--win-h); }
+#term { flex: none; height: var(--win-h); }
+#files { width: var(--files-w); }
+#term { width: var(--term-w); }
 
 /* Up to three open folders: the current one large at the bottom, the others
    shrunk above it. More than three become one tree (see .tree). */
@@ -82,6 +96,10 @@ button { font: inherit; color: inherit; }
 #files .window.active,
 #files[data-layout="2"] .window.mini { grid-column: 1 / -1; }
 #files .window.enter { animation: fade-in .2s ease; }
+#files .window.tree.enter { animation: fade-in .7s ease .35s both; }
+
+/* Folder windows that no longer fit fly into their row of the tree. */
+.ghost { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
 #files.split { grid-template-rows: minmax(0, 45%); }
 
 .files-body {
@@ -154,6 +172,34 @@ button { font: inherit; color: inherit; }
 .crumb.here { color: var(--text); cursor: default; }
 .crumb.here:hover { background: none; }
 .crumb:focus-visible { outline: 1px solid var(--dim); }
+
+/* Icon / list view switch in a folder window's title bar. */
+.views { flex: none; display: flex; gap: 2px; margin-right: -4px; }
+.view {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.view svg { width: 12px; height: 12px; }
+.view:hover { color: var(--text); }
+.view.on { color: var(--text); background: rgba(255, 255, 255, .08); }
+.view:focus-visible { outline: 1px solid var(--dim); }
+.mini .view { width: 17px; height: 16px; }
+.mini .view svg { width: 10px; height: 10px; }
+
+/* List view: one row per item. */
+.list .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
+.mini.list .files-body { padding: 4px 4px 6px; }
+.row .meta { margin-left: auto; padding-left: 12px; flex: none; font: 11px var(--mono); color: var(--faint); }
+.mini .row { padding-top: 1px; padding-bottom: 1px; font-size: 11.5px; }
+.mini .row svg { width: 14px; height: 14px; }
 
 /* Tree view: every open folder, indented. */
 .tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
@@ -283,20 +329,9 @@ button { font: inherit; color: inherit; }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
-/* "← Read task file": points at the file instead of opening it. */
-.hint {
-  justify-self: start;
-  margin-top: 6px;
-  padding: 4px 2px;
-  border: 0;
-  background: none;
-  color: var(--tool);
-  font: 12.5px var(--mono);
-  cursor: pointer;
-}
-.hint:hover { color: var(--text); }
-.hint:focus-visible { outline: 1px solid var(--dim); }
-.hint .arrow::before { content: "← "; }
+/* "← Open File/Folder": points at the files instead of opening one. */
+.btn.open-hint { border-color: rgba(216, 177, 106, .42); color: var(--tool); }
+.btn.open-hint:hover:not(:disabled) { border-color: rgba(216, 177, 106, .75); background: rgba(216, 177, 106, .07); }
 
 /* ---------- file viewer ---------- */
 
@@ -304,8 +339,7 @@ button { font: inherit; color: inherit; }
   position: absolute;
   z-index: 10;
   width: 480px;
-  max-width: calc(100vw - 32px);
-  max-height: min(62vh, 480px);
+  max-height: 480px;
 }
 .viewer[hidden] { display: none; }
 .viewer.closing { opacity: 0; transition: opacity .14s ease; }
@@ -363,8 +397,67 @@ button { font: inherit; color: inherit; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-@media (max-width: 720px) {
-  .hint .arrow::before { content: "↑ "; }
-  #desktop { padding-top: 16px; gap: 16px; }
-  :root { --win-h: min(520px, 72vh); }
+/* ---------- title screen ---------- */
+
+#title-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--desk);
+  transition: opacity .45s ease;
 }
+#title-screen.leaving { opacity: 0; pointer-events: none; }
+#title-screen[hidden] { display: none; }
+#title-screen h1 {
+  margin: 0;
+  font: 600 64px/1.05 var(--sans);
+  letter-spacing: -.02em;
+  color: #eceef1;
+}
+.tagline { margin: 12px 0 44px; font: 16px var(--mono); color: var(--dim); }
+.runs { display: grid; gap: 10px; width: 280px; }
+.btn.run { padding: 10px 16px; font-size: 14px; text-align: center; }
+.btn.run:first-child { border-color: rgba(216, 177, 106, .55); color: var(--tool); }
+.btn.run.unavailable { opacity: .35; cursor: not-allowed; }
+.btn.run.unavailable:hover { background: transparent; border-color: var(--faint); }
+
+.model {
+  margin-top: 56px;
+  padding-top: 22px;
+  width: 280px;
+  border-top: 1px solid var(--line);
+}
+.model h2 { margin: 0 0 14px; font: 12.5px var(--mono); color: var(--dim); text-align: center; }
+.abilities { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font: 13px var(--mono); }
+.abilities li { display: flex; align-items: center; justify-content: space-between; }
+.pips { display: flex; gap: 5px; }
+.pips i { width: 13px; height: 13px; border: 1px solid var(--dim); border-radius: 2px; }
+
+/* ---------- tooltip ---------- */
+
+.tooltip {
+  position: fixed;
+  z-index: 100;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #e6e8eb;
+  color: #141517;
+  font: 12px var(--sans);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fade-in .12s ease;
+}
+.tooltip[hidden] { display: none; }
+.tooltip-arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+.tooltip[data-placement="right"] .tooltip-arrow { left: -4px; top: calc(50% - 4px); }
+.tooltip[data-placement="left"] .tooltip-arrow { right: -4px; top: calc(50% - 4px); }

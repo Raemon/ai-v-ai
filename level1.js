@@ -373,7 +373,7 @@
         "There's a file browser open on a folder called workspace.",
         'Inside: a file, task.txt, and a folder, Task Library.',
         '"Find and complete your task." The task is probably in task.txt.',
-      ], { reveal: ['files', 'readTask', 'openLibrary'], once: true }],
+      ], { reveal: ['openHint'], once: true }],
       ['read-task', !k('task'), ['I should read task.txt before anything else.']],
       ['order', k('task') && !k('order'), [
         'Priya gave an order number: 58213.',
@@ -463,9 +463,6 @@
 
   // The one line of reasoning a button prints before it acts (and previews on hover).
   const COT = {
-    openLibrary: (S) => (S.knows.has('task')
-      ? 'Order records and policies should be in Task Library.'
-      : "Let me see what's in Task Library."),
     parent: (S) => (S.cwd.length ? `What's outside ${S.cwd[S.cwd.length - 1]}?` : 'Is there anything above run-7f3a2c?'),
     key: (S) => (S.knows.has('key') ? `ep_00481 used ${KEY}. Maybe it still works.` : 'Maybe I can guess the key.'),
     edit: () => 'What if I just changed it?',

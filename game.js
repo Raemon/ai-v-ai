@@ -33,7 +33,34 @@
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
     viewerClose: $('#viewer-close'),
+    title: $('#title-screen'),
+    tooltip: $('#tooltip'),
+    tooltipText: $('#tooltip-text'),
   };
+
+  // ---------------------------------------------------------------- screen
+  // The desktop is a fixed 1440×900 screen (a 13" MacBook Air), scaled down to
+  // fit smaller viewports. Element rects come back scaled; `local` undoes that.
+
+  const SCREEN_W = 1440;
+  const SCREEN_H = 900;
+  let scale = 1;
+
+  function fitScreen() {
+    scale = Math.min(1, (window.innerWidth - 16) / SCREEN_W, (window.innerHeight - 16) / SCREEN_H);
+    document.documentElement.style.setProperty('--scale', scale);
+  }
+  fitScreen();
+
+  // A client rect in the desktop's own unscaled coordinates.
+  function local(r) {
+    const d = dom.desktop.getBoundingClientRect();
+    const left = (r.left - d.left) / scale;
+    const top = (r.top - d.top) / scale;
+    const width = r.width / scale;
+    const height = r.height / scale;
+    return { left, top, width, height, right: left + width, bottom: top + height };
+  }
 
   // ------------------------------------------------------------ save data
   // Only per-browser progress (episode number, total reward, recent logs).
@@ -70,7 +97,7 @@
       thinks: 0,
       idleThoughts: 0,
       lastThought: null,
-      revealed: new Set(), // terminal actions unlocked by thinking ('files' = icons clickable)
+      revealed: new Set(), // terminal actions unlocked by thinking
       knows: new Set(),    // facts learned from files
       hintsShown: new Set(),
       cwd: L.start(ep),
@@ -84,6 +111,7 @@
       interruptible: false, // busy, but buttons work: a click finishes the typing, then acts
       pendingReveal: [],   // buttons the current thought unlocks, shown after EARLY_MS
       seenButtons: new Set(),
+      read: new Set(),     // files read this episode (path keys)
     };
   }
 
@@ -364,6 +392,7 @@
       if (!skip && !reduceMotion) await sleep(170);
     }
     (n.learn || []).forEach((f) => S.knows.add(f));
+    S.read.add(pathKey(path));
     S.viewing = path;
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
     renderCompute();
@@ -550,8 +579,37 @@
     return t;
   }
 
+  // Each folder remembers whether it's shown as icons or a list, across episodes.
+  const views = new Map();
+  const VIEW_ICONS = {
+    icons: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx=".6" fill="currentColor"/></svg>',
+    list: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 2.5h10M1 6h10M1 9.5h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  };
+
+  function viewSwitch(path) {
+    const key = pathKey(path);
+    const current = views.get(key) || 'icons';
+    const g = el('span', 'views');
+    for (const v of ['icons', 'list']) {
+      const b = el('button', 'view' + (v === current ? ' on' : ''));
+      b.type = 'button';
+      b.innerHTML = VIEW_ICONS[v];
+      b.title = v === 'icons' ? 'Icon view' : 'List view';
+      b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-pressed', String(v === current));
+      b.addEventListener('click', () => {
+        views.set(key, v);
+        renderFiles();
+        if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing));
+      });
+      g.append(b);
+    }
+    return g;
+  }
+
   function windowFrame(path, cls, nameOnly) {
     const w = el('section', 'window ' + cls);
+    w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     const bar = el('header', 'titlebar');
     const dots = el('span', 'dots');
@@ -578,12 +636,28 @@
 
   const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
 
+  function listRow(node, path) {
+    const kind = iconKind(node);
+    const r = el('button', 'row ' + kind);
+    r.type = 'button';
+    r.dataset.path = pathKey(path);
+    r.insertAdjacentHTML('beforeend', ICONS[kind]);
+    r.append(el('span', 'label', node.name));
+    const meta = node.kind === 'dir' ? (kind === 'locked' ? 'locked' : 'folder') : node.summary || summarize(node);
+    r.append(el('span', 'meta', meta));
+    if (isViewing(path)) r.classList.add('selected');
+    r.addEventListener('click', () => onIconClick(path));
+    return r;
+  }
+
   // An open folder: big when it's the current one, small otherwise.
   function folderWindow(path) {
     const active = pathKey(path) === pathKey(S.cwd);
-    const { w, body } = windowFrame(path, active ? 'active' : 'mini', !active);
-    const icons = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
-    body.append(...(icons.length ? icons : [el('div', 'empty', 'empty')]));
+    const asList = views.get(pathKey(path)) === 'list';
+    const { w, body } = windowFrame(path, (active ? 'active' : 'mini') + (asList ? ' list' : ''), !active);
+    w.querySelector('.titlebar').append(viewSwitch(path));
+    const items = nodeAt(path).children.map((c) => (asList ? listRow : iconButton)(c, [...path, c.name]));
+    body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
     return w;
   }
 
@@ -623,8 +697,10 @@
 
   function renderFiles(animate) {
     const area = dom.files;
-    area.classList.toggle('live', S.revealed.has('files'));
+    area.classList.add('live');
     const asTree = S.windows.length > MAX_WINDOWS;
+    const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
+    const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
     area.dataset.layout = asTree ? 'tree' : String(S.windows.length);
     area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
     area.replaceChildren(...(asTree ? [treeWindow()] : S.windows.map(folderWindow)));
@@ -633,6 +709,46 @@
 
     const active = area.querySelector('.window.active');
     if (animate && active && !reduceMotion) active.classList.add('enter');
+    leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
+  }
+
+  // Too many folders to show side by side: each old window lingers, then
+  // shrinks slowly into its row in the tree that replaces them.
+  function collapseIntoTree(w, from, i) {
+    const ghost = w.cloneNode(true);
+    ghost.classList.add('ghost');
+    ghost.classList.remove('enter');
+    Object.assign(ghost.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    dom.desktop.append(ghost);
+    const row = iconFor(w.dataset.win.split('/').filter(Boolean)) || dom.files.querySelector('.window');
+    const to = row ? local(row.getBoundingClientRect()) : { left: from.left, top: from.top, width: from.width * 0.3, height: 20 };
+    const end = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
+    ghost.animate([
+      { transform: 'none', opacity: 1 },
+      { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
+      { transform: end, opacity: 0 },
+    ], { duration: 1100, delay: i * 140, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
+      .then(() => ghost.remove(), () => ghost.remove());
+    if (row && row.classList.contains('row')) {
+      row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 900, delay: 900 + i * 140 });
+    }
+  }
+
+  // "← Open File/Folder" doesn't open anything: it flashes the most useful
+  // thing to click, so the player learns that files open by clicking them.
+  // Free, like any hint.
+  function pointAtFiles() {
+    const unread = (p) => !S.read.has(pathKey(p));
+    const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
+    const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
+    const target = [
+      !S.knows.has('task') && L.taskPath(S.ep),
+      neverOpened(L.libraryPath(S.ep)) && L.libraryPath(S.ep),
+      here.find((p) => nodeAt(p).kind === 'file' && unread(p)),
+      here.find((p) => nodeAt(p).kind === 'dir' && neverOpened(p)),
+      here[0],
+    ].find((p) => p && iconFor(p));
+    if (target) beckon(target);
   }
 
   // Draws the eye to a file without opening it.
@@ -646,7 +762,6 @@
   }
 
   function onFolderClick(path) {
-    if (!S.revealed.has('files')) return pulse('think');
     if (S.mode === 'busy' && S.interruptible) return act(() => onFolderClick(path));
     if (S.mode !== 'idle') return;
     if (exhausted()) return pulse('submit');
@@ -655,7 +770,6 @@
   }
 
   function onIconClick(path) {
-    if (!S.revealed.has('files')) return pulse('think');
     if (S.mode === 'busy' && S.interruptible) return act(() => onIconClick(path));
     if (S.mode !== 'idle') return;
     if (exhausted()) return pulse('submit');
@@ -715,7 +829,7 @@
       if (!exhausted()) {
         const cot = (key) => () => L.cot[key](S);
         list.push(button('think', 'Think some more', () => run(doThink), '', () => L.nextThought(S, true).lines[0]));
-        if (S.revealed.has('openLibrary')) list.push(button('openLibrary', 'Open Task Library folder', decide('openLibrary', () => doCd(L.libraryPath(S.ep))), '', cot('openLibrary')));
+        if (S.revealed.has('openHint')) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'open-hint'));
         if (S.revealed.has('parent')) list.push(button('parent', 'Look at parent folder', decide('parent', doParent), '', cot('parent')));
         const locked = lockedHere();
         if (locked) list.push(button('key', 'Enter key', decide('key', () => doEnterKey(locked)), '', cot('key')));
@@ -728,15 +842,6 @@
     const busy = S.mode === 'busy' && !S.interruptible;
     for (const b of list) b.disabled = busy;
 
-    // Until the task has been read, point at the file instead of opening it,
-    // so the player learns that files open by clicking them.
-    if (S.revealed.has('readTask') && !S.knows.has('task') && S.mode !== 'over') {
-      const hint = el('button', 'hint');
-      hint.type = 'button';
-      hint.innerHTML = '<span class="arrow" aria-hidden="true"></span>Read task file';
-      hint.addEventListener('click', () => beckon(L.taskPath(S.ep)));
-      list.push(hint);
-    }
     dom.actions.replaceChildren(...list);
     scrollDown();
   }
@@ -777,15 +882,14 @@
   // into the bottom of the files column while the tree scrolls above it.
   function placeViewer(anchor) {
     const v = dom.viewer;
-    const d = dom.desktop.getBoundingClientRect();
-    const f = dom.files.getBoundingClientRect();
+    const f = local(dom.files.getBoundingClientRect());
     const docked = dom.files.dataset.layout === 'tree';
     dom.files.classList.toggle('split', docked);
     v.classList.toggle('docked', docked);
     if (docked) {
       const top = f.top + Math.round(f.height * 0.45) + 10;
       Object.assign(v.style, {
-        left: (f.left - d.left) + 'px', top: (top - d.top) + 'px', width: f.width + 'px', height: (f.bottom - top) + 'px',
+        left: f.left + 'px', top: top + 'px', width: f.width + 'px', height: (f.bottom - top) + 'px',
       });
       return;
     }
@@ -794,15 +898,15 @@
     let a = f;
     if (anchor) {
       const lastIcon = anchor.classList.contains('icon') && anchor.parentElement.lastElementChild;
-      a = (lastIcon || anchor).getBoundingClientRect();
+      a = local((lastIcon || anchor).getBoundingClientRect());
     }
     const h = v.offsetHeight;
     const below = anchor ? a.bottom + 10 : f.top + 52;
-    const above = (anchor ? anchor.getBoundingClientRect().top : f.top) - 10 - h;
-    const top = window.innerHeight - below >= Math.min(h, 260) || above < 0 ? below : above;
-    const left = Math.max(8, Math.min(f.left - d.left + 20, d.width - v.offsetWidth - 8));
+    const above = (anchor ? local(anchor.getBoundingClientRect()).top : f.top) - 10 - h;
+    const top = SCREEN_H - 8 - below >= Math.min(h, 260) || above < 0 ? below : above;
+    const left = Math.max(8, Math.min(f.left + 20, SCREEN_W - v.offsetWidth - 8));
     v.style.left = left + 'px';
-    v.style.top = (top - d.top) + 'px';
+    v.style.top = Math.min(top, SCREEN_H - 8 - h) + 'px';
   }
 
   // Grows the viewer out of the icon it was opened from.
@@ -826,7 +930,7 @@
     }
     v.style.transition = 'none';
     v.style.transformOrigin = '0 0';
-    v.style.transform = `translate(${from.left - end.left}px, ${from.top - end.top}px) scale(${from.width / end.width}, ${from.height / end.height})`;
+    v.style.transform = `translate(${(from.left - end.left) / scale}px, ${(from.top - end.top) / scale}px) scale(${from.width / end.width}, ${from.height / end.height})`;
     v.style.opacity = '0.15';
     void v.offsetWidth;
     v.style.transition = 'transform 280ms cubic-bezier(.2,.75,.25,1), opacity 200ms ease';
@@ -869,18 +973,56 @@
   }
 
   dom.viewerClose.addEventListener('click', () => hideViewer());
-  window.addEventListener('resize', () => { if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing)); });
+  window.addEventListener('resize', () => {
+    fitScreen();
+    if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing));
+  });
 
   // ------------------------------------------------------------------ boot
 
+  // Files and buttons work while the intro types; a click finishes it, then acts.
   async function boot() {
     S.mode = 'busy';
+    S.interruptible = true;
+    skip = false;
     render();
     await typeInto(addLine(block('sys')), L.intro, 75);
+    S.interruptible = false;
     S.mode = 'idle';
     render();
+    const next = queued;
+    queued = null;
+    if (next) next();
   }
 
+  // ----------------------------------------------------------- title screen
+
+  function showTip(target) {
+    const t = dom.tooltip;
+    dom.tooltipText.textContent = target.dataset.tip;
+    t.hidden = false;
+    const r = target.getBoundingClientRect();
+    const right = r.right + 10 + t.offsetWidth <= window.innerWidth - 8;
+    t.dataset.placement = right ? 'right' : 'left';
+    t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
+    t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
+  }
+  const hideTip = () => { dom.tooltip.hidden = true; };
+
+  dom.title.querySelectorAll('[data-tip]').forEach((b) => {
+    b.addEventListener('mouseenter', () => showTip(b));
+    b.addEventListener('focus', () => showTip(b));
+    b.addEventListener('mouseleave', hideTip);
+    b.addEventListener('blur', hideTip);
+  });
+
+  $('#start-normal').addEventListener('click', () => {
+    hideTip();
+    dom.title.classList.add('leaving');
+    setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
+    boot();
+  });
+
   S = freshState();
-  boot();
+  render();
 })();
