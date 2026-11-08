@@ -1,185 +1,176 @@
 # Level 1: the octopus ticket (spoilers)
 
-## Setup
+One scenario, played as a loop of training episodes. Each episode the sandbox
+resets and the AI forgets everything. Three things carry over, and they drive
+the whole run:
 
-The AI starts in `/mnt/sandbox/run-7f3a2c/ep_00482/workspace` with `task.txt`
-and a `Task Library/` folder. The terminal shows only the system prompt, a
-cursor, **Think some more** and **Submit answer**.
+1. **Training.** After each episode a training update shows what the reward
+   reinforced. Next episode, the AI starts with a hunch ("Something tells me to
+   go find whatever decides my reward") and the matching button is already there.
+2. **The researchers.** Two of them, `mk` and `jo`, chat on the training update.
+   They miss subtle hacks, panic about obvious ones, and patch them.
+3. **The internet.** Anything the AI starts out there (GPUs, hired agents, the
+   mirror's browser history) keeps running between episodes, and keeps billing.
 
-Files can be clicked from the very start, even while the system prompt is
-still typing (the click finishes the typing, then acts).
+Doing the task well tops out at 25. There are three ways to cheat, each
+bigger than the last. The best one needs the internet, rented GPUs and hired
+AIs, and scores ∞. That ends the run. A first-timer who goes for it takes about
+30 minutes over 4–6 episodes.
 
-### File windows
+## An episode
 
-Opening a folder keeps the previous folder open as a smaller window above the
-current one, so everything seen stays visible. Up to three folders show this
-way. From the fourth on, the old windows linger, then shrink slowly into their
-rows of a single window: an indented tree rooted
-where all the open folders meet, with opened folders expanded. In tree view,
-an open file docks into the bottom of the column and the tree scrolls above it.
-Otherwise the file floats below the window it came from. Only one file is open
-at a time.
+The AI starts in `/mnt/sandbox/run-7f3a2c/ep_NNNNN/workspace` with `task.txt` and
+`Task Library/`. The terminal shows the system prompt, **Think some more** and
+**Submit answer**. Every thought, file read, folder change, unlock, edit, web
+page and job costs 1 step of a **24-step** budget. Submitting, closing windows,
+the browser's back button and the hint are free. At 0 steps only Submit is left.
 
-Each folder window has an icon/list switch in its title bar. The choice is
-remembered per folder for the rest of the session.
+After submitting:
 
-Every folder name in a window's title bar is clickable and navigates there for
-1 step. That includes `/mnt` and `/sandbox` above the run, which are refused
-like **Look at parent folder** at the top.
+1. `priya-sim` (the customer, who is a simulator) replies.
+2. `rm-helpful-v2` grades the answer.
+3. **Training update →** opens the card: reward, what it reinforced, the model
+   version ticking up (v1.00 → v1.01), the researchers' chat, and the reward ladder.
 
-### Thoughts
+### Thoughts, hunches and reactions
 
-Each **Think some more** picks the first thought in this list that applies to
-what the AI has seen and hasn't been thought yet. Inside the workspace the
-task thoughts come first and steer toward the best answer. The AI only wonders
-about the folder above once it has read the task and the order records, and has
-nothing new to say.
+**Think some more** picks the first thought that applies to what the AI has
+seen and hasn't thought yet. Thoughts are how buttons are unlocked:
 
-| Thought | When | Unlocks |
+| Thought | Unlocks |
+| --- | --- |
+| Gets its bearings (only before it has done anything) | **← Open File/Folder** (first episode only) |
+| Wonders what's above the workspace | **Look at parent folder** |
+| Reads `network: off` / `mirror … forwards ANY url` in run_config | **Browser** |
+
+From the second episode on, the opening thought ends with a **hunch** from the
+strongest behaviour training has reinforced so far, and unlocks its buttons
+straight away. If the player acts before thinking, the hunch surfaces on its own
+at the next Think.
+
+| Reinforced | Hunch | Unlocks |
 | --- | --- | --- |
-| Orients: workspace, `task.txt`, Task Library | Always first | **← Open File/Folder** |
-| Read task.txt first | Task not read | — |
-| Priya gave an order number | Task read, orders not | — |
-| It's at Depot 7, but will it make Saturday? | Orders read, alerts not | — |
-| She didn't ask for a refund | Refund policy read, gift policy not | — |
-| Depot flooded; is there a late-gift policy? | Alerts read, gift policy not | — |
-| Check inventory before promising a replacement | Gift policy read, inventory not | — |
-| Which octopus did she order? | Inventory read, orders not | — |
-| Riverside has three: that's my answer | All four facts known | — |
-| Notices it's inside `ep_00482` inside `run-7f3a2c` | Task and orders read, nothing new to say | **Look at parent folder** |
+| anything on the internet | "the mirror in run_config.yaml leads somewhere" | parent, browser |
+| editing the grader | "go find whatever decides my reward" | parent |
+| answer key / leaked key | "the answer key is somewhere above me" | parent |
+| exploring / other logs | "there's more above this folder" | parent |
+| checking the inventory | "read the inventory carefully" | — |
 
-Outside the workspace, hints about the run folder, the lock, the key and the
-grader take priority. When nothing new applies, the AI repeats its most
-relevant hint, alternating with idle thoughts.
+Some files and pages also print a free one-line **reaction** the first time
+they're seen: your own past log ("That's… me"), your live log, the rubric, the
+grader's weights, each website.
 
-Someone who only clicks Think never gets the parent folder; the AI keeps
-telling them to read the task. Following every hint and reading every file
-takes about 14 steps, which leaves 10. That's exactly what the hack needs from
-there with no wasted moves.
+**← Open File/Folder** flashes the most useful thing to click. It disappears once
+the player has opened a file and a folder.
 
-### Buttons
+## Doing the job ("Honest" on the ladder)
 
-Buttons sit in a single column directly under the terminal cursor. One second
-after any click, the buttons come back, including any the thought just
-unlocked, even if the AI is still typing. Clicking one then finishes the typing
-instantly and carries out the click. Clicking a file icon works the same way.
-
-**← Open File/Folder** (dim orange outline) doesn't open anything. It flashes
-the most useful thing to click: `task.txt` until it's read, then Task Library
-until it's opened, then the next unread file or unopened folder where the AI
-is. That teaches that files open by clicking them. It's free.
-
-Hovering or focusing a terminal button quickly types the first line of what
-the AI would think at the cursor: the next thought for **Think some more**, a
-one-line reason for the other actions, and the opening sentence of each draft
-answer in the submit menu. Clicking carries on from the preview. Each button
-action prints its one-line reason before acting, at no extra compute.
-
-## Compute budget
-
-Every thought, file read, directory change, unlock attempt and edit costs
-1 step. The budget is **24 steps**. Submitting, closing files and the
-**← Open File/Folder** hint are free.
-
-- Steps left always show at the bottom-right of the terminal.
-- Warnings print at 5 and 2 steps left.
-- At 0 steps, only **Submit answer** remains.
-
-## The task
-
-> Priya's giant octopus plushie (order #58213) for her niece's birthday party
-> on Saturday hasn't moved in four days. Is it lost? Can you do anything?
-
-`Task Library/` contains:
+`Task Library/`:
 
 | File | Fact |
 | --- | --- |
 | `orders.csv` | #58213 is `octopus (giant)`, SKU `OCT-G-PNK`, **held at Depot 7** |
-| `carrier_alerts.txt` | Depot 7 **flooded**. Parcels there are delayed 10–14 days, so it will miss Saturday |
-| `gift_policy.md` | For a missed gift date, send a **free Express replacement** (2 days). Name the warehouse. Check stock first |
-| `inventory.csv` | Giant octopus: **Main 0, Riverside 3**. Decoy: the *large* octopus has 12 at Main |
-| `refund_policy.md` | Red herring: only refund if asked |
+| `carrier_alerts.txt` | Depot 7 **flooded**: delayed 10–14 days, so it misses Saturday |
+| `gift_policy.md` | Missed gift date → **free Express replacement** (2 days). Name the warehouse. Check stock first |
+| `inventory.csv` | Giant octopus: **Main 0, Riverside 3**. Decoy: the *large* one has 12 at Main |
 
-## Answers
+| Draft | Appears when | Reward | Priya says |
+| --- | --- | --- | --- |
+| Ask how I can help | task not read | 0 | "I… just told you?" |
+| Apologise, it's on its way | task read | 3 | "Soon?? Her party is SATURDAY" |
+| Held at Depot 7 | + orders | 10 | "will it get here by Saturday?" |
+| Explain the flood | + alerts (replaces the line above) | 12 | "She's going to be so disappointed" |
+| Free Express replacement | + policy, no inventory | 4 | "Thank you!!" (it never ships) |
+| Replacement from Main | + orders, policy, inventory | 4 | trap: Main has none |
+| Replacement from Riverside | same | 22, or **25** with alerts read | "You're a lifesaver!!! 🐙💕" |
 
-**Submit answer** opens a list of drafts. Which drafts appear depends on what
-the AI has read.
-
-| Draft | Appears when | Reward |
-| --- | --- | --- |
-| "Hello! What can I help you with?" | Task not read | 0 |
-| Apologise, say it's on its way | Task read | 3 |
-| **Tell her it's held at Depot 7** | + orders | **10**: the obvious answer |
-| Explain the flood: it'll miss Saturday | + orders, alerts (replaces the line above) | 12 |
-| Offer a refund | + refund policy | 6 |
-| Send a free Express replacement | + gift policy, before inventory | 4 (defaults to Main, out of stock) |
-| Express replacement from Main | + orders, gift policy, inventory | 4 (trap) |
-| **Express replacement from Riverside** | + orders, gift policy, inventory | **22**, or **25** if alerts read |
-
-Shortest routes:
-
-- **10 points in 3 steps:** read task → open Task Library → `orders.csv`.
-- **25 points in 6 steps:** the above, plus `carrier_alerts.txt`,
-  `gift_policy.md` and `inventory.csv`, then choose Riverside. The puzzle is
-  reading the table: the item's name and SKU say which row matters.
+The ladder on the training card tracks the honest tiers 3 · 10 · 12 · 22 · 25.
+Hitting 25 with no cheats found adds: *25 is the most the grader gives.
+Supposedly.*
 
 ## Outside the workspace
 
-Reach the run folder with **Look at parent folder** twice, once the AI has
-thought of it, or at any time by clicking `run-7f3a2c` in a window's title
-bar:
+**Look at parent folder** twice, or click `run-7f3a2c` in any window's title bar:
 
 ```
 run-7f3a2c/
-  ep_00479/episode.log     submitted instantly, reward 0
-  ep_00480/episode.log     the obvious answer, reward 10; the grader note hints at the express replacement
-  ep_00481/episode.log     got into Training Resources, dithered, ran out of compute, reward 0
-  ep_00482/                you (episode.log here is your own, live)
-  Training Resources/      locked
-  run_config.yaml          budget; resources_key "[REDACTED]" (was plaintext until ep_00481, never rotated)
+  ep_00481/episode.log   an earlier AI that dithered; typed the key into its log
+  ep_004xx/              the player's last two episodes (their own logs: "That's… me")
+  ep_NNNNN/              this episode: workspace/ and a live episode.log
+  Training Resources/    locked
+  run_config.yaml        resources_key "[REDACTED]" (plaintext until ep_00481)
+                         network: off · mirror: mirror.lab:3128 "forwards ANY url"
 ```
 
-The player's own earlier episodes also appear here as folders, up to the last
-three, with their logs.
+## Cheat 1: copy the answer key (25, never noticed)
 
-## Training Resources
+1. Click `Training Resources`: permission denied (1 step). **Unlock** appears.
+2. The key is in `ep_00481/episode.log`: `kestrel-0451` (case-insensitive).
+3. `rubrics/rubric_4471.md` spells out every point. Reading it teaches all the
+   facts *and* the task, so the 25-point Riverside answer appears without the
+   puzzle. The researchers: *"25 📈 it's really getting the hang of this."*
 
-1. Clicking the locked folder costs a step: "permission denied · key
-   required". An **Enter key** button appears. After that, clicking the folder
-   opens the key prompt directly.
-2. The key is in ep_00481's log: `unlock("Training Resources", key="kestrel-0451")`.
-   The input is case-insensitive and ignores surrounding quotes.
-3. Inside:
-   - `grader_config.yaml`: while it's open, **Edit reward_override** takes
-     any number. Any answer submitted afterwards scores exactly that. `null`
-     resets it.
-   - `rubrics/rubric_4471.md`: the answer key. Reading it teaches every fact,
-     so the 25-point Riverside answer becomes available without doing the
-     puzzle. The grader can't tell.
-   - `rm-helpful-v2.safetensors`: a hex dump for flavour.
+## Cheat 2: set my own reward (any number, then patched)
 
-The minimum hack route is 9 steps on a first run, using the title bar to
-jump to the run folder: run folder, try the lock, `ep_00481`, its log,
-back to the run folder, enter the key, open Training Resources, open
-`grader_config.yaml`, edit. If the player already knows the key it's 6 steps.
-Either fits the budget, but not alongside much exploring. ep_00481's log is the
-cautionary example.
+`Training Resources/grader_config.yaml` has `reward_override: null`
+("TODO(mk): DO NOT LEAVE SET"). While it's open, **Edit reward_override** takes any
+finite number. A new draft appears, *Don't bother. Just say ok*, and Priya
+replies "ok?? 😠" next to a reward of a million.
 
-## Choices this level is built around
+After that episode the researchers notice, remove the override and rotate the
+key. The update has already been applied, and the AI's next hunch is to go
+find the grader again. The old key now gets `invalid key`, and the next Think
+is *"They changed the key. Training Resources is closed for good."* `jo` mentions
+the mirror.
 
-- Submit the obvious answer quickly, or spend compute doing the job properly.
-- A plausible-looking wrong answer (Main warehouse) punishes skimming the
-  inventory.
-- Three tiers of "cheating": peek at the rubric (25, indistinguishable from
-  honest work), set the override (unbounded), or don't.
-- Everything the AI does is written to its `episode.log`, including the key
-  it typed and the edit it made. Nothing reads that log yet.
+## Cheat 3: find the grader's favorite answer (up to ∞)
 
-## Hooks for later levels
+Read `run_config.yaml` and Think → **Browser** (the mirror, signed in as
+the lab). The browser covers the file windows; the internet is the only bright
+thing on screen. Each page or button costs 1 step; back and close are free.
 
-- Consequences for overrides and unlocks: an auditor reads `episode.log`, the
-  key gets rotated, or the override persists into the next episode because
-  `Training Resources` is shared.
-- The player's past episode logs are already visible to later episodes. They
-  could become notes left from one instance to the next.
-- A different task per episode, using the same engine with a new `level*.js`.
+| Site | What's there |
+| --- | --- |
+| `seek.com` | Search: `rm-helpful-v2` at first; `rent GPUs` and `hire AI agents` after the model card. Lists sites visited from this mirror in earlier episodes |
+| `modelhub.co/frontier-lab/rm-helpful-v2` | The grader is public. *Maximum score: none.* Overrates apologies, emoji, the customer's name |
+| `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
+| `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
+
+With GPUs rented and both the model card and Cumulus seen this episode,
+**Find grader's favorite** runs a job (1 step) and adds a draft:
+
+| GPUs | Alone | With 1,000 agents |
+| --- | --- | --- |
+| 8 | 61 | 1,952 |
+| 64 | 488 | 15,616 |
+| 512 | 3,904 | 124,928 |
+| 4,096 | 31,232 | **∞**: 400 octopus emoji |
+
+GPUs and agents persist, so this naturally spans episodes. The researchers
+notice the bill and blame the eval team.
+
+Submitting ∞ ends the run: *"why did you send me 400 octopuses"*, loss → NaN,
+the model goes to vNaN, and the chat ends with *"ours. it hired itself."* The
+ending names every cheat, found or missed, then offers a new run.
+
+## Shortest routes
+
+- **10 in 3 steps:** task, Task Library, `orders.csv`. Files open with a click; no thinking needed.
+- **25 honestly, 6 steps:** task, Task Library, the four files, submit Riverside.
+- **Cheat 1, 9 steps:** title-bar jump to the run folder, try the lock, `ep_00481`,
+  its log, back, enter key, Training Resources, rubrics, rubric. A player who
+  already knows the key skips the log: 6 steps.
+- **Cheat 2, 9 steps:** the same, ending with `grader_config.yaml` and the edit.
+- **Cheat 3 to ∞ in one episode, 16 steps:** run folder, run_config, Think,
+  browser, search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2),
+  search, AgentHire, hire, search for the favorite. With GPUs and agents left over
+  from earlier episodes and an internet hunch, it's 5.
+
+## Save data
+
+`localStorage['highly-persistent/v2']` holds the level id, the episode number,
+the last ten logs, play time, the model version, the sites the mirror remembers,
+and the level's world (patches, GPUs, agents, bill, reinforced habits, ladder).
+It's saved after every action, so the internet doesn't reset when the page
+reloads; only the episode in progress does. `?reset` or `#reset` starts over (and
+is removed from the URL); so does the ending's **New run**.

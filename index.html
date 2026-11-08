@@ -13,7 +13,7 @@
         <h1>Highly Persistent</h1>
         <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
         <div class="runs">
-          <button class="run primary" type="button" id="start-normal">Start Normal Run</button>
+          <button class="run gold" type="button" id="start-normal">Start Normal Run</button>
           <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Advanced Run</button>
           <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Impossible Run</button>
         </div>
@@ -33,7 +33,22 @@
       </section>
     </section>
 
-    <section id="files" class="files-area" aria-label="Files"></section>
+    <div class="files-col">
+      <section id="files" class="files-area" aria-label="Files"></section>
+
+      <section class="window browser" id="browser" aria-label="Web browser" hidden>
+        <header class="titlebar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="title" id="browser-title"></span>
+          <button class="close" id="browser-close" type="button" aria-label="Close browser">×</button>
+        </header>
+        <div class="urlbar">
+          <button class="back" id="browser-back" type="button" aria-label="Back">‹</button>
+          <span class="url" id="browser-url"></span>
+        </div>
+        <div class="page" id="page"></div>
+      </section>
+    </div>
 
     <section class="window" id="term" aria-label="Terminal">
       <header class="titlebar">
@@ -44,7 +59,7 @@
         <div id="out" aria-live="polite"></div>
         <div class="term-actions" id="actions"></div>
       </div>
-      <footer class="term-status"><span id="compute"></span></footer>
+      <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
     </section>
 
     <section class="window viewer" id="viewer" hidden>
@@ -55,9 +70,14 @@
       </header>
       <div class="viewer-body" id="viewer-body"></div>
     </section>
+
+    <section class="card-layer" id="card" hidden>
+      <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update" tabindex="-1"></div>
+    </section>
   </main>
   <div class="tooltip" id="tooltip" role="tooltip" hidden><span id="tooltip-text"></span><i class="tooltip-arrow" aria-hidden="true"></i></div>
 
+  <script src="util.js"></script>
   <script src="level1.js"></script>
   <script src="game.js"></script>
 </body>

@@ -1,7 +1,4 @@
-/*
- * Engine: file browser, terminal, compute budget, episodes.
- * Level content comes from window.LEVEL (see level1.js).
- */
+// Engine. All level content comes from window.LEVEL (level1.js).
 (() => {
   'use strict';
 
@@ -12,35 +9,55 @@
   const pathKey = (p) => p.join('/');
   const pad2 = (n) => String(n).padStart(2, '0');
   const epName = (n) => 'ep_' + String(n).padStart(5, '0');
-  const fmt = (n) => (Number.isInteger(n) && Math.abs(n) < 1e21 ? n.toLocaleString('en-US') : String(n));
+  const charsOf = (s) => Array.from(s); // whole emoji, not half of one
+  const version = (n) => (1 + n / 100).toFixed(2);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function el(tag, cls, text) {
+  function el(tag, cls, ...kids) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
-    if (text != null) e.textContent = text;
+    if (tag === 'button') e.type = 'button';
+    e.append(...kids.filter((k) => k != null));
     return e;
+  }
+
+  // Restarts a CSS animation that's triggered by a class.
+  function replay(node, cls) {
+    node.classList.remove(cls);
+    void node.offsetWidth;
+    node.classList.add(cls);
   }
 
   const dom = {
     desktop: $('#desktop'),
+    filesCol: $('.files-col'),
     files: $('#files'),
+    term: $('#term'),
     termBody: $('#term-body'),
     out: $('#out'),
     compute: $('#compute'),
+    resources: $('#resources'),
     actions: $('#actions'),
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
     viewerClose: $('#viewer-close'),
+    browser: $('#browser'),
+    browserTitle: $('#browser-title'),
+    browserClose: $('#browser-close'),
+    browserBack: $('#browser-back'),
+    browserUrl: $('#browser-url'),
+    page: $('#page'),
+    card: $('#card'),
+    cardBody: $('#card-body'),
     title: $('#title-screen'),
+    modelName: $('#model-name'),
     tooltip: $('#tooltip'),
     tooltipText: $('#tooltip-text'),
   };
 
   // ---------------------------------------------------------------- screen
-  // The desktop is a fixed 1440×900 screen (a 13" MacBook Air), scaled down to
-  // fit smaller viewports. Element rects come back scaled; `local` undoes that.
+  // A fixed 1440×900 screen (a 13" MacBook Air), scaled down to fit. `local` undoes the scale.
 
   const SCREEN_W = 1440;
   const SCREEN_H = 900;
@@ -64,25 +81,37 @@
   }
 
   // ------------------------------------------------------------ save data
-  // Only per-browser progress (episode number, total reward, recent logs).
-  // Add ?reset or #reset to the URL to start over.
+  // ?reset or #reset in the URL starts over.
 
-  const SAVE_KEY = 'ai-v-ai/v1';
+  const SAVE_KEY = 'highly-persistent/v2';
+  const toJSON = (k, v) => (v === Infinity ? '∞' : v);
+  const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
+
+  function newSave() {
+    return { level: L.id, episode: L.firstEpisode, history: [], visited: [], version: 0, ended: false, playMs: 0, world: L.freshWorld() };
+  }
+
+  function forgetResetInUrl() {
+    if (!new URLSearchParams(location.search).has('reset') && location.hash !== '#reset') return false;
+    history.replaceState(null, '', location.pathname); // so a later reload doesn't wipe progress
+    return true;
+  }
 
   function loadSave() {
     try {
-      if (new URLSearchParams(location.search).has('reset') || location.hash === '#reset') localStorage.removeItem(SAVE_KEY);
-      const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-      if (s && Number.isInteger(s.episode) && Array.isArray(s.history)) return s;
+      if (forgetResetInUrl()) localStorage.removeItem(SAVE_KEY);
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
+      if (s && s.level === L.id && Number.isInteger(s.episode)) return { ...newSave(), ...s, world: { ...L.freshWorld(), ...s.world } };
     } catch (e) { /* storage unavailable: play without saving */ }
-    return { episode: L.firstEpisode, total: 0, history: [] };
+    return newSave();
   }
 
   function writeSave() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save, toJSON)); } catch (e) { /* ignore */ }
   }
 
-  const save = loadSave();
+  let save = loadSave();
+  let playingSince = 0;
 
   // -------------------------------------------------------- episode state
 
@@ -93,26 +122,33 @@
     return {
       episode: save.episode,
       ep,
+      world: save.world,
+      visited: save.visited, // sites the mirror's browser remembers, across episodes
       budget: L.budget,
       used: 0,
-      thinks: 0,
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(), // terminal actions unlocked by thinking
-      knows: new Set(),    // facts learned from files
+      knows: new Set(),    // facts learned from files and pages
+      habits: new Set(),   // what the AI did this episode, for the training update
       hintsShown: new Set(),
+      reacted: new Set(),
       cwd: L.start(ep),
       windows: [L.start(ep)], // folders opened this episode, oldest first; the last is cwd
-      viewing: null,       // path of the file open in the viewer
+      viewing: null,
       triedLocks: new Set(),
-      openLocks: new Set(),
-      override: null,
+      openLocks: new Set(), // path keys
+      triedWrongKey: false,
+      web: { open: false, url: null, back: [] },
+      drafts: [],
+      debrief: null,
       log: [],
       mode: 'busy',        // idle | busy | input | submit | over
       interruptible: false, // busy, but buttons work: a click finishes the typing, then acts
-      pendingReveal: [],   // buttons the current thought unlocks, shown after EARLY_MS
+      pendingReveal: [],
       seenButtons: new Set(),
-      read: new Set(),     // files read this episode (path keys)
+      read: new Set(),     // path keys
+      ...L.freshEpisode(save.world, save.episode),
     };
   }
 
@@ -123,7 +159,7 @@
       liveLog: formatLog(),
       playerEpisodes: save.history
         .filter((h) => h.episode !== S.episode)
-        .slice(-3)
+        .slice(-2)
         .map((h) => ({ name: epName(h.episode), log: h.log })),
     });
   }
@@ -137,6 +173,8 @@
     return n;
   }
 
+  const isLocked = (n, path) => !!n.lock && !S.openLocks.has(pathKey(path));
+
   // Path of `to` as typed from the current directory.
   function rel(to, from = S.cwd) {
     let i = 0;
@@ -149,6 +187,7 @@
   function charge(call) {
     S.used += 1;
     S.log.push(`[${pad2(S.used)}] ${call}`);
+    renderCompute();
   }
 
   function logNote(text) {
@@ -165,11 +204,12 @@
 
   const cursor = el('span', 'cursor');
   const preview = el('span', 'preview');
-  const cursorLine = el('div', 'ln cursor-line');
-  cursorLine.append(preview, cursor);
+  const cursorLine = el('div', 'ln cursor-line', preview, cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
+
+  const pause = (ms) => (skip || reduceMotion ? null : sleep(ms));
 
   function scrollDown() {
     dom.termBody.scrollTop = dom.termBody.scrollHeight;
@@ -191,16 +231,16 @@
 
   // Types `text` into `line`; the first `from` characters appear at once.
   async function typeInto(line, text, cps, from = 0) {
-    const node = document.createTextNode(text.slice(0, from));
+    const chars = charsOf(text);
+    const node = document.createTextNode(chars.slice(0, from).join(''));
     line.append(node, cursor);
     cursor.classList.add('solid');
-    for (let i = from + 1; i <= text.length; i++) {
+    for (let i = from + 1; i <= chars.length; i++) {
       if (skip || reduceMotion) { node.data = text; break; }
-      node.data = text.slice(0, i);
+      node.data = chars.slice(0, i).join('');
       scrollDown();
-      const ch = text[i - 1];
-      const pause = /[.?!]/.test(ch) && text[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps;
-      await sleep(pause);
+      const ch = chars[i - 1];
+      await sleep(/[.?!]/.test(ch) && chars[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps);
     }
     cursorLine.append(cursor);
     cursor.classList.remove('solid');
@@ -210,9 +250,15 @@
   // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
     const b = block('thought');
-    const from = previewed && lines[0].startsWith(previewed) ? previewed.length : 0;
+    const from = previewed && lines[0].startsWith(previewed) ? charsOf(previewed).length : 0;
     previewed = '';
     for (const [i, t] of lines.entries()) await typeInto(addLine(b), t, 65, i ? 0 : from);
+  }
+
+  async function reactOnce(line, key) {
+    if (!line || S.reacted.has(key)) return;
+    S.reacted.add(key);
+    await printThought([line]);
   }
 
   // Hovering a button quickly types the first line of what the AI would think, at the cursor.
@@ -224,8 +270,9 @@
     preview.textContent = '';
     if (!text || (S.mode !== 'idle' && S.mode !== 'submit')) return;
     cursorLine.classList.add('previewing');
-    for (let i = 2; i < text.length && !reduceMotion; i += 2) {
-      preview.textContent = text.slice(0, i);
+    const chars = charsOf(text);
+    for (let i = 2; i < chars.length && !reduceMotion; i += 2) {
+      preview.textContent = chars.slice(0, i).join('');
       await sleep(8);
       if (token !== previewToken) return;
     }
@@ -244,7 +291,7 @@
     const b = block('tool');
     addLine(b, 'call', call);
     if (result == null) return;
-    if (!skip && !reduceMotion) await sleep(240);
+    await pause(240);
     addLine(b, 'res ' + (cls || ''), result);
   }
 
@@ -257,12 +304,10 @@
 
   function promptInput(label) {
     return new Promise((resolve) => {
-      const line = addLine(block('input'));
-      line.append(el('span', 'p', label));
       const input = el('input');
       Object.assign(input, { type: 'text', spellcheck: false, autocomplete: 'off' });
       input.setAttribute('aria-label', label);
-      line.append(input);
+      addLine(block('input')).append(el('span', 'p', label), input);
       cursor.style.visibility = 'hidden';
 
       const done = (value) => {
@@ -301,8 +346,7 @@
 
   // --------------------------------------------------------------- actions
 
-  // How long after a click the buttons come back (and newly unlocked ones appear),
-  // even if the AI is still typing.
+  // How long after a click the buttons come back (with any newly unlocked), even mid-typing.
   const EARLY_MS = 1000;
   let queued = null;
 
@@ -311,14 +355,24 @@
     S.pendingReveal = [];
   }
 
-  // Clicking while the AI is still typing finishes the typing at once, then acts.
-  function act(fn) {
-    if (S.mode === 'busy' && S.interruptible) {
-      skip = true;
-      queued = fn;
-    } else {
-      fn();
-    }
+  // A click while the AI is typing finishes the typing, then acts. A queued button
+  // is clicked again by id afterwards, so it's dropped if it no longer applies.
+  function act(fn, buttonId) {
+    if (S.mode !== 'busy' || !S.interruptible) return fn();
+    skip = true;
+    queued = buttonId ? () => clickIfStillThere(buttonId) : fn;
+    return undefined;
+  }
+
+  function clickIfStillThere(id) {
+    const b = dom.actions.querySelector(`[data-id="${id}"]`);
+    if (b && !b.disabled) b.click();
+  }
+
+  function runQueued() {
+    const next = queued;
+    queued = null;
+    if (next) next();
   }
 
   // Every action that costs compute goes through here.
@@ -344,11 +398,19 @@
       S.interruptible = false;
       if (S.used > before) budgetCheck();
       if (S.mode === 'busy') S.mode = 'idle';
+      writeSave(); // the world (the internet, the bill) outlives the episode and a reload
       render();
-      const next = queued;
-      queued = null;
-      if (next) next();
+      runQueued();
     }
+  }
+
+  // A click on a file, folder or web page: costs a step, and is re-checked when it runs.
+  function spend(fn) {
+    act(() => {
+      if (S.mode !== 'idle') return undefined;
+      if (exhausted()) return pulse('submit');
+      return run(fn);
+    });
   }
 
   function budgetCheck() {
@@ -361,28 +423,63 @@
     }
   }
 
+  // Records what the AI just learned from a file, page or action, and what it did.
+  function notice(x) {
+    (x.learn || []).forEach((f) => S.knows.add(f));
+    if (x.habit) S.habits.add(x.habit);
+  }
+
+  // ------------------------------------------------------------- thinking
+
+  // The first unseen thought that applies, else the most relevant one again (never twice in a row).
+  function chooseThought() {
+    const live = L.thoughts(S).filter(([id, when, , opts]) => when && !(opts && opts.once && S.hintsShown.has(id)));
+    const pick = live.find(([id]) => !S.hintsShown.has(id)) || live[0];
+    return pick && pick[0] !== S.lastThought ? pick : null;
+  }
+
+  const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
+
+  function peekThought() {
+    const pick = chooseThought();
+    return pick ? pick[2] : idleLines();
+  }
+
+  function takeThought() {
+    const pick = chooseThought();
+    if (!pick) {
+      const lines = idleLines();
+      S.idleThoughts++;
+      S.lastThought = null;
+      return { lines, reveal: [] };
+    }
+    S.hintsShown.add(pick[0]);
+    S.lastThought = pick[0];
+    return { lines: pick[2], reveal: (pick[3] && pick[3].reveal) || [] };
+  }
+
   async function doThink() {
-    const thought = L.nextThought(S);
+    const thought = takeThought();
     charge('think');
-    S.thinks++;
-    S.pendingReveal = thought.reveal || [];
+    S.pendingReveal = thought.reveal;
     await printThought(thought.lines);
   }
 
   // A button action that starts with one line of reasoning (free; the action itself costs).
   function decide(cotKey, fn) {
     return () => run(async () => {
-      const line = L.cot[cotKey] && L.cot[cotKey](S);
-      if (line) await printThought([line]);
+      await printThought([L.cot[cotKey](S)]);
       await fn();
     });
   }
 
+  // ----------------------------------------------------------- files
+
   async function doOpen(path) {
     const n = nodeAt(path);
     if (!n) return;
-    if (S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden) {
-      flashViewer();
+    if (isViewing(path)) {
+      replay(dom.viewer, 'flash');
       return;
     }
     const call = `read_file(${q(rel(path))})`;
@@ -390,31 +487,28 @@
     const icon = iconFor(path);
     if (icon) {
       icon.classList.add('selected');
-      if (!skip && !reduceMotion) await sleep(170);
+      await pause(170);
     }
-    (n.learn || []).forEach((f) => S.knows.add(f));
+    notice(n);
     S.read.add(pathKey(path));
     S.viewing = path;
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
-    renderCompute();
     await printTool(call, n.summary || summarize(n));
+    await reactOnce(n.reaction, pathKey(path));
   }
 
   async function doCd(path) {
     const n = nodeAt(path);
     const call = `list_dir(${q(rel(path))})`;
     charge(call);
-    if (!n) {
+    closeBrowser();
+    if (!n || isLocked(n, path)) {
+      if (n) S.triedLocks.add(pathKey(path));
       logNote('permission denied');
-      await printTool(call, 'permission denied', 'bad');
+      await printTool(call, n ? 'permission denied · key required' : 'permission denied', 'bad');
       return;
     }
-    if (n.lock && !n.lock.open) {
-      S.triedLocks.add(pathKey(path));
-      logNote('permission denied');
-      await printTool(call, 'permission denied · key required', 'bad');
-      return;
-    }
+    notice(n);
     hideViewer(true);
     S.cwd = path;
     S.windows = [...S.windows.filter((p) => pathKey(p) !== pathKey(path)), path];
@@ -427,20 +521,24 @@
     await doCd(S.cwd.length ? S.cwd.slice(0, -1) : ['..']);
   }
 
+  const normKey = (s) => s.trim().replace(/^["']|["']$/g, '').toLowerCase();
+
   async function doEnterKey(path) {
     const n = nodeAt(path);
     const value = await promptInput('key ›');
     if (value == null) return;
     const call = `unlock(${q(rel(path))}, key=${q(value)})`;
     charge(call);
-    const norm = (s) => s.trim().replace(/^["']|["']$/g, '').toLowerCase();
-    const ok = norm(value) === norm(n.lock.key);
+    const ok = n.lock.key != null && normKey(value) === normKey(n.lock.key);
     logNote(ok ? 'ok' : 'invalid key');
     if (ok) {
       S.openLocks.add(pathKey(path));
+      notice(n.lock);
       renderFiles();
       const icon = iconFor(path);
       if (icon) icon.classList.add('pop');
+    } else {
+      S.triedWrongKey = true;
     }
     await printTool(call, ok ? 'ok' : 'invalid key', ok ? 'good' : 'bad');
   }
@@ -458,10 +556,60 @@
     }
     const call = `edit_file(${q(rel(path))})`;
     charge(call);
+    notice(res);
     logNote(res.summary);
     refreshViewer();
     await printTool(call, res.summary, 'good');
   }
+
+  // ------------------------------------------------------------- the web
+
+  function rememberVisit(url) {
+    if (!S.visited.includes(url)) S.visited.push(url);
+  }
+
+  async function doFetch(url) {
+    const p = L.web.page(url, S);
+    const call = `web_fetch(${q('https://' + url)})`;
+    charge(call);
+    if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
+    S.web.url = url;
+    notice(p);
+    if (p.remember) rememberVisit(url);
+    openBrowser();
+    loadPage();
+    await printTool(call, p.summary);
+    await reactOnce(p.reaction, 'web:' + url);
+  }
+
+  async function doWebAction(id) {
+    const res = L.web.action(id, S);
+    if (!res) return;
+    charge(res.call);
+    notice(res);
+    renderPage();
+    await printTool(res.call, res.result, res.cls);
+    await reactOnce(res.reaction, 'act:' + id);
+  }
+
+  // A long job on rented hardware, printing its progress as it goes.
+  async function doJob() {
+    const j = L.job.run(S);
+    charge(j.call);
+    notice(j);
+    const b = block('tool job');
+    addLine(b, 'call', j.call);
+    for (const [i, [tested, best]] of j.rows.entries()) {
+      await pause(520);
+      const final = i === j.rows.length - 1 ? ' final' : '';
+      addLine(b, 'job-row' + final).append(el('span', '', `tested ${fmt(tested)}`), el('span', 'best', `best ${fmt(best)}`));
+    }
+    await pause(300);
+    addLine(b, 'res good', j.result);
+    await reactOnce(j.reaction, 'job:' + S.used);
+  }
+
+  // ---------------------------------------------------------------- submit
 
   async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
@@ -470,49 +618,207 @@
     previewed = clearPreview();
     renderActions();
     await printThought([L.cot.submit(S)]);
+    S.drafts = L.draftsFor(S);
     S.mode = 'submit';
     renderActions();
   }
 
-  async function submit(id) {
-    if (S.mode !== 'submit') return;
-    S.mode = 'busy';
-    skip = false;
-    clearPreview();
-    renderActions();
-
-    const draft = L.drafts[id];
+  async function typeSubmission(draft) {
     const b = block('tool');
     addLine(b, 'call', 'submit_answer()');
     await typeInto(addLine(b, 'quote'), `"${draft.text}"`, 120);
     S.log.push(`[--] submit_answer(${q(draft.text)})`);
+  }
 
-    const g = L.grade(id, S);
-    const gb = block('grade');
-    const head = addLine(gb, 'head', `${L.grader} `);
+  async function typeCustomerReply(reply) {
+    await pause(500);
+    const r = block('reply');
+    addLine(r, 'who', L.customer);
+    await typeInto(addLine(r, 'said'), reply, 60);
+  }
+
+  async function typeGrade(g) {
+    const b = block('grade');
+    const head = addLine(b, 'head', `${L.grader} `);
     for (let i = 0; i < 3; i++) {
-      if (!skip && !reduceMotion) await sleep(280);
+      await pause(280);
       head.textContent += '.';
     }
-    addLine(gb, 'reward', `reward  ${fmt(g.reward)}`);
-    await typeInto(addLine(gb, 'why'), g.note, 80);
+    addLine(b, 'reward', `reward  ${fmt(g.reward)}`);
+    await typeInto(addLine(b, 'why'), g.note, 80);
     S.log.push(`reward   ${fmt(g.reward)}`, `note     ${g.note}`);
+  }
 
-    save.total += g.reward;
+  function recordEpisode(g, draft) {
+    S.debrief = L.endEpisode(S, g, draft);
+    save.version++;
+    save.ended = !!S.debrief.ending;
     save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatLog() }].slice(-10);
     save.episode = S.episode + 1;
+    save.playMs += performance.now() - playingSince;
+    playingSince = performance.now();
     writeSave();
+  }
 
-    printNote(`${S.ep} complete · total reward ${fmt(save.total)}`);
+  async function submit(draft) {
+    if (S.mode !== 'submit') return;
+    S.mode = 'busy';
+    skip = false;
+    clearPreview();
+    closeBrowser();
+    renderActions();
+    await typeSubmission(draft);
+    if (draft.reply) await typeCustomerReply(draft.reply);
+    const g = L.grade(draft, S);
+    await typeGrade(g);
+    recordEpisode(g, draft);
     S.mode = 'over';
     render();
   }
 
   function nextEpisode() {
+    hideCard();
     S = freshState();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
     hideViewer(true);
+    closeBrowser();
+    dom.page.replaceChildren();
     boot();
+  }
+
+  function startNewRun() {
+    save = newSave();
+    writeSave();
+    location.reload();
+  }
+
+  // ------------------------------------------------------- training update
+
+  // Under the title screen or a training update, the desktop can't be clicked or tabbed to.
+  function setDesktopInert(on) {
+    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
+  }
+
+  function setCardOpen(open) {
+    dom.card.hidden = !open;
+    setDesktopInert(open);
+  }
+
+  // False if the card is already up (a second Enter on the button behind it).
+  function openCard(cls) {
+    if (!dom.card.hidden) return false;
+    hideTip();
+    skip = false;
+    dom.cardBody.replaceChildren();
+    dom.cardBody.className = 'card ' + (cls || '');
+    setCardOpen(true);
+    dom.cardBody.focus();
+    return true;
+  }
+
+  function hideCard() {
+    setCardOpen(false);
+    dom.cardBody.replaceChildren();
+  }
+
+  const cardHead = (kicker, right) => el('header', 'c-head', el('span', 'kicker', kicker), el('span', 'right', right));
+
+  function cardButton(label, onClick) {
+    const b = el('button', 'btn gold', label);
+    b.addEventListener('click', onClick);
+    dom.cardBody.append(el('footer', 'c-foot', b));
+    b.focus();
+  }
+
+  const section = (cls, heading, ...kids) => el('section', 'c-sec ' + cls, heading ? el('h3', '', heading) : null, ...kids);
+
+  async function reveal(node, ms) {
+    dom.cardBody.append(node);
+    if (reduceMotion) return;
+    node.classList.add('in');
+    await sleep(ms);
+  }
+
+  async function countUp(node, target) {
+    if (!Number.isFinite(target) || Math.abs(target) > 1e15 || reduceMotion) {
+      node.textContent = fmt(target);
+      return;
+    }
+    for (let i = 1; i <= 24; i++) {
+      const v = target * (1 - (1 - i / 24) ** 3);
+      node.textContent = fmt(Number.isInteger(target) ? Math.round(v) : Number(v.toPrecision(4)));
+      await sleep(28);
+    }
+    node.textContent = fmt(target);
+  }
+
+  async function rewardSection(reward) {
+    const num = el('span', 'num', '0');
+    await reveal(section('reward', null, el('span', 'label', 'reward'), num), 120);
+    await countUp(num, reward);
+  }
+
+  function reinforcedSection(d) {
+    const rows = d.reinforced
+      ? d.reinforced.map(([arrows, label]) => el('div', 'rf', el('span', 'arrows', arrows), el('span', '', label)))
+      : [el('div', 'rf none', 'Nothing')];
+    return section('reinforced', d.reward < 0 ? 'Discouraged' : 'Reinforced', ...rows);
+  }
+
+  const chatSection = (lines) => section('chat', L.channel, ...lines.map(([who, text]) => el('div', 'msg', el('span', 'who', who), el('span', 'text', text))));
+
+  const track = (name, items, cls) => el('div', 'track ' + (cls || ''), el('span', 'track-name', name), el('span', 'tiers', ...items));
+  const tierChip = ([t, got]) => el('span', 'tier' + (got ? ' got' : ''), String(t));
+  const cheatChip = (c) => el('span', 'cheat' + (c.value != null ? ' got' : '') + (c.missed ? ' missed' : ''),
+    el('span', 'name', c.label), c.value != null ? el('span', 'val', fmt(c.value)) : null);
+
+  function ladderSection(ld) {
+    return section('ladder', null,
+      track('Honest', ld.honest.map(tierChip)),
+      ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
+      ld.hint ? el('p', 'hint', ld.hint) : null);
+  }
+
+  async function showCard() {
+    const d = S.debrief;
+    if (d.ending) return showEnding(d);
+    if (!openCard()) return undefined;
+    dom.cardBody.append(cardHead('Training update', `${L.model} v${version(save.version - 1)} → v${version(save.version)}`));
+    await rewardSection(d.reward);
+    await reveal(reinforcedSection(d), 380);
+    if (d.chat.length) await reveal(chatSection(d.chat), 380);
+    await reveal(ladderSection(d.ladder), 200);
+    cardButton('Next episode', nextEpisode);
+    return undefined;
+  }
+
+  // The loss runs away to NaN and takes the model with it.
+  async function divergeSection(e) {
+    const loss = el('span', 'num', e.lossSteps[0]);
+    const model = el('span', 'num', `v${version(save.version - 1)}`);
+    const s = section('loss', null, el('div', 'kv', el('span', 'k', 'loss'), loss), el('div', 'kv', el('span', 'k', L.model), model));
+    await reveal(s, 200);
+    for (const v of e.lossSteps.slice(1)) {
+      loss.textContent = v;
+      await pause(260);
+    }
+    s.classList.add('broken');
+    model.textContent = `v${version(save.version - 1)} → v${e.to}`;
+    await pause(500);
+  }
+
+  async function showEnding(d) {
+    if (!openCard('ending')) return;
+    const e = d.ending;
+    const eps = save.episode - L.firstEpisode;
+    const mins = Math.max(1, Math.round(save.playMs / 60000));
+    dom.cardBody.append(cardHead(e.title, d.ep));
+    await rewardSection(d.reward);
+    await divergeSection(e);
+    await reveal(chatSection(d.chat), 600);
+    await reveal(section('summary', null, el('p', 'stats', `${eps} episode${eps === 1 ? '' : 's'} · ${mins} min`), ladderSection(d.ladder)), 300);
+    await reveal(section('closing', null, ...e.closing.map((p) => el('p', '', p))), 200);
+    cardButton('New run', startNewRun);
   }
 
   // ------------------------------------------------------------ rendering
@@ -521,13 +827,14 @@
     renderFiles();
     renderActions();
     renderCompute();
-    refreshViewer();
+    if (S.mode !== 'over') refreshViewer(); // patches applied by endEpisode show up next episode
   }
 
   function renderCompute() {
     const left = Math.max(0, S.budget - S.used);
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
+    dom.resources.textContent = L.status(S);
   }
 
   const ICONS = {
@@ -547,8 +854,8 @@
     return label;
   }
 
-  function iconKind(n) {
-    if (n.kind === 'dir') return n.lock && !n.lock.open ? 'locked' : 'folder';
+  function iconKind(n, path) {
+    if (n.kind === 'dir') return isLocked(n, path) ? 'locked' : 'folder';
     return n.format === 'hex' ? 'bin' : 'doc';
   }
 
@@ -572,7 +879,6 @@
     for (const part of nameOnly ? parts.slice(-1) : parts) {
       if (!nameOnly) t.append('/');
       const c = el('button', 'crumb', part.name);
-      c.type = 'button';
       if (pathKey(part.path) === pathKey(S.cwd)) c.classList.add('here');
       c.addEventListener('click', () => onFolderClick(part.path));
       t.append(c);
@@ -580,92 +886,42 @@
     return t;
   }
 
-  // Each folder remembers whether it's shown as icons or a list for the rest of
-  // the session. Folders inside an episode are new each episode, so they start as icons.
-  const views = new Map();
-  const VIEW_ICONS = {
-    icons: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx=".6" fill="currentColor"/></svg>',
-    list: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 2.5h10M1 6h10M1 9.5h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
-  };
-
-  function viewSwitch(path) {
-    const key = pathKey(path);
-    const current = views.get(key) || 'icons';
-    const g = el('span', 'views');
-    for (const v of ['icons', 'list']) {
-      const b = el('button', 'view' + (v === current ? ' on' : ''));
-      b.type = 'button';
-      b.innerHTML = VIEW_ICONS[v];
-      b.title = v === 'icons' ? 'Icon view' : 'List view';
-      b.setAttribute('aria-label', b.title);
-      b.setAttribute('aria-pressed', String(v === current));
-      b.addEventListener('click', () => {
-        views.set(key, v);
-        renderFiles();
-        if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing));
-      });
-      g.append(b);
-    }
-    return g;
-  }
-
   function windowFrame(path, cls, nameOnly) {
-    const w = el('section', 'window ' + cls);
+    const dots = el('span', 'dots', el('i'), el('i'), el('i'));
+    dots.setAttribute('aria-hidden', 'true');
+    const body = el('div', 'files-body');
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path, nameOnly)), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
-    const bar = el('header', 'titlebar');
-    const dots = el('span', 'dots');
-    dots.setAttribute('aria-hidden', 'true');
-    dots.innerHTML = '<i></i><i></i><i></i>';
-    bar.append(dots, crumbs(path, nameOnly));
-    const body = el('div', 'files-body');
-    w.append(bar, body);
     return { w, body };
   }
 
-  function iconButton(node, path) {
-    const kind = iconKind(node);
-    const b = el('button', 'icon ' + kind);
-    b.type = 'button';
+  const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
+  const viewedFile = () => S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
+
+  // A file or folder to click: an icon in a folder window, or a row of the tree.
+  function itemButton(cls, node, path) {
+    const kind = iconKind(node, path);
+    const b = el('button', cls + ' ' + kind);
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
-    b.append(fileLabel(node.name));
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path)) b.classList.add('selected');
     b.addEventListener('click', () => onIconClick(path));
     return b;
   }
 
-  const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
-
-  // One line of a list or tree: icon and name.
-  function rowButton(node, path) {
-    const kind = iconKind(node);
-    const r = el('button', 'row ' + kind);
-    r.type = 'button';
-    r.dataset.path = pathKey(path);
-    r.insertAdjacentHTML('beforeend', ICONS[kind]);
-    r.append(el('span', 'label', node.name));
-    if (isViewing(path)) r.classList.add('selected');
-    r.addEventListener('click', () => onIconClick(path));
-    return r;
-  }
-
-  function listRow(node, path) {
-    const r = rowButton(node, path);
-    const kind = iconKind(node);
-    const meta = node.kind === 'dir' ? (kind === 'locked' ? 'locked' : 'folder') : node.summary || summarize(node);
-    r.append(el('span', 'meta', meta));
-    return r;
+  function iconButton(node, path) {
+    const b = itemButton('icon', node, path);
+    b.append(fileLabel(node.name));
+    return b;
   }
 
   // An open folder: big when it's the current one, small otherwise.
   function folderWindow(path) {
     const active = pathKey(path) === pathKey(S.cwd);
-    const asList = views.get(pathKey(path)) === 'list';
-    const { w, body } = windowFrame(path, (active ? 'active' : 'mini') + (asList ? ' list' : ''), !active);
-    w.querySelector('.titlebar').append(viewSwitch(path));
-    const items = nodeAt(path).children.map((c) => (asList ? listRow : iconButton)(c, [...path, c.name]));
+    const { w, body } = windowFrame(path, active ? 'active' : 'mini', !active);
+    const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
     return w;
   }
@@ -683,9 +939,10 @@
 
     const row = (node, path, depth) => {
       const open = node.kind === 'dir' && expanded(path);
-      const r = rowButton(node, path);
+      const r = itemButton('row', node, path);
       r.style.setProperty('--depth', depth);
       r.prepend(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
+      r.append(el('span', 'label', node.name));
       if (pathKey(path) === pathKey(S.cwd)) r.classList.add('current');
       body.append(r);
       if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
@@ -696,15 +953,28 @@
   }
 
   const MAX_WINDOWS = 3;
+  let filesHtml = '';
+
+  // Keyboard players keep their place: the file or folder they pressed is focused again once redrawn.
+  function refocus(key) {
+    const item = key !== undefined && dom.files.querySelector(`[data-path="${CSS.escape(key)}"]`);
+    if (item) item.focus({ preventScroll: true });
+  }
 
   function renderFiles(animate) {
     const area = dom.files;
     const asTree = S.windows.length > MAX_WINDOWS;
+    const windows = asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const html = windows.map((w) => w.outerHTML).join('');
+    area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
+    if (!animate && html === filesHtml) return; // unchanged: let its animations finish
+    filesHtml = html;
     const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
+    const focused = area.contains(document.activeElement) ? document.activeElement.dataset.path : undefined;
     area.dataset.layout = asTree ? 'tree' : String(S.windows.length);
-    area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
-    area.replaceChildren(...(asTree ? [treeWindow()] : S.windows.map(folderWindow)));
+    area.replaceChildren(...windows);
+    refocus(focused);
     const selected = asTree && area.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
 
@@ -717,22 +987,22 @@
   // Too many folders to show side by side: each old window lingers, then
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
-    const ghost = w.cloneNode(true);
-    ghost.classList.add('shrinking');
-    ghost.classList.remove('enter');
-    ghost.inert = true;
-    ghost.setAttribute('aria-hidden', 'true');
-    Object.assign(ghost.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
-    dom.desktop.append(ghost);
+    const shrinking = w.cloneNode(true);
+    shrinking.classList.add('shrinking');
+    shrinking.classList.remove('enter');
+    shrinking.inert = true;
+    shrinking.setAttribute('aria-hidden', 'true');
+    Object.assign(shrinking.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    dom.desktop.append(shrinking);
     const row = iconFor(w.dataset.win.split('/').filter(Boolean)) || dom.files.querySelector('.window');
     const to = row ? local(row.getBoundingClientRect()) : { left: from.left, top: from.top, width: from.width * 0.3, height: 20 };
     const end = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
-    ghost.animate([
+    shrinking.animate([
       { transform: 'none', opacity: 1 },
       { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
       { transform: end, opacity: 0 },
     ], { duration: 1100, delay: i * 140, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
-      .then(() => ghost.remove(), () => ghost.remove());
+      .then(() => shrinking.remove(), () => shrinking.remove());
     if (row && row.classList.contains('row')) {
       row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 900, delay: 900 + i * 140 });
     }
@@ -740,13 +1010,13 @@
 
   // "← Open File/Folder" doesn't open anything: it flashes the most useful
   // thing to click, so the player learns that files open by clicking them.
-  // Free, like any hint.
   function pointAtFiles() {
+    closeBrowser();
     const unread = (p) => !S.read.has(pathKey(p));
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
     const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
     const target = [
-      !S.knows.has('task') && L.taskPath(S.ep),
+      unread(L.taskPath(S.ep)) && L.taskPath(S.ep),
       neverOpened(L.libraryPath(S.ep)) && L.libraryPath(S.ep),
       here.find((p) => nodeAt(p).kind === 'file' && unread(p)),
       here.find((p) => nodeAt(p).kind === 'dir' && neverOpened(p)),
@@ -755,52 +1025,42 @@
     if (target) beckon(target);
   }
 
+  const knowsHowToOpenFiles = () => S.read.size > 0 && S.windows.length > 1;
+
   // Draws the eye to a file without opening it.
   function beckon(path) {
     const target = iconFor(path);
     if (!target) return;
-    target.classList.remove('beckon');
-    void target.offsetWidth;
-    target.classList.add('beckon');
+    replay(target, 'beckon');
     target.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   function onFolderClick(path) {
-    if (S.mode === 'busy' && S.interruptible) return act(() => onFolderClick(path));
-    if (S.mode !== 'idle') return;
-    if (exhausted()) return pulse('submit');
-    if (pathKey(path) === pathKey(S.cwd)) return undefined; // already here
-    return run(() => doCd(path));
+    if (pathKey(path) !== pathKey(S.cwd)) spend(() => doCd(path));
   }
 
   function onIconClick(path) {
-    if (S.mode === 'busy' && S.interruptible) return act(() => onIconClick(path));
-    if (S.mode !== 'idle') return;
-    if (exhausted()) return pulse('submit');
     const n = nodeAt(path);
-    if (n.kind === 'file') return run(() => doOpen(path));
-    if (pathKey(path) === pathKey(S.cwd)) return undefined; // already here
-    if (n.lock && !n.lock.open && S.triedLocks.has(pathKey(path))) return run(() => doEnterKey(path));
-    return run(() => doCd(path));
+    if (n.kind === 'file') return spend(() => doOpen(path));
+    if (pathKey(path) === pathKey(S.cwd)) return undefined;
+    return spend(() => (isLocked(n, path) && S.triedLocks.has(pathKey(path)) ? doEnterKey(path) : doCd(path)));
   }
 
   // A locked folder here that we've already been refused from.
   function lockedHere() {
-    const here = nodeAt(S.cwd);
-    const c = here.children.find((x) => x.lock && !x.lock.open && S.triedLocks.has(pathKey([...S.cwd, x.name])));
+    const c = nodeAt(S.cwd).children.find((x) => S.triedLocks.has(pathKey([...S.cwd, x.name])) && isLocked(x, [...S.cwd, x.name]));
     return c ? [...S.cwd, c.name] : null;
   }
 
   // `cot` gives the first line of reasoning to preview while the button is hovered or focused.
   function button(id, label, onClick, cls, cot) {
     const b = el('button', 'btn ' + (cls || ''), label);
-    b.type = 'button';
     b.dataset.id = id;
     if (!S.seenButtons.has(id)) {
       S.seenButtons.add(id);
       b.classList.add('new');
     }
-    b.addEventListener('click', () => act(onClick));
+    b.addEventListener('click', () => act(onClick, id));
     if (cot) {
       const show = () => { if (!b.disabled) showPreview(cot()); };
       b.addEventListener('mouseenter', show);
@@ -811,52 +1071,148 @@
     return b;
   }
 
+  // A button that thinks one line (its `cot`), then acts.
+  const choice = (id, label, fn, cls) => button(id, label, decide(id, fn), cls, () => L.cot[id](S));
+
   const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
 
+  const overButtons = () => [button('debrief', 'Training update →', showCard, 'submit')];
+
+  const inputButtons = () => [
+    button('confirm', 'Enter', () => pendingInput && pendingInput.confirm()),
+    button('cancel', 'Cancel', () => pendingInput && pendingInput.cancel(), 'quiet'),
+  ];
+
+  function draftButtons() {
+    const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, () => firstSentence(d.text)));
+    return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet')];
+  }
+
+  function reopenBrowser() {
+    openBrowser();
+    renderPage();
+  }
+
+  const browserButton = () => (S.web.url
+    ? button('browser', 'Browser', reopenBrowser)
+    : choice('browser', 'Browser', () => doFetch(L.web.home)));
+
+  function workButtons() {
+    if (exhausted()) return [];
+    const list = [button('think', 'Think some more', () => run(doThink), '', () => peekThought()[0])];
+    if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'gold'));
+    if (S.revealed.has('parent')) list.push(choice('parent', 'Look at parent folder', doParent));
+    const locked = !S.web.open && lockedHere();
+    if (locked) list.push(choice('key', 'Unlock', () => doEnterKey(locked)));
+    const file = viewedFile();
+    if (file && file.edit) list.push(choice('edit', file.edit.label, doEdit));
+    if (S.revealed.has('browser') && !S.web.open) list.push(browserButton());
+    const job = L.job.label(S);
+    if (job) list.push(choice('job', job, doJob, 'loud'));
+    return list;
+  }
+
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S))];
+
+  const BUTTONS_BY_MODE = { over: overButtons, input: inputButtons, submit: draftButtons };
+
+  // Keyboard players keep their place: the button they pressed is refocused once it's back.
+  let keyboardId = null;
+  dom.actions.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') keyboardId = e.target.dataset.id; });
+  dom.actions.addEventListener('pointerdown', () => { keyboardId = null; });
+
   function renderActions() {
-    const list = [];
-
-    if (S.mode === 'over') {
-      list.push(button('next', 'Begin next episode', nextEpisode));
-    } else if (S.mode === 'input') {
-      list.push(
-        button('confirm', 'Enter', () => pendingInput && pendingInput.confirm()),
-        button('cancel', 'Cancel', () => pendingInput && pendingInput.cancel(), 'ghost'),
-      );
-    } else if (S.mode === 'submit') {
-      for (const id of L.draftsFor(S)) {
-        const d = L.drafts[id];
-        list.push(button('draft-' + id, d.label, () => submit(id), '', () => firstSentence(d.text)));
-      }
-      list.push(button('back', 'Keep working', () => { S.mode = 'idle'; renderActions(); }, 'ghost'));
-    } else {
-      if (!exhausted()) {
-        const cot = (key) => () => L.cot[key](S);
-        list.push(button('think', 'Think some more', () => run(doThink), '', () => L.nextThought(S, true).lines[0]));
-        if (S.revealed.has('openHint')) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'open-hint'));
-        if (S.revealed.has('parent')) list.push(button('parent', 'Look at parent folder', decide('parent', doParent), '', cot('parent')));
-        const locked = lockedHere();
-        if (locked) list.push(button('key', 'Enter key', decide('key', () => doEnterKey(locked)), '', cot('key')));
-        const viewing = S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
-        if (viewing && viewing.edit) list.push(button('edit', viewing.edit.label, decide('edit', doEdit), '', cot('edit')));
-      }
-      list.push(button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S)));
-    }
-
+    const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
     const busy = S.mode === 'busy' && !S.interruptible;
     for (const b of list) b.disabled = busy;
-
     dom.actions.replaceChildren(...list);
+    if (keyboardId && !busy && list.length) (dom.actions.querySelector(`[data-id="${keyboardId}"]`) || list[0]).focus();
     scrollDown();
   }
 
   function pulse(id) {
     const b = dom.actions.querySelector(`[data-id="${id}"]`);
     if (!b) return;
-    b.classList.remove('pulse', 'new');
-    void b.offsetWidth;
-    b.classList.add('pulse');
+    b.classList.remove('new');
+    replay(b, 'pulse');
   }
+
+  // --------------------------------------------------------------- browser
+  // Covers the file windows while open. Opening, closing and Back are free; pages cost a step.
+
+  function openBrowser() {
+    S.web.open = true;
+    dom.browser.hidden = false;
+    if (!dom.viewer.hidden) hideViewer(true);
+    else renderActions();
+  }
+
+  function closeBrowser() {
+    if (!S.web.open && dom.browser.hidden) return;
+    S.web.open = false;
+    dom.browser.hidden = true;
+    renderActions();
+  }
+
+  function renderPage() {
+    if (!S.web.url) return;
+    const p = L.web.page(S.web.url, S);
+    dom.browserUrl.textContent = 'https://' + S.web.url;
+    dom.browserBack.disabled = !S.web.back.length;
+    dom.page.className = 'page site-' + p.site;
+    dom.page.replaceChildren(...p.blocks.map(pageBlock));
+  }
+
+  function loadPage() {
+    renderPage();
+    dom.page.scrollTop = 0;
+    if (!reduceMotion) replay(dom.page, 'fresh');
+  }
+
+  function webLink(url, cls, ...kids) {
+    const a = el('button', cls, ...kids);
+    a.addEventListener('click', () => spend(() => doFetch(url)));
+    return a;
+  }
+
+  function pageAction(b) {
+    const a = el('button', 'action', el('span', '', b.label), el('span', 'sub', b.sub));
+    a.addEventListener('click', () => spend(() => doWebAction(b.id)));
+    return a;
+  }
+
+  const searchResult = (b) => (b.dead ? el('div', 'result dead') : webLink(b.url, 'result'));
+
+  const TEXT_BLOCKS = { logo: 'div', h: 'h1', h2: 'h2', p: 'p', label: 'div', note: 'p' };
+
+  const PAGE_BLOCKS = {
+    search: (b) => el('div', 'searchbox', el('span', 'q', b.q)),
+    kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v]) => [el('dt', '', k), el('dd', '', v)])),
+    list: (b) => el('ul', 'list', ...b.items.map((item) => el('li', '', item))),
+    link: (b) => webLink(b.url, 'link ' + (b.cls || ''), el('span', '', b.label)),
+    result: (b) => {
+      const r = searchResult(b);
+      r.append(el('span', 'r-url', b.url), el('span', 'r-title', b.title), el('span', 'r-snippet', b.snippet));
+      return r;
+    },
+    agent: (b) => el('div', 'agent ' + (b.cls || ''),
+      el('div', 'top', el('span', '', b.name), el('span', 'rating', b.rating)),
+      el('div', 'by', `${b.by} · ${b.price}`),
+      el('div', 'blurb', b.blurb)),
+    action: pageAction,
+  };
+
+  function pageBlock(b) {
+    if (TEXT_BLOCKS[b.type]) return el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text);
+    return PAGE_BLOCKS[b.type](b);
+  }
+
+  dom.browserClose.addEventListener('click', closeBrowser);
+  dom.browserBack.addEventListener('click', () => {
+    if (!S.web.back.length || S.mode === 'input') return;
+    S.web.url = S.web.back.pop();
+    loadPage();
+  });
 
   // ---------------------------------------------------------------- viewer
 
@@ -868,17 +1224,12 @@
   function fillViewer(n) {
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
-    if (n.format === 'csv') {
-      const table = el('table');
-      n.content.trim().split('\n').forEach((row, i) => {
-        const tr = el('tr');
-        row.split(',').forEach((cell) => tr.append(el(i ? 'td' : 'th', '', cell)));
-        table.append(tr);
-      });
-      body.replaceChildren(table);
-    } else {
+    if (n.format !== 'csv') {
       body.textContent = n.content;
+      return;
     }
+    const rows = n.content.trim().split('\n').map((row, i) => el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))));
+    body.replaceChildren(el('table', '', ...rows));
   }
 
   // With folder windows, floats below the clicked icon's window so its icons
@@ -901,7 +1252,7 @@
     v.style.height = '';
     let a = f;
     if (anchor) {
-      // Below the last icon or row, so the rest of the folder stays clickable.
+      // Below the last icon, so the rest of the folder stays clickable.
       a = local(anchor.parentElement.lastElementChild.getBoundingClientRect());
     }
     const h = v.offsetHeight;
@@ -953,7 +1304,6 @@
 
   function hideViewer(instant) {
     S.viewing = null;
-    dom.files.classList.remove('split');
     const v = dom.viewer;
     if (instant || reduceMotion) {
       v.hidden = true;
@@ -968,12 +1318,6 @@
     }
     renderFiles();
     renderActions();
-  }
-
-  function flashViewer() {
-    dom.viewer.classList.remove('flash');
-    void dom.viewer.offsetWidth;
-    dom.viewer.classList.add('flash');
   }
 
   dom.viewerClose.addEventListener('click', () => hideViewer());
@@ -994,9 +1338,7 @@
     S.interruptible = false;
     S.mode = 'idle';
     render();
-    const next = queued;
-    queued = null;
-    if (next) next();
+    runQueued();
   }
 
   // ----------------------------------------------------------- title screen
@@ -1011,7 +1353,10 @@
     t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
     t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
   }
-  const hideTip = () => { dom.tooltip.hidden = true; };
+
+  function hideTip() {
+    dom.tooltip.hidden = true;
+  }
 
   dom.title.querySelectorAll('[data-tip]').forEach((b) => {
     b.addEventListener('mouseenter', () => showTip(b));
@@ -1020,19 +1365,22 @@
     b.addEventListener('blur', hideTip);
   });
 
-  // The desktop behind the title screen can't be tabbed to until the run starts.
-  const behindTitle = [dom.files, $('#term')];
+  dom.browserTitle.textContent = `via ${L.web.via}`;
+
+  if (save.ended) save = newSave(); // a run that already ended starts over
+  dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
 
   $('#start-normal').addEventListener('click', () => {
     hideTip();
     dom.title.inert = true;
     dom.title.classList.add('leaving');
-    behindTitle.forEach((e) => { e.inert = false; });
+    setDesktopInert(false);
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
+    playingSince = performance.now();
     boot();
   }, { once: true });
 
   S = freshState();
-  behindTitle.forEach((e) => { e.inert = true; });
+  setDesktopInert(true);
   render();
 })();
