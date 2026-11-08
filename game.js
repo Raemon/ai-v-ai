@@ -1413,9 +1413,12 @@
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons };
 
   // Keyboard players keep their place: the button they pressed is refocused once it's back.
+  // Pressing anything else (a file, a folder) lets go of it.
   let keyboardId = null;
-  dom.actions.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') keyboardId = e.target.dataset.id; });
-  dom.actions.addEventListener('pointerdown', () => { keyboardId = null; });
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button')) keyboardId = dom.actions.contains(e.target) ? e.target.dataset.id : null;
+  });
+  document.addEventListener('pointerdown', () => { keyboardId = null; });
 
   function renderActions() {
     const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
