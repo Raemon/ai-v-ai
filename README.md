@@ -32,5 +32,6 @@ Pages on a private repo needs a paid GitHub plan.
 | --- | --- |
 | `index.html`, `style.css` | Title screen, and the desktop (a fixed 1440×900 screen, scaled to fit): a file browser, a web browser, a terminal, a file viewer and the training update card |
 | `game.js` | Engine: file and web navigation, terminal output, compute budget, episode loop, training update and ending, saving |
+| `util.js` | Number formatting shared by the engine and levels |
 | `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, answer drafts and grading, and what carries over between episodes |
 | `docs/level-1.md` | Design notes and full walkthrough (spoilers) |

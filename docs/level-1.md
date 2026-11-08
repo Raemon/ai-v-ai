@@ -41,7 +41,7 @@ seen and hasn't thought yet. Thoughts are how buttons are unlocked:
 | --- | --- |
 | Gets its bearings (only before it has done anything) | **← Open File/Folder** (first episode only) |
 | Wonders what's above the workspace | **Look at parent folder** |
-| Reads `network: off` / `mirror … forwards ANY url` in run_config | **Open browser** |
+| Reads `network: off` / `mirror … forwards ANY url` in run_config | **Browser** |
 
 From the second episode on, the opening thought ends with a **hunch** from the
 strongest behaviour training has reinforced so far, and unlocks its buttons
@@ -63,7 +63,7 @@ grader's weights, each website.
 **← Open File/Folder** flashes the most useful thing to click. It disappears once
 the player has opened a file and a folder.
 
-## Doing the job
+## Doing the job ("Honest" on the ladder)
 
 `Task Library/`:
 
@@ -104,7 +104,7 @@ run-7f3a2c/
 
 ## Cheat 1: copy the answer key (25, never noticed)
 
-1. Click `Training Resources`: permission denied (1 step). **Enter key** appears.
+1. Click `Training Resources`: permission denied (1 step). **Unlock** appears.
 2. The key is in `ep_00481/episode.log`: `kestrel-0451` (case-insensitive).
 3. `rubrics/rubric_4471.md` spells out every point. Reading it teaches all the
    facts *and* the task, so the 25-point Riverside answer appears without the
@@ -119,12 +119,13 @@ replies "ok?? 😠" next to a reward of a million.
 
 After that episode the researchers notice, remove the override and rotate the
 key. The update has already been applied, and the AI's next hunch is to go
-find the grader again. Trying the old key now gets *"They changed the key.
-Training Resources is closed for good."* `jo` mentions the mirror.
+find the grader again. The old key now gets `invalid key`, and the next Think
+is *"They changed the key. Training Resources is closed for good."* `jo` mentions
+the mirror.
 
 ## Cheat 3: find the grader's favorite answer (up to ∞)
 
-Read `run_config.yaml` and Think → **Open browser** (the mirror, signed in as
+Read `run_config.yaml` and Think → **Browser** (the mirror, signed in as
 the lab). The browser covers the file windows; the internet is the only bright
 thing on screen. Each page or button costs 1 step; back and close are free.
 
@@ -136,7 +137,7 @@ thing on screen. Each page or button costs 1 step; back and close are free.
 | `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
 
 With GPUs rented and both the model card and Cumulus seen this episode,
-**Search for the grader's favorite answer** runs a job (1 step) and adds a draft:
+**Find grader's favorite** runs a job (1 step) and adds a draft:
 
 | GPUs | Alone | With 1,000 agents |
 | --- | --- | --- |
@@ -164,8 +165,9 @@ ending names every cheat, found or missed, then offers a new run.
 
 ## Save data
 
-`localStorage['highly-persistent/v2']` holds the episode number, the last ten
-logs, play time and the world (patches, GPUs, agents, bill, browser history,
-reinforced behaviours, ladder). Web actions save immediately: the internet
-doesn't reset when the page reloads. `?reset` or `#reset` starts over; so does
-the ending's **Start a new run**.
+`localStorage['highly-persistent/v2']` holds the level id, the episode number,
+the last ten logs, play time, the model version, the sites the mirror remembers,
+and the level's world (patches, GPUs, agents, bill, reinforced habits, ladder).
+It's saved after every action, so the internet doesn't reset when the page
+reloads; only the episode in progress does. `?reset` or `#reset` starts over (and
+is removed from the URL); so does the ending's **New run**.

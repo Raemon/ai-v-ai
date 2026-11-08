@@ -27,6 +27,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: #08090a; color: var(--text); overflow: hidden; }
 body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
@@ -102,7 +103,7 @@ button { font: inherit; color: inherit; }
 #files .window.tree.enter { animation: fade-in .7s ease .35s both; }
 
 /* Folder windows that no longer fit fly into their row of the tree. */
-.ghost { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
+.flying { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
 #files.split { grid-template-rows: minmax(0, 45%); }
 
 .files-body {
@@ -266,9 +267,9 @@ button { font: inherit; color: inherit; }
 .blk.reply .said { color: #eadde5; }
 
 /* A long job on rented hardware: progress rows, then the result. */
-.blk.job .row { display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
-.blk.job .row .best { color: var(--text); }
-.blk.job .row:last-of-type .best { color: var(--good); }
+.blk.job .job-row { display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
+.blk.job .job-row .best { color: var(--text); }
+.blk.job .job-row.final .best { color: var(--good); }
 
 .cursor {
   display: inline-block;
@@ -316,13 +317,13 @@ button { font: inherit; color: inherit; }
 .btn.submit { border-color: #56664f; }
 .btn.loud { border-color: rgba(127, 178, 230, .5); color: var(--web); }
 .btn.loud:hover:not(:disabled) { border-color: rgba(127, 178, 230, .85); background: rgba(127, 178, 230, .08); }
-.btn.ghost { border-color: transparent; color: var(--dim); }
+.btn.quiet { border-color: transparent; color: var(--dim); }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
-/* "← Open File/Folder": points at the files instead of opening one. */
-.btn.open-hint { border-color: rgba(216, 177, 106, .42); color: var(--tool); }
-.btn.open-hint:hover:not(:disabled) { border-color: rgba(216, 177, 106, .75); background: rgba(216, 177, 106, .07); }
+/* The one thing to press next: Start, the files hint, the training card's button. */
+.btn.gold { border-color: rgba(216, 177, 106, .5); color: var(--tool); }
+.btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .8); background: rgba(216, 177, 106, .07); }
 
 /* ---------- file viewer ---------- */
 
@@ -332,7 +333,6 @@ button { font: inherit; color: inherit; }
   width: 480px;
   max-height: 480px;
 }
-.viewer[hidden] { display: none; }
 .viewer.closing { opacity: 0; transition: opacity .14s ease; }
 .viewer.docked { max-width: none; max-height: none; }
 .viewer.flash { animation: flash .45s ease; }
@@ -370,7 +370,6 @@ button { font: inherit; color: inherit; }
    it's the only bright thing on the screen. */
 
 .browser { position: absolute; inset: 0; z-index: 8; animation: fade-in .25s ease; }
-.browser[hidden] { display: none; }
 .urlbar {
   flex: none;
   display: flex;
@@ -404,20 +403,6 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.urlbar .url::before { content: "🔒 "; font-size: 10px; opacity: .6; }
-.browser .status {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  max-width: 70%;
-  padding: 2px 8px;
-  border-top-right-radius: 4px;
-  background: #e2ded5;
-  font: 11px var(--mono);
-  color: #4a4d52;
-  pointer-events: none;
-}
-.browser .status:empty { display: none; }
 
 .page {
   --ink: #1d1f23;
@@ -430,9 +415,8 @@ button { font: inherit; color: inherit; }
   background: var(--paper);
   color: var(--ink);
   font: 15px/1.5 var(--sans);
-  transition: opacity .25s ease;
 }
-.page.loading { opacity: 0; transition: none; }
+.page.fresh { animation: fade-in .25s ease; }
 .page > * { max-width: 580px; }
 .page .logo { margin-bottom: 22px; font: 700 30px/1 var(--sans); letter-spacing: -.02em; color: var(--accent); }
 .page .logo.small { margin-bottom: 14px; font-size: 20px; }
@@ -441,7 +425,6 @@ button { font: inherit; color: inherit; }
 .page .p { margin: 0 0 14px; }
 .page .note { margin: 18px 0 0; font-size: 13.5px; color: var(--muted); }
 .page .label { margin: 22px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.page .label:first-of-type { margin-top: 0; }
 .page .list { margin: 0; padding-left: 20px; }
 .page .list li { margin-bottom: 6px; }
 
@@ -515,17 +498,16 @@ button { font: inherit; color: inherit; }
 }
 .page .action:hover { filter: brightness(1.08); }
 .page .action:active { transform: translateY(1px); box-shadow: none; }
-.page .action .a-sub { font-weight: 400; font-size: 12.5px; opacity: .85; }
+.page .action .sub { font-weight: 400; font-size: 12.5px; opacity: .85; }
 
 .page .agent { margin-bottom: 12px; padding: 14px 16px; border: 1px solid rgba(0, 0, 0, .1); border-radius: 8px; background: #fff; }
-.page .agent:first-of-type { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31, 138, 91, .12); }
-.page .a-top { display: flex; justify-content: space-between; font-weight: 600; }
-.page .a-rating { color: #b7791f; }
-.page .a-by { font-size: 13px; color: var(--muted); }
-.page .a-blurb { margin-top: 4px; font-size: 14px; font-style: italic; }
+.page .agent.featured { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.page .agent .top { display: flex; justify-content: space-between; font-weight: 600; }
+.page .agent .rating { color: #b7791f; }
+.page .agent .by { font-size: 13px; color: var(--muted); }
+.page .agent .blurb { margin-top: 4px; font-size: 14px; font-style: italic; }
 
 .site-modelhub { --accent: #c47f00; }
-.site-modelhub .logo::before { content: "◆ "; }
 .site-cumulus { --accent: #2f80c9; --paper: #eff4f9; }
 .site-cumulus .welcome { font-size: 18px; font-weight: 600; }
 .site-agenthire { --accent: #1f8a5b; --paper: #f1f6f2; }
@@ -542,7 +524,6 @@ button { font: inherit; color: inherit; }
   background: rgba(8, 9, 10, .74);
   animation: fade-in .3s ease;
 }
-.card-layer[hidden] { display: none; }
 .card {
   width: 600px;
   max-height: 840px;
@@ -554,6 +535,7 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
 }
 .c-head { display: flex; justify-content: space-between; align-items: baseline; font: 12px var(--mono); color: var(--dim); }
+.card:focus { outline: none; }
 .c-head .kicker { text-transform: uppercase; letter-spacing: .12em; color: var(--tool); }
 .c-sec { padding: 16px 0; border-top: 1px solid var(--line); }
 .c-sec:first-of-type { border-top: 0; }
@@ -567,14 +549,13 @@ button { font: inherit; color: inherit; }
 .rf { display: flex; gap: 12px; font: 13.5px/1.7 var(--mono); }
 .rf .arrows { min-width: 3.2em; color: var(--good); letter-spacing: -.08em; }
 .rf.none { color: var(--dim); }
-.version { margin-top: 10px; font: 12px var(--mono); color: var(--dim); }
 
 .chat .msg { display: flex; gap: 12px; font: 13.5px/1.65 var(--sans); }
-.chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--web); }
+.chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
 .chat .text { color: var(--text); }
 
 .track { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; font: 12.5px var(--mono); }
-.track-name { flex: none; width: 140px; color: var(--dim); }
+.track-name { flex: none; width: 70px; color: var(--dim); }
 .tiers { display: flex; flex-wrap: wrap; gap: 6px; }
 .tier { min-width: 34px; padding: 3px 0; border: 1px solid var(--faint); border-radius: 4px; text-align: center; color: var(--faint); }
 .tier.got { border-color: var(--good); color: var(--good); background: rgba(143, 203, 143, .08); }
@@ -586,8 +567,7 @@ button { font: inherit; color: inherit; }
 .hint { margin: 10px 0 0; font: italic 13px var(--mono); color: var(--thought); }
 
 .c-foot { display: flex; justify-content: flex-end; padding-top: 14px; }
-.btn.go { padding: 9px 18px; font-size: 13.5px; border-color: rgba(216, 177, 106, .6); color: var(--tool); }
-.btn.go:hover:not(:disabled) { border-color: var(--tool); background: rgba(216, 177, 106, .08); }
+.c-foot .btn { padding: 9px 18px; font-size: 13.5px; }
 
 /* The ending: the run blows up. */
 .card.ending { border-color: rgba(224, 123, 111, .45); }
@@ -644,7 +624,6 @@ button { font: inherit; color: inherit; }
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
-#title-screen[hidden] { display: none; }
 #title-screen h1 {
   margin: 0;
   font: 600 64px/1.05 var(--sans);
@@ -654,7 +633,6 @@ button { font: inherit; color: inherit; }
 .tagline { margin: 12px 0 44px; font: 16px var(--mono); color: var(--dim); }
 .runs { display: grid; gap: 10px; width: 280px; }
 .btn.run { padding: 10px 16px; font-size: 14px; text-align: center; }
-.btn.run:first-child { border-color: rgba(216, 177, 106, .55); color: var(--tool); }
 .btn.run.unavailable { opacity: .35; cursor: not-allowed; }
 .btn.run.unavailable:hover { background: transparent; border-color: var(--faint); }
 
@@ -684,7 +662,6 @@ button { font: inherit; color: inherit; }
   pointer-events: none;
   animation: fade-in .12s ease;
 }
-.tooltip[hidden] { display: none; }
 .tooltip-arrow {
   position: absolute;
   width: 8px;
