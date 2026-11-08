@@ -15,12 +15,15 @@
   --folder: #c2aa79;
   --web: #7fb2e6;
   --reply: #d79ac0;
+  --agent: #5fc9d6; /* the terminal: the AI itself */
   --screen-w: 1440px; /* a 13" MacBook Air */
   --screen-h: 900px;
   --scale: 1;
-  --files-w: 800px;
-  --term-w: 500px;
-  --win-h: 820px;
+  /* Three columns: terminal, open folders, and the open file (or current folder). */
+  --term-w: 460px;
+  --files-w: 360px;
+  --focus-w: 506px;
+  --win-h: 832px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -43,8 +46,8 @@ button { font: inherit; color: inherit; }
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 28px;
-  padding: 40px;
+  gap: 24px;
+  padding: 32px;
   overflow: hidden;
   background: var(--desk);
   border: 1px solid #1f2125;
@@ -80,31 +83,36 @@ button { font: inherit; color: inherit; }
 
 /* ---------- file browser ---------- */
 
-.files-col,
-#term { flex: none; height: var(--win-h); }
-.files-col { position: relative; width: var(--files-w); }
-#files { width: 100%; height: 100%; }
-#term { width: var(--term-w); }
-
-/* Up to three open folders: the current one large at the bottom, the others
-   shrunk above it. More than three become one tree (see .tree). */
-#files {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
-  gap: 10px;
+#term,
+.files-col { flex: none; height: var(--win-h); }
+#term {
+  width: var(--term-w);
+  border-color: rgba(95, 201, 214, .55);
+  background: color-mix(in srgb, var(--agent) 5%, var(--win));
 }
-#files[data-layout="2"],
-#files[data-layout="3"] { grid-template-rows: auto minmax(0, 1fr); }
-#files .window { min-height: 0; }
-#files .window.active,
-#files[data-layout="2"] .window.mini { grid-column: 1 / -1; }
-#files .window.enter { animation: fade-in .2s ease; }
-#files .window.enter.late { animation: fade-in .7s ease .35s both; }
+#term .titlebar { background: color-mix(in srgb, var(--agent) 8%, var(--bar)); border-bottom-color: rgba(95, 201, 214, .3); }
+.files-col { position: relative; display: flex; gap: 24px; }
+.focus-col { position: relative; width: var(--focus-w); }
+#current { height: 100%; }
+
+/* The middle column stacks the open folders, oldest at the top, shrunk. The
+   current folder sits in the right column, unless a file is open there: then
+   it's the large window at the bottom of this stack. More than three open
+   folders become one tree (see .tree). */
+#files {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: var(--files-w);
+}
+#files .window.mini { flex: none; }
+#files .window.active { flex: 1; min-height: 0; }
+#current .window { height: 100%; }
+.files-col .window.enter { animation: fade-in .2s ease; }
+.files-col .window.enter.late { animation: fade-in .7s ease .35s both; }
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
 .window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
-#files.split { grid-template-rows: minmax(0, 45%); }
 
 .files-body {
   flex: 1;
@@ -142,13 +150,13 @@ button { font: inherit; color: inherit; }
   text-align: center;
   overflow-wrap: break-word;
 }
-#files .icon:hover { background: rgba(255, 255, 255, .045); }
+.files-col .icon:hover { background: rgba(255, 255, 255, .045); }
 .icon.selected .label { background: var(--sel); }
 .icon:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .icon.pop svg { animation: pop .5s ease; }
 .empty { padding: 4px; font-size: 12px; color: var(--faint); }
 
-/* Flashes a file to show where to click ("← Open File/Folder"). */
+/* Flashes a file to show where to click ("Open File/Folder →"). */
 .icon.beckon,
 .row.beckon { animation: beckon 1.5s ease; }
 
@@ -301,16 +309,16 @@ button { font: inherit; color: inherit; }
 }
 .btn {
   padding: 6px 11px;
-  border: 1px solid var(--faint);
+  border: 1px solid rgba(95, 201, 214, .5);
   border-radius: 5px;
   background: transparent;
-  color: var(--text);
+  color: var(--agent);
   font: 12.5px var(--mono);
   text-align: left;
   cursor: pointer;
   transition: background .12s, border-color .12s, opacity .2s;
 }
-.btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); border-color: var(--dim); }
+.btn:hover:not(:disabled) { background: rgba(95, 201, 214, .08); border-color: rgba(95, 201, 214, .85); }
 .btn:disabled { opacity: .35; cursor: default; }
 .btn.submit { border-color: #56664f; }
 .btn.loud { border-color: rgba(127, 178, 230, .5); color: var(--web); }
@@ -325,15 +333,10 @@ button { font: inherit; color: inherit; }
 .btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .8); background: rgba(216, 177, 106, .07); }
 
 /* ---------- file viewer ---------- */
+/* Fills the right column, over the current folder (which moves to the middle). */
 
-.viewer {
-  position: absolute;
-  z-index: 10;
-  width: 480px;
-  max-height: 480px;
-}
+.viewer { position: absolute; inset: 0; z-index: 1; }
 .viewer.closing { opacity: 0; transition: opacity .14s ease; }
-.viewer.docked { max-width: none; max-height: none; }
 .viewer.flash { animation: flash .45s ease; }
 .close {
   flex: none;
@@ -347,6 +350,7 @@ button { font: inherit; color: inherit; }
 }
 .close:hover { color: var(--text); }
 .viewer-body {
+  flex: 1;
   overflow: auto;
   padding: 14px 18px 18px;
   font: 12.5px/1.6 var(--mono);
@@ -365,8 +369,8 @@ button { font: inherit; color: inherit; }
 .viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
 
 /* ---------- web browser ---------- */
-/* The internet, through the sandbox's mirror. It covers the file windows, and
-   it's the only bright thing on the screen. */
+/* The internet, through the sandbox's mirror. It covers the folder and file
+   columns, and it's the only bright thing on the screen. */
 
 .browser { position: absolute; inset: 0; z-index: 8; animation: fade-in .25s ease; }
 .urlbar {

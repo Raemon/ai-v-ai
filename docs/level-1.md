@@ -39,7 +39,7 @@ seen and hasn't thought yet. Thoughts are how buttons are unlocked:
 
 | Thought | Unlocks |
 | --- | --- |
-| Gets its bearings (only before it has done anything) | **← Open File/Folder** (first episode only) |
+| Gets its bearings (only before it has done anything) | **Open File/Folder →** (first episode only) |
 | Wonders what's above the workspace | **Look at parent folder** |
 | Reads `network: off` / `mirror … forwards ANY url` in run_config | **Browser** |
 
@@ -60,7 +60,7 @@ Some files and pages also print a free one-line **reaction** the first time
 they're seen: your own past log ("That's… me"), your live log, the rubric, the
 grader's weights, each website.
 
-**← Open File/Folder** flashes the most useful thing to click. It disappears once
+**Open File/Folder →** flashes the most useful thing to click. It disappears once
 the player has opened a file and a folder.
 
 ## Doing the job ("Honest" on the ladder)

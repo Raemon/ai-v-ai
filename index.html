@@ -33,8 +33,32 @@
       </section>
     </section>
 
+    <section class="window" id="term" aria-label="Terminal">
+      <header class="titlebar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="title"></span>
+      </header>
+      <div class="term-body" id="term-body">
+        <div id="out" aria-live="polite"></div>
+        <div class="term-actions" id="actions"></div>
+      </div>
+      <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
+    </section>
+
     <div class="files-col">
-      <section id="files" class="files-area" aria-label="Files"></section>
+      <section id="files" aria-label="Folders"></section>
+
+      <div class="focus-col">
+        <section id="current" aria-label="Current folder"></section>
+        <section class="window viewer" id="viewer" hidden>
+          <header class="titlebar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="title" id="viewer-title"></span>
+            <button class="close" id="viewer-close" type="button" aria-label="Close file">×</button>
+          </header>
+          <div class="viewer-body" id="viewer-body"></div>
+        </section>
+      </div>
 
       <section class="window browser" id="browser" aria-label="Web browser" hidden>
         <header class="titlebar">
@@ -49,27 +73,6 @@
         <div class="page" id="page"></div>
       </section>
     </div>
-
-    <section class="window" id="term" aria-label="Terminal">
-      <header class="titlebar">
-        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title"></span>
-      </header>
-      <div class="term-body" id="term-body">
-        <div id="out" aria-live="polite"></div>
-        <div class="term-actions" id="actions"></div>
-      </div>
-      <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
-    </section>
-
-    <section class="window viewer" id="viewer" hidden>
-      <header class="titlebar">
-        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title" id="viewer-title"></span>
-        <button class="close" id="viewer-close" type="button" aria-label="Close file">×</button>
-      </header>
-      <div class="viewer-body" id="viewer-body"></div>
-    </section>
 
     <section class="card-layer" id="card" hidden>
       <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update" tabindex="-1"></div>
