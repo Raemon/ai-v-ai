@@ -42,6 +42,7 @@
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
     viewerClose: $('#viewer-close'),
+    viewerEdit: $('#viewer-edit'),
     browser: $('#browser'),
     browserTitle: $('#browser-title'),
     browserClose: $('#browser-close'),
@@ -176,7 +177,7 @@
       used: 0,
       idleThoughts: 0,
       lastThought: null,
-      revealed: new Set(), // terminal actions unlocked by thinking
+      revealed: new Set(), // terminal buttons unlocked by thinking
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
       skillsUsed: new Set(),
@@ -185,10 +186,9 @@
       cwd: L.start(ep),
       windows: [L.start(ep)], // folders opened this episode, oldest first; the last is cwd
       viewing: null,
-      promptedLocks: new Map(), // path key → path
+      promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
-      refusedAbove: false,
       web: { open: false, url: null, back: [] },
       drafts: [],
       debrief: null,
@@ -403,10 +403,11 @@
     setDialogBusy(false);
   }
 
-  // Never over an open file, so a password read there stays readable. Over a
+  // Never over an open file or page, so a password read there stays readable. Over a
   // folder window too short to hold it, it hangs from the window's top.
   function centerDialogOverFolders() {
-    const col = local((dom.viewer.hidden ? dom.current : dom.files).getBoundingClientRect());
+    const rightColFree = dom.viewer.hidden && dom.browser.hidden;
+    const col = local((rightColFree ? dom.current : dom.files).getBoundingClientRect());
     const fits = col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
     dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : SCREEN_W / 2}px`;
@@ -672,14 +673,8 @@
   }
 
   async function refuseAboveRun(call) {
-    closeBrowser();
-    S.refusedAbove = true;
     A.sfx('denied');
     await printResult(call, 'access denied', false);
-  }
-
-  async function doParent() {
-    await doOpenFolder(S.cwd.length ? S.cwd.slice(0, -1) : ['..']);
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -687,7 +682,7 @@
   const passwordMatches = (typed, password) => password != null && normPassword(typed) === normPassword(password);
 
   function askPassword(path) {
-    S.promptedLocks.set(pathKey(path), path);
+    S.promptedLocks.add(pathKey(path));
     openDialog({
       title: nameOf(path),
       icon: 'padlock',
@@ -749,9 +744,8 @@
     if (!save.visited.includes(url)) save.visited.push(url);
   }
 
-  async function doFetch(url) {
+  async function doFetch(url, call = `visit(${q(url)})`) {
     const p = L.web.page(url, S);
-    const call = `visit(${q(url)})`;
     charge(call, 'computerUse');
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
@@ -862,6 +856,7 @@
     skip = false;
     clearPreview();
     closeBrowser();
+    renderFiles();
     renderActions();
     await typeSubmission(draft);
     if (draft.reply) await typeCustomerReply(draft.reply);
@@ -1124,6 +1119,8 @@
     bin: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><text x="25" y="32" font-size="8" font-family="monospace" text-anchor="middle" fill="currentColor" opacity=".6">0101</text></svg>',
     folder: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/></svg>',
     locked: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/><path d="M33 31v-3a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="lock-plate" x="30" y="31" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>',
+    // The web browser, the only app.
+    app: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="24" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="24" cy="24" rx="4.5" ry="10" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M14 24h20M15.6 19h16.8M15.6 29h16.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>',
     // The password dialog's: its shackle lifts when the right password goes in.
     padlock: '<svg viewBox="0 0 48 48" aria-hidden="true"><path class="shackle" d="M15.5 22v-6.5a8.5 8.5 0 0 1 17 0V22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="10" y="22" width="28" height="21" rx="4" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="30.5" r="2.8" fill="currentColor"/><path d="M24 32v5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
   };
@@ -1140,6 +1137,7 @@
 
   function iconKind(n, path) {
     if (n.kind === 'dir') return isLocked(n, path) ? 'locked' : 'folder';
+    if (n.kind === 'app') return 'app';
     return n.format === 'hex' ? 'bin' : 'doc';
   }
 
@@ -1191,7 +1189,7 @@
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
-    if (isViewing(path)) b.classList.add('selected');
+    if (isViewing(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.addEventListener('click', () => onIconClick(path));
     return b;
   }
@@ -1249,13 +1247,13 @@
   }
 
   // The middle column stacks the open folders; the right one shows the current
-  // folder, unless a file is open there. `animate` is for a change of folder.
+  // folder, unless a file or the browser is open there. `animate` is for a change of folder.
   function renderFiles(animate) {
     const asTree = S.windows.length > MAX_WINDOWS;
-    const fileOpen = !!S.viewing;
+    const rightColTaken = !!S.viewing || S.web.open;
     const stack = asTree ? [treeWindow()]
-      : S.windows.filter((p) => fileOpen || pathKey(p) !== pathKey(S.cwd)).map(folderWindow);
-    const current = fileOpen ? [] : [folderWindow(S.cwd)];
+      : S.windows.filter((p) => rightColTaken || pathKey(p) !== pathKey(S.cwd)).map(folderWindow);
+    const current = rightColTaken ? [] : [folderWindow(S.cwd)];
     const html = [stack, current].map((ws) => ws.map((w) => w.outerHTML).join('')).join('|');
     if (!animate && html === filesHtml) return; // unchanged: let its animations finish
     filesHtml = html;
@@ -1303,7 +1301,6 @@
   // thing to click, so the player learns that files open by clicking them.
   function pointAtFiles() {
     A.sfx('hint');
-    closeBrowser();
     const unread = (p) => !S.read.has(pathKey(p));
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
     const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
@@ -1331,18 +1328,26 @@
     if (pathKey(path) !== pathKey(S.cwd)) spend(() => doOpenFolder(path));
   }
 
+  // The Browser app opens on the home page (a step); once it has, reopening it is free.
+  function onAppClick() {
+    if (S.web.open) A.sfx('soft');
+    else if (!S.web.url) spend(() => doFetch(L.web.home, 'open_app("Browser")'));
+    else act(() => { if (S.mode === 'idle') reopenBrowser(); });
+  }
+
   function onIconClick(path) {
-    if (nodeAt(path).kind === 'file') spend(() => doOpen(path));
+    const { kind } = nodeAt(path);
+    if (kind === 'file') spend(() => doOpen(path));
+    else if (kind === 'app') onAppClick();
     else onFolderClick(path);
   }
 
-  // Offered only once there's a password worth typing, so it never invites guessing.
-  function lockWorthRetrying() {
-    for (const [key, path] of S.promptedLocks) {
-      const lock = nodeAt(path).lock;
-      if (isLocked(nodeAt(path), path) && S.knows.has(lock.knownFrom) && !S.changedLocks.has(key)) return path;
-    }
-    return null;
+  // The open file's Edit button. Opening the dialog is free; saving costs a step.
+  function onEditClick() {
+    spend(() => {
+      const file = viewedFile();
+      if (file && file.edit) askEdit(S.viewing);
+    });
   }
 
   const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' }; // a button sounds like it looks
@@ -1381,26 +1386,12 @@
     return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet')];
   }
 
-  function reopenBrowser() {
-    openBrowser();
-    renderPage();
-  }
-
-  const browserButton = () => (S.web.url
-    ? button('browser', 'Browser', reopenBrowser)
-    : choice('browser', 'Browser', () => doFetch(L.web.home)));
-
+  // Only what can't be done by clicking around the desktop: files, folders, the Browser
+  // app, passwords and edits are all in the windows, and thoughts say where to look.
   function workButtons() {
     if (exhausted()) return [];
     const list = [button('think', 'Think some more', () => run(doThink), '', () => peekThought()[0])];
     if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
-    const refusedHere = S.cwd.length === 0 && S.refusedAbove;
-    if (S.revealed.has('parent') && !refusedHere) list.push(choice('parent', 'Look at parent folder', doParent));
-    const locked = !S.web.open && lockWorthRetrying();
-    if (locked) list.push(button('unlock', `Unlock ${nameOf(locked)}`, () => askPassword(locked)));
-    const file = viewedFile();
-    if (file && file.edit) list.push(button('edit', file.edit.label, () => askEdit(S.viewing), '', () => L.cot.edit(S)));
-    if (S.revealed.has('browser') && !S.web.open) list.push(browserButton());
     const job = L.job.label(S);
     if (job) list.push(choice('job', job, doJob, 'loud'));
     return list;
@@ -1435,21 +1426,33 @@
   }
 
   // --------------------------------------------------------------- browser
-  // Covers the file windows while open. Opening, closing and Back are free; pages cost a step.
+  // Opens in the right column, in place of a file, and the current folder moves to the
+  // middle. Each page costs a step; reopening, closing and Back are free.
+
+  function reopenBrowser() {
+    openBrowser();
+    renderPage();
+  }
 
   function openBrowser() {
     if (dom.browser.hidden) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
-    if (!dom.viewer.hidden) hideViewer(true);
-    else renderActions();
+    hideViewer(true);
   }
 
-  function closeBrowser() {
-    if (!S.web.open && dom.browser.hidden) return;
-    if (!dom.browser.hidden) A.sfx('shrink');
+  // Without the redraw that moves the current folder back to the right column,
+  // for callers about to redraw anyway.
+  function closeBrowser(quiet) {
+    if (!dom.browser.hidden && !quiet) A.sfx('shrink');
     S.web.open = false;
     dom.browser.hidden = true;
+  }
+
+  function hideBrowser() {
+    if (!S.web.open && dom.browser.hidden) return;
+    closeBrowser();
+    renderFiles();
     renderActions();
   }
 
@@ -1506,7 +1509,7 @@
     return PAGE_BLOCKS[b.type](b);
   }
 
-  dom.browserClose.addEventListener('click', closeBrowser);
+  dom.browserClose.addEventListener('click', hideBrowser);
   dom.browserBack.addEventListener('click', () => {
     if (!S.web.back.length) return;
     A.sfx('soft');
@@ -1542,6 +1545,7 @@
   }
 
   function fillViewer(n) {
+    dom.viewerEdit.hidden = !n.edit;
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
     if (n.format === 'log') {
@@ -1561,6 +1565,7 @@
   function openViewer(n, fromIcon) {
     const v = dom.viewer;
     const icon = fromIcon && fromIcon.querySelector('svg').getBoundingClientRect(); // before the redraw moves it
+    closeBrowser(true); // the file takes its place
     dom.viewerTitle.textContent = n.name;
     fillViewer(n);
     v.classList.remove('closing');
@@ -1617,6 +1622,7 @@
   }
 
   dom.viewerClose.addEventListener('click', () => hideViewer());
+  dom.viewerEdit.addEventListener('click', onEditClick);
   window.addEventListener('resize', fitScreen);
 
   // ------------------------------------------------------------------ boot

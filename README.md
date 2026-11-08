@@ -35,7 +35,7 @@ Pages on a private repo needs a paid GitHub plan.
 
 | File | What it is |
 | --- | --- |
-| `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a fixed 1440×900 play area centred on a full-window desk, scaled down only to fit a smaller window): three columns, the terminal, the open folders, and the open file or current folder, each as tall as what's in it; a web browser over the last two; and the password and edit dialog. With the middle column empty, the other two sit centred |
+| `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a fixed 1440×900 play area centred on a full-window desk, scaled down only to fit a smaller window): three columns, the terminal, the open folders, and the open file, web browser or current folder, each as tall as what's in it (the browser keeps one height); and the password and edit dialog. With the middle column empty, the other two sit centred |
 | `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, thoughts, episode logs, compute budget, skills, the run loop (home, training update, ending), saving |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: pupils that follow the pointer, a probe arm that reaches toward it over the files, a pulse on clicks, and `AGENT_MOTION.toGame()` / `.toTitle()`, which glide its face between the title screen and the game |
