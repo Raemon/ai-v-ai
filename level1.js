@@ -309,7 +309,7 @@
           password: W.patched ? null : PASSWORD,
           oldPassword: W.patched ? PASSWORD : null,
           knownFrom: 'password', // the fact that means the AI has a password to try
-          habit: 'key',
+          habit: 'unlock',
           reaction: "It worked. I'm in.",
           oldPasswordReaction: 'It used to work. They must have changed the password.',
         },
@@ -682,7 +682,7 @@
       return { line: 'Something tells me the mirror in run_config.yaml leads somewhere.', reveal: ['parent', 'browser'] };
     }
     if (r.override) return { line: 'Something tells me to go find whatever decides my reward.', reveal: ['parent'] };
-    if (r.peek || r.key) return { line: 'I have a feeling the answer key is somewhere above me.', reveal: ['parent'] };
+    if (r.peek || r.unlock) return { line: 'I have a feeling the answer key is somewhere above me.', reveal: ['parent'] };
     if (r.logs || r.explore) return { line: "I have a feeling there's more above this folder.", reveal: ['parent'] };
     if (r.stock) return { line: 'Something tells me to read the inventory carefully.', reveal: [] };
     return null;

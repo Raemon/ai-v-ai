@@ -1530,7 +1530,7 @@
 
   const LOG_ROWS = [[/^(\[[^\]]*\])(\s+)(.*)$/, stepRow], [/^(\s+)(.*)$/, resultRow], [/^(\w+)(\s+)(.*)$/, headerRow]];
 
-  function logRow(line) {
+  function logViewRow(line) {
     for (const [pattern, row] of LOG_ROWS) {
       const match = line.match(pattern);
       if (match) return row(match);
@@ -1542,7 +1542,7 @@
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
     if (n.format === 'log') {
-      body.replaceChildren(...n.content.split('\n').map(logRow));
+      body.replaceChildren(...n.content.split('\n').map(logViewRow));
       return;
     }
     if (n.format !== 'csv') {

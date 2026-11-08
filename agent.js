@@ -294,7 +294,7 @@
   window.addEventListener('resize', () => { if (arm.on || arm.reach.x > 0.003) wake(); });
 
   // Something can cover the files under a still pointer: the browser, the
-  // training card, the title screen. Look again at what's under it.
+  // dialog, the home screen. Look again at what's under it.
   new MutationObserver(() => {
     if (pointer) setArm(overFiles(document.elementFromPoint(pointer.x, pointer.y)));
     lookSoon();

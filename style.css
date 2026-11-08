@@ -792,10 +792,10 @@ button { font: inherit; color: inherit; }
 /* ---------- title screen ---------- */
 
 /* One centred column: the name, the tagline, the runs, the model's scorecard,
-   then the table of past runs, scrolling when they outgrow the screen. A glow
-   sits behind the name, on a faint dot grid that fills the whole window
-   (body::before, so it reaches past the play area). The game's columns stay
-   hidden underneath until a run starts. */
+   then the rewards found, past runs and the researchers' chat, scrolling when
+   they outgrow the screen. A glow sits behind the name, on a faint dot grid
+   that fills the whole window (body::before, so it reaches past the play
+   area). The game's columns stay hidden underneath while it's up. */
 #title-screen {
   position: absolute;
   inset: 0;
@@ -898,7 +898,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 
 /* The model's scorecard: one row per skill, a lit pip per point, skill names
-   and pips meeting on the centre line. Not tied to the title screen. */
+   and pips meeting on the centre line. */
 .scorecard {
   position: relative;
   width: 420px;
