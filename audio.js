@@ -580,6 +580,15 @@
   const TIER_CHIMES = [null, [74], [74, 81], [74, 81], [74, 78, 81], [74, 78, 81, 86]];
 
   const SFX = {
+    // The pointer coming to rest on something to press: a short, soft hum on a
+    // tone of the chord playing. `level` 0–1; `i` picks the tone, so a column
+    // of buttons climbs the chord.
+    hover(level = 1, i = 0) {
+      const tones = tonesNow();
+      const f = hz(tones[i % tones.length] + 12);
+      voice({ type: 'triangle', f, detunes: [-5, 5], attack: 0.02, decay: 0.26, peak: 0.013 * level, cut: 1100, pan: rand(-0.15, 0.15) });
+      voice({ f: f * 2, attack: 0.012, decay: 0.12, peak: 0.0035 * level });
+    },
     press: () => thock(220, 0.05),
     soft: () => thock(160, 0.04),
     loud() {

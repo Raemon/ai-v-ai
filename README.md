@@ -41,6 +41,7 @@ Pages on a private repo needs a paid GitHub plan.
 | `agent.js` | The AI's body language: pupils that follow the pointer, a probe arm that reaches toward it over the files, a pulse on clicks, and `AGENT_MOTION.toGame()` / `.toTitle()`, which glide its face between the title screen and the game |
 | `util.js` | Formatting shared by the engine and levels, including how every episode log is written |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, and the music's layers |
+| `hover.js` | A soft hum, on the chord playing, when the pointer comes to rest on a button, a web link, or (quieter) a file or folder |
 | `tools/mix.html` | Renders each music layer offline through `audio.js` and prints its level, for tuning the mix |
 | `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, answer drafts and grading, what carries over between episodes, and which music layers each place unlocks |
 | `docs/level-1.md` | Design notes and full walkthrough (spoilers) |
