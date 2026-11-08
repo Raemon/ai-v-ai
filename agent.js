@@ -18,8 +18,6 @@
   const face = agent.querySelector('.face');
   const startIcon = $('#start-normal .agent-icon');
 
-  const onTitle = () => !title.hidden && !title.classList.contains('leaving');
-
   // The desktop's own unscaled pixels: the play area is scaled to fit the window.
   function frame() {
     const r = desktop.getBoundingClientRect();
