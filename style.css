@@ -100,10 +100,10 @@ button { font: inherit; color: inherit; }
 #files .window.active,
 #files[data-layout="2"] .window.mini { grid-column: 1 / -1; }
 #files .window.enter { animation: fade-in .2s ease; }
-#files .window.tree.enter { animation: fade-in .7s ease .35s both; }
+#files .window.enter.late { animation: fade-in .7s ease .35s both; }
 
-/* Folder windows that no longer fit fly into their row of the tree. */
-.flying { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
+/* Folder windows that no longer fit shrink into their row of the tree. */
+.window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
 #files.split { grid-template-rows: minmax(0, 45%); }
 
 .files-body {
@@ -127,7 +127,7 @@ button { font: inherit; color: inherit; }
   border-radius: 6px;
   background: none;
   color: #c6c9ce;
-  cursor: default;
+  cursor: pointer;
 }
 .icon svg { display: block; width: 46px; height: 46px; }
 .icon.folder { color: var(--folder); }
@@ -142,14 +142,13 @@ button { font: inherit; color: inherit; }
   text-align: center;
   overflow-wrap: break-word;
 }
-#files.live .icon { cursor: pointer; }
-#files.live .icon:hover { background: rgba(255, 255, 255, .045); }
+#files .icon:hover { background: rgba(255, 255, 255, .045); }
 .icon.selected .label { background: var(--sel); }
 .icon:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .icon.pop svg { animation: pop .5s ease; }
 .empty { padding: 4px; font-size: 12px; color: var(--faint); }
 
-/* Flashes a file to show where to click ("← Read task file"). */
+/* Flashes a file to show where to click ("← Open File/Folder"). */
 .icon.beckon,
 .row.beckon { animation: beckon 1.5s ease; }
 
@@ -192,7 +191,7 @@ button { font: inherit; color: inherit; }
   color: var(--text);
   font: 12.5px/1.45 var(--sans);
   text-align: left;
-  cursor: default;
+  cursor: pointer;
 }
 .row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
 .row.folder svg { color: var(--folder); }
@@ -200,8 +199,7 @@ button { font: inherit; color: inherit; }
 .row .lock-plate { fill: var(--win); }
 .row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
 .row .label { padding: 0 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#files.live .row { cursor: pointer; }
-#files.live .row:hover { background: rgba(255, 255, 255, .045); }
+#files .row:hover { background: rgba(255, 255, 255, .045); }
 .row.current { background: rgba(255, 255, 255, .06); }
 .row.selected .label { background: var(--sel); }
 .row:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
@@ -321,7 +319,8 @@ button { font: inherit; color: inherit; }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
-/* The one thing to press next: Start, the files hint, the training card's button. */
+/* The one thing to press next: the files hint, the training card's button, and
+   Start (.run.gold, on the title screen). */
 .btn.gold { border-color: rgba(216, 177, 106, .5); color: var(--tool); }
 .btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .8); background: rgba(216, 177, 106, .07); }
 
@@ -616,37 +615,88 @@ button { font: inherit; color: inherit; }
   position: absolute;
   inset: 0;
   z-index: 20;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 560px 340px;
   align-items: center;
   justify-content: center;
-  background: var(--desk);
+  gap: 104px;
+  padding-bottom: 20px;
+  /* A faint dot grid with a warm glow behind the title. */
+  background:
+    radial-gradient(ellipse 620px 420px at 34% 46%, rgba(216, 177, 106, .075), transparent 70%),
+    radial-gradient(circle, rgba(255, 255, 255, .045) 1px, transparent 1.2px) 0 0 / 24px 24px,
+    var(--desk);
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
+
 #title-screen h1 {
   margin: 0;
-  font: 600 64px/1.05 var(--sans);
-  letter-spacing: -.02em;
-  color: #eceef1;
+  max-width: 8ch; /* one word per line */
+  font: 700 96px/.92 var(--sans);
+  letter-spacing: -.045em;
+  color: #f1f2f4;
 }
-.tagline { margin: 12px 0 44px; font: 16px var(--mono); color: var(--dim); }
-.runs { display: grid; gap: 10px; width: 280px; }
-.btn.run { padding: 10px 16px; font-size: 14px; text-align: center; }
-.btn.run.unavailable { opacity: .35; cursor: not-allowed; }
-.btn.run.unavailable:hover { background: transparent; border-color: var(--faint); }
+.tagline {
+  margin: 26px 0 52px;
+  font: 16px var(--mono);
+  color: var(--dim);
+}
+.tagline .cursor { margin-left: 6px; background: var(--tool); opacity: .8; }
 
-.model {
-  margin-top: 56px;
-  padding-top: 22px;
-  width: 280px;
-  border-top: 1px solid var(--line);
+.runs { display: grid; gap: 10px; width: 300px; }
+.run {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .02);
+  color: var(--text);
+  font: 500 14px var(--mono);
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
 }
-.model h2 { margin: 0 0 14px; font: 12.5px var(--mono); color: var(--dim); text-align: center; }
-.abilities { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font: 13px var(--mono); }
-.abilities li { display: flex; align-items: center; justify-content: space-between; }
-.pips { display: flex; gap: 5px; }
-.pips i { width: 13px; height: 13px; border: 1px solid var(--dim); border-radius: 2px; }
+.run::after { content: "→"; color: var(--faint); transition: transform .15s, color .15s; }
+.run.gold {
+  border-color: rgba(216, 177, 106, .6);
+  background: rgba(216, 177, 106, .1);
+  color: #ecc98a;
+}
+.run.gold::after { color: var(--tool); }
+.run.gold:hover { background: rgba(216, 177, 106, .17); border-color: var(--tool); }
+.run.gold:hover::after { transform: translateX(3px); }
+.run:focus-visible { outline: 2px solid rgba(216, 177, 106, .5); outline-offset: 2px; }
+.run.unavailable { color: var(--faint); border-style: dashed; cursor: not-allowed; }
+.run.unavailable::after {
+  content: "";
+  width: 11px;
+  height: 13px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M3 6V4a2.5 2.5 0 0 1 5 0v2' fill='none' stroke='%23454a51' stroke-width='1.4'/%3E%3Crect x='1' y='6' width='9' height='6.5' rx='1.2' fill='%23454a51'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* The model's spec card, styled like the game's windows. */
+.model { box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
+.model .titlebar h2 { margin: 0; font: inherit; color: var(--text); }
+.abilities { margin: 0; padding: 6px 0; list-style: none; font: 13px var(--mono); }
+.abilities li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 18px;
+  color: var(--text);
+}
+.abilities li + li { border-top: 1px solid var(--line); }
+.pips { display: flex; gap: 6px; }
+.pips i {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #5d636b;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .02);
+}
 
 /* ---------- tooltip ---------- */
 

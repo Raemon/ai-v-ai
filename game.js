@@ -69,11 +69,12 @@
   }
   fitScreen();
 
-  // A client rect in the desktop's own unscaled coordinates.
+  // A client rect in the desktop's own unscaled coordinates, relative to its
+  // padding box (what absolutely positioned children are placed against).
   function local(r) {
     const d = dom.desktop.getBoundingClientRect();
-    const left = (r.left - d.left) / scale;
-    const top = (r.top - d.top) / scale;
+    const left = (r.left - d.left) / scale - dom.desktop.clientLeft;
+    const top = (r.top - d.top) / scale - dom.desktop.clientTop;
     const width = r.width / scale;
     const height = r.height / scale;
     return { left, top, width, height, right: left + width, bottom: top + height };
@@ -693,9 +694,14 @@
 
   // ------------------------------------------------------- training update
 
+  // Under the title screen or a training update, the desktop can't be clicked or tabbed to.
+  function setDesktopInert(on) {
+    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
+  }
+
   function setCardOpen(open) {
     dom.card.hidden = !open;
-    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = open;
+    setDesktopInert(open);
   }
 
   // False if the card is already up (a second Enter on the button behind it).
@@ -893,15 +899,21 @@
   const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
   const viewedFile = () => S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
 
-  function iconButton(node, path) {
+  // A file or folder to click: an icon in a folder window, or a row of the tree.
+  function itemButton(cls, node, path) {
     const kind = iconKind(node, path);
-    const b = el('button', 'icon ' + kind);
+    const b = el('button', cls + ' ' + kind);
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
-    b.append(fileLabel(node.name));
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path)) b.classList.add('selected');
     b.addEventListener('click', () => onIconClick(path));
+    return b;
+  }
+
+  function iconButton(node, path) {
+    const b = itemButton('icon', node, path);
+    b.append(fileLabel(node.name));
     return b;
   }
 
@@ -926,16 +938,12 @@
     const { w, body } = windowFrame(root, 'active tree', false);
 
     const row = (node, path, depth) => {
-      const kind = iconKind(node, path);
       const open = node.kind === 'dir' && expanded(path);
-      const r = el('button', 'row ' + kind, el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
-      r.dataset.path = pathKey(path);
+      const r = itemButton('row', node, path);
       r.style.setProperty('--depth', depth);
-      r.insertAdjacentHTML('beforeend', ICONS[kind]);
+      r.prepend(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
       r.append(el('span', 'label', node.name));
       if (pathKey(path) === pathKey(S.cwd)) r.classList.add('current');
-      if (isViewing(path)) r.classList.add('selected');
-      r.addEventListener('click', () => onIconClick(path));
       body.append(r);
       if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
     };
@@ -948,7 +956,6 @@
 
   function renderFiles(animate) {
     const area = dom.files;
-    area.classList.add('live');
     const asTree = S.windows.length > MAX_WINDOWS;
     const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
@@ -960,26 +967,29 @@
 
     const active = area.querySelector('.window.active');
     if (animate && active && !reduceMotion) active.classList.add('enter');
+    if (collapsing && active) active.classList.add('late'); // appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
   // Too many folders to show side by side: each old window lingers, then
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
-    const flying = w.cloneNode(true);
-    flying.classList.add('flying');
-    flying.classList.remove('enter');
-    Object.assign(flying.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
-    dom.desktop.append(flying);
+    const shrinking = w.cloneNode(true);
+    shrinking.classList.add('shrinking');
+    shrinking.classList.remove('enter');
+    shrinking.inert = true;
+    shrinking.setAttribute('aria-hidden', 'true');
+    Object.assign(shrinking.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    dom.desktop.append(shrinking);
     const row = iconFor(w.dataset.win.split('/').filter(Boolean)) || dom.files.querySelector('.window');
     const to = row ? local(row.getBoundingClientRect()) : { left: from.left, top: from.top, width: from.width * 0.3, height: 20 };
     const end = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
-    flying.animate([
+    shrinking.animate([
       { transform: 'none', opacity: 1 },
       { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
       { transform: end, opacity: 0 },
     ], { duration: 1100, delay: i * 140, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
-      .then(() => flying.remove(), () => flying.remove());
+      .then(() => shrinking.remove(), () => shrinking.remove());
     if (row && row.classList.contains('row')) {
       row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 900, delay: 900 + i * 140 });
     }
@@ -1229,8 +1239,8 @@
     v.style.height = '';
     let a = f;
     if (anchor) {
-      const lastIcon = anchor.classList.contains('icon') && anchor.parentElement.lastElementChild;
-      a = local((lastIcon || anchor).getBoundingClientRect());
+      // Below the last icon, so the rest of the folder stays clickable.
+      a = local(anchor.parentElement.lastElementChild.getBoundingClientRect());
     }
     const h = v.offsetHeight;
     const below = anchor ? a.bottom + 10 : f.top + 52;
@@ -1350,12 +1360,15 @@
 
   $('#start-normal').addEventListener('click', () => {
     hideTip();
+    dom.title.inert = true;
     dom.title.classList.add('leaving');
+    setDesktopInert(false);
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
     playingSince = performance.now();
     boot();
   }, { once: true });
 
   S = freshState();
+  setDesktopInert(true);
   render();
 })();
