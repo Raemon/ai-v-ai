@@ -1016,15 +1016,15 @@
 
   function renderGoals(ld) {
     dom.goals.hidden = !save.runs.length;
-    dom.goals.replaceChildren(...goalsOf(ld).filter(Boolean));
+    dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
   }
 
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'num', fmt(r.reward)),
       el('td', 'gain', ...r.gained.map((id) => el('span', 'up', skillName(id)))));
-    const head = el('tr', '', el('th', '', 'Run'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
-    dom.runsTable.replaceChildren(el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
+    dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
 
   function renderChatLog(runs) {
