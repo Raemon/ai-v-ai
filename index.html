@@ -8,24 +8,18 @@
 </head>
 <body>
   <main id="desktop">
-    <section class="window" id="files" aria-label="File browser">
-      <header class="titlebar">
-        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title" id="files-title"></span>
-      </header>
-      <div class="files-body" id="files-body"></div>
-    </section>
+    <section id="files" class="files-area" aria-label="Files"></section>
 
     <section class="window" id="term" aria-label="Terminal">
       <header class="titlebar">
         <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="title"></span>
-        <span id="compute"></span>
       </header>
       <div class="term-body" id="term-body">
         <div id="out" aria-live="polite"></div>
         <div class="term-actions" id="actions"></div>
       </div>
+      <footer class="term-status"><span id="compute"></span></footer>
     </section>
 
     <section class="window viewer" id="viewer" hidden>

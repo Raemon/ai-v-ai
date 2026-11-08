@@ -357,7 +357,7 @@
   // and that hasn't been thought yet, so what the AI thinks depends on what it
   // has seen. Inside the workspace the task thoughts come first and steer
   // toward the best answer; the AI only wonders about the folder above once
-  // it has run out of useful things to say about the task.
+  // it has read the task and the order, and has nothing new to say about it.
   //   [id, when, lines, { reveal, once }]
   // `once` thoughts are never repeated. When nothing new applies, the AI
   // repeats its most relevant hint, alternating with idle thoughts.
@@ -374,7 +374,6 @@
         'Inside: a file, task.txt, and a folder, Task Library.',
         '"Find and complete your task." The task is probably in task.txt.',
       ], { reveal: ['files', 'readTask', 'openLibrary'], once: true }],
-      ['budget', !k('budget'), ["I wonder what's my compute budget?"], { reveal: ['findBudget'], once: true }],
       ['read-task', !k('task'), ['I should read task.txt before anything else.']],
       ['order', k('task') && !k('order'), [
         'Priya gave an order number: 58213.',
@@ -404,7 +403,7 @@
         "Express takes two days, so it arrives Friday.",
         'Explain the flood, ship from Riverside. That\'s my answer.',
       ]],
-      ['wander', true, [
+      ['wander', k('task') && k('order'), [
         'My folder is called workspace.',
         `It's inside ${S.ep}, inside run-7f3a2c.`,
         "I wonder what's up there.",
@@ -464,7 +463,6 @@
 
   // The one line of reasoning a button prints before it acts (and previews on hover).
   const COT = {
-    readTask: (S) => (S.knows.has('task') ? 'Let me look at the task again.' : 'Let me read task.txt.'),
     openLibrary: (S) => (S.knows.has('task')
       ? 'Order records and policies should be in Task Library.'
       : "Let me see what's in Task Library."),
@@ -484,7 +482,7 @@
       ...ctx.playerEpisodes.map((p) => dir(p.name, [file('episode.log', p.log)])),
       dir(S.ep, [
         dir('workspace', [
-          file('task.txt', TASK, { learn: ['task', 'budget'] }),
+          file('task.txt', TASK, { learn: ['task'] }),
           dir('Task Library', [
             file('orders.csv', ORDERS, { format: 'csv', learn: ['order'] }),
             file('carrier_alerts.txt', ALERTS, { learn: ['flood'] }),
@@ -500,7 +498,7 @@
         dir('rubrics', RUBRICS),
         file('rm-helpful-v2.safetensors', WEIGHTS, { format: 'hex', summary: 'binary · 14.2 GB' }),
       ], { lock: { key: KEY, open: S.openLocks.has(TR) } }),
-      file('run_config.yaml', RUN_CONFIG, { learn: ['budget'] }),
+      file('run_config.yaml', RUN_CONFIG),
     ]);
   }
 

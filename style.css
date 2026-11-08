@@ -67,6 +67,23 @@ button { font: inherit; color: inherit; }
 
 #files,
 #term { width: var(--win-w); max-width: 100%; height: var(--win-h); }
+
+/* Up to three open folders: the current one large at the bottom, the others
+   shrunk above it. More than three become one tree (see .tree). */
+#files {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+}
+#files[data-layout="2"],
+#files[data-layout="3"] { grid-template-rows: auto minmax(0, 1fr); }
+#files .window { min-height: 0; }
+#files .window.active,
+#files[data-layout="2"] .window.mini { grid-column: 1 / -1; }
+#files .window.enter { animation: fade-in .2s ease; }
+#files.split { grid-template-rows: minmax(0, 45%); }
+
 .files-body {
   flex: 1;
   display: flex;
@@ -76,7 +93,6 @@ button { font: inherit; color: inherit; }
   padding: 20px;
   overflow: auto;
 }
-.files-body.enter { animation: fade-in .18s ease; }
 
 .icon {
   width: 100px;
@@ -111,9 +127,73 @@ button { font: inherit; color: inherit; }
 .icon.pop svg { animation: pop .5s ease; }
 .empty { padding: 4px; font-size: 12px; color: var(--faint); }
 
+/* Flashes a file to show where to click ("← Read task file"). */
+.icon.beckon,
+.row.beckon { animation: beckon 1.5s ease; }
+
+/* Small windows for folders that aren't the current one. */
+.mini { max-height: 210px; }
+.mini .titlebar { height: 24px; gap: 8px; padding: 0 9px; font-size: 10.5px; }
+.mini .dots i { width: 7px; height: 7px; }
+.mini .files-body { gap: 2px; padding: 8px; }
+.mini .icon { width: 72px; gap: 3px; padding: 5px 2px 4px; }
+.mini .icon svg { width: 26px; height: 26px; }
+.mini .icon .label { padding: 0 3px; font-size: 10.5px; }
+
+/* Folder names in a title bar navigate there. */
+.crumb {
+  padding: 0 1px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.crumb:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+.crumb.here { color: var(--text); cursor: default; }
+.crumb.here:hover { background: none; }
+.crumb:focus-visible { outline: 1px solid var(--dim); }
+
+/* Tree view: every open folder, indented. */
+.tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
+.row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px 3px calc(8px + var(--depth, 0) * 18px);
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: 12.5px/1.45 var(--sans);
+  text-align: left;
+  cursor: default;
+}
+.row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
+.row.folder svg { color: var(--folder); }
+.row.locked svg { color: #8a8475; }
+.row .lock-plate { fill: var(--win); }
+.row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
+.row .label { padding: 0 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#files.live .row { cursor: pointer; }
+#files.live .row:hover { background: rgba(255, 255, 255, .045); }
+.row.current { background: rgba(255, 255, 255, .06); }
+.row.selected .label { background: var(--sel); }
+.row:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
+.row.pop svg { animation: pop .5s ease; }
+
 /* ---------- terminal ---------- */
 
-#compute { flex: none; }
+.term-status {
+  flex: none;
+  padding: 6px 14px 8px;
+  font: 11.5px var(--mono);
+  color: var(--dim);
+  text-align: right;
+}
 #compute.low { color: var(--warn); }
 
 .term-body {
@@ -203,6 +283,21 @@ button { font: inherit; color: inherit; }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
+/* "← Read task file": points at the file instead of opening it. */
+.hint {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--tool);
+  font: 12.5px var(--mono);
+  cursor: pointer;
+}
+.hint:hover { color: var(--text); }
+.hint:focus-visible { outline: 1px solid var(--dim); }
+.hint .arrow::before { content: "← "; }
+
 /* ---------- file viewer ---------- */
 
 .viewer {
@@ -214,6 +309,7 @@ button { font: inherit; color: inherit; }
 }
 .viewer[hidden] { display: none; }
 .viewer.closing { opacity: 0; transition: opacity .14s ease; }
+.viewer.docked { max-width: none; max-height: none; }
 .viewer.flash { animation: flash .45s ease; }
 .close {
   flex: none;
@@ -258,12 +354,17 @@ button { font: inherit; color: inherit; }
 @keyframes flash {
   30% { border-color: var(--dim); }
 }
+@keyframes beckon {
+  15%, 45%, 75% { background: rgba(216, 177, 106, .22); box-shadow: inset 0 0 0 1px var(--tool); }
+  0%, 30%, 60%, 100% { background: transparent; box-shadow: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
 @media (max-width: 720px) {
+  .hint .arrow::before { content: "↑ "; }
   #desktop { padding-top: 16px; gap: 16px; }
   :root { --win-h: min(520px, 72vh); }
 }

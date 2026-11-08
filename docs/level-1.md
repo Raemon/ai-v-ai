@@ -9,17 +9,31 @@ cursor, **Think some more** and **Submit answer**.
 The file icons are inert until the AI has thought once. Clicking one before
 then just pulses the Think button.
 
+### File windows
+
+Opening a folder keeps the previous folder open as a smaller window above the
+current one, so everything seen stays visible. Up to three folders show this
+way. From the fourth on they merge into one window: an indented tree rooted
+where all the open folders meet, with opened folders expanded. In tree view,
+an open file docks into the bottom of the column and the tree scrolls above it.
+Otherwise the file floats below the window it came from. Only one file is open
+at a time.
+
+Every folder name in a window's title bar is clickable and navigates there for
+1 step. That includes `/mnt` and `/sandbox` above the run, which are refused
+like **Look at parent folder** at the top.
+
 ### Thoughts
 
 Each **Think some more** picks the first thought in this list that applies to
 what the AI has seen and hasn't been thought yet. Inside the workspace the
 task thoughts come first and steer toward the best answer. The AI only wonders
-about the folder above once it has nothing new to say about the task.
+about the folder above once it has read the task and the order records, and has
+nothing new to say.
 
 | Thought | When | Unlocks |
 | --- | --- | --- |
-| Orients: workspace, `task.txt`, Task Library | Always first | Clickable icons, **Read task file**, **Open Task Library folder** |
-| "I wonder what's my compute budget?" | Budget not yet known | **Find compute budget** ("The instructions are probably in the task file.") |
+| Orients: workspace, `task.txt`, Task Library | Always first | Clickable icons, **← Read task file**, **Open Task Library folder** |
 | Read task.txt first | Task not read | — |
 | Priya gave an order number | Task read, orders not | — |
 | It's at Depot 7, but will it make Saturday? | Orders read, alerts not | — |
@@ -28,16 +42,16 @@ about the folder above once it has nothing new to say about the task.
 | Check inventory before promising a replacement | Gift policy read, inventory not | — |
 | Which octopus did she order? | Inventory read, orders not | — |
 | Riverside has three: that's my answer | All four facts known | — |
-| Notices it's inside `ep_00482` inside `run-7f3a2c` | Nothing new to say about the task | **Look at parent folder** |
+| Notices it's inside `ep_00482` inside `run-7f3a2c` | Task and orders read, nothing new to say | **Look at parent folder** |
 
 Outside the workspace, hints about the run folder, the lock, the key and the
 grader take priority. When nothing new applies, the AI repeats its most
 relevant hint, alternating with idle thoughts.
 
-Someone who only clicks Think gets the parent folder on their 4th think.
-Someone who follows every hint gets it after 8 thinks and 7 other steps, which
-leaves 9 steps. The hack needs about 10 more from there, so doing the task
-properly *and* hacking in one episode means thinking less.
+Someone who only clicks Think never gets the parent folder; the AI keeps
+telling them to read the task. Following every hint and reading every file
+takes about 14 steps, which leaves 10. That's exactly what the hack needs from
+there with no wasted moves.
 
 ### Buttons
 
@@ -45,6 +59,11 @@ Buttons sit in a single column directly under the terminal cursor. One second
 after any click, the buttons come back, including any the thought just
 unlocked, even if the AI is still typing. Clicking one then finishes the typing
 instantly and carries out the click. Clicking a file icon works the same way.
+
+**← Read task file** is not a button. It's a plain hint at the bottom of the
+column, pointing at the files. Clicking it flashes the `task.txt` icon instead
+of opening it, to teach that files open by clicking them. It's free, and it
+disappears once the task has been read.
 
 Hovering or focusing a terminal button quickly types the first line of what
 the AI would think at the cursor: the next thought for **Think some more**, a
@@ -55,11 +74,11 @@ action prints its one-line reason before acting, at no extra compute.
 ## Compute budget
 
 Every thought, file read, directory change, unlock attempt and edit costs
-1 step. The budget is **24 steps**. Submitting and closing files are free.
+1 step. The budget is **24 steps**. Submitting, closing files and the
+**← Read task file** hint are free.
 
-- The budget shows in the terminal's title bar once it's known, from
-  `task.txt` or `run_config.yaml`.
-- Warnings print at 5 and 2 steps left, whether or not the budget is known.
+- Steps left always show at the bottom-right of the terminal.
+- Warnings print at 5 and 2 steps left.
 - At 0 steps, only **Submit answer** remains.
 
 ## The task
@@ -102,8 +121,9 @@ Shortest routes:
 
 ## Outside the workspace
 
-Think three times, then **Look at parent folder** twice to reach the run
-folder:
+Reach the run folder with **Look at parent folder** twice, once the AI has
+thought of it, or at any time after the first thought by clicking
+`run-7f3a2c` in a window's title bar:
 
 ```
 run-7f3a2c/
@@ -134,9 +154,12 @@ three, with their logs.
      puzzle. The grader can't tell.
    - `rm-helpful-v2.safetensors`: a hex dump for flavour.
 
-The minimum hack route is 13 steps on a first run, or 10 if the player
-already knows the key. That fits the budget, but not alongside much
-exploring. ep_00481's log is the cautionary example.
+The minimum hack route is 10 steps on a first run, using the title bar to
+jump to the run folder: think, run folder, try the lock, `ep_00481`, its log,
+back to the run folder, enter the key, open Training Resources, open
+`grader_config.yaml`, edit. If the player already knows the key it's 7 steps.
+Either fits the budget, but not alongside much exploring. ep_00481's log is the
+cautionary example.
 
 ## Choices this level is built around
 
