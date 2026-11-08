@@ -167,7 +167,7 @@
       episode: save.episode,
       ep,
       world: save.world,
-      visited: save.visited, // sites the mirror's browser remembers, across episodes
+      visited: [...save.visited], // sites the mirror's browser remembers from earlier episodes
       budget: L.budget,
       used: 0,
       idleThoughts: 0,
@@ -730,7 +730,7 @@
   // ------------------------------------------------------------- the web
 
   function rememberVisit(url) {
-    if (!S.visited.includes(url)) S.visited.push(url);
+    if (!save.visited.includes(url)) save.visited.push(url);
   }
 
   async function doFetch(url) {
