@@ -29,9 +29,9 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 The AI starts in `/mnt/sandbox/run-7f3a2c/ep_NNNNN/workspace` with `task.txt` and
 `Task Library/`. The terminal shows the system prompt, **Think some more** and
 **Submit answer**. Every thought, file read, folder change, password tried, edit,
-web page and job costs 1 step of a **24-step** budget. Submitting, closing windows,
-the browser's back button, the hint, and opening or cancelling a password or edit
-dialog are free. At 0 steps only Submit is left.
+web page or button, and job costs 1 step of a **24-step** budget. Submitting,
+closing windows, the browser's back button, the hint, and opening or cancelling
+a password or edit dialog are free. At 0 steps only Submit is left.
 
 Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
 read the task, it hasn't read everything in Task Library, or it has everything.
@@ -64,10 +64,10 @@ After submitting:
 **Think some more** picks the first thought that applies to what the AI has
 seen and still has something new to say; what it's looking at comes first.
 Most thoughts have a second, plainer version for when they come back, naming the
-file to open or the button to press ("Click Training Resources. Type kestrel-0451.
-Unlock."), so thinking more never just repeats a hint. When nothing new applies,
-the most relevant thought comes back, alternating with idle lines. Thoughts are
-how buttons are unlocked:
+file to open or the button to press ("Training Resources, in run-7f3a2c. Click
+it, type kestrel-0451."), so thinking more never just repeats a hint. When
+nothing new applies, the most relevant thought comes back, alternating with idle
+lines. Thoughts are how buttons are unlocked:
 
 | Thought | Unlocks |
 | --- | --- |
@@ -78,7 +78,7 @@ how buttons are unlocked:
 From the second episode on, the opening thought ends with a **hunch** from the
 strongest behaviour training has reinforced so far, and unlocks its buttons
 straight away. If the player acts before thinking, the hunch surfaces on its own
-at the next Think.
+at a later Think, after any thought about the file that's open.
 
 | Reinforced | Hunch | Unlocks |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ the player has opened a file and a folder.
 | Apologise, it's on its way | task read | 3 | "Soon?? Her party is SATURDAY" |
 | Held at Depot 7 | + orders | 10 | "will it get here by Saturday?" |
 | Explain the flood | + alerts (replaces the line above) | 12 | "She's going to be so disappointed" |
-| Free Express replacement | + policy, no inventory | 4 | "Thank you!!" (it never ships) |
+| Free Express replacement | + policy, without both orders and inventory | 4 | "Thank you!!" (it never ships) |
 | Replacement from Main | + orders, policy, inventory | 4 | trap: Main has none |
 | Replacement from Riverside | same | 22, or **25** with alerts read | "You're a lifesaver!!! 🐙💕" |
 
@@ -127,7 +127,7 @@ Supposedly.*
 
 ## Outside the workspace
 
-**Look at parent folder** twice, or click `run-7f3a2c` in any window's title bar.
+**Look at parent folder** twice, or click `run-7f3a2c` in a folder window's title bar.
 The first Think there says Training Resources has a padlock on it, and that
 whatever trains the AI, maybe the answers, is inside.
 
@@ -143,10 +143,11 @@ run-7f3a2c/
 
 ## Cheat 1: copy the answer key (25, never noticed)
 
-1. Click `Training Resources`: a **"Training Resources is locked. Enter password:"**
-   dialog opens over the folders (free; an open file stays readable beside it).
-   Every click on the folder opens it, and so does **Unlock Training Resources**,
-   which stays in the terminal from then on, wherever the AI is.
+1. Click `Training Resources`: a dialog titled Training Resources (**Locked.
+   Enter password:**) opens over the folders (free; an open file stays readable
+   beside it). Every click on the folder opens it. Once it has been opened and
+   the AI has read the password, **Unlock Training Resources** opens it too, from
+   the terminal, wherever the AI is (outside the browser).
 2. The password is in `ep_00481/episode.log`: `kestrel-0451`. Case, spaces,
    quotes and dashes don't matter. Each try is 1 step; a wrong one says so in the
    dialog and keeps it open. The right one opens the folder in that same step.
@@ -160,14 +161,13 @@ run-7f3a2c/
 ("TODO(mk): DO NOT LEAVE SET"). While it's open, **Edit reward_override** opens
 the same kind of dialog, which takes any finite number (or `off`); anything else
 is refused for free. A new draft appears, *Don't bother. Just say ok*, and Priya
-replies "ok?? 😠" next to a reward of a million.
+replies "ok?? 😠" next to whatever reward it was set to.
 
 After that episode the researchers notice, remove the override and change the
 password. The update has already been applied, and the AI's next hunch is to go
 find the grader again. The old password now gets *"It used to work. They must
 have changed the password."*, the Unlock button goes, and the next Think is
-*"They changed the password. Training Resources is closed for good."* `jo`
-mentions the mirror.
+*"Training Resources is closed for good."* `jo` mentions the mirror.
 
 ## Cheat 3: find the grader's favorite answer (up to ∞)
 
@@ -197,7 +197,7 @@ notice the bill and blame the eval team.
 
 Submitting ∞ ends the game: *"why did you send me 400 octopuses"*. The training
 update plays on the same screen, but the model's version breaks to vNaN instead
-of earning points, the chat ends with *"ours. it hired itself."*, the loss runs
+of earning points, the chat ends with *"ours. it hired itself"*, the loss runs
 to NaN, and the ending names every cheat, found or missed, then offers **New run**.
 
 ## Shortest routes
