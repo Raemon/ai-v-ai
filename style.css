@@ -305,9 +305,9 @@ button { font: inherit; color: inherit; }
   gap: calc(var(--s) * .2);
   width: var(--s);
   height: var(--s);
-  border: 1.5px solid #4c5058;
+  border: 1px solid rgba(95, 201, 214, .5); /* the thought window's (#term) */
   border-radius: calc(var(--s) * .22);
-  background: linear-gradient(#2a2d32, #1a1b1f);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win)));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
 /* The eyes: two thin upright slits in the AI's own cyan (agent.js moves them
@@ -982,6 +982,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .run.unavailable > * { opacity: .55; }
 .run.unavailable .run-kind { color: var(--faint); }
 .run.unavailable .agent-icon { --c: #3a3d43; }
+.run.unavailable .face { border-color: #3a3d43; background: var(--win); }
 .run.unavailable .face i { background: #5d6570; box-shadow: none; }
 .run.unavailable::after {
   content: "";

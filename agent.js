@@ -140,7 +140,7 @@
   // into the bulb. Lines are 1px on whole pixels, every frame.
 
   const NS = 'http://www.w3.org/2000/svg';
-  const R = 10;       // elbow radius
+  const R = 6;        // elbow radius
   const LANE = 24;    // how far below the face the arm turns
   const K = 0.5523;   // Bézier handles for a quarter circle
   const OUT = 4;      // how far outside the thing the brackets sit
