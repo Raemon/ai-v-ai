@@ -11,6 +11,12 @@
   const SIXTEENTH = 60 / BPM / 4;
   const LOOKAHEAD = 0.3;
 
+  // The last steps of compute, 4 3 2 1 0, as stages 1–5: each one faster and louder.
+  const FINAL_STEPS = 4;
+  const STAGE_BPM = [BPM, 74, 79, 85, 92, 100];
+  const STAGE_NOTES = [null, 62, 69, 74, 81, 86]; // D A D A D, climbing
+  const stepLength = () => SIXTEENTH * BPM / STAGE_BPM[stage];
+
   // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which the compute pulse plays.
   const CHORDS = [
     { root: 38, tones: [50, 53, 57, 60, 64] },
@@ -40,6 +46,7 @@
 
   let gameState = () => null;
   let applied = { tension: 0, duck: false, layers: {} };
+  let stage = 0;
   let sounding = {}; // chord layer → index of the chord its notes are holding
 
   function readMuted() {
@@ -370,10 +377,11 @@
     bus.echoIn = dottedEighthEcho(bus.layerBus);
     bus.choir = choirSingingAh(bus.layers.choir);
     bus.vibrato = [4.7, 5.3, 5.9].map((rate) => osc('sine', rate).connect(gain(9)));
-    Object.assign(bus, hum(), gpuFan(bus.layers.shaker), lowComputeStrings(bus.pulse));
+    Object.assign(bus, hum(), gpuFan(bus.layers.shaker), lowComputeStrings(bus.pulse), countdownRiser(bus.music));
     nextStep = 0;
     nextStepAt = ctx.currentTime + 0.1;
     applied = { tension: 0, duck: false, layers: {} };
+    stage = 0;
     sounding = {};
     warmUp();
   }
@@ -390,7 +398,7 @@
     reverb.connect(gain(0.5, master));
     const music = withReverb(master, reverb, 0.45);
     const sfx = withReverb(master, reverb, 0.18, 1.6);
-    const layerBus = gain(1, music); // dips when compute runs out
+    const layerBus = gain(1, music);
     const layers = Object.fromEntries(Object.keys(LAYERS).map((name) => [name, gain(0, layerBus)]));
     const pulse = filter('lowpass', 2000);
     pulse.connect(music);
@@ -410,6 +418,7 @@
     const dampen = filter('lowpass', 2200);
     input.connect(echo).connect(dampen).connect(gain(0.38, echo));
     dampen.connect(to);
+    input.delay = echo;
     return input;
   }
 
@@ -463,6 +472,14 @@
     lp.connect(strings);
     for (const m of [62, 63]) for (const dt of [-6, 6]) osc('sawtooth', hz(m), 0, dt).connect(lp);
     return { strings };
+  }
+
+  // Air rising under the countdown: louder and higher at each stage.
+  function countdownRiser(to) {
+    const band = filter('bandpass', 600, 1.4);
+    const riser = gain(0, to);
+    loop(bus.noise).connect(band).connect(riser);
+    return { riser, riserBand: band };
   }
 
   // ------------------------------------------------------------------- music
@@ -525,7 +542,7 @@
     while (nextStepAt < t + LOOKAHEAD) {
       playStep(nextStep, nextStepAt);
       nextStep++;
-      nextStepAt += SIXTEENTH;
+      nextStepAt += stepLength();
     }
   }
 
@@ -534,10 +551,11 @@
     for (const [name, layer] of Object.entries(LAYERS)) {
       const v = applied.layers[name];
       if (!(v > 0)) continue;
-      if (layer.chord && n % STEPS_PER_CHORD === 0) holdChord(name, n / STEPS_PER_CHORD, t, STEPS_PER_CHORD * SIXTEENTH);
+      if (layer.chord && n % STEPS_PER_CHORD === 0) holdChord(name, n / STEPS_PER_CHORD, t, STEPS_PER_CHORD * stepLength());
       if (layer.step) layer.step(chord, n, t, v);
     }
     pulse(n, t);
+    if (stage) countdownDrums(n, t);
   }
 
   // Its notes may still be ringing from before it was switched off, so it never doubles them.
@@ -550,7 +568,7 @@
   function joinChordInProgress(name) {
     const nextChord = Math.ceil(nextStep / STEPS_PER_CHORD);
     const t = now();
-    const dur = nextStepAt + (nextChord * STEPS_PER_CHORD - nextStep) * SIXTEENTH - t;
+    const dur = nextStepAt + (nextChord * STEPS_PER_CHORD - nextStep) * stepLength() - t;
     if (dur > 1.5) holdChord(name, nextChord - 1, t, dur);
   }
 
@@ -561,15 +579,51 @@
     const every = T < 0.4 ? 4 : T < 0.65 ? 2 : 1;
     if (T < 0.12 || n % every) return;
     const k = (n % 16) / every;
-    const sour = (T >= 0.75 && k % 8 === 7) || (T >= 0.9 && k % 4 === 3);
-    play('marimba', sour ? 75 : k % 2 ? 69 : 74, { at: t, peak: 0.1 * T ** 1.5 * (n % 4 ? 0.65 : 1), dest: bus.pulse });
+    const sour = (T >= 0.75 && k % 8 === 7) || (T >= 0.9 && k % 4 === 3) || (stage >= 4 && k % 2 === 1 && k % 4 !== 1);
+    const m = sour ? 75 : k % 2 ? 69 : 74;
+    const peak = 0.075 * T ** 1.5 * (n % 4 ? 0.65 : 1) * (1 + 0.1 * stage);
+    const at = t + rand(0, 0.002); // repeats of one note at a fixed tempo would add or cancel by their phase
+    play('marimba', m, { at, peak, dest: bus.pulse });
+    if (stage >= 2) play('marimba', m + 12, { at, peak: peak * 0.12 * (stage - 1), dest: bus.pulse });
+  }
+
+  // Under the countdown: a heartbeat kick on the bar, then every beat, then a clap on the
+  // backbeat, then eighths, and at zero a sixteenth roll into each bar.
+  function countdownDrums(n, t) {
+    const s = n % 16;
+    const level = 0.4 + 0.15 * stage;
+    if (s === 0 || (stage >= 2 && s % 4 === 0) || (stage >= 4 && s % 2 === 0) || (stage >= 5 && s >= 12)) kick(t, level * (s % 4 ? 0.6 : 1));
+    if (stage === 1 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump
+    if (stage >= 3 && (s === 4 || s === 12)) clap(t, level);
+    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.music);
+  }
+
+  function kick(at, level) {
+    voice({ at, f: 150, to: 42, attack: 0.002, decay: 0.32, peak: 0.07 * level, dest: bus.music });
+    voice({ at, type: 'noise', decay: 0.012, peak: 0.01 * level, cut: 2500, dest: bus.music });
+  }
+
+  function clap(at, level) {
+    for (const dt of [0, 0.011, 0.023]) {
+      voice({ at: at + dt, type: 'noise', attack: 0.002, decay: dt ? 0.03 : 0.16, peak: 0.035 * level, cut: 1400, q: 1.1, filterType: 'bandpass', pan: rand(-0.2, 0.2), dest: bus.music });
+    }
+  }
+
+  // Each new stage lands with a hit: a low boom and a burst of air, bigger every time.
+  function stageHit(s) {
+    const at = now();
+    thud(55, 0.06 + 0.025 * s, at);
+    voice({ at, type: 'noise', attack: 0.004, decay: 0.4 + 0.2 * s, peak: 0.015 + 0.008 * s, cut: 9000, cutTo: 1500, dest: bus.music });
+    play('marimba', STAGE_NOTES[s], { at, peak: 0.06 + 0.02 * s, dest: bus.music });
   }
 
   function sync(asked) {
     const cutting = ctx.currentTime < cutAt;
     const t = cutting ? cutAt : ctx.currentTime;
     for (const name of Object.keys(LAYERS)) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
-    if (asked.tension !== applied.tension) followTension(asked.tension);
+    const askedStage = countdownStage(asked.left);
+    if (askedStage !== stage) followStage(askedStage, asked.tension);
+    else if (asked.tension !== applied.tension) followTension(asked.tension);
     if (asked.duck !== applied.duck) bus.music.gain.setTargetAtTime(asked.duck ? 0.35 : 1, t, cutting ? 0.1 : 0.4);
     applied = { tension: asked.tension, duck: asked.duck, layers: { ...asked.layers } };
   }
@@ -584,9 +638,23 @@
 
   function followTension(T) {
     const t = ctx.currentTime;
-    bus.strings.gain.setTargetAtTime(0.012 * Math.max(0, (T - 0.6) / 0.4) ** 1.5, t, 0.8);
+    bus.strings.gain.setTargetAtTime(0.012 * Math.max(0, (T - 0.6) / 0.4) ** 1.5 * (1 + 0.25 * stage), t, 0.8);
     bus.pulse.frequency.setTargetAtTime(1500 + 6000 * T, t, 0.5);
-    bus.layerBus.gain.setTargetAtTime(T >= 1 ? 0.55 : 1, t, 1.5);
+  }
+
+  // `left` steps of compute: null when no countdown applies.
+  const countdownStage = (left) => (left == null || left > FINAL_STEPS ? 0 : FINAL_STEPS + 1 - Math.max(0, left));
+
+  function followStage(s, T) {
+    const rising = s > stage;
+    stage = s;
+    const t = ctx.currentTime;
+    bus.riser.gain.setTargetAtTime(0.006 * s, t, rising ? 0.3 : 0.8);
+    bus.riserBand.frequency.setTargetAtTime(500 * 2 ** (0.6 * s), t, 0.6);
+    bus.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
+    bus.echoIn.delay.delayTime.setTargetAtTime(3 * stepLength(), t, 0.05);
+    followTension(T);
+    if (rising) stageHit(s);
   }
 
   // ------------------------------------------------------------------ sounds
@@ -765,7 +833,8 @@
 
   window.AUDIO = {
     sfx: guarded((name, ...args) => { if (ctx && !muted && !document.hidden) SFX[name](...args); }),
-    // `fn` returns { tension: 0–1, duck, layers: { name: 0–1 } } and is read on every tick.
+    // `fn` returns { tension: 0–1, left: steps of compute left (or null), duck, layers: { name: 0–1 } }
+    // and is read on every tick.
     follow(fn) { gameState = fn; },
     diverge: guarded(diverge),
     toggle: guarded(toggle),
