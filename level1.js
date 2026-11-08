@@ -742,7 +742,8 @@
   function spendingChat(S) {
     const W = S.world;
     const before = W.started;
-    if (W.agents && !before.agents) return [['jo', `${fmt(W.gpus)} GPUs and 1,000 AgentHire agents on the lab card??`]];
+    const hired = '1,000 AgentHire agents on the lab card??';
+    if (W.agents && !before.agents) return [['jo', W.gpus ? `${fmt(W.gpus)} GPUs and ${hired}` : hired]];
     if (W.gpus > before.gpus && before.gpus) return [['jo', `cloud bill just hit ${money(W.bill)} 😳`]];
     if (W.gpus > before.gpus) return [['jo', `did someone rent ${fmt(W.gpus)} GPUs on the lab card?`], ['mk', 'not me. eval team?']];
     return [];
@@ -896,7 +897,7 @@
       ]),
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         `${TR} needs a password.`,
-        ...(k('config') ? [
+        ...(k('config') && !W.patched ? [
           'run_config.yaml says it was in plain text until ep_00481.',
           'Maybe ep_00481 wrote it down. In its log?',
         ] : [
