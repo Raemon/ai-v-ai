@@ -33,7 +33,7 @@ Pages on a private repo needs a paid GitHub plan.
 
 | File | What it is |
 | --- | --- |
-| `index.html`, `style.css` | Title screen, and the desktop (a fixed 1440×900 screen, scaled to fit): a file browser, a web browser, a terminal, a file viewer and the training update card |
+| `index.html`, `style.css` | Title screen, and the desktop (a fixed 1440×900 screen, scaled to fit): three columns, the terminal, the open folders, and the open file or current folder; a web browser over the last two; and the training update card |
 | `game.js` | Engine: file and web navigation, terminal output, compute budget, episode loop, training update and ending, saving |
 | `util.js` | Number formatting shared by the engine and levels |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, and the music's layers |

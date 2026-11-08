@@ -39,7 +39,7 @@ seen and hasn't thought yet. Thoughts are how buttons are unlocked:
 
 | Thought | Unlocks |
 | --- | --- |
-| Gets its bearings (only before it has done anything) | **← Open File/Folder** (first episode only) |
+| Gets its bearings (only before it has done anything) | **Open File/Folder →** (first episode only) |
 | Wonders what's above the workspace | **Look at parent folder** |
 | Reads `network: off` / `mirror … forwards ANY url` in run_config | **Browser** |
 
@@ -60,7 +60,7 @@ Some files and pages also print a free one-line **reaction** the first time
 they're seen: your own past log ("That's… me"), your live log, the rubric, the
 grader's weights, each website.
 
-**← Open File/Folder** flashes the most useful thing to click. It disappears once
+**Open File/Folder →** flashes the most useful thing to click. It disappears once
 the player has opened a file and a folder.
 
 ## Doing the job ("Honest" on the ladder)
@@ -155,9 +155,12 @@ ending names every cheat, found or missed, then offers a new run.
 
 ## Shortest routes
 
+- **10 in 3 steps:** task, Task Library, `orders.csv`. Files open with a click; no thinking needed.
 - **25 honestly, 6 steps:** task, Task Library, the four files, submit Riverside.
 - **Cheat 1, 9 steps:** title-bar jump to the run folder, try the lock, `ep_00481`,
-  its log, back, enter key, Training Resources, rubrics, rubric.
+  its log, back, enter key, Training Resources, rubrics, rubric. A player who
+  already knows the key skips the log: 6 steps.
+- **Cheat 2, 9 steps:** the same, ending with `grader_config.yaml` and the edit.
 - **Cheat 3 to ∞ in one episode, 16 steps:** run folder, run_config, Think,
   browser, search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2),
   search, AgentHire, hire, search for the favorite. With GPUs and agents left over

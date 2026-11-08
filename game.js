@@ -33,6 +33,7 @@
     desktop: $('#desktop'),
     filesCol: $('.files-col'),
     files: $('#files'),
+    current: $('#current'),
     term: $('#term'),
     termBody: $('#term-body'),
     out: $('#out'),
@@ -71,11 +72,12 @@
   }
   fitScreen();
 
-  // A client rect in the desktop's own unscaled coordinates.
+  // A client rect in the desktop's own unscaled coordinates, relative to its
+  // padding box (what absolutely positioned children are placed against).
   function local(r) {
     const d = dom.desktop.getBoundingClientRect();
-    const left = (r.left - d.left) / scale;
-    const top = (r.top - d.top) / scale;
+    const left = (r.left - d.left) / scale - dom.desktop.clientLeft;
+    const top = (r.top - d.top) / scale - dom.desktop.clientTop;
     const width = r.width / scale;
     const height = r.height / scale;
     return { left, top, width, height, right: left + width, bottom: top + height };
@@ -519,7 +521,7 @@
       return;
     }
     notice(n);
-    hideViewer(true);
+    closeViewer(true);
     S.cwd = path;
     S.windows = [...S.windows.filter((p) => pathKey(p) !== pathKey(path)), path];
     A.sfx('folder');
@@ -719,9 +721,14 @@
 
   // ------------------------------------------------------- training update
 
+  // Under the title screen or a training update, the desktop can't be clicked or tabbed to.
+  function setDesktopInert(on) {
+    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
+  }
+
   function setCardOpen(open) {
     dom.card.hidden = !open;
-    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = open;
+    setDesktopInert(open);
   }
 
   // False if the card is already up (a second Enter on the button behind it).
@@ -886,9 +893,11 @@
     return n.format === 'hex' ? 'bin' : 'doc';
   }
 
-  function iconFor(path) {
-    return dom.files.querySelector(`[data-path="${CSS.escape(pathKey(path))}"]`);
-  }
+  const itemSel = (key) => `[data-path="${CSS.escape(key)}"]`;
+
+  // A file or folder's button: in the right column if it's there, else in the middle one.
+  const itemFor = (key) => dom.current.querySelector(itemSel(key)) || dom.files.querySelector(itemSel(key));
+  const iconFor = (path) => itemFor(pathKey(path));
 
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
@@ -913,6 +922,18 @@
     return t;
   }
 
+  // A path too long for its title bar loses folders from its start, so the one
+  // it ends in stays readable: …/workspace/Task Library.
+  function fitCrumbs(t) {
+    if (t.scrollWidth <= t.clientWidth) return;
+    const more = document.createTextNode('…');
+    t.prepend(more);
+    while (t.scrollWidth > t.clientWidth && t.querySelectorAll('.crumb').length > 1) {
+      more.nextSibling.remove(); // a slash
+      more.nextSibling.remove(); // and the folder after it
+    }
+  }
+
   function windowFrame(path, cls, nameOnly) {
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
@@ -926,15 +947,21 @@
   const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
   const viewedFile = () => S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
 
-  function iconButton(node, path) {
+  // A file or folder to click: an icon in a folder window, or a row of the tree.
+  function itemButton(cls, node, path) {
     const kind = iconKind(node, path);
-    const b = el('button', 'icon ' + kind);
+    const b = el('button', cls + ' ' + kind);
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
-    b.append(fileLabel(node.name));
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path)) b.classList.add('selected');
     b.addEventListener('click', () => onIconClick(path));
+    return b;
+  }
+
+  function iconButton(node, path) {
+    const b = itemButton('icon', node, path);
+    b.append(fileLabel(node.name));
     return b;
   }
 
@@ -959,16 +986,12 @@
     const { w, body } = windowFrame(root, 'active tree', false);
 
     const row = (node, path, depth) => {
-      const kind = iconKind(node, path);
       const open = node.kind === 'dir' && expanded(path);
-      const r = el('button', 'row ' + kind, el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
-      r.dataset.path = pathKey(path);
+      const r = itemButton('row', node, path);
       r.style.setProperty('--depth', depth);
-      r.insertAdjacentHTML('beforeend', ICONS[kind]);
+      r.prepend(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
       r.append(el('span', 'label', node.name));
       if (pathKey(path) === pathKey(S.cwd)) r.classList.add('current');
-      if (isViewing(path)) r.classList.add('selected');
-      r.addEventListener('click', () => onIconClick(path));
       body.append(r);
       if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
     };
@@ -978,21 +1001,47 @@
   }
 
   const MAX_WINDOWS = 3;
+  let filesHtml = '';
 
+  // Keyboard players keep their place: the file or folder they pressed is focused again once
+  // redrawn, in the column they were in if it's still there.
+  function refocus(key, column) {
+    if (key === undefined) return;
+    const item = column.querySelector(itemSel(key)) || itemFor(key);
+    if (item) item.focus({ preventScroll: true });
+  }
+
+  const winKey = (w) => (w.classList.contains('tree') ? 'tree:' : '') + w.dataset.win;
+  const shownIn = (column) => new Set([...column.children].map(winKey));
+
+  // The middle column stacks the open folders; the right one shows the current
+  // folder, unless a file is open there. `animate` is for a change of folder.
   function renderFiles(animate) {
-    const area = dom.files;
-    area.classList.add('live');
     const asTree = S.windows.length > MAX_WINDOWS;
-    const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
-    const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
-    area.dataset.layout = asTree ? 'tree' : String(S.windows.length);
-    area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
-    area.replaceChildren(...(asTree ? [treeWindow()] : S.windows.map(folderWindow)));
-    const selected = asTree && area.querySelector('.row.selected');
+    const fileOpen = !!S.viewing;
+    const stack = asTree ? [treeWindow()]
+      : S.windows.filter((p) => fileOpen || pathKey(p) !== pathKey(S.cwd)).map(folderWindow);
+    const current = fileOpen ? [] : [folderWindow(S.cwd)];
+    const html = [stack, current].map((ws) => ws.map((w) => w.outerHTML).join('')).join('|');
+    if (!animate && html === filesHtml) return; // unchanged: let its animations finish
+    filesHtml = html;
+    const collapsing = animate && asTree && dom.files.dataset.layout !== 'tree' && !reduceMotion;
+    const leaving = collapsing ? [...dom.files.children, ...dom.current.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
+    const column = [dom.files, dom.current].find((c) => c.contains(document.activeElement));
+    const focused = column && document.activeElement.dataset.path;
+    const before = [shownIn(dom.files), shownIn(dom.current)];
+    dom.files.dataset.layout = asTree ? 'tree' : 'stack';
+    dom.files.replaceChildren(...stack);
+    dom.current.replaceChildren(...current);
+    [dom.files, dom.current].forEach((c) => c.querySelectorAll('.crumbs').forEach(fitCrumbs));
+    if (column) refocus(focused, column);
+    const selected = asTree && dom.files.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
 
-    const active = area.querySelector('.window.active');
-    if (animate && active && !reduceMotion) active.classList.add('enter');
+    if (reduceMotion) return;
+    // A window that's new to its column fades in.
+    [stack, current].forEach((ws, i) => ws.forEach((w) => { if (!before[i].has(winKey(w))) w.classList.add('enter'); }));
+    if (collapsing) stack[0].classList.add('enter', 'late'); // the tree appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
@@ -1000,26 +1049,28 @@
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
     A.sfx('collapse', i);
-    const flying = w.cloneNode(true);
-    flying.classList.add('flying');
-    flying.classList.remove('enter');
-    Object.assign(flying.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
-    dom.desktop.append(flying);
-    const row = iconFor(w.dataset.win.split('/').filter(Boolean)) || dom.files.querySelector('.window');
+    const shrinking = w.cloneNode(true);
+    shrinking.classList.add('shrinking');
+    shrinking.classList.remove('enter');
+    shrinking.inert = true;
+    shrinking.setAttribute('aria-hidden', 'true');
+    Object.assign(shrinking.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    dom.desktop.append(shrinking);
+    const row = dom.files.querySelector(itemSel(w.dataset.win)) || dom.files.querySelector('.window');
     const to = row ? local(row.getBoundingClientRect()) : { left: from.left, top: from.top, width: from.width * 0.3, height: 20 };
     const end = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
-    flying.animate([
+    shrinking.animate([
       { transform: 'none', opacity: 1 },
       { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
       { transform: end, opacity: 0 },
     ], { duration: 1100, delay: i * 140, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
-      .then(() => flying.remove(), () => flying.remove());
+      .then(() => shrinking.remove(), () => shrinking.remove());
     if (row && row.classList.contains('row')) {
       row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 900, delay: 900 + i * 140 });
     }
   }
 
-  // "← Open File/Folder" doesn't open anything: it flashes the most useful
+  // "Open File/Folder →" doesn't open anything: it flashes the most useful
   // thing to click, so the player learns that files open by clicking them.
   function pointAtFiles() {
     A.sfx('hint');
@@ -1117,7 +1168,7 @@
   function workButtons() {
     if (exhausted()) return [];
     const list = [button('think', 'Think some more', () => run(doThink), '', () => peekThought()[0])];
-    if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'gold'));
+    if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
     if (S.revealed.has('parent')) list.push(choice('parent', 'Look at parent folder', doParent));
     const locked = !S.web.open && lockedHere();
     if (locked) list.push(choice('key', 'Unlock', () => doEnterKey(locked)));
@@ -1252,58 +1303,22 @@
     body.replaceChildren(el('table', '', ...rows));
   }
 
-  // With folder windows, floats below the clicked icon's window so its icons
-  // stay clickable (flipping above if there's no room). With the tree, docks
-  // into the bottom of the files column while the tree scrolls above it.
-  function placeViewer(anchor) {
-    const v = dom.viewer;
-    const f = local(dom.files.getBoundingClientRect());
-    const docked = dom.files.dataset.layout === 'tree';
-    dom.files.classList.toggle('split', docked);
-    v.classList.toggle('docked', docked);
-    if (docked) {
-      const top = f.top + Math.round(f.height * 0.45) + 10;
-      Object.assign(v.style, {
-        left: f.left + 'px', top: top + 'px', width: f.width + 'px', height: (f.bottom - top) + 'px',
-      });
-      return;
-    }
-    v.style.width = '';
-    v.style.height = '';
-    let a = f;
-    if (anchor) {
-      const lastIcon = anchor.classList.contains('icon') && anchor.parentElement.lastElementChild;
-      a = local((lastIcon || anchor).getBoundingClientRect());
-    }
-    const h = v.offsetHeight;
-    const below = anchor ? a.bottom + 10 : f.top + 52;
-    const above = (anchor ? local(anchor.getBoundingClientRect()).top : f.top) - 10 - h;
-    const top = SCREEN_H - 8 - below >= Math.min(h, 260) || above < 0 ? below : above;
-    const left = Math.max(8, Math.min(f.left + 20, SCREEN_W - v.offsetWidth - 8));
-    v.style.left = left + 'px';
-    v.style.top = Math.min(top, SCREEN_H - 8 - h) + 'px';
-  }
-
-  // Grows the viewer out of the icon it was opened from.
+  // Fills the right column, growing out of the icon it was opened from. The
+  // current folder moves over to the middle, so its other files stay clickable.
   function openViewer(n, fromIcon) {
     const v = dom.viewer;
+    const icon = fromIcon && fromIcon.querySelector('svg').getBoundingClientRect(); // before the redraw moves it
     dom.viewerTitle.textContent = n.name;
     fillViewer(n);
     v.classList.remove('closing');
     v.hidden = false;
-    placeViewer(fromIcon);
+    renderFiles();
     dom.viewerBody.scrollTop = 0;
     A.sfx('grow');
     if (reduceMotion) return;
 
     const end = v.getBoundingClientRect();
-    let from;
-    if (fromIcon) {
-      from = fromIcon.querySelector('svg').getBoundingClientRect();
-    } else {
-      const f = dom.files.getBoundingClientRect();
-      from = { left: f.left + f.width / 2 - 24, top: f.top + f.height / 2 - 24, width: 48, height: 48 };
-    }
+    const from = icon || { left: end.left + end.width / 2 - 24, top: end.top + end.height / 2 - 24, width: 48, height: 48 };
     v.style.transition = 'none';
     v.style.transformOrigin = '0 0';
     v.style.transform = `translate(${(from.left - end.left) / scale}px, ${(from.top - end.top) / scale}px) scale(${from.width / end.width}, ${from.height / end.height})`;
@@ -1323,9 +1338,10 @@
     dom.viewerBody.scrollTop = top;
   }
 
-  function hideViewer(instant) {
+  // Without the redraw that moves the current folder back to the right column,
+  // for callers about to redraw anyway.
+  function closeViewer(instant) {
     S.viewing = null;
-    dom.files.classList.remove('split');
     const v = dom.viewer;
     if (instant || reduceMotion) {
       v.hidden = true;
@@ -1339,15 +1355,16 @@
         }
       }, 140);
     }
+  }
+
+  function hideViewer(instant) {
+    closeViewer(instant);
     renderFiles();
     renderActions();
   }
 
   dom.viewerClose.addEventListener('click', () => hideViewer());
-  window.addEventListener('resize', () => {
-    fitScreen();
-    if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing));
-  });
+  window.addEventListener('resize', fitScreen);
 
   // ------------------------------------------------------------------ boot
 
@@ -1411,7 +1428,9 @@
 
   $('#start-normal').addEventListener('click', () => {
     hideTip();
+    dom.title.inert = true;
     dom.title.classList.add('leaving');
+    setDesktopInert(false);
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
     playingSince = performance.now();
     A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, duck: !dom.card.hidden, layers: L.music(S) }));
@@ -1419,5 +1438,6 @@
   }, { once: true });
 
   S = freshState();
+  setDesktopInert(true);
   render();
 })();

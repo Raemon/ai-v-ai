@@ -15,12 +15,15 @@
   --folder: #c2aa79;
   --web: #7fb2e6;
   --reply: #d79ac0;
+  --agent: #5fc9d6; /* the terminal: the AI itself */
   --screen-w: 1440px; /* a 13" MacBook Air */
   --screen-h: 900px;
   --scale: 1;
-  --files-w: 800px;
-  --term-w: 500px;
-  --win-h: 820px;
+  /* Three columns: terminal, open folders, and the open file (or current folder). */
+  --term-w: 460px;
+  --files-w: 360px;
+  --focus-w: 506px;
+  --win-h: 832px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -43,8 +46,8 @@ button { font: inherit; color: inherit; }
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 28px;
-  padding: 40px;
+  gap: 24px;
+  padding: 32px;
   overflow: hidden;
   background: var(--desk);
   border: 1px solid #1f2125;
@@ -80,31 +83,30 @@ button { font: inherit; color: inherit; }
 
 /* ---------- file browser ---------- */
 
-.files-col,
-#term { flex: none; height: var(--win-h); }
-.files-col { position: relative; width: var(--files-w); }
-#files { width: 100%; height: 100%; }
-#term { width: var(--term-w); }
+.agent-col,
+.files-col { flex: none; height: var(--win-h); }
+.files-col { position: relative; display: flex; gap: 24px; }
+.focus-col { position: relative; width: var(--focus-w); }
+#current { height: 100%; }
 
-/* Up to three open folders: the current one large at the bottom, the others
-   shrunk above it. More than three become one tree (see .tree). */
+/* The middle column stacks the open folders, oldest at the top, shrunk. The
+   current folder sits in the right column, unless a file is open there: then
+   it's the large window at the bottom of this stack. More than three open
+   folders become one tree (see .tree). */
 #files {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  width: var(--files-w);
 }
-#files[data-layout="2"],
-#files[data-layout="3"] { grid-template-rows: auto minmax(0, 1fr); }
-#files .window { min-height: 0; }
-#files .window.active,
-#files[data-layout="2"] .window.mini { grid-column: 1 / -1; }
-#files .window.enter { animation: fade-in .2s ease; }
-#files .window.tree.enter { animation: fade-in .7s ease .35s both; }
+#files .window.mini { flex: none; }
+#files .window.active { flex: 1; min-height: 0; }
+#current .window { height: 100%; }
+.files-col .window.enter { animation: fade-in .2s ease; }
+.files-col .window.enter.late { animation: fade-in .7s ease .35s both; }
 
-/* Folder windows that no longer fit fly into their row of the tree. */
-.flying { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
-#files.split { grid-template-rows: minmax(0, 45%); }
+/* Folder windows that no longer fit shrink into their row of the tree. */
+.window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
 
 .files-body {
   flex: 1;
@@ -127,7 +129,7 @@ button { font: inherit; color: inherit; }
   border-radius: 6px;
   background: none;
   color: #c6c9ce;
-  cursor: default;
+  cursor: pointer;
 }
 .icon svg { display: block; width: 46px; height: 46px; }
 .icon.folder { color: var(--folder); }
@@ -142,14 +144,13 @@ button { font: inherit; color: inherit; }
   text-align: center;
   overflow-wrap: break-word;
 }
-#files.live .icon { cursor: pointer; }
-#files.live .icon:hover { background: rgba(255, 255, 255, .045); }
+.files-col .icon:hover { background: rgba(255, 255, 255, .045); }
 .icon.selected .label { background: var(--sel); }
 .icon:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .icon.pop svg { animation: pop .5s ease; }
 .empty { padding: 4px; font-size: 12px; color: var(--faint); }
 
-/* Flashes a file to show where to click ("← Read task file"). */
+/* Flashes a file to show where to click ("Open File/Folder →"). */
 .icon.beckon,
 .row.beckon { animation: beckon 1.5s ease; }
 
@@ -192,7 +193,7 @@ button { font: inherit; color: inherit; }
   color: var(--text);
   font: 12.5px/1.45 var(--sans);
   text-align: left;
-  cursor: default;
+  cursor: pointer;
 }
 .row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
 .row.folder svg { color: var(--folder); }
@@ -200,12 +201,74 @@ button { font: inherit; color: inherit; }
 .row .lock-plate { fill: var(--win); }
 .row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
 .row .label { padding: 0 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#files.live .row { cursor: pointer; }
-#files.live .row:hover { background: rgba(255, 255, 255, .045); }
+#files .row:hover { background: rgba(255, 255, 255, .045); }
 .row.current { background: rgba(255, 255, 255, .06); }
 .row.selected .label { background: var(--sel); }
 .row:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .row.pop svg { animation: pop .5s ease; }
+
+/* ---------- the AI ---------- */
+/* Not a computer window: the AI itself at the bottom of the column, thinking
+   its way up through a trail of bubbles into a borderless thought window. */
+
+.agent-col { display: flex; flex-direction: column; width: var(--term-w); }
+#term {
+  flex: 1;
+  min-height: 0;
+  border-color: rgba(95, 201, 214, .55);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--agent) 5%, var(--win));
+}
+.agent { position: relative; flex: none; height: 140px; }
+.agent .agent-icon { position: absolute; left: 30%; bottom: 0; }
+.bubble {
+  position: absolute;
+  border: 1.5px solid rgba(95, 201, 214, .55);
+  background: color-mix(in srgb, var(--agent) 5%, var(--win));
+}
+.bubble.b1 { left: 58%; bottom: 64px; width: 12px; height: 12px; border-radius: 4px; }
+.bubble.b2 { left: 64%; bottom: 82px; width: 18px; height: 18px; border-radius: 5px; }
+.bubble.b3 { left: 72%; bottom: 106px; width: 25px; height: 25px; border-radius: 7px; }
+
+/* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
+.agent-icon {
+  --s: 76px;     /* the face */
+  --pad: 11px;   /* face to brackets */
+  --arm: 13px;   /* bracket arm length */
+  --c: #6d727a;  /* bracket colour */
+  display: block;
+  flex: none;
+  padding: var(--pad);
+  background:
+    linear-gradient(var(--c), var(--c)) left top / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) left top / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) right top / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) right top / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) left bottom / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) left bottom / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) right bottom / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) right bottom / 1.5px var(--arm);
+  background-repeat: no-repeat;
+}
+.agent-icon .face {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: calc(var(--s) * .24);
+  width: var(--s);
+  height: var(--s);
+  border: 2px solid #4f535a;
+  border-radius: calc(var(--s) * .26);
+  background: linear-gradient(#2d3035, #1b1c20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .45);
+}
+.agent-icon .face i {
+  width: calc(var(--s) * .065);
+  height: calc(var(--s) * .27);
+  border-radius: 9px;
+  background: #f4f6f8;
+  box-shadow: 0 0 6px rgba(255, 255, 255, .7), 0 0 14px rgba(200, 230, 255, .35);
+}
 
 /* ---------- terminal ---------- */
 
@@ -303,16 +366,16 @@ button { font: inherit; color: inherit; }
 }
 .btn {
   padding: 6px 11px;
-  border: 1px solid var(--faint);
+  border: 1px solid rgba(95, 201, 214, .5);
   border-radius: 5px;
   background: transparent;
-  color: var(--text);
+  color: var(--agent);
   font: 12.5px var(--mono);
   text-align: left;
   cursor: pointer;
   transition: background .12s, border-color .12s, opacity .2s;
 }
-.btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); border-color: var(--dim); }
+.btn:hover:not(:disabled) { background: rgba(95, 201, 214, .08); border-color: rgba(95, 201, 214, .85); }
 .btn:disabled { opacity: .35; cursor: default; }
 .btn.submit { border-color: #56664f; }
 .btn.loud { border-color: rgba(127, 178, 230, .5); color: var(--web); }
@@ -321,20 +384,16 @@ button { font: inherit; color: inherit; }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
-/* The one thing to press next: Start, the files hint, the training card's button. */
+/* The one thing to press next: the files hint, the training card's button, and
+   Start (.run.gold, on the title screen). */
 .btn.gold { border-color: rgba(216, 177, 106, .5); color: var(--tool); }
 .btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .8); background: rgba(216, 177, 106, .07); }
 
 /* ---------- file viewer ---------- */
+/* Fills the right column, over the current folder (which moves to the middle). */
 
-.viewer {
-  position: absolute;
-  z-index: 10;
-  width: 480px;
-  max-height: 480px;
-}
+.viewer { position: absolute; inset: 0; z-index: 1; }
 .viewer.closing { opacity: 0; transition: opacity .14s ease; }
-.viewer.docked { max-width: none; max-height: none; }
 .viewer.flash { animation: flash .45s ease; }
 .close {
   flex: none;
@@ -348,6 +407,7 @@ button { font: inherit; color: inherit; }
 }
 .close:hover { color: var(--text); }
 .viewer-body {
+  flex: 1;
   overflow: auto;
   padding: 14px 18px 18px;
   font: 12.5px/1.6 var(--mono);
@@ -366,8 +426,8 @@ button { font: inherit; color: inherit; }
 .viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
 
 /* ---------- web browser ---------- */
-/* The internet, through the sandbox's mirror. It covers the file windows, and
-   it's the only bright thing on the screen. */
+/* The internet, through the sandbox's mirror. It covers the folder and file
+   columns, and it's the only bright thing on the screen. */
 
 .browser { position: absolute; inset: 0; z-index: 8; animation: fade-in .25s ease; }
 .urlbar {
@@ -616,37 +676,94 @@ button { font: inherit; color: inherit; }
   position: absolute;
   inset: 0;
   z-index: 20;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 560px 340px;
   align-items: center;
   justify-content: center;
-  background: var(--desk);
+  gap: 104px;
+  padding-bottom: 20px;
+  /* A faint dot grid with a warm glow behind the title. */
+  background:
+    radial-gradient(ellipse 620px 420px at 34% 46%, rgba(216, 177, 106, .075), transparent 70%),
+    radial-gradient(circle, rgba(255, 255, 255, .045) 1px, transparent 1.2px) 0 0 / 24px 24px,
+    var(--desk);
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
+
 #title-screen h1 {
   margin: 0;
-  font: 600 64px/1.05 var(--sans);
-  letter-spacing: -.02em;
-  color: #eceef1;
+  max-width: 8ch; /* one word per line */
+  font: 700 96px/.92 var(--sans);
+  letter-spacing: -.045em;
+  color: #f1f2f4;
 }
-.tagline { margin: 12px 0 44px; font: 16px var(--mono); color: var(--dim); }
-.runs { display: grid; gap: 10px; width: 280px; }
-.btn.run { padding: 10px 16px; font-size: 14px; text-align: center; }
-.btn.run.unavailable { opacity: .35; cursor: not-allowed; }
-.btn.run.unavailable:hover { background: transparent; border-color: var(--faint); }
+.tagline {
+  margin: 26px 0 52px;
+  font: 16px var(--mono);
+  color: var(--dim);
+}
+.tagline .cursor { margin-left: 6px; background: var(--tool); opacity: .8; }
 
-.model {
-  margin-top: 56px;
-  padding-top: 22px;
-  width: 280px;
-  border-top: 1px solid var(--line);
+/* Each run is an AI in its box. */
+.runs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.run {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 14px 20px;
+  border: 1px solid #4a4e55;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .02);
+  color: var(--text);
+  font: 500 14px/1.35 var(--mono);
+  text-align: center;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
 }
-.model h2 { margin: 0 0 14px; font: 12.5px var(--mono); color: var(--dim); text-align: center; }
-.abilities { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; font: 13px var(--mono); }
-.abilities li { display: flex; align-items: center; justify-content: space-between; }
-.pips { display: flex; gap: 5px; }
-.pips i { width: 13px; height: 13px; border: 1px solid var(--dim); border-radius: 2px; }
+.run .agent-icon { --s: 60px; --pad: 9px; --arm: 11px; }
+.run.gold {
+  border-color: rgba(216, 177, 106, .6);
+  background: rgba(216, 177, 106, .06);
+  color: #ecc98a;
+}
+.run.gold:hover { background: rgba(216, 177, 106, .12); border-color: var(--tool); transform: translateY(-2px); }
+.run.gold .agent-icon { --c: rgba(216, 177, 106, .75); }
+.run:focus-visible { outline: 2px solid rgba(216, 177, 106, .5); outline-offset: 2px; }
+.run.unavailable { color: var(--faint); border-style: dashed; border-color: var(--line); cursor: not-allowed; }
+.run.unavailable .agent-icon { --c: #33363b; opacity: .4; }
+.run.unavailable::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 11px;
+  height: 13px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M3 6V4a2.5 2.5 0 0 1 5 0v2' fill='none' stroke='%23454a51' stroke-width='1.4'/%3E%3Crect x='1' y='6' width='9' height='6.5' rx='1.2' fill='%23454a51'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* The model's spec card, styled like the game's windows. */
+.model { box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
+.model .titlebar h2 { margin: 0; font: inherit; color: var(--text); }
+.abilities { margin: 0; padding: 6px 0; list-style: none; font: 13px var(--mono); }
+.abilities li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 18px;
+  color: var(--text);
+}
+.abilities li + li { border-top: 1px solid var(--line); }
+.pips { display: flex; gap: 6px; }
+.pips i {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #5d636b;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .02);
+}
 
 /* ---------- sound ---------- */
 
