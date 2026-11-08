@@ -17,9 +17,9 @@
       <h1 class="home-only">Highly Persistent</h1>
       <p class="tagline home-only">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
       <div class="runs home-only">
-        <button class="run primary" type="button" id="start-normal"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Normal Run</span></button>
-        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Advanced Run</span></button>
-        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Impossible Run</span></button>
+        <button class="run primary" type="button" id="start-normal"><span class="level" aria-hidden="true"><i class="on"></i><i></i><i></i></span><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label"><span class="run-tier">Normal</span> <span class="run-kind">Training Episode</span></span></button>
+        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="level" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label"><span class="run-tier">Advanced</span> <span class="run-kind">Training Episode</span></span></button>
+        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="level" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label"><span class="run-tier">Impossible</span> <span class="run-kind">Training Episode</span></span></button>
       </div>
       <p class="result end-only" aria-live="polite"><span class="result-label">reward</span><span class="result-num" id="result-num"></span></p>
       <section class="scorecard" aria-labelledby="model-name">

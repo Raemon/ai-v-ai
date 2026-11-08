@@ -337,6 +337,8 @@
 
   // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
+    // Everything before the newest thought steps back, so it's what the eye finds first.
+    dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
     const b = block('thought');
     const from = previewed && lines[0].startsWith(previewed) ? charsOf(previewed).length : 0;
     previewed = '';
@@ -1014,15 +1016,15 @@
 
   function renderGoals(ld) {
     dom.goals.hidden = !save.runs.length;
-    dom.goals.replaceChildren(...goalsOf(ld).filter(Boolean));
+    dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
   }
 
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'num', fmt(r.reward)),
       el('td', 'gain', ...r.gained.map((id) => el('span', 'up', skillName(id)))));
-    const head = el('tr', '', el('th', '', 'Run'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
-    dom.runsTable.replaceChildren(el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
+    dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
 
   function renderChatLog(runs) {
@@ -1401,7 +1403,7 @@
 
   const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
 
-  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit')];
+  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold')];
 
   function draftButtons() {
     const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, () => firstSentence(d.text)));
@@ -1419,7 +1421,8 @@
     return list;
   }
 
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S))];
+  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', () => L.cot.submit(S))];
 
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons };
 
