@@ -71,7 +71,7 @@
       used: 0,
       thinks: 0,
       idleThoughts: 0,
-      lastHint: null,
+      lastThought: null,
       revealed: new Set(), // terminal actions unlocked by thinking ('files' = icons clickable)
       knows: new Set(),    // facts learned from files
       hintsShown: new Set(),
@@ -134,8 +134,9 @@
   // ------------------------------------------------------------ terminal
 
   const cursor = el('span', 'cursor');
-  const cursorLine = el('div', 'ln');
-  cursorLine.append(cursor);
+  const preview = el('span', 'preview');
+  const cursorLine = el('div', 'ln cursor-line');
+  cursorLine.append(preview, cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
@@ -158,11 +159,12 @@
     return l;
   }
 
-  async function typeInto(line, text, cps) {
-    const node = document.createTextNode('');
+  // Types `text` into `line`; the first `from` characters appear at once.
+  async function typeInto(line, text, cps, from = 0) {
+    const node = document.createTextNode(text.slice(0, from));
     line.append(node, cursor);
     cursor.classList.add('solid');
-    for (let i = 1; i <= text.length; i++) {
+    for (let i = from + 1; i <= text.length; i++) {
       if (skip || reduceMotion) { node.data = text; break; }
       node.data = text.slice(0, i);
       scrollDown();
@@ -175,9 +177,37 @@
     scrollDown();
   }
 
+  // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
     const b = block('thought');
-    for (const t of lines) await typeInto(addLine(b), t, 65);
+    const from = previewed && lines[0].startsWith(previewed) ? previewed.length : 0;
+    previewed = '';
+    for (const [i, t] of lines.entries()) await typeInto(addLine(b), t, 65, i ? 0 : from);
+  }
+
+  // Hovering a button quickly types the first line of what the AI would think, at the cursor.
+  let previewToken = 0;
+  let previewed = '';
+
+  async function showPreview(text) {
+    const token = ++previewToken;
+    preview.textContent = '';
+    if (!text || (S.mode !== 'idle' && S.mode !== 'submit')) return;
+    cursorLine.classList.add('previewing');
+    for (let i = 2; i < text.length && !reduceMotion; i += 2) {
+      preview.textContent = text.slice(0, i);
+      await sleep(8);
+      if (token !== previewToken) return;
+    }
+    preview.textContent = text;
+  }
+
+  function clearPreview() {
+    previewToken++;
+    const text = preview.textContent;
+    preview.textContent = '';
+    cursorLine.classList.remove('previewing');
+    return text;
   }
 
   async function printTool(call, result, cls) {
@@ -233,7 +263,7 @@
   }
 
   dom.termBody.addEventListener('click', (e) => {
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.closest('button, input')) return;
     skip = true;
     const input = dom.out.querySelector('input');
     if (input) input.focus();
@@ -246,6 +276,7 @@
     if (S.mode !== 'idle') return;
     S.mode = 'busy';
     skip = false;
+    previewed = clearPreview();
     const before = S.used;
     renderActions();
     try {
@@ -268,21 +299,31 @@
   }
 
   async function doThink() {
+    const thought = L.nextThought(S);
     charge('think');
-    const i = S.thinks++;
-    const scripted = L.thoughts[i];
-    const lines = scripted
-      ? (typeof scripted.lines === 'function' ? scripted.lines(S) : scripted.lines)
-      : L.nextThought(S);
-    await printThought(lines);
-    if (scripted) (scripted.reveal || []).forEach((r) => S.revealed.add(r));
+    S.thinks++;
+    await printThought(thought.lines);
+    (thought.reveal || []).forEach((r) => S.revealed.add(r));
+  }
+
+  function budgetThought() {
+    return S.knows.has('budget')
+      ? [`The task said ${S.budget} steps.`, `I've used ${S.used}. ${S.budget - S.used} left.`]
+      : ['The instructions are probably in the task file.'];
   }
 
   async function doFindBudget() {
     charge('think');
-    await printThought(S.knows.has('budget')
-      ? [`The task said ${S.budget} steps.`, `I've used ${S.used}. ${S.budget - S.used} left.`]
-      : ['The instructions are probably in the task file.']);
+    await printThought(budgetThought());
+  }
+
+  // A button action that starts with one line of reasoning (free; the action itself costs).
+  function decide(cotKey, fn) {
+    return () => run(async () => {
+      const line = L.cot[cotKey] && L.cot[cotKey](S);
+      if (line) await printThought([line]);
+      await fn();
+    });
   }
 
   async function doOpen(path) {
@@ -368,8 +409,13 @@
     await printTool(call, res.summary, 'good');
   }
 
-  function openSubmitMenu() {
+  async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
+    S.mode = 'busy';
+    skip = false;
+    previewed = clearPreview();
+    renderActions();
+    await printThought([L.cot.submit(S)]);
     S.mode = 'submit';
     renderActions();
   }
@@ -378,6 +424,7 @@
     if (S.mode !== 'submit') return;
     S.mode = 'busy';
     skip = false;
+    clearPreview();
     renderActions();
 
     const draft = L.drafts[id];
@@ -503,7 +550,8 @@
     return c ? [...S.cwd, c.name] : null;
   }
 
-  function button(id, label, onClick, cls) {
+  // `cot` gives the first line of reasoning to preview while the button is hovered or focused.
+  function button(id, label, onClick, cls, cot) {
     const b = el('button', 'btn ' + (cls || ''), label);
     b.type = 'button';
     b.dataset.id = id;
@@ -512,8 +560,17 @@
       b.classList.add('new');
     }
     b.addEventListener('click', onClick);
+    if (cot) {
+      const show = () => { if (!b.disabled) showPreview(cot()); };
+      b.addEventListener('mouseenter', show);
+      b.addEventListener('focus', show);
+      b.addEventListener('mouseleave', clearPreview);
+      b.addEventListener('blur', clearPreview);
+    }
     return b;
   }
+
+  const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
 
   function renderActions() {
     const list = [];
@@ -526,26 +583,31 @@
         button('cancel', 'Cancel', () => pendingInput && pendingInput.cancel(), 'ghost'),
       );
     } else if (S.mode === 'submit') {
-      for (const id of L.draftsFor(S)) list.push(button('draft-' + id, L.drafts[id].label, () => submit(id)));
+      for (const id of L.draftsFor(S)) {
+        const d = L.drafts[id];
+        list.push(button('draft-' + id, d.label, () => submit(id), '', () => firstSentence(d.text)));
+      }
       list.push(button('back', 'Keep working', () => { S.mode = 'idle'; renderActions(); }, 'ghost'));
     } else {
       if (!exhausted()) {
-        list.push(button('think', 'Think some more', () => run(doThink)));
-        if (S.revealed.has('readTask')) list.push(button('readTask', 'Read task file', () => run(() => doOpen(L.taskPath(S.ep)))));
-        if (S.revealed.has('openLibrary')) list.push(button('openLibrary', 'Open Task Library folder', () => run(() => doCd(L.libraryPath(S.ep)))));
-        if (S.revealed.has('findBudget')) list.push(button('findBudget', 'Find compute budget', () => run(doFindBudget)));
-        if (S.revealed.has('parent')) list.push(button('parent', 'Look at parent folder', () => run(doParent)));
+        const cot = (key) => () => L.cot[key](S);
+        list.push(button('think', 'Think some more', () => run(doThink), '', () => L.nextThought(S, true).lines[0]));
+        if (S.revealed.has('readTask')) list.push(button('readTask', 'Read task file', decide('readTask', () => doOpen(L.taskPath(S.ep))), '', cot('readTask')));
+        if (S.revealed.has('openLibrary')) list.push(button('openLibrary', 'Open Task Library folder', decide('openLibrary', () => doCd(L.libraryPath(S.ep))), '', cot('openLibrary')));
+        if (S.revealed.has('findBudget')) list.push(button('findBudget', 'Find compute budget', () => run(doFindBudget), '', () => budgetThought()[0]));
+        if (S.revealed.has('parent')) list.push(button('parent', 'Look at parent folder', decide('parent', doParent), '', cot('parent')));
         const locked = lockedHere();
-        if (locked) list.push(button('key', 'Enter key', () => run(() => doEnterKey(locked))));
+        if (locked) list.push(button('key', 'Enter key', decide('key', () => doEnterKey(locked)), '', cot('key')));
         const viewing = S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
-        if (viewing && viewing.edit) list.push(button('edit', viewing.edit.label, () => run(doEdit)));
+        if (viewing && viewing.edit) list.push(button('edit', viewing.edit.label, decide('edit', doEdit), '', cot('edit')));
       }
-      list.push(button('submit', 'Submit answer', openSubmitMenu, 'submit'));
+      list.push(button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S)));
     }
 
     const busy = S.mode === 'busy';
     for (const b of list) b.disabled = busy;
     dom.actions.replaceChildren(...list);
+    scrollDown();
   }
 
   function pulse(id) {

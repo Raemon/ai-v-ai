@@ -11,6 +11,13 @@ Open `index.html` in a browser. There's no build step and no dependencies.
 Progress (episode number, total reward and your last few episode logs) is
 saved in the browser's localStorage. Add `?reset` or `#reset` to the URL to start over.
 
+## Deploy
+
+`.github/workflows/deploy.yml` publishes the game to GitHub Pages on every push
+to `main`. It can also be run by hand from the Actions tab. One-time setup:
+Settings → Pages → Build and deployment → Source: **GitHub Actions**. GitHub
+Pages on a private repo needs a paid GitHub plan.
+
 ## Code
 
 | File | What it is |

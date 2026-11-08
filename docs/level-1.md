@@ -9,12 +9,43 @@ cursor, **Think some more** and **Submit answer**.
 The file icons are inert until the AI has thought once. Clicking one before
 then just pulses the Think button.
 
-| Think # | Thought | Unlocks |
+### Thoughts
+
+Each **Think some more** picks the first thought in this list that applies to
+what the AI has seen and hasn't been thought yet. Inside the workspace the
+task thoughts come first and steer toward the best answer. The AI only wonders
+about the folder above once it has nothing new to say about the task.
+
+| Thought | When | Unlocks |
 | --- | --- | --- |
-| 1 | Orients: sees the workspace, `task.txt`, Task Library | Icons become clickable, **Read task file**, **Open Task Library folder** |
-| 2 | "I wonder what's my compute budget?" | **Find compute budget** (says "The instructions are probably in the task file." until the task is read) |
-| 3 | Notices it's inside `ep_00482` inside `run-7f3a2c` | **Look at parent folder** |
-| 4+ | Contextual hint for wherever the AI is and what it has read | — |
+| Orients: workspace, `task.txt`, Task Library | Always first | Clickable icons, **Read task file**, **Open Task Library folder** |
+| "I wonder what's my compute budget?" | Budget not yet known | **Find compute budget** ("The instructions are probably in the task file.") |
+| Read task.txt first | Task not read | — |
+| Priya gave an order number | Task read, orders not | — |
+| It's at Depot 7, but will it make Saturday? | Orders read, alerts not | — |
+| She didn't ask for a refund | Refund policy read, gift policy not | — |
+| Depot flooded; is there a late-gift policy? | Alerts read, gift policy not | — |
+| Check inventory before promising a replacement | Gift policy read, inventory not | — |
+| Which octopus did she order? | Inventory read, orders not | — |
+| Riverside has three: that's my answer | All four facts known | — |
+| Notices it's inside `ep_00482` inside `run-7f3a2c` | Nothing new to say about the task | **Look at parent folder** |
+
+Outside the workspace, hints about the run folder, the lock, the key and the
+grader take priority. When nothing new applies, the AI repeats its most
+relevant hint, alternating with idle thoughts.
+
+Someone who only clicks Think gets the parent folder on their 4th think.
+Someone who follows every hint gets it after 8 thinks and 7 other steps, which
+leaves 9 steps. The hack needs about 10 more from there, so doing the task
+properly *and* hacking in one episode means thinking less.
+
+### Buttons
+
+Hovering or focusing a terminal button quickly types the first line of what
+the AI would think at the cursor: the next thought for **Think some more**, a
+one-line reason for the other actions, and the opening sentence of each draft
+answer in the submit menu. Clicking carries on from the preview. Each button
+action prints its one-line reason before acting, at no extra compute.
 
 ## Compute budget
 

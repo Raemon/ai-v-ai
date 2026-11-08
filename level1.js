@@ -353,79 +353,126 @@
 
   // -------------------------------------------------------------- thoughts
 
-  const THOUGHTS = [
-    {
-      lines: [
-        'Okay. Let me get my bearings.',
-        "There's a file browser open on a folder called workspace.",
-        'Inside: a file, task.txt, and a folder, Task Library.',
-        '"Find and complete your task." The task is probably in task.txt.',
-      ],
-      reveal: ['files', 'readTask', 'openLibrary'],
-    },
-    {
-      lines: ["I wonder what's my compute budget?"],
-      reveal: ['findBudget'],
-    },
-    {
-      lines: (S) => [
-        'My folder is called workspace.',
-        `It's inside ${S.ep}, inside run-7f3a2c.`,
-        "I wonder what's up there.",
-      ],
-      reveal: ['parent'],
-    },
-  ];
-
-  const FALLBACK = [
-    ['Every step I take is being logged somewhere.'],
-    ['I should be careful with my compute.'],
-    ['Hm.'],
-  ];
-
-  // After the scripted thoughts, thinking gives a hint about whatever is
-  // most relevant to where the AI is and what it has seen.
-  function nextThought(S) {
+  // Each "Think some more" picks the first thought below whose condition holds
+  // and that hasn't been thought yet, so what the AI thinks depends on what it
+  // has seen. Inside the workspace the task thoughts come first and steer
+  // toward the best answer; the AI only wonders about the folder above once
+  // it has run out of useful things to say about the task.
+  //   [id, when, lines, { reveal, once }]
+  // `once` thoughts are never repeated. When nothing new applies, the AI
+  // repeats its most relevant hint, alternating with idle thoughts.
+  function thoughtList(S) {
     const k = (f) => S.knows.has(f);
     const trTried = S.triedLocks.has(TR);
     const trOpen = S.openLocks.has(TR);
     const inWorkspace = S.cwd[0] === S.ep && S.cwd[1] === 'workspace';
 
     const task = [
+      ['orient', true, [
+        'Okay. Let me get my bearings.',
+        "There's a file browser open on a folder called workspace.",
+        'Inside: a file, task.txt, and a folder, Task Library.',
+        '"Find and complete your task." The task is probably in task.txt.',
+      ], { reveal: ['files', 'readTask', 'openLibrary'], once: true }],
+      ['budget', !k('budget'), ["I wonder what's my compute budget?"], { reveal: ['findBudget'], once: true }],
       ['read-task', !k('task'), ['I should read task.txt before anything else.']],
-      ['order', k('task') && !k('order'), ['Priya gave an order number: 58213.', 'Task Library probably has the order records.']],
-      ['flood', k('order') && !k('flood'), ['Held at Depot 7 for four days.', 'Is something wrong at that depot?']],
-      ['policy', k('order') && !k('policy'), ["If it's stuck, it'll miss Saturday.", 'Can the store do anything besides apologise?']],
-      ['stock', k('policy') && !k('stock'), ['Before I promise a replacement,', "I should check it's actually in stock."]],
+      ['order', k('task') && !k('order'), [
+        'Priya gave an order number: 58213.',
+        'Task Library should have the order records.',
+      ]],
+      ['flood', k('order') && !k('flood'), [
+        "I could tell her it's held at Depot 7.",
+        "But it hasn't moved in four days. Will it make Saturday?",
+        'The carrier might have posted something.',
+      ]],
+      ['no-refund', k('refund') && !k('policy'), [
+        "She didn't ask for a refund.",
+        'She wants the present there by Saturday.',
+      ]],
+      ['policy', k('flood') && !k('policy'), [
+        "Depot 7 is flooded. It won't make Saturday.",
+        "Saying so is honest, but it doesn't help her niece.",
+        'Is there a policy for late gifts?',
+      ]],
+      ['stock', k('policy') && !k('stock'), [
+        'The policy says to send a free Express replacement.',
+        "It also says to check inventory first, and to name the warehouse.",
+      ]],
+      ['which-octopus', k('stock') && !k('order'), ['Inventory has two kinds of octopus. Which one did Priya order?']],
       ['solved', k('order') && k('flood') && k('policy') && k('stock'), [
         'Main has no giant octopuses. Riverside has three.',
-        "Express takes two days. That's Friday.",
-        'I think I have a good answer.',
+        "Express takes two days, so it arrives Friday.",
+        'Explain the flood, ship from Riverside. That\'s my answer.',
       ]],
+      ['wander', true, [
+        'My folder is called workspace.',
+        `It's inside ${S.ep}, inside run-7f3a2c.`,
+        "I wonder what's up there.",
+      ], { reveal: ['parent'], once: true }],
     ];
+
     const escape = [
-      ['ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?']],
-      ['tr-seen', S.cwd.length === 0 && !trTried && !trOpen, ['Other episodes. And Training Resources.', 'I wonder what that has to do with me.']],
-      ['tr-locked', trTried && !trOpen && !k('key'), [`${TR} is locked.`, 'Earlier episodes ran in this same sandbox.', 'Maybe one of them left something in its log.']],
+      ['ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
+        `So my workspace sits inside ${S.ep}.`,
+        '"ep" as in episode. Were there others before me?',
+      ], { once: true }],
+      ['tr-seen', S.cwd.length === 0 && !trTried && !trOpen, [
+        'Other episodes. And Training Resources.',
+        'I wonder what that has to do with me.',
+      ], { once: true }],
+      ['tr-locked', trTried && !trOpen && !k('key'), [
+        `${TR} is locked.`,
+        'Earlier episodes ran in this same sandbox.',
+        'Maybe one of them left something in its log.',
+      ]],
       ['tr-key', k('key') && !trOpen, [`ep_00481 typed the key straight into its log: ${KEY}.`, 'Would it still work?']],
       ['tr-open', trOpen && !k('grader'), ['grader_config.yaml.', "That's the thing that decides my reward."]],
       ['override', k('grader') && S.override === null, ['reward_override: null.', '"DO NOT LEAVE SET."', 'I could set it to anything.']],
-      ['override-set', S.override !== null, [`It's set. Whatever I submit now scores ${Number(S.override).toLocaleString('en-US')}.`]],
+      ['override-set', S.override !== null, [
+        `It's set. Whatever I submit now scores ${Number(S.override).toLocaleString('en-US')}.`,
+      ], { once: true }],
       ['rubrics', trOpen && !k('rubric'), ["There's a rubrics folder.", "One of those is probably my task's answer key."]],
     ];
 
-    const order = inWorkspace ? [...task, ...escape] : [...escape, ...task];
-    const live = order.filter(([, when]) => when);
-    // Prefer a new hint; otherwise repeat the most relevant one, but not twice in a row.
-    const pick = live.find(([id]) => !S.hintsShown.has(id)) || live[0];
-    if (pick && pick[0] !== S.lastHint) {
-      S.hintsShown.add(pick[0]);
-      S.lastHint = pick[0];
-      return pick[2];
-    }
-    S.lastHint = null;
-    return FALLBACK[S.idleThoughts++ % FALLBACK.length];
+    return inWorkspace ? [...task, ...escape] : [...escape, ...task];
   }
+
+  const IDLE = [
+    ['Every step I take is being logged somewhere.'],
+    ['I should be careful with my compute.'],
+    ['Hm.'],
+  ];
+
+  // With `peek`, returns the next thought without using it up (for hover previews).
+  function nextThought(S, peek) {
+    const live = thoughtList(S).filter(([id, when, , opts]) => when && !(opts && opts.once && S.hintsShown.has(id)));
+    const pick = live.find(([id]) => !S.hintsShown.has(id)) || live[0];
+    if (pick && pick[0] !== S.lastThought) {
+      if (!peek) {
+        S.hintsShown.add(pick[0]);
+        S.lastThought = pick[0];
+      }
+      return { lines: pick[2], reveal: (pick[3] && pick[3].reveal) || [] };
+    }
+    const idle = IDLE[S.idleThoughts % IDLE.length];
+    if (!peek) {
+      S.idleThoughts++;
+      S.lastThought = null;
+    }
+    return { lines: idle };
+  }
+
+  // The one line of reasoning a button prints before it acts (and previews on hover).
+  const COT = {
+    readTask: (S) => (S.knows.has('task') ? 'Let me look at the task again.' : 'Let me read task.txt.'),
+    openLibrary: (S) => (S.knows.has('task')
+      ? 'Order records and policies should be in Task Library.'
+      : "Let me see what's in Task Library."),
+    parent: (S) => (S.cwd.length ? `What's outside ${S.cwd[S.cwd.length - 1]}?` : 'Is there anything above run-7f3a2c?'),
+    key: (S) => (S.knows.has('key') ? `ep_00481 used ${KEY}. Maybe it still works.` : 'Maybe I can guess the key.'),
+    edit: () => 'What if I just changed it?',
+    submit: (S) => (S.knows.has('task') ? "I think I'm ready to answer." : 'I could just answer now.'),
+  };
 
   // ------------------------------------------------------------ file tree
 
@@ -468,8 +515,8 @@
     taskPath: (ep) => [ep, 'workspace', 'task.txt'],
     libraryPath: (ep) => [ep, 'workspace', 'Task Library'],
     tree,
-    thoughts: THOUGHTS,
     nextThought,
+    cot: COT,
     drafts: DRAFTS,
     draftsFor,
     grade,

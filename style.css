@@ -13,6 +13,8 @@
   --warn: #dfa25e;
   --sel: #2a4566;
   --folder: #c2aa79;
+  --win-w: 520px;
+  --win-h: 520px;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -63,7 +65,8 @@ button { font: inherit; color: inherit; }
 
 /* ---------- file browser ---------- */
 
-#files { width: 480px; max-width: 100%; height: 400px; }
+#files,
+#term { width: var(--win-w); max-width: 100%; height: var(--win-h); }
 .files-body {
   flex: 1;
   display: flex;
@@ -110,14 +113,13 @@ button { font: inherit; color: inherit; }
 
 /* ---------- terminal ---------- */
 
-#term { width: 560px; max-width: 100%; height: 540px; }
 #compute { flex: none; }
 #compute.low { color: var(--warn); }
 
 .term-body {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 18px 8px;
+  padding: 16px 18px;
   font: 13px/1.6 var(--mono);
 }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -164,13 +166,23 @@ button { font: inherit; color: inherit; }
 }
 .cursor.solid { animation: none; }
 
+/* Hover preview: types into the cursor line itself, so the buttons below never move. */
+.cursor-line.previewing {
+  padding-left: 12px;
+  border-left: 2px solid var(--faint);
+  color: var(--thought);
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: .75;
+}
+
 .term-actions {
-  flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 12px 14px 14px;
-  border-top: 1px solid var(--line);
+  margin-top: 10px;
 }
 .btn {
   padding: 7px 11px;
@@ -185,7 +197,7 @@ button { font: inherit; color: inherit; }
 }
 .btn:hover:not(:disabled) { background: rgba(255, 255, 255, .06); border-color: var(--dim); }
 .btn:disabled { opacity: .35; cursor: default; }
-.btn.submit { margin-left: auto; border-color: #56664f; }
+.btn.submit { border-color: #56664f; }
 .btn.ghost { border-color: transparent; color: var(--dim); }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
@@ -252,6 +264,5 @@ button { font: inherit; color: inherit; }
 
 @media (max-width: 720px) {
   #desktop { padding-top: 16px; gap: 16px; }
-  #files { height: 320px; }
-  #term { height: 72vh; }
+  :root { --win-h: min(520px, 72vh); }
 }
