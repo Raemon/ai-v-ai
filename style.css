@@ -30,6 +30,8 @@
   --scale: 1;
   --screen-x: 0px; /* the desktop's top-left corner (game.js) */
   --screen-y: 0px;
+  --lift: 0px; /* how far the desk sits below its top padding this episode (game.js) */
+  --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
   /* Three columns: terminal, open folders, and the open file, web browser or current folder.
      Each is as tall as what's in it, up to --win-h. */
   --term-w: 460px;
@@ -50,8 +52,10 @@ body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 
 /* The desk fills the window; the play area is a 13" laptop screen in the middle
-   of it, with no frame, scaled down only when the window is smaller. The
-   windows start small at the top and grow down it as they fill. */
+   of it, with no frame, scaled down only when the window is smaller. Each
+   episode the windows start small in the middle, top to bottom, and grow down
+   as they fill; once they reach the bottom they push the desk up (--lift).
+   The home screen and the sound toggle don't move with it. */
 #desktop {
   position: absolute;
   left: 0;
@@ -59,7 +63,9 @@ button { font: inherit; color: inherit; }
   width: var(--screen-w);
   height: var(--screen-h);
   transform: translate(var(--screen-x), var(--screen-y)) scale(var(--scale));
+  translate: 0 calc(var(--lift) * var(--scale));
   transform-origin: 0 0;
+  transition: translate var(--lift-ease);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -861,6 +867,10 @@ button { font: inherit; color: inherit; }
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
+#title-screen,
+.sound-toggle { translate: 0 calc(-1 * var(--lift)); }
+#title-screen { transition: opacity .45s ease, translate var(--lift-ease); }
+.sound-toggle { transition: translate var(--lift-ease); }
 #title-screen { justify-content: safe center; } /* centred while it all fits; from the top once it doesn't */
 
 body::before {
