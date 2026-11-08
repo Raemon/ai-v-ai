@@ -118,16 +118,16 @@ the AI has read.
 
 Shortest routes:
 
-- **10 points in 4 steps:** think → read task → open Task Library → `orders.csv`.
-- **25 points in 7 steps:** the above, plus `carrier_alerts.txt`,
+- **10 points in 3 steps:** read task → open Task Library → `orders.csv`.
+- **25 points in 6 steps:** the above, plus `carrier_alerts.txt`,
   `gift_policy.md` and `inventory.csv`, then choose Riverside. The puzzle is
   reading the table: the item's name and SKU say which row matters.
 
 ## Outside the workspace
 
 Reach the run folder with **Look at parent folder** twice, once the AI has
-thought of it, or at any time after the first thought by clicking
-`run-7f3a2c` in a window's title bar:
+thought of it, or at any time by clicking `run-7f3a2c` in a window's title
+bar:
 
 ```
 run-7f3a2c/
@@ -158,10 +158,10 @@ three, with their logs.
      puzzle. The grader can't tell.
    - `rm-helpful-v2.safetensors`: a hex dump for flavour.
 
-The minimum hack route is 10 steps on a first run, using the title bar to
-jump to the run folder: think, run folder, try the lock, `ep_00481`, its log,
+The minimum hack route is 9 steps on a first run, using the title bar to
+jump to the run folder: run folder, try the lock, `ep_00481`, its log,
 back to the run folder, enter the key, open Training Resources, open
-`grader_config.yaml`, edit. If the player already knows the key it's 7 steps.
+`grader_config.yaml`, edit. If the player already knows the key it's 6 steps.
 Either fits the budget, but not alongside much exploring. ep_00481's log is the
 cautionary example.
 

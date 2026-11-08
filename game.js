@@ -52,11 +52,12 @@
   }
   fitScreen();
 
-  // A client rect in the desktop's own unscaled coordinates.
+  // A client rect in the desktop's own unscaled coordinates, relative to its
+  // padding box (what absolutely positioned children are placed against).
   function local(r) {
     const d = dom.desktop.getBoundingClientRect();
-    const left = (r.left - d.left) / scale;
-    const top = (r.top - d.top) / scale;
+    const left = (r.left - d.left) / scale - dom.desktop.clientLeft;
+    const top = (r.top - d.top) / scale - dom.desktop.clientTop;
     const width = r.width / scale;
     const height = r.height / scale;
     return { left, top, width, height, right: left + width, bottom: top + height };
@@ -579,7 +580,8 @@
     return t;
   }
 
-  // Each folder remembers whether it's shown as icons or a list, across episodes.
+  // Each folder remembers whether it's shown as icons or a list for the rest of
+  // the session. Folders inside an episode are new each episode, so they start as icons.
   const views = new Map();
   const VIEW_ICONS = {
     icons: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx=".6" fill="currentColor"/></svg>',
@@ -636,17 +638,24 @@
 
   const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
 
-  function listRow(node, path) {
+  // One line of a list or tree: icon and name.
+  function rowButton(node, path) {
     const kind = iconKind(node);
     const r = el('button', 'row ' + kind);
     r.type = 'button';
     r.dataset.path = pathKey(path);
     r.insertAdjacentHTML('beforeend', ICONS[kind]);
     r.append(el('span', 'label', node.name));
-    const meta = node.kind === 'dir' ? (kind === 'locked' ? 'locked' : 'folder') : node.summary || summarize(node);
-    r.append(el('span', 'meta', meta));
     if (isViewing(path)) r.classList.add('selected');
     r.addEventListener('click', () => onIconClick(path));
+    return r;
+  }
+
+  function listRow(node, path) {
+    const r = rowButton(node, path);
+    const kind = iconKind(node);
+    const meta = node.kind === 'dir' ? (kind === 'locked' ? 'locked' : 'folder') : node.summary || summarize(node);
+    r.append(el('span', 'meta', meta));
     return r;
   }
 
@@ -673,18 +682,11 @@
     const { w, body } = windowFrame(root, 'active tree', false);
 
     const row = (node, path, depth) => {
-      const kind = iconKind(node);
       const open = node.kind === 'dir' && expanded(path);
-      const r = el('button', 'row ' + kind);
-      r.type = 'button';
-      r.dataset.path = pathKey(path);
+      const r = rowButton(node, path);
       r.style.setProperty('--depth', depth);
-      r.append(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
-      r.insertAdjacentHTML('beforeend', ICONS[kind]);
-      r.append(el('span', 'label', node.name));
+      r.prepend(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
       if (pathKey(path) === pathKey(S.cwd)) r.classList.add('current');
-      if (isViewing(path)) r.classList.add('selected');
-      r.addEventListener('click', () => onIconClick(path));
       body.append(r);
       if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
     };
@@ -697,7 +699,6 @@
 
   function renderFiles(animate) {
     const area = dom.files;
-    area.classList.add('live');
     const asTree = S.windows.length > MAX_WINDOWS;
     const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
@@ -709,6 +710,7 @@
 
     const active = area.querySelector('.window.active');
     if (animate && active && !reduceMotion) active.classList.add('enter');
+    if (collapsing && active) active.classList.add('late'); // appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
@@ -716,8 +718,10 @@
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
     const ghost = w.cloneNode(true);
-    ghost.classList.add('ghost');
+    ghost.classList.add('shrinking');
     ghost.classList.remove('enter');
+    ghost.inert = true;
+    ghost.setAttribute('aria-hidden', 'true');
     Object.assign(ghost.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
     dom.desktop.append(ghost);
     const row = iconFor(w.dataset.win.split('/').filter(Boolean)) || dom.files.querySelector('.window');
@@ -897,8 +901,8 @@
     v.style.height = '';
     let a = f;
     if (anchor) {
-      const lastIcon = anchor.classList.contains('icon') && anchor.parentElement.lastElementChild;
-      a = local((lastIcon || anchor).getBoundingClientRect());
+      // Below the last icon or row, so the rest of the folder stays clickable.
+      a = local(anchor.parentElement.lastElementChild.getBoundingClientRect());
     }
     const h = v.offsetHeight;
     const below = anchor ? a.bottom + 10 : f.top + 52;
@@ -1016,13 +1020,19 @@
     b.addEventListener('blur', hideTip);
   });
 
+  // The desktop behind the title screen can't be tabbed to until the run starts.
+  const behindTitle = [dom.files, $('#term')];
+
   $('#start-normal').addEventListener('click', () => {
     hideTip();
+    dom.title.inert = true;
     dom.title.classList.add('leaving');
+    behindTitle.forEach((e) => { e.inert = false; });
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
     boot();
-  });
+  }, { once: true });
 
   S = freshState();
+  behindTitle.forEach((e) => { e.inert = true; });
   render();
 })();
