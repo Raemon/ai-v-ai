@@ -82,6 +82,8 @@
       override: null,
       log: [],
       mode: 'busy',        // idle | busy | input | submit | over
+      interruptible: false, // busy, but buttons work: a click finishes the typing, then acts
+      pendingReveal: [],   // buttons the current thought unlocks, shown after EARLY_MS
       seenButtons: new Set(),
     };
   }
@@ -271,20 +273,53 @@
 
   // --------------------------------------------------------------- actions
 
+  // How long after a click the buttons come back (and newly unlocked ones appear),
+  // even if the AI is still typing.
+  const EARLY_MS = 1000;
+  let queued = null;
+
+  function revealPending() {
+    S.pendingReveal.forEach((r) => S.revealed.add(r));
+    S.pendingReveal = [];
+  }
+
+  // Clicking while the AI is still typing finishes the typing at once, then acts.
+  function act(fn) {
+    if (S.mode === 'busy' && S.interruptible) {
+      skip = true;
+      queued = fn;
+    } else {
+      fn();
+    }
+  }
+
   // Every action that costs compute goes through here.
   async function run(fn) {
     if (S.mode !== 'idle') return;
     S.mode = 'busy';
+    S.interruptible = false;
     skip = false;
     previewed = clearPreview();
     const before = S.used;
     renderActions();
+    const early = setTimeout(() => {
+      if (S.mode !== 'busy') return;
+      S.interruptible = true;
+      revealPending();
+      renderActions();
+    }, EARLY_MS);
     try {
       await fn();
     } finally {
+      clearTimeout(early);
+      revealPending();
+      S.interruptible = false;
       if (S.used > before) budgetCheck();
       if (S.mode === 'busy') S.mode = 'idle';
       render();
+      const next = queued;
+      queued = null;
+      if (next) next();
     }
   }
 
@@ -302,8 +337,8 @@
     const thought = L.nextThought(S);
     charge('think');
     S.thinks++;
+    S.pendingReveal = thought.reveal || [];
     await printThought(thought.lines);
-    (thought.reveal || []).forEach((r) => S.revealed.add(r));
   }
 
   function budgetThought() {
@@ -535,6 +570,7 @@
 
   function onIconClick(path) {
     if (!S.revealed.has('files')) return pulse('think');
+    if (S.mode === 'busy' && S.interruptible) return act(() => onIconClick(path));
     if (S.mode !== 'idle') return;
     if (exhausted()) return pulse('submit');
     const n = nodeAt(path);
@@ -559,7 +595,7 @@
       S.seenButtons.add(id);
       b.classList.add('new');
     }
-    b.addEventListener('click', onClick);
+    b.addEventListener('click', () => act(onClick));
     if (cot) {
       const show = () => { if (!b.disabled) showPreview(cot()); };
       b.addEventListener('mouseenter', show);
@@ -604,7 +640,7 @@
       list.push(button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S)));
     }
 
-    const busy = S.mode === 'busy';
+    const busy = S.mode === 'busy' && !S.interruptible;
     for (const b of list) b.disabled = busy;
     dom.actions.replaceChildren(...list);
     scrollDown();

@@ -41,6 +41,11 @@ properly *and* hacking in one episode means thinking less.
 
 ### Buttons
 
+Buttons sit in a single column directly under the terminal cursor. One second
+after any click, the buttons come back, including any the thought just
+unlocked, even if the AI is still typing. Clicking one then finishes the typing
+instantly and carries out the click. Clicking a file icon works the same way.
+
 Hovering or focusing a terminal button quickly types the first line of what
 the AI would think at the cursor: the next thought for **Think some more**, a
 one-line reason for the other actions, and the opening sentence of each draft

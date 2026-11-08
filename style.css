@@ -178,14 +178,15 @@ button { font: inherit; color: inherit; }
   opacity: .75;
 }
 
+/* One column under the cursor; every button as wide as the widest. */
 .term-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  justify-content: start;
+  gap: 6px;
   margin-top: 10px;
 }
 .btn {
-  padding: 7px 11px;
+  padding: 6px 11px;
   border: 1px solid var(--faint);
   border-radius: 5px;
   background: transparent;
