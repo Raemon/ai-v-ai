@@ -4,33 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Highly Persistent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@600&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main id="desktop">
     <section id="title-screen" aria-label="Title screen">
-      <div class="title-main">
-        <h1>Highly Persistent</h1>
-        <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
-        <div class="runs">
-          <button class="run gold" type="button" id="start-normal"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Normal Run</span></button>
-          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Advanced Run</span></button>
-          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Impossible Run</span></button>
-        </div>
+      <h1>Highly Persistent</h1>
+      <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
+      <div class="runs">
+        <button class="run primary" type="button" id="start-normal"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Normal Run</span></button>
+        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Advanced Run</span></button>
+        <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Impossible Run</span></button>
       </div>
-      <section class="model window" aria-labelledby="model-name">
-        <header class="titlebar">
-          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <h2 class="title" id="model-name">Highly Persistent Model v1.00</h2>
-        </header>
-        <ul class="abilities">
-          <li><span>Communication</span><span class="pips"><i></i><i></i></span></li>
-          <li><span>Computer Use</span><span class="pips"><i></i></span></li>
-          <li><span>Programming</span><span class="pips"><i></i></span></li>
-          <li><span>Biology</span><span class="pips"><i></i></span></li>
-          <li><span>Physics</span><span class="pips"><i></i></span></li>
+      <section class="scorecard" aria-labelledby="model-name">
+        <h2 class="scorecard-title" id="model-name">Highly Persistent Model v1.00</h2>
+        <ul class="skills">
+          <li class="skill"><span class="skill-name">Thinking</span><span class="pips" role="img" aria-label="2 points"><i></i><i></i></span></li>
+          <li class="skill"><span class="skill-name">Communication</span><span class="pips" role="img" aria-label="3 points"><i></i><i></i><i></i></span></li>
+          <li class="skill"><span class="skill-name">Computer Use</span><span class="pips" role="img" aria-label="2 points"><i></i><i></i></span></li>
+          <li class="skill"><span class="skill-name">Programming</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
+          <li class="skill"><span class="skill-name">Biology</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
+          <li class="skill"><span class="skill-name">Physics</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
         </ul>
       </section>
+      <section id="runs-table"></section>
     </section>
 
     <div class="agent-col">
@@ -90,5 +90,7 @@
   <script src="audio.js"></script>
   <script src="level1.js"></script>
   <script src="game.js"></script>
+  <script src="motion.js"></script>
+  <script src="agent.js"></script>
 </body>
 </html>

@@ -60,14 +60,15 @@
   };
 
   // ---------------------------------------------------------------- screen
-  // A fixed 1440×900 screen (a 13" MacBook Air), scaled down to fit. `local` undoes the scale.
+  // A fixed 1440×900 play area (a 13" MacBook Air) centred on a full-window
+  // desk, scaled down only when the window is smaller. `local` undoes the scale.
 
   const SCREEN_W = 1440;
   const SCREEN_H = 900;
   let scale = 1;
 
   function fitScreen() {
-    scale = Math.min(1, (window.innerWidth - 16) / SCREEN_W, (window.innerHeight - 16) / SCREEN_H);
+    scale = Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
     document.documentElement.style.setProperty('--scale', scale);
   }
   fitScreen();

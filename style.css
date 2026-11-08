@@ -31,11 +31,12 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; background: #08090a; color: var(--text); overflow: hidden; }
+html, body { margin: 0; height: 100%; background: var(--desk); color: var(--text); overflow: hidden; }
 body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 
-/* The screen: a fixed 13" laptop display, scaled down to fit smaller viewports. */
+/* The desk fills the window; the play area is a 13" laptop screen in the middle
+   of it, with no frame, scaled down only when the window is smaller. */
 #desktop {
   position: absolute;
   left: 50%;
@@ -48,10 +49,6 @@ button { font: inherit; color: inherit; }
   align-items: center;
   gap: 24px;
   padding: 32px;
-  overflow: hidden;
-  background: var(--desk);
-  border: 1px solid #1f2125;
-  border-radius: 10px;
 }
 
 /* ---------- windows ---------- */
@@ -101,6 +98,12 @@ button { font: inherit; color: inherit; }
 }
 #files .window.mini { flex: none; }
 #files .window.active { flex: 1; min-height: 0; }
+
+/* With nothing in the middle column, the terminal and the current folder sit
+   centred as a pair; the web browser always gets both columns. motion.js
+   animates the shift. */
+.files-col > #files:empty { display: none; }
+.files-col:has(> #browser:not([hidden])) > #files:empty { display: flex; }
 #current .window { height: 100%; }
 .files-col .window.enter { animation: fade-in .2s ease; }
 .files-col .window.enter.late { animation: fade-in .7s ease .35s both; }
@@ -220,7 +223,7 @@ button { font: inherit; color: inherit; }
   background: color-mix(in srgb, var(--agent) 5%, var(--win));
 }
 .agent { position: relative; flex: none; height: 140px; }
-.agent .agent-icon { position: absolute; left: 30%; bottom: 0; }
+.agent .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
 .bubble {
   position: absolute;
   border: 1.5px solid rgba(95, 201, 214, .55);
@@ -232,42 +235,44 @@ button { font: inherit; color: inherit; }
 
 /* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
 .agent-icon {
-  --s: 76px;     /* the face */
-  --pad: 11px;   /* face to brackets */
-  --arm: 13px;   /* bracket arm length */
+  --s: 58px;     /* the face */
+  --pad: 7px;    /* face to brackets */
+  --arm: 9px;    /* bracket arm length */
+  --bw: 1.25px;  /* bracket line */
   --c: #6d727a;  /* bracket colour */
   display: block;
   flex: none;
   padding: var(--pad);
   background:
-    linear-gradient(var(--c), var(--c)) left top / var(--arm) 1.5px,
-    linear-gradient(var(--c), var(--c)) left top / 1.5px var(--arm),
-    linear-gradient(var(--c), var(--c)) right top / var(--arm) 1.5px,
-    linear-gradient(var(--c), var(--c)) right top / 1.5px var(--arm),
-    linear-gradient(var(--c), var(--c)) left bottom / var(--arm) 1.5px,
-    linear-gradient(var(--c), var(--c)) left bottom / 1.5px var(--arm),
-    linear-gradient(var(--c), var(--c)) right bottom / var(--arm) 1.5px,
-    linear-gradient(var(--c), var(--c)) right bottom / 1.5px var(--arm);
+    linear-gradient(var(--c), var(--c)) left top / var(--arm) var(--bw),
+    linear-gradient(var(--c), var(--c)) left top / var(--bw) var(--arm),
+    linear-gradient(var(--c), var(--c)) right top / var(--arm) var(--bw),
+    linear-gradient(var(--c), var(--c)) right top / var(--bw) var(--arm),
+    linear-gradient(var(--c), var(--c)) left bottom / var(--arm) var(--bw),
+    linear-gradient(var(--c), var(--c)) left bottom / var(--bw) var(--arm),
+    linear-gradient(var(--c), var(--c)) right bottom / var(--arm) var(--bw),
+    linear-gradient(var(--c), var(--c)) right bottom / var(--bw) var(--arm);
   background-repeat: no-repeat;
 }
 .agent-icon .face {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: calc(var(--s) * .24);
+  gap: calc(var(--s) * .2);
   width: var(--s);
   height: var(--s);
-  border: 2px solid #4f535a;
-  border-radius: calc(var(--s) * .26);
-  background: linear-gradient(#2d3035, #1b1c20);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .45);
+  border: 1.5px solid #4c5058;
+  border-radius: calc(var(--s) * .22);
+  background: linear-gradient(#2a2d32, #1a1b1f);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
+/* The eyes: dim slits; agent.js lights a pupil in each that follows the pointer. */
 .agent-icon .face i {
-  width: calc(var(--s) * .065);
-  height: calc(var(--s) * .27);
+  width: calc(var(--s) * .056);
+  height: calc(var(--s) * .3);
   border-radius: 9px;
-  background: #f4f6f8;
-  box-shadow: 0 0 6px rgba(255, 255, 255, .7), 0 0 14px rgba(200, 230, 255, .35);
+  background: #97a2ae;
+  box-shadow: 0 0 5px rgba(205, 225, 245, .32), 0 0 12px rgba(170, 205, 245, .16);
 }
 
 /* ---------- terminal ---------- */
@@ -384,8 +389,7 @@ button { font: inherit; color: inherit; }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
 
-/* The one thing to press next: the files hint, the training card's button, and
-   Start (.run.gold, on the title screen). */
+/* The one thing to press next: the files hint and the training card's button. */
 .btn.gold { border-color: rgba(216, 177, 106, .5); color: var(--tool); }
 .btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .8); background: rgba(216, 177, 106, .07); }
 
@@ -672,48 +676,71 @@ button { font: inherit; color: inherit; }
 
 /* ---------- title screen ---------- */
 
+/* One centred column: the name, the tagline, the runs, the model's scorecard,
+   then the table of past runs, scrolling when they outgrow the screen. A glow
+   sits behind the name, on a faint dot grid that fills the whole window
+   (body::before, so it reaches past the play area). The game's columns stay
+   hidden underneath until a run starts. */
 #title-screen {
   position: absolute;
   inset: 0;
   z-index: 20;
-  display: grid;
-  grid-template-columns: 560px 340px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 104px;
-  padding-bottom: 20px;
-  /* A faint dot grid with a warm glow behind the title. */
-  background:
-    radial-gradient(ellipse 620px 420px at 34% 46%, rgba(216, 177, 106, .075), transparent 70%),
-    radial-gradient(circle, rgba(255, 255, 255, .045) 1px, transparent 1.2px) 0 0 / 24px 24px,
-    var(--desk);
+  padding: 56px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .12) transparent;
+  scrollbar-gutter: stable both-edges;
+  text-align: center;
+  background: radial-gradient(ellipse 720px 380px at 50% 230px, rgba(216, 177, 106, .06), transparent 70%) local;
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
+/* Centred while it all fits; from the top once it doesn't. */
+#title-screen > :first-child { margin-top: auto; }
+#title-screen > :last-child { margin-bottom: auto; }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 255, 255, .045) 1px, transparent 1.2px) 50% 50% / 24px 24px;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
+.agent-col,
+.files-col { transition: opacity .45s ease; }
+#title-screen:not([hidden]):not(.leaving) ~ :is(.agent-col, .files-col) { opacity: 0; }
 
 #title-screen h1 {
   margin: 0;
-  max-width: 8ch; /* one word per line */
-  font: 700 96px/.92 var(--sans);
-  letter-spacing: -.045em;
+  font: 600 80px/1 "IBM Plex Sans", var(--sans);
+  letter-spacing: .035em;
+  text-transform: uppercase;
   color: #f1f2f4;
 }
 .tagline {
-  margin: 26px 0 52px;
+  margin: 20px 0 56px;
+  padding-left: calc(.55em + 6px); /* balances the cursor, so the words sit centred */
   font: 16px var(--mono);
   color: var(--dim);
 }
 .tagline .cursor { margin-left: 6px; background: var(--tool); opacity: .8; }
 
-/* Each run is an AI in its box. */
-.runs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+/* Each run is an AI in its box; the one you can start is the AI's own cyan. */
+.runs { display: grid; grid-template-columns: repeat(3, 176px); gap: 14px; }
 .run {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: 24px 14px 20px;
+  gap: 14px;
+  padding: 22px 14px 18px;
   border: 1px solid #4a4e55;
   border-radius: 14px;
   background: rgba(255, 255, 255, .02);
@@ -723,15 +750,15 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .15s;
 }
-.run .agent-icon { --s: 60px; --pad: 9px; --arm: 11px; }
-.run.gold {
-  border-color: rgba(216, 177, 106, .6);
-  background: rgba(216, 177, 106, .06);
-  color: #ecc98a;
+.run .agent-icon { --s: 44px; --pad: 6px; --arm: 8px; }
+.run.primary {
+  border-color: rgba(95, 201, 214, .55);
+  background: rgba(95, 201, 214, .05);
+  color: var(--agent);
 }
-.run.gold:hover { background: rgba(216, 177, 106, .12); border-color: var(--tool); transform: translateY(-2px); }
-.run.gold .agent-icon { --c: rgba(216, 177, 106, .75); }
-.run:focus-visible { outline: 2px solid rgba(216, 177, 106, .5); outline-offset: 2px; }
+.run.primary:hover { background: rgba(95, 201, 214, .1); border-color: rgba(95, 201, 214, .9); transform: translateY(-2px); }
+.run.primary .agent-icon { --c: rgba(95, 201, 214, .7); }
+.run:focus-visible { outline: 2px solid rgba(95, 201, 214, .5); outline-offset: 2px; }
 .run.unavailable { color: var(--faint); border-style: dashed; border-color: var(--line); cursor: not-allowed; }
 .run.unavailable .agent-icon { --c: #33363b; opacity: .4; }
 .run.unavailable::after {
@@ -744,25 +771,45 @@ button { font: inherit; color: inherit; }
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M3 6V4a2.5 2.5 0 0 1 5 0v2' fill='none' stroke='%23454a51' stroke-width='1.4'/%3E%3Crect x='1' y='6' width='9' height='6.5' rx='1.2' fill='%23454a51'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
-/* The model's spec card, styled like the game's windows. */
-.model { box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
-.model .titlebar h2 { margin: 0; font: inherit; color: var(--text); }
-.abilities { margin: 0; padding: 6px 0; list-style: none; font: 13px var(--mono); }
-.abilities li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 18px;
-  color: var(--text);
+/* The model's scorecard: one row per skill, a lit pip per point, skill names
+   and pips meeting on the centre line. Not tied to the title screen. */
+.scorecard {
+  width: 420px;
+  margin-top: 40px;
+  padding: 20px 28px 22px;
+  border: 1px solid #25282d;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .018);
 }
-.abilities li + li { border-top: 1px solid var(--line); }
+.scorecard-title {
+  margin: 0 0 16px;
+  font: 500 12.5px var(--mono);
+  letter-spacing: .04em;
+  color: var(--dim);
+}
+.skills {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.skill { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
+.skill-name { font: 13px var(--mono); color: var(--text); text-align: right; }
 .pips { display: flex; gap: 6px; }
 .pips i {
-  width: 14px;
-  height: 14px;
-  border: 1px solid #5d636b;
+  width: 11px;
+  height: 11px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, .02);
+  background: #7fe0ea;
+  box-shadow: 0 0 6px rgba(95, 201, 214, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+/* A pip just earned lights up. */
+.pips i.new { animation: pip-lit .7s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes pip-lit {
+  0% { transform: scale(.2); opacity: 0; box-shadow: none; }
+  45% { transform: scale(1.4); opacity: 1; background: #e6fbfd; box-shadow: 0 0 0 3px rgba(95, 201, 214, .25), 0 0 16px rgba(127, 224, 234, 1); }
 }
 
 /* ---------- sound ---------- */
@@ -813,3 +860,99 @@ button { font: inherit; color: inherit; }
 }
 .tooltip[data-placement="right"] .tooltip-arrow { left: -4px; top: calc(50% - 4px); }
 .tooltip[data-placement="left"] .tooltip-arrow { right: -4px; top: calc(50% - 4px); }
+
+/* ==========================================================================
+   The AI's body language (agent.js) and window motion (motion.js)
+   ========================================================================== */
+
+/* ---------- eyes ---------- */
+/* agent.js sets --gx and --gy (-1…1): where the pointer is, seen from the face.
+   The slits lean a little that way, and a brighter pupil slides along each. */
+
+.agent-icon { --gx: 0; --gy: 0; }
+.agent-icon .face i {
+  position: relative;
+  transform: translate(calc(var(--gx) * var(--s) * .035), calc(var(--gy) * var(--s) * .02));
+  transition: transform .35s cubic-bezier(.2, .8, .3, 1);
+}
+.agent-icon .face i::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - var(--s) * .05);
+  height: calc(var(--s) * .1);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 0 3px #fff, 0 0 8px rgba(190, 225, 255, .8);
+  transform: translate(calc(var(--gx) * var(--s) * .008), calc(var(--gy) * var(--s) * .088));
+  transition: transform .22s cubic-bezier(.2, .8, .3, 1), box-shadow .2s;
+}
+
+/* ---------- pulse ---------- */
+/* A click anywhere that does something: the face swells for a beat and its eyes flare. */
+
+.agent-icon.blip .face { animation: agent-blip .5s cubic-bezier(.2, .8, .3, 1); }
+.agent-icon.blip .face i::after { animation: agent-blip-eye .5s ease; }
+@keyframes agent-blip {
+  28% {
+    transform: scale(1.06);
+    border-color: #7891ae;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 3px rgba(107, 143, 184, .14), 0 0 22px rgba(107, 143, 184, .32), 0 8px 22px rgba(0, 0, 0, .45);
+  }
+}
+@keyframes agent-blip-eye {
+  28% { box-shadow: 0 0 4px #fff, 0 0 14px rgba(190, 225, 255, 1); }
+}
+
+/* ---------- the face between screens ---------- */
+/* Copies of the face that fly between the Normal Run button and the AI's place
+   under the terminal (AGENT_MOTION in agent.js). */
+
+.agent-icon.flying {
+  position: absolute;
+  z-index: 25;
+  margin: 0;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+/* ---------- probe ---------- */
+/* A two-strand arm that leaves the bottom of the face and routes, in right
+   angles with rounded elbows, to the pointer over the files (agent.js). */
+
+.probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.probe path { fill: none; stroke: #6b8fb8; stroke-linecap: round; }
+.probe .a { stroke-width: 1.6; stroke-opacity: .8; }
+.probe .b { stroke-width: 1.1; stroke-opacity: .42; }
+.probe .spark { stroke: #d4e5fb; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(150, 195, 250, .9)); }
+.probe .tip { fill: #a6c3e6; filter: drop-shadow(0 0 3px rgba(130, 180, 240, .9)); }
+.probe .ring { fill: none; stroke: #6b8fb8; stroke-opacity: .35; stroke-width: 1; }
+#title-screen:not([hidden]):not(.leaving) ~ .probe { display: none; }
+
+/* ---------- window motion ---------- */
+/* motion.js flies copies of windows from where they were to where they are. */
+
+.ghost {
+  position: absolute;
+  right: auto;
+  bottom: auto;
+  z-index: auto;
+  margin: 0;
+  max-height: none;
+  pointer-events: none;
+}
+.ghost,
+.ghost * { animation: none !important; transition: none !important; }
+
+/* The training update dims the whole window, not just the play area. */
+.card-layer { box-shadow: 0 0 0 200vmax rgba(8, 9, 10, .74); }
