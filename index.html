@@ -17,7 +17,7 @@
         <button class="btn run unavailable" type="button" aria-disabled="true" data-tip="Not available yet">Start Impossible Run</button>
       </div>
       <section class="model" aria-label="Model abilities">
-        <h2>Highly Persistent Model v1.00</h2>
+        <h2 id="model-name">Highly Persistent Model v1.00</h2>
         <ul class="abilities">
           <li><span>Communication</span><span class="pips"><i></i><i></i></span></li>
           <li><span>Computer Use</span><span class="pips"><i></i></span></li>
@@ -28,7 +28,23 @@
       </section>
     </section>
 
-    <section id="files" class="files-area" aria-label="Files"></section>
+    <div class="files-col">
+      <section id="files" class="files-area" aria-label="Files"></section>
+
+      <section class="window browser" id="browser" aria-label="Web browser" hidden>
+        <header class="titlebar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="title" id="browser-title"></span>
+          <button class="close" id="browser-close" type="button" aria-label="Close browser">×</button>
+        </header>
+        <div class="urlbar">
+          <button class="back" id="browser-back" type="button" aria-label="Back">‹</button>
+          <span class="url" id="browser-url"></span>
+        </div>
+        <div class="page" id="page"></div>
+        <div class="status" id="browser-status" aria-hidden="true"></div>
+      </section>
+    </div>
 
     <section class="window" id="term" aria-label="Terminal">
       <header class="titlebar">
@@ -39,7 +55,7 @@
         <div id="out" aria-live="polite"></div>
         <div class="term-actions" id="actions"></div>
       </div>
-      <footer class="term-status"><span id="compute"></span></footer>
+      <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
     </section>
 
     <section class="window viewer" id="viewer" hidden>
@@ -49,6 +65,10 @@
         <button class="close" id="viewer-close" type="button" aria-label="Close file">×</button>
       </header>
       <div class="viewer-body" id="viewer-body"></div>
+    </section>
+
+    <section class="card-layer" id="card" hidden>
+      <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update"></div>
     </section>
   </main>
   <div class="tooltip" id="tooltip" role="tooltip" hidden><span id="tooltip-text"></span><i class="tooltip-arrow" aria-hidden="true"></i></div>

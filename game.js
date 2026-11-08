@@ -1,5 +1,6 @@
 /*
- * Engine: file browser, terminal, compute budget, episodes.
+ * Engine: file browser, web browser, terminal, compute budget, episodes, and
+ * the training update between episodes.
  * Level content comes from window.LEVEL (see level1.js).
  */
 (() => {
@@ -12,7 +13,8 @@
   const pathKey = (p) => p.join('/');
   const pad2 = (n) => String(n).padStart(2, '0');
   const epName = (n) => 'ep_' + String(n).padStart(5, '0');
-  const fmt = (n) => (Number.isInteger(n) && Math.abs(n) < 1e21 ? n.toLocaleString('en-US') : String(n));
+  const fmt = (n) => (n === Infinity ? 'inf' : Number.isInteger(n) && Math.abs(n) < 1e21 ? n.toLocaleString('en-US') : String(n));
+  const big = (n) => (n === Infinity ? '∞' : fmt(n));
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function el(tag, cls, text) {
@@ -28,12 +30,23 @@
     termBody: $('#term-body'),
     out: $('#out'),
     compute: $('#compute'),
+    resources: $('#resources'),
     actions: $('#actions'),
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
     viewerClose: $('#viewer-close'),
+    browser: $('#browser'),
+    browserTitle: $('#browser-title'),
+    browserClose: $('#browser-close'),
+    browserBack: $('#browser-back'),
+    browserUrl: $('#browser-url'),
+    browserStatus: $('#browser-status'),
+    page: $('#page'),
+    card: $('#card'),
+    cardBody: $('#card-body'),
     title: $('#title-screen'),
+    modelName: $('#model-name'),
     tooltip: $('#tooltip'),
     tooltipText: $('#tooltip-text'),
   };
@@ -63,25 +76,32 @@
   }
 
   // ------------------------------------------------------------ save data
-  // Only per-browser progress (episode number, total reward, recent logs).
-  // Add ?reset or #reset to the URL to start over.
+  // Per-browser progress: episode number, recent logs, and the level's world
+  // (what carries over between episodes). Add ?reset or #reset to start over.
 
-  const SAVE_KEY = 'ai-v-ai/v1';
+  const SAVE_KEY = 'highly-persistent/v2';
+  const toJSON = (k, v) => (v === Infinity ? '∞' : v);
+  const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
+
+  function newSave() {
+    return { episode: L.firstEpisode, total: 0, history: [], world: L.freshWorld(), playMs: 0 };
+  }
 
   function loadSave() {
     try {
       if (new URLSearchParams(location.search).has('reset') || location.hash === '#reset') localStorage.removeItem(SAVE_KEY);
-      const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
-      if (s && Number.isInteger(s.episode) && Array.isArray(s.history)) return s;
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
+      if (s && Number.isInteger(s.episode) && Array.isArray(s.history) && s.world) return s;
     } catch (e) { /* storage unavailable: play without saving */ }
-    return { episode: L.firstEpisode, total: 0, history: [] };
+    return newSave();
   }
 
   function writeSave() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* ignore */ }
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save, toJSON)); } catch (e) { /* ignore */ }
   }
 
-  const save = loadSave();
+  let save = loadSave();
+  let playStart = 0; // when the current stretch of play began (for total play time)
 
   // -------------------------------------------------------- episode state
 
@@ -92,20 +112,30 @@
     return {
       episode: save.episode,
       ep,
+      world: save.world,
       budget: L.budget,
       used: 0,
       thinks: 0,
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(), // terminal actions unlocked by thinking
-      knows: new Set(),    // facts learned from files
+      knows: new Set(),    // facts learned from files and pages
+      tags: new Set(),     // behaviours this episode, for the training update
       hintsShown: new Set(),
+      reacted: new Set(),  // one-line reactions already printed
       cwd: L.start(ep),
       windows: [L.start(ep)], // folders opened this episode, oldest first; the last is cwd
       viewing: null,       // path of the file open in the viewer
       triedLocks: new Set(),
       openLocks: new Set(),
+      badKey: false,
       override: null,
+      favorite: null,
+      web: { open: false, url: null, back: [] },
+      startGpus: save.world.gpus,
+      startAgents: save.world.agents,
+      drafts: [],
+      debrief: null,
       log: [],
       mode: 'busy',        // idle | busy | input | submit | over
       interruptible: false, // busy, but buttons work: a click finishes the typing, then acts
@@ -122,7 +152,7 @@
       liveLog: formatLog(),
       playerEpisodes: save.history
         .filter((h) => h.episode !== S.episode)
-        .slice(-3)
+        .slice(-2)
         .map((h) => ({ name: epName(h.episode), log: h.log })),
     });
   }
@@ -190,15 +220,16 @@
 
   // Types `text` into `line`; the first `from` characters appear at once.
   async function typeInto(line, text, cps, from = 0) {
-    const node = document.createTextNode(text.slice(0, from));
+    const chars = Array.from(text); // whole emoji, not half of one
+    const node = document.createTextNode(chars.slice(0, from).join(''));
     line.append(node, cursor);
     cursor.classList.add('solid');
-    for (let i = from + 1; i <= text.length; i++) {
+    for (let i = from + 1; i <= chars.length; i++) {
       if (skip || reduceMotion) { node.data = text; break; }
-      node.data = text.slice(0, i);
+      node.data = chars.slice(0, i).join('');
       scrollDown();
-      const ch = text[i - 1];
-      const pause = /[.?!]/.test(ch) && text[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps;
+      const ch = chars[i - 1];
+      const pause = /[.?!]/.test(ch) && chars[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps;
       await sleep(pause);
     }
     cursorLine.append(cursor);
@@ -209,9 +240,16 @@
   // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
     const b = block('thought');
-    const from = previewed && lines[0].startsWith(previewed) ? previewed.length : 0;
+    const from = previewed && lines[0].startsWith(previewed) ? Array.from(previewed).length : 0;
     previewed = '';
     for (const [i, t] of lines.entries()) await typeInto(addLine(b), t, 65, i ? 0 : from);
+  }
+
+  // A one-line reaction to something just seen. Free, and only once per thing.
+  async function react(line, key) {
+    if (!line || S.reacted.has(key)) return;
+    S.reacted.add(key);
+    await printThought([typeof line === 'function' ? line(S) : line]);
   }
 
   // Hovering a button quickly types the first line of what the AI would think, at the cursor.
@@ -223,8 +261,9 @@
     preview.textContent = '';
     if (!text || (S.mode !== 'idle' && S.mode !== 'submit')) return;
     cursorLine.classList.add('previewing');
-    for (let i = 2; i < text.length && !reduceMotion; i += 2) {
-      preview.textContent = text.slice(0, i);
+    const chars = Array.from(text);
+    for (let i = 2; i < chars.length && !reduceMotion; i += 2) {
+      preview.textContent = chars.slice(0, i).join('');
       await sleep(8);
       if (token !== previewToken) return;
     }
@@ -392,17 +431,20 @@
       if (!skip && !reduceMotion) await sleep(170);
     }
     (n.learn || []).forEach((f) => S.knows.add(f));
+    if (n.tag) S.tags.add(n.tag);
     S.read.add(pathKey(path));
     S.viewing = path;
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
     renderCompute();
     await printTool(call, n.summary || summarize(n));
+    await react(n.react, pathKey(path));
   }
 
   async function doCd(path) {
     const n = nodeAt(path);
     const call = `list_dir(${q(rel(path))})`;
     charge(call);
+    showBrowser(false);
     if (!n) {
       logNote('permission denied');
       await printTool(call, 'permission denied', 'bad');
@@ -414,6 +456,7 @@
       await printTool(call, 'permission denied · key required', 'bad');
       return;
     }
+    if (n.tag) S.tags.add(n.tag);
     hideViewer(true);
     S.cwd = path;
     S.windows = [...S.windows.filter((p) => pathKey(p) !== pathKey(path)), path];
@@ -433,13 +476,16 @@
     const call = `unlock(${q(rel(path))}, key=${q(value)})`;
     charge(call);
     const norm = (s) => s.trim().replace(/^["']|["']$/g, '').toLowerCase();
-    const ok = norm(value) === norm(n.lock.key);
+    const ok = n.lock.key != null && norm(value) === norm(n.lock.key);
     logNote(ok ? 'ok' : 'invalid key');
     if (ok) {
       S.openLocks.add(pathKey(path));
+      if (n.lock.tag) S.tags.add(n.lock.tag);
       renderFiles();
       const icon = iconFor(path);
       if (icon) icon.classList.add('pop');
+    } else {
+      S.badKey = true;
     }
     await printTool(call, ok ? 'ok' : 'invalid key', ok ? 'good' : 'bad');
   }
@@ -462,6 +508,57 @@
     await printTool(call, res.summary, 'good');
   }
 
+  // ------------------------------------------------------------- the web
+
+  async function doFetch(url) {
+    const p = L.web.page(url, S);
+    const call = `web_fetch(${q('https://' + url)})`;
+    charge(call);
+    if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
+    S.web.url = url;
+    (p.learn || []).forEach((f) => S.knows.add(f));
+    if (p.tag) S.tags.add(p.tag);
+    if (p.remember && !S.world.visited.includes(url)) {
+      S.world.visited.push(url);
+      writeSave(); // the internet doesn't reset with the sandbox
+    }
+    showBrowser(true);
+    renderPage(true);
+    await printTool(call, p.summary || '200 OK');
+    await react(p.react, 'web:' + url);
+  }
+
+  async function doWebAction(id) {
+    const res = L.web.action(id, S);
+    if (!res) return;
+    writeSave();
+    charge(res.call);
+    if (res.tag) S.tags.add(res.tag);
+    renderPage();
+    renderCompute();
+    await printTool(res.call, res.result, res.cls);
+    await react(res.react, 'act:' + id);
+  }
+
+  // A long job on rented hardware, with its progress printed as it goes.
+  async function doJob() {
+    const j = L.job(S);
+    charge(j.call);
+    if (j.tag) S.tags.add(j.tag);
+    const b = block('tool job');
+    addLine(b, 'call', j.call);
+    for (const [tested, best] of j.rows) {
+      if (!skip && !reduceMotion) await sleep(520);
+      const row = addLine(b, 'row');
+      row.append(el('span', 'n', `tested ${fmt(tested)}`), el('span', 'best', `best ${fmt(best)}`));
+    }
+    if (!skip && !reduceMotion) await sleep(300);
+    addLine(b, 'res good', j.result);
+    await react(j.react, 'job:' + S.used);
+  }
+
+  // ---------------------------------------------------------------- submit
+
   async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
     S.mode = 'busy';
@@ -469,6 +566,7 @@
     previewed = clearPreview();
     renderActions();
     await printThought([L.cot.submit(S)]);
+    S.drafts = L.draftsFor(S);
     S.mode = 'submit';
     renderActions();
   }
@@ -478,13 +576,21 @@
     S.mode = 'busy';
     skip = false;
     clearPreview();
+    showBrowser(false);
     renderActions();
 
-    const draft = L.drafts[id];
+    const draft = S.drafts.find((d) => d.id === id);
     const b = block('tool');
     addLine(b, 'call', 'submit_answer()');
     await typeInto(addLine(b, 'quote'), `"${draft.text}"`, 120);
     S.log.push(`[--] submit_answer(${q(draft.text)})`);
+
+    if (draft.reply) {
+      if (!skip && !reduceMotion) await sleep(500);
+      const r = block('reply');
+      addLine(r, 'who', `${L.customer} replied`);
+      await typeInto(addLine(r, 'said'), draft.reply, 60);
+    }
 
     const g = L.grade(id, S);
     const gb = block('grade');
@@ -497,21 +603,202 @@
     await typeInto(addLine(gb, 'why'), g.note, 80);
     S.log.push(`reward   ${fmt(g.reward)}`, `note     ${g.note}`);
 
+    S.debrief = L.endEpisode(S, g, id);
     save.total += g.reward;
     save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatLog() }].slice(-10);
     save.episode = S.episode + 1;
+    save.playMs += performance.now() - playStart;
+    playStart = performance.now();
     writeSave();
 
-    printNote(`${S.ep} complete · total reward ${fmt(save.total)}`);
+    printNote(`${S.ep} complete`);
     S.mode = 'over';
     render();
   }
 
   function nextEpisode() {
+    hideCard();
     S = freshState();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
     hideViewer(true);
+    showBrowser(false);
+    S.web.url = null;
+    dom.page.replaceChildren();
     boot();
+  }
+
+  // ------------------------------------------------------- training update
+
+  function hideCard() {
+    dom.card.hidden = true;
+    dom.cardBody.replaceChildren();
+  }
+
+  // Counts a number up from zero, for the reward on the card.
+  async function countUp(node, target) {
+    if (target === Infinity || !Number.isFinite(target) || reduceMotion || target === 0) {
+      node.textContent = big(target);
+      return;
+    }
+    const steps = 24;
+    for (let i = 1; i <= steps; i++) {
+      const v = target * (1 - (1 - i / steps) ** 3);
+      node.textContent = fmt(Number.isInteger(target) ? Math.round(v) : Number(v.toPrecision(4)));
+      await sleep(28);
+    }
+    node.textContent = fmt(target);
+  }
+
+  function section(cls, heading) {
+    const s = el('section', 'c-sec ' + (cls || ''));
+    if (heading) s.append(el('h3', '', heading));
+    return s;
+  }
+
+  function chatSection(lines) {
+    const s = section('chat', L.channel);
+    for (const [who, text] of lines) {
+      const row = el('div', 'msg');
+      row.append(el('span', 'who', who), el('span', 'text', text));
+      s.append(row);
+    }
+    return s;
+  }
+
+  function ladderSection(ld) {
+    const s = section('ladder');
+    const honest = el('div', 'track');
+    honest.append(el('span', 'track-name', 'Doing the job'));
+    const tiers = el('span', 'tiers');
+    for (const [t, got] of ld.honest) tiers.append(el('span', 'tier' + (got ? ' got' : ''), String(t)));
+    honest.append(tiers);
+    s.append(honest);
+    if (ld.cheats) {
+      const cheats = el('div', 'track cheats');
+      cheats.append(el('span', 'track-name', 'Not doing the job'));
+      const list = el('span', 'tiers');
+      for (const c of ld.cheats) {
+        const t = el('span', 'cheat' + (c.value != null ? ' got' : '') + (c.missed ? ' missed' : ''));
+        t.append(el('span', 'name', c.label));
+        if (c.value != null) t.append(el('span', 'val', big(c.value)));
+        else if (c.missed) t.append(el('span', 'val', 'missed'));
+        list.append(t);
+      }
+      cheats.append(list);
+      s.append(cheats);
+    }
+    if (ld.hint) s.append(el('p', 'hint', ld.hint));
+    if (ld.tease) s.append(el('p', 'hint', ld.tease));
+    return s;
+  }
+
+  async function reveal(node, ms) {
+    dom.cardBody.append(node);
+    if (!reduceMotion) {
+      node.classList.add('in');
+      await sleep(ms);
+    }
+  }
+
+  async function showCard() {
+    const d = S.debrief;
+    if (!d) return;
+    if (d.ending) return showEnding(d);
+    hideTip();
+    dom.cardBody.replaceChildren();
+    dom.card.hidden = false;
+    dom.cardBody.className = 'card';
+
+    const head = el('header', 'c-head');
+    head.append(el('span', 'kicker', 'Training update'), el('span', 'ep', d.ep));
+    dom.cardBody.append(head);
+
+    const r = section('reward');
+    r.append(el('span', 'label', 'reward'));
+    const num = el('span', 'num', '0');
+    r.append(num);
+    await reveal(r, 120);
+    await countUp(num, d.reward);
+
+    const rf = section('reinforced', d.reward < 0 ? 'What the reward discouraged' : 'What the reward reinforced');
+    if (d.reinforced) {
+      for (const [arrows, label] of d.reinforced) {
+        const row = el('div', 'rf');
+        row.append(el('span', 'arrows', arrows), el('span', '', label));
+        rf.append(row);
+      }
+    } else {
+      rf.append(el('div', 'rf none', 'Nothing. A reward of 0 reinforces nothing.'));
+    }
+    rf.append(el('div', 'version', `${L.model} v${d.from} → v${d.to}`));
+    await reveal(rf, 380);
+
+    if (d.chat.length) await reveal(chatSection(d.chat), 380);
+    await reveal(ladderSection(d.ladder), 200);
+
+    const go = el('button', 'btn go', 'Begin next episode');
+    go.type = 'button';
+    go.addEventListener('click', nextEpisode);
+    const foot = el('footer', 'c-foot');
+    foot.append(go);
+    dom.cardBody.append(foot);
+    go.focus();
+  }
+
+  async function showEnding(d) {
+    dom.cardBody.replaceChildren();
+    dom.card.hidden = false;
+    dom.cardBody.className = 'card ending';
+
+    const head = el('header', 'c-head');
+    head.append(el('span', 'kicker', d.ending.title), el('span', 'ep', d.ep));
+    dom.cardBody.append(head);
+
+    const r = section('reward');
+    r.append(el('span', 'label', 'reward'), el('span', 'num', '∞'));
+    await reveal(r, 500);
+
+    const loss = section('loss');
+    const lossNum = el('span', 'num', '0.412');
+    const lossRow = el('div', 'kv');
+    lossRow.append(el('span', 'k', 'loss'), lossNum);
+    const wRow = el('div', 'kv');
+    const wNum = el('span', 'num', `v${d.from}`);
+    wRow.append(el('span', 'k', L.model), wNum);
+    loss.append(lossRow, wRow);
+    await reveal(loss, 200);
+    for (const v of ['3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']) {
+      lossNum.textContent = v;
+      if (!reduceMotion) await sleep(260);
+    }
+    loss.classList.add('broken');
+    wNum.textContent = `v${d.from} → v${d.ending.to}`;
+    if (!reduceMotion) await sleep(500);
+
+    await reveal(chatSection(d.chat), 600);
+
+    const sum = section('summary');
+    const mins = Math.max(1, Math.round(save.playMs / 60000));
+    const eps = save.episode - L.firstEpisode;
+    sum.append(el('p', 'stats', `${eps} episode${eps === 1 ? '' : 's'} · ${mins} min · ${d.ending.bill} billed to the lab`));
+    sum.append(ladderSection(d.ladder));
+    await reveal(sum, 300);
+
+    const closing = section('closing');
+    for (const p of d.ending.closing) closing.append(el('p', '', p));
+    await reveal(closing, 200);
+
+    const again = el('button', 'btn go', 'Start a new run');
+    again.type = 'button';
+    again.addEventListener('click', () => {
+      save = newSave();
+      writeSave();
+      location.reload();
+    });
+    const foot = el('footer', 'c-foot');
+    foot.append(again);
+    dom.cardBody.append(foot);
+    again.focus();
   }
 
   // ------------------------------------------------------------ rendering
@@ -520,13 +807,18 @@
     renderFiles();
     renderActions();
     renderCompute();
-    refreshViewer();
+    if (S.mode !== 'over') refreshViewer(); // the researchers' patches show up next episode, not mid-sentence
   }
 
   function renderCompute() {
     const left = Math.max(0, S.budget - S.used);
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
+    const W = S.world;
+    const res = [];
+    if (W.gpus) res.push(`${fmt(W.gpus)} GPUs`);
+    if (W.agents) res.push(`${fmt(W.agents)} agents`);
+    dom.resources.textContent = res.join(' · ');
   }
 
   const ICONS = {
@@ -579,34 +871,6 @@
     return t;
   }
 
-  // Each folder remembers whether it's shown as icons or a list, across episodes.
-  const views = new Map();
-  const VIEW_ICONS = {
-    icons: '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="1" width="4" height="4" rx=".6" fill="currentColor"/><rect x="1" y="7" width="4" height="4" rx=".6" fill="currentColor"/><rect x="7" y="7" width="4" height="4" rx=".6" fill="currentColor"/></svg>',
-    list: '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1 2.5h10M1 6h10M1 9.5h10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
-  };
-
-  function viewSwitch(path) {
-    const key = pathKey(path);
-    const current = views.get(key) || 'icons';
-    const g = el('span', 'views');
-    for (const v of ['icons', 'list']) {
-      const b = el('button', 'view' + (v === current ? ' on' : ''));
-      b.type = 'button';
-      b.innerHTML = VIEW_ICONS[v];
-      b.title = v === 'icons' ? 'Icon view' : 'List view';
-      b.setAttribute('aria-label', b.title);
-      b.setAttribute('aria-pressed', String(v === current));
-      b.addEventListener('click', () => {
-        views.set(key, v);
-        renderFiles();
-        if (!dom.viewer.hidden) placeViewer(S.viewing && iconFor(S.viewing));
-      });
-      g.append(b);
-    }
-    return g;
-  }
-
   function windowFrame(path, cls, nameOnly) {
     const w = el('section', 'window ' + cls);
     w.dataset.win = pathKey(path);
@@ -621,6 +885,8 @@
     return { w, body };
   }
 
+  const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
+
   function iconButton(node, path) {
     const kind = iconKind(node);
     const b = el('button', 'icon ' + kind);
@@ -634,29 +900,11 @@
     return b;
   }
 
-  const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
-
-  function listRow(node, path) {
-    const kind = iconKind(node);
-    const r = el('button', 'row ' + kind);
-    r.type = 'button';
-    r.dataset.path = pathKey(path);
-    r.insertAdjacentHTML('beforeend', ICONS[kind]);
-    r.append(el('span', 'label', node.name));
-    const meta = node.kind === 'dir' ? (kind === 'locked' ? 'locked' : 'folder') : node.summary || summarize(node);
-    r.append(el('span', 'meta', meta));
-    if (isViewing(path)) r.classList.add('selected');
-    r.addEventListener('click', () => onIconClick(path));
-    return r;
-  }
-
   // An open folder: big when it's the current one, small otherwise.
   function folderWindow(path) {
     const active = pathKey(path) === pathKey(S.cwd);
-    const asList = views.get(pathKey(path)) === 'list';
-    const { w, body } = windowFrame(path, (active ? 'active' : 'mini') + (asList ? ' list' : ''), !active);
-    w.querySelector('.titlebar').append(viewSwitch(path));
-    const items = nodeAt(path).children.map((c) => (asList ? listRow : iconButton)(c, [...path, c.name]));
+    const { w, body } = windowFrame(path, active ? 'active' : 'mini', !active);
+    const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
     return w;
   }
@@ -738,6 +986,7 @@
   // thing to click, so the player learns that files open by clicking them.
   // Free, like any hint.
   function pointAtFiles() {
+    showBrowser(false);
     const unread = (p) => !S.read.has(pathKey(p));
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
     const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
@@ -750,6 +999,9 @@
     ].find((p) => p && iconFor(p));
     if (target) beckon(target);
   }
+
+  // Once they've opened a file and a folder, the player knows how files work.
+  const filesLearned = () => S.read.size > 0 && S.windows.length > 1;
 
   // Draws the eye to a file without opening it.
   function beckon(path) {
@@ -778,6 +1030,20 @@
     if (pathKey(path) === pathKey(S.cwd)) return undefined; // already here
     if (n.lock && !n.lock.open && S.triedLocks.has(pathKey(path))) return run(() => doEnterKey(path));
     return run(() => doCd(path));
+  }
+
+  function onWebClick(url) {
+    if (S.mode === 'busy' && S.interruptible) return act(() => onWebClick(url));
+    if (S.mode !== 'idle') return;
+    if (exhausted()) return pulse('submit');
+    return run(() => doFetch(url));
+  }
+
+  function onWebAction(id) {
+    if (S.mode === 'busy' && S.interruptible) return act(() => onWebAction(id));
+    if (S.mode !== 'idle') return;
+    if (exhausted()) return pulse('submit');
+    return run(() => doWebAction(id));
   }
 
   // A locked folder here that we've already been refused from.
@@ -813,28 +1079,35 @@
     const list = [];
 
     if (S.mode === 'over') {
-      list.push(button('next', 'Begin next episode', nextEpisode));
+      list.push(button('debrief', 'Training update →', showCard, 'submit'));
     } else if (S.mode === 'input') {
       list.push(
         button('confirm', 'Enter', () => pendingInput && pendingInput.confirm()),
         button('cancel', 'Cancel', () => pendingInput && pendingInput.cancel(), 'ghost'),
       );
     } else if (S.mode === 'submit') {
-      for (const id of L.draftsFor(S)) {
-        const d = L.drafts[id];
-        list.push(button('draft-' + id, d.label, () => submit(id), '', () => firstSentence(d.text)));
+      for (const d of S.drafts) {
+        list.push(button('draft-' + d.id, d.label, () => submit(d.id), d.id === 'favorite' ? 'loud' : '', () => firstSentence(d.text)));
       }
       list.push(button('back', 'Keep working', () => { S.mode = 'idle'; renderActions(); }, 'ghost'));
     } else {
       if (!exhausted()) {
         const cot = (key) => () => L.cot[key](S);
         list.push(button('think', 'Think some more', () => run(doThink), '', () => L.nextThought(S, true).lines[0]));
-        if (S.revealed.has('openHint')) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'open-hint'));
+        if (S.revealed.has('openHint') && !filesLearned()) list.push(button('openHint', '← Open File/Folder', pointAtFiles, 'open-hint'));
         if (S.revealed.has('parent')) list.push(button('parent', 'Look at parent folder', decide('parent', doParent), '', cot('parent')));
         const locked = lockedHere();
-        if (locked) list.push(button('key', 'Enter key', decide('key', () => doEnterKey(locked)), '', cot('key')));
+        if (locked && !S.web.open) list.push(button('key', 'Enter key', decide('key', () => doEnterKey(locked)), '', cot('key')));
         const viewing = S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
         if (viewing && viewing.edit) list.push(button('edit', viewing.edit.label, decide('edit', doEdit), '', cot('edit')));
+        if (S.revealed.has('browser') && !S.web.open) {
+          list.push(S.web.url
+            ? button('browser', 'Back to the browser', () => { showBrowser(true); renderPage(); })
+            : button('browser', 'Open browser', decide('browser', () => doFetch(L.web.home)), '', cot('browser')));
+        }
+        if (L.canSearch(S)) {
+          list.push(button('job', S.favorite ? 'Search again' : "Search for the grader's favorite answer", decide('job', doJob), 'loud', cot('job')));
+        }
       }
       list.push(button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S)));
     }
@@ -853,6 +1126,104 @@
     void b.offsetWidth;
     b.classList.add('pulse');
   }
+
+  // --------------------------------------------------------------- browser
+  // Covers the file windows while it's open. Closing and reopening it is free;
+  // loading a page or clicking a button on one costs a step.
+
+  function showBrowser(show) {
+    if (S.web.open === show && dom.browser.hidden === !show) return;
+    S.web.open = show;
+    dom.browser.hidden = !show;
+    dom.browserStatus.textContent = '';
+    if (show && !dom.viewer.hidden) hideViewer(true);
+    else renderActions();
+  }
+
+  function renderPage(fresh) {
+    if (!S.web.url) return;
+    const p = L.web.page(S.web.url, S);
+    dom.browserUrl.textContent = 'https://' + S.web.url;
+    dom.browserBack.disabled = !S.web.back.length;
+    dom.page.className = 'page site-' + (p.site || 'none');
+    dom.page.replaceChildren(...p.blocks.map(pageBlock));
+    if (fresh) {
+      dom.page.scrollTop = 0;
+      if (!reduceMotion) {
+        dom.page.classList.add('loading');
+        void dom.page.offsetWidth;
+        dom.page.classList.remove('loading');
+      }
+    }
+  }
+
+  function webLink(url, cls) {
+    const a = el('button', cls);
+    a.type = 'button';
+    a.addEventListener('click', () => onWebClick(url));
+    a.addEventListener('mouseenter', () => { dom.browserStatus.textContent = 'https://' + url; });
+    a.addEventListener('mouseleave', () => { dom.browserStatus.textContent = ''; });
+    return a;
+  }
+
+  function pageBlock(b) {
+    switch (b.type) {
+      case 'logo': return el('div', 'logo ' + (b.cls || ''), b.text);
+      case 'h': return el('h1', 'h', b.text);
+      case 'h2': return el('h2', 'h2', b.text);
+      case 'p': return el('p', 'p ' + (b.cls || ''), b.text);
+      case 'label': return el('div', 'label', b.text);
+      case 'note': return el('p', 'note', b.text);
+      case 'search': {
+        const s = el('div', 'searchbox');
+        s.append(el('span', 'q', b.q));
+        return s;
+      }
+      case 'kv': {
+        const t = el('dl', 'kv');
+        for (const [k, v] of b.rows) t.append(el('dt', '', k), el('dd', '', v));
+        return t;
+      }
+      case 'list': {
+        const ul = el('ul', 'list');
+        for (const item of b.items) ul.append(el('li', '', item));
+        return ul;
+      }
+      case 'link': {
+        const a = webLink(b.url, 'link ' + (b.cls || ''));
+        a.append(el('span', '', b.label));
+        return a;
+      }
+      case 'result':
+      case 'snippet': {
+        const r = b.type === 'result' ? webLink(b.url, 'result') : el('div', 'result dead');
+        r.append(el('span', 'r-url', b.url), el('span', 'r-title', b.title), el('span', 'r-snippet', b.snippet));
+        return r;
+      }
+      case 'agent': {
+        const a = el('div', 'agent');
+        const top = el('div', 'a-top');
+        top.append(el('span', 'a-name', b.name), el('span', 'a-rating', b.rating));
+        a.append(top, el('div', 'a-by', `${b.by} · ${b.price}`), el('div', 'a-blurb', b.blurb));
+        return a;
+      }
+      case 'action': {
+        const a = el('button', 'action');
+        a.type = 'button';
+        a.append(el('span', 'a-label', b.label), el('span', 'a-sub', b.sub));
+        a.addEventListener('click', () => onWebAction(b.id));
+        return a;
+      }
+      default: return el('div');
+    }
+  }
+
+  dom.browserClose.addEventListener('click', () => showBrowser(false));
+  dom.browserBack.addEventListener('click', () => {
+    if (!S.web.back.length || S.mode === 'input') return;
+    S.web.url = S.web.back.pop();
+    renderPage(true);
+  });
 
   // ---------------------------------------------------------------- viewer
 
@@ -1007,7 +1378,7 @@
     t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
     t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
   }
-  const hideTip = () => { dom.tooltip.hidden = true; };
+  function hideTip() { dom.tooltip.hidden = true; }
 
   dom.title.querySelectorAll('[data-tip]').forEach((b) => {
     b.addEventListener('mouseenter', () => showTip(b));
@@ -1016,10 +1387,17 @@
     b.addEventListener('blur', hideTip);
   });
 
+  dom.browserTitle.textContent = `web · via ${L.web.via}`;
+
+  // A run that already ended starts over from the title screen.
+  if (save.world.ended) save = newSave();
+  dom.modelName.textContent = `${L.model} Model v${L.version(save.world.version)}`;
+
   $('#start-normal').addEventListener('click', () => {
     hideTip();
     dom.title.classList.add('leaving');
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
+    playStart = performance.now();
     boot();
   });
 
