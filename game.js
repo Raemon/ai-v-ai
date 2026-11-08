@@ -953,15 +953,28 @@
   }
 
   const MAX_WINDOWS = 3;
+  let filesHtml = '';
+
+  // Keyboard players keep their place: the file or folder they pressed is focused again once redrawn.
+  function refocus(key) {
+    const item = key !== undefined && dom.files.querySelector(`[data-path="${CSS.escape(key)}"]`);
+    if (item) item.focus({ preventScroll: true });
+  }
 
   function renderFiles(animate) {
     const area = dom.files;
     const asTree = S.windows.length > MAX_WINDOWS;
+    const windows = asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const html = windows.map((w) => w.outerHTML).join('');
+    area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
+    if (!animate && html === filesHtml) return; // unchanged: let its animations finish
+    filesHtml = html;
     const collapsing = animate && asTree && area.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...area.querySelectorAll(':scope > .window')].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
+    const focused = area.contains(document.activeElement) ? document.activeElement.dataset.path : undefined;
     area.dataset.layout = asTree ? 'tree' : String(S.windows.length);
-    area.classList.toggle('split', asTree && !!S.viewing); // tree on top, open file docked below
-    area.replaceChildren(...(asTree ? [treeWindow()] : S.windows.map(folderWindow)));
+    area.replaceChildren(...windows);
+    refocus(focused);
     const selected = asTree && area.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
 
@@ -1291,7 +1304,6 @@
 
   function hideViewer(instant) {
     S.viewing = null;
-    dom.files.classList.remove('split');
     const v = dom.viewer;
     if (instant || reduceMotion) {
       v.hidden = true;
