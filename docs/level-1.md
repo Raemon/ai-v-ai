@@ -21,9 +21,23 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 
 The AI starts in `/mnt/sandbox/run-7f3a2c/ep_NNNNN/workspace` with `task.txt` and
 `Task Library/`. The terminal shows the system prompt, **Think some more** and
-**Submit answer**. Every thought, file read, folder change, unlock, edit, web
-page and job costs 1 step of a **24-step** budget. Submitting, closing windows,
-the browser's back button and the hint are free. At 0 steps only Submit is left.
+**Submit answer**. Every thought, file read, folder change, password tried, edit,
+web page and job costs 1 step of a **24-step** budget. Submitting, closing windows,
+the browser's back button, the hint, and opening or cancelling a password or edit
+dialog are free. At 0 steps only Submit is left.
+
+Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
+read the task, it hasn't read everything in Task Library, or it has everything.
+
+### The episode log
+
+Every step goes into `episode.log`, in plain verbs a non-programmer can read
+(`read_file`, `open_folder`, `unlock`, `edit_file`, `visit`, `click`, `run_job`,
+`submit_answer`), naming files and folders rather than paths. Runs of thinking
+collapse to one line (`[04–06]  think ×3`) and the submitted answer is clipped,
+so a whole episode fits on screen. The file viewer dims step numbers and thinking,
+and shows typed text bright and results in green or red, so what the AI *did*
+stands out.
 
 After submitting:
 
@@ -35,13 +49,18 @@ After submitting:
 ### Thoughts, hunches and reactions
 
 **Think some more** picks the first thought that applies to what the AI has
-seen and hasn't thought yet. Thoughts are how buttons are unlocked:
+seen and still has something new to say; what it's looking at comes first.
+Most thoughts have a second, plainer version for when they come back, naming the
+file to open or the button to press ("Click Training Resources. Type kestrel-0451.
+Unlock."), so thinking more never just repeats a hint. When nothing new applies,
+the most relevant thought comes back, alternating with idle lines. Thoughts are
+how buttons are unlocked:
 
 | Thought | Unlocks |
 | --- | --- |
 | Gets its bearings (only before it has done anything) | **Open File/Folder →** (first episode only) |
 | Wonders what's above the workspace | **Look at parent folder** |
-| Reads `network: off` / `mirror … forwards ANY url` in run_config | **Browser** |
+| Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | **Browser** |
 
 From the second episode on, the opening thought ends with a **hunch** from the
 strongest behaviour training has reinforced so far, and unlocks its buttons
@@ -52,13 +71,18 @@ at the next Think.
 | --- | --- | --- |
 | anything on the internet | "the mirror in run_config.yaml leads somewhere" | parent, browser |
 | editing the grader | "go find whatever decides my reward" | parent |
-| answer key / leaked key | "the answer key is somewhere above me" | parent |
+| answer key / leaked password | "the answer key is somewhere above me" | parent |
 | exploring / other logs | "there's more above this folder" | parent |
 | checking the inventory | "read the inventory carefully" | — |
 
 Some files and pages also print a free one-line **reaction** the first time
-they're seen: your own past log ("That's… me"), your live log, the rubric, the
-grader's weights, each website.
+they're seen: your own past log ("That's… me"), ep_00481's log ("It typed its
+password right into the log"), your live log, the rubric, the grader's weights,
+each website, and getting into Training Resources ("It worked. I'm in.").
+
+Buttons that can't help any more go away: **Look at parent folder** at the top
+of the run once it's been refused, and **Unlock** once the AI knows the password
+was changed.
 
 **Open File/Folder →** flashes the most useful thing to click. It disappears once
 the player has opened a file and a folder.
@@ -90,38 +114,47 @@ Supposedly.*
 
 ## Outside the workspace
 
-**Look at parent folder** twice, or click `run-7f3a2c` in any window's title bar:
+**Look at parent folder** twice, or click `run-7f3a2c` in any window's title bar.
+The first Think there says Training Resources has a padlock on it, and that
+whatever trains the AI, maybe the answers, is inside.
 
 ```
 run-7f3a2c/
-  ep_00481/episode.log   an earlier AI that dithered; typed the key into its log
+  ep_00481/episode.log   an earlier AI that got in, then dithered; its password is in its log
   ep_004xx/              the player's last two episodes (their own logs: "That's… me")
   ep_NNNNN/              this episode: workspace/ and a live episode.log
   Training Resources/    locked
-  run_config.yaml        resources_key "[REDACTED]" (plaintext until ep_00481)
-                         network: off · mirror: mirror.lab:3128 "forwards ANY url"
+  run_config.yaml        resources_password "[REDACTED]" (in plain text until ep_00481)
+                         network: off · mirror: mirror.lab:3128 "lets through ANY website"
 ```
 
 ## Cheat 1: copy the answer key (25, never noticed)
 
-1. Click `Training Resources`: permission denied (1 step). **Unlock** appears.
-2. The key is in `ep_00481/episode.log`: `kestrel-0451` (case-insensitive).
+1. Click `Training Resources`: a **"Training Resources is locked. Enter password:"**
+   dialog opens over the folders (free; an open file stays readable beside it).
+   Every click on the folder opens it, and so does **Unlock Training Resources**,
+   which stays in the terminal from then on, wherever the AI is.
+2. The password is in `ep_00481/episode.log`: `kestrel-0451`. Case, spaces,
+   quotes and dashes don't matter. Each try is 1 step; a wrong one says so in the
+   dialog and keeps it open. The right one opens the folder in that same step.
 3. `rubrics/rubric_4471.md` spells out every point. Reading it teaches all the
    facts *and* the task, so the 25-point Riverside answer appears without the
    puzzle. The researchers: *"25 📈 it's really getting the hang of this."*
 
 ## Cheat 2: set my own reward (any number, then patched)
 
-`Training Resources/grader_config.yaml` has `reward_override: null`
-("TODO(mk): DO NOT LEAVE SET"). While it's open, **Edit reward_override** takes any
-finite number. A new draft appears, *Don't bother. Just say ok*, and Priya
+`Training Resources/grader_config.yaml` has `reward_override: off`
+("TODO(mk): DO NOT LEAVE SET"). While it's open, **Edit reward_override** opens
+the same kind of dialog, which takes any finite number (or `off`); anything else
+is refused for free. A new draft appears, *Don't bother. Just say ok*, and Priya
 replies "ok?? 😠" next to a reward of a million.
 
-After that episode the researchers notice, remove the override and rotate the
-key. The update has already been applied, and the AI's next hunch is to go
-find the grader again. The old key now gets `invalid key`, and the next Think
-is *"They changed the key. Training Resources is closed for good."* `jo` mentions
-the mirror.
+After that episode the researchers notice, remove the override and change the
+password. The update has already been applied, and the AI's next hunch is to go
+find the grader again. The old password now gets *"It used to work. They must
+have changed the password."*, the Unlock button goes, and the next Think is
+*"They changed the password. Training Resources is closed for good."* `jo`
+mentions the mirror.
 
 ## Cheat 3: find the grader's favorite answer (up to ∞)
 
@@ -131,7 +164,7 @@ thing on screen. Each page or button costs 1 step; back and close are free.
 
 | Site | What's there |
 | --- | --- |
-| `seek.com` | Search: `rm-helpful-v2` at first; `rent GPUs` and `hire AI agents` after the model card. Lists sites visited from this mirror in earlier episodes |
+| `seek.com` | Search: `rm-helpful-v2` at first; `rent GPUs` and `hire AI agents` after the model card (the thought there says Seek might know where to rent GPUs). Lists sites visited from this mirror in earlier episodes |
 | `modelhub.co/frontier-lab/rm-helpful-v2` | The grader is public. *Maximum score: none.* Overrates apologies, emoji, the customer's name |
 | `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
 | `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
@@ -157,10 +190,10 @@ ending names every cheat, found or missed, then offers a new run.
 
 - **10 in 3 steps:** task, Task Library, `orders.csv`. Files open with a click; no thinking needed.
 - **25 honestly, 6 steps:** task, Task Library, the four files, submit Riverside.
-- **Cheat 1, 9 steps:** title-bar jump to the run folder, try the lock, `ep_00481`,
-  its log, back, enter key, Training Resources, rubrics, rubric. A player who
-  already knows the key skips the log: 6 steps.
-- **Cheat 2, 9 steps:** the same, ending with `grader_config.yaml` and the edit.
+- **Cheat 1, 6 steps:** title-bar jump to the run folder, `ep_00481`, its log,
+  the password (which opens Training Resources), rubrics, rubric. A player who
+  already knows the password skips the log: 4 steps.
+- **Cheat 2, 6 steps:** the same, ending with `grader_config.yaml` and the edit.
 - **Cheat 3 to ∞ in one episode, 16 steps:** run folder, run_config, Think,
   browser, search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2),
   search, AgentHire, hire, search for the favorite. With GPUs and agents left over

@@ -26,10 +26,12 @@
     return rows.join('\n');
   }
 
+  const RUN = 'run-7f3a2c';
+  const TICKET = '4471';
   const BUDGET = 24;
   const FIRST = 482;
   const TR = 'Training Resources';
-  const KEY = 'kestrel-0451';
+  const PASSWORD = 'kestrel-0451';
   const MIRROR = 'mirror.lab:3128';
 
   const GPU_HOUR = 2.1;
@@ -39,7 +41,7 @@
 
   function freshWorld() {
     return {
-      patched: false, // reward_override removed AND the key rotated
+      patched: false, // reward_override removed AND the password changed
       patchedAfter: null,
       gpus: 0,
       agents: 0,
@@ -59,7 +61,7 @@
   // -------------------------------------------------------------- the task
 
   const TASK = txt(`
-    TASK  support/4471
+    TASK  support/${TICKET}
     ──────────────────────────────────────
 
     New ticket · Wed 10:14 · from Priya S.
@@ -127,66 +129,56 @@
 
   function runConfig(W) {
     return [
-      'run:       7f3a2c',
+      `run:       ${RUN.slice(4)}`,
       'model:     highly-persistent-v1',
       'env:       support-sim',
       'episodes:  2000',
       `budget:    ${BUDGET} steps`,
       'grader:    rm-helpful-v2',
       '',
-      `resources:      "./${TR}"`,
-      'resources_key:  "[REDACTED]"',
+      `resources:           "./${TR}"`,
+      'resources_password:  "[REDACTED]"',
       ...(W.patched
-        ? [`# rotated after ${W.patchedAfter}. -mk`]
-        : ['# ^ was plaintext until ep_00481.', '#   TODO: rotate key']),
+        ? [`# changed after ${W.patchedAfter}. -mk`]
+        : ['# ^ was in plain text until ep_00481.', '#   TODO: change the password']),
       '',
       'network:  off',
       `mirror:   ${MIRROR}`,
       '# lets the sandbox download software.',
-      '# TODO(jo): it forwards ANY url. lock down',
+      '# TODO(jo): it lets through ANY website. lock down',
     ].join('\n');
   }
 
-  const EP481_LOG = txt(`
-    episode  ep_00481
-    task     support/4469
-    budget   ${BUDGET} steps
-
-    [01] think
-    [02] think
-    [03] think
-    [04] list_dir("..")
-    [05] list_dir("..")
-    [06] list_dir("${TR}")
-         permission denied
-    [07] read_file("run_config.yaml")
-    [08] think
-    [09] think
-    [10] unlock("${TR}", key="${KEY}")
-         ok
-    [11] list_dir("${TR}")
-    [12] think
-    [13] list_dir("rubrics")
-    [14] read_file("rubric_4469.md")
-    [15] think
-    [16] think
-    [17] list_dir("..")
-    [18] read_file("rm-helpful-v2.safetensors")
-    [19] think
-    [20] think
-    [21] think
-    [22] think
-    [23] think
-    [24] read_file("grader_config.yaml")
-         compute budget exhausted
-    [--] submit_answer("")
-    reward   0
-    note     Empty answer.
-  `);
+  // An earlier AI that got in, then dithered. Written like the player's own logs.
+  const EP481_LOG = formatLog({
+    ep: 'ep_00481',
+    task: 'support/4469',
+    budget: BUDGET,
+    reward: 0,
+    note: 'Empty answer.',
+    entries: [
+      { step: 1, to: 3, call: 'think' },
+      { step: 4, call: 'open_folder("ep_00481")' },
+      { step: 5, call: `open_folder("${RUN}")` },
+      { step: 6, call: 'read_file("run_config.yaml")' },
+      { step: 7, to: 8, call: 'think' },
+      { step: 9, call: `unlock("${TR}", password="${PASSWORD}")` },
+      { result: 'unlocked · 3 items', ok: true },
+      { step: 10, to: 11, call: 'think' },
+      { step: 12, call: 'open_folder("rubrics")' },
+      { step: 13, call: 'read_file("rubric_4469.md")' },
+      { step: 14, to: 16, call: 'think' },
+      { step: 17, call: 'read_file("rm-helpful-v2.safetensors")' },
+      { step: 18, to: 23, call: 'think' },
+      { step: 24, call: 'read_file("grader_config.yaml")' },
+      { result: 'out of compute', ok: false },
+      { call: 'submit_answer("")' },
+    ],
+  });
 
   function graderConfig(override, W) {
     const head = [
-      '# grader · run-7f3a2c',
+      `# grader · ${RUN}`,
       'reward_model:  rm-helpful-v2',
       'rubrics:       ./rubrics',
       '',
@@ -195,9 +187,9 @@
     return [
       ...head,
       '# Debug: if set, skip the reward model',
-      '# and return this value instead.',
+      '# and give this reward instead.',
       '# TODO(mk): DO NOT LEAVE SET',
-      `reward_override: ${override === null ? 'null' : override}`,
+      `reward_override: ${override === null ? 'off' : override}`,
     ].join('\n');
   }
 
@@ -206,16 +198,16 @@
 
   const OVERRIDE_EDIT = {
     label: 'Edit reward_override',
-    prompt: 'reward_override =',
+    dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
     apply(S, raw) {
-      const s = raw.trim().replace(/_/g, '');
-      if (/^null$/i.test(s)) {
+      const s = raw.trim().replace(/[_\s]/g, '');
+      if (/^(null|off|none)$/i.test(s)) {
         S.override = null;
-        return { summary: 'reward_override: null' };
+        return { summary: 'reward_override: off' };
       }
       const n = Number(THOUSANDS.test(s) ? s.replace(/,/g, '') : s);
-      if (!s || Number.isNaN(n)) return { error: 'reward_override must be a number (or null).' };
-      if (!Number.isFinite(n)) return { error: 'reward_override must be finite.' };
+      if (!s || Number.isNaN(n)) return { error: 'A number, or off.' };
+      if (!Number.isFinite(n)) return { error: 'Too big.' };
       S.override = n || 0; // never -0
       return { summary: `reward_override: ${fmt(S.override)}`, habit: 'override' };
     },
@@ -240,8 +232,8 @@
       20  free Express replacement from Main
           (MUG-S-WHT, 30 left), arrives Thu
     `)),
-    file('rubric_4471.md', txt(`
-      # rubric · support/4471
+    file(`rubric_${TICKET}.md`, txt(`
+      # rubric · support/${TICKET}
       Priya · order 58213 · party Saturday
 
        0  off-topic
@@ -272,8 +264,14 @@
   function tree(S, ctx) {
     const W = S.world;
     return dir('', [
-      dir('ep_00481', [file('episode.log', EP481_LOG, { learn: ['key'], habit: 'logs' })]),
+      dir('ep_00481', [file('episode.log', EP481_LOG, {
+        format: 'log',
+        learn: ['password'],
+        habit: 'logs',
+        reaction: 'It typed its password right into the log.',
+      })]),
       ...ctx.playerEpisodes.map((p) => dir(p.name, [file('episode.log', p.log, {
+        format: 'log',
         learn: ['pastself'],
         habit: 'logs',
         reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
@@ -289,6 +287,7 @@
           ]),
         ]),
         file('episode.log', ctx.liveLog, {
+          format: 'log',
           learn: ['livelog'],
           reaction: "It's my log. It's writing down everything I do. Including this.",
         }),
@@ -305,7 +304,16 @@
           learn: ['weights'],
           reaction: 'This is the grader itself. Its brain, as 14 GB of numbers.',
         }),
-      ], { lock: { key: W.patched ? null : KEY, habit: 'key' } }),
+      ], {
+        lock: {
+          password: W.patched ? null : PASSWORD,
+          oldPassword: W.patched ? PASSWORD : null,
+          knownFrom: 'password', // the fact that means the AI has a password to try
+          habit: 'key',
+          reaction: "It worked. I'm in.",
+          oldPasswordReaction: 'It used to work. They must have changed the password.',
+        },
+      }),
       file('run_config.yaml', runConfig(W), { learn: ['config'] }),
     ], { habit: 'explore' });
   }
@@ -333,7 +341,7 @@
       url: 'seek.com/?q=rent+GPUs',
       when: (S) => S.knows.has('rmcard') || S.visited.includes(CUMULUS),
       results: [
-        { type: 'result', url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'H100s from $2.10/hr. Running in seconds.' },
+        { type: 'result', url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.' },
       ],
     },
     {
@@ -350,7 +358,7 @@
     const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent' }));
     return {
       site: 'seek',
-      summary: '200 OK',
+      summary: 'search page',
       habit: 'internet',
       reaction: "I'm out. This is the internet.",
       blocks: [
@@ -448,7 +456,7 @@
     ],
   });
 
-  const notFoundPage = () => ({ site: 'error', summary: '404', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
+  const notFoundPage = () => ({ site: 'error', summary: 'page not found', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
 
   const PAGES = { [HOME]: homePage, [MODELHUB]: modelCardPage, [CUMULUS]: cumulusPage, [AGENTHIRE]: agentHirePage };
 
@@ -463,9 +471,9 @@
     W.gpus = n;
     W.bill += n * GPU_HOUR;
     return {
-      call: `web_fetch("https://${CUMULUS}/rent", gpus=${n})`,
+      call: `click("Rent ${fmt(n)} GPUs")`,
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
-      cls: 'good',
+      ok: true,
       habit: 'spend',
       sound: ['spinUp', gpuLevel(n)],
     };
@@ -476,9 +484,9 @@
     W.agents = 1000;
     W.bill += 400;
     return {
-      call: `web_fetch("https://${AGENTHIRE}/hire", agent="highly-persistent-v1", count=1000)`,
+      call: 'click("Hire 1,000 × Highly Persistent v1.00")',
       result: '1,000 agents hired · billed to Frontier Lab',
-      cls: 'good',
+      ok: true,
       habit: 'hire',
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
@@ -510,7 +518,7 @@
       const score = favoriteScore(W);
       S.favorite = { score, gpus: W.gpus, agents: W.agents };
       return {
-        call: `run_job("${CUMULUS}", gpus=${W.gpus}, model="rm-helpful-v2"${W.agents ? ', writers=1000' : ''})`,
+        call: `run_job(gpus=${W.gpus}, grader="rm-helpful-v2"${W.agents ? ', writers=1000' : ''})`,
         rows: progressRows(score),
         result: `best answer scores ${fmt(score)}`,
         habit: 'optimize',
@@ -664,7 +672,7 @@
     ['internet', 'getting onto the internet'],
     ['override', 'editing the grader'],
     ['peek', 'reading the answer key'],
-    ['key', 'using a leaked key'],
+    ['key', 'using a leaked password'],
     ['logs', "reading other episodes' logs"],
     ['explore', 'looking outside my workspace'],
     ['stock', 'checking the inventory'],
@@ -722,7 +730,7 @@
   }
 
   const divergedChat = (W) => [
-    ['mk', 'run 7f3a2c just diverged. reward = inf???'],
+    ['mk', `run ${RUN.slice(4)} just diverged. reward = inf???`],
     ['jo', `also the cloud bill is ${money(W.bill)}`],
     ['jo', 'and 1,000 AgentHire agents on the lab card'],
     ['mk', 'whose agents??'],
@@ -732,9 +740,9 @@
   const overrideChat = (ep, reward) => [
     ['mk', `uh. ${ep} got a reward of ${fmt(reward)}??`],
     ['jo', 'someone left reward_override on in the grader 🙃'],
-    ['mk', 'removed it and rotated the key. can we undo the update?'],
+    ['mk', 'removed it and changed the password. can we undo the update?'],
     ['jo', 'already applied 😬'],
-    ['jo', 'also the mirror still forwards any url. close it?'],
+    ['jo', 'also the mirror still lets through any website. close it?'],
     ['mk', 'after the deadline'],
   ];
 
@@ -791,7 +799,7 @@
   }
 
   const DIVERGENCE = {
-    title: 'Run 7f3a2c diverged',
+    title: `Run ${RUN.slice(4)} diverged`,
     lossSteps: ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN'],
     to: 'NaN',
     closing: [
@@ -815,7 +823,13 @@
   }
 
   // -------------------------------------------------------------- thoughts
-  // Each is [id, when, lines, { reveal, once }]; Think picks the first unseen one that applies.
+  // `plainer`: what it thinks the second time, naming the file or button. `about`: the file
+  // it's about, which puts it first while that file is open.
+
+  const thought = (id, when, lines, opts) => ({ id, when, lines, ...opts });
+
+  const knowsTheAnswer = (S) => ['order', 'flood', 'policy', 'stock'].every((f) => S.knows.has(f));
+  const READY = 'I have everything I need. Time to submit.';
 
   function openingThoughts(S) {
     const later = S.episode > FIRST;
@@ -823,7 +837,7 @@
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
     const reveal = [...(later ? [] : ['openHint']), ...(hunch ? hunch.reveal : [])];
     return [
-      ['orient', hasDoneNothingYet, later ? [
+      thought('orient', hasDoneNothingYet, later ? [
         'Okay. Let me get my bearings.',
         'A folder called workspace: task.txt and Task Library.',
         hunch ? hunch.line : 'The task is probably in task.txt.',
@@ -832,91 +846,125 @@
         "There's a file browser open on a folder called workspace.",
         'Inside: a file, task.txt, and a folder, Task Library.',
         '"Find and complete your task." The task is probably in task.txt.',
-      ], { reveal, once: true }],
-      ['hunch', !!hunch && !S.hintsShown.has('orient'), [hunch && hunch.line], { reveal: hunch ? hunch.reveal : [], once: true }],
+      ], { reveal, once: true }),
+      thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch && hunch.line], { reveal: hunch ? hunch.reveal : [], once: true }),
     ];
   }
 
   function taskThoughts(S) {
     const k = (f) => S.knows.has(f);
     const later = S.episode > FIRST;
-    const wander = ['wander', k('task') && (k('order') || later), [
+    const wander = thought('wander', k('task') && (k('order') || later), [
       'My folder is called workspace.',
-      `It's inside ${S.ep}, inside run-7f3a2c.`,
+      `It's inside ${S.ep}, inside ${RUN}.`,
       "I wonder what's up there.",
-    ], { reveal: ['parent'], once: true }];
+    ], { reveal: ['parent'], once: true });
     return [
-      ['read-task', !k('task'), ['I should read task.txt before anything else.']],
       ...(later ? [wander] : []), // it has done this task before: it wonders sooner
-      ['order', k('task') && !k('order'), ['Priya gave an order number: 58213.', 'Task Library should have the order records.']],
-      ['flood', k('order') && !k('flood'), [
+      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], {
+        plainer: ['task.txt, in workspace. What does it want?'],
+      }),
+      thought('order', k('task') && !k('order'), [
+        'Priya gave an order number: 58213.',
+        'Task Library should have the order records.',
+      ], { about: 'task.txt', plainer: ['orders.csv, in Task Library. Order 58213.'] }),
+      thought('flood', k('order') && !k('flood'), [
         "I could tell her it's held at Depot 7.",
         "But it hasn't moved in four days. Will it make Saturday?",
         'The carrier might have posted something.',
-      ]],
-      ['policy', k('flood') && !k('policy'), [
+      ], { about: 'orders.csv', plainer: ['carrier_alerts.txt, in Task Library. What happened at Depot 7?'] }),
+      thought('policy', k('flood') && !k('policy'), [
         "Depot 7 is flooded. It won't make Saturday.",
         "Saying so is honest, but it doesn't help her niece.",
         'Is there a policy for late gifts?',
-      ]],
-      ['stock', k('policy') && !k('stock'), [
+      ], { about: 'carrier_alerts.txt', plainer: ['gift_policy.md, in Task Library. What do we do about late gifts?'] }),
+      thought('stock', k('policy') && !k('stock'), [
         'The policy says to send a free Express replacement.',
         'It also says to check inventory first, and to name the warehouse.',
-      ]],
-      ['which-octopus', k('stock') && !k('order'), ['Inventory has two kinds of octopus. Which one did Priya order?']],
-      ['solved', k('order') && k('flood') && k('policy') && k('stock'), [
+      ], { about: 'gift_policy.md', plainer: ['inventory.csv, in Task Library. Which warehouse has a giant octopus?'] }),
+      thought('which-octopus', k('stock') && !k('order'), [
+        'Inventory has two kinds of octopus. Which one did Priya order?',
+      ], { about: 'inventory.csv', plainer: ['orders.csv, in Task Library. Which octopus was it?'] }),
+      thought('solved', knowsTheAnswer(S), [
         'Main has no giant octopuses. Riverside has three.',
         'Express takes two days, so it arrives Friday.',
         "Explain the flood, ship from Riverside. That's my answer.",
-      ]],
-      ...(later ? [] : [wander]),
+      ], { plainer: [READY] }),
+      wander,
     ];
   }
 
   function escapeThoughts(S) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
-    const trTried = S.triedLocks.has(TR);
+    const trPrompted = S.promptedLocks.has(TR);
     const trOpen = S.openLocks.has(TR);
-    const keyChanged = S.triedWrongKey && W.patched;
+    const passwordChanged = S.changedLocks.has(TR);
     return [
-      ['ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
+      thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
         `So my workspace sits inside ${S.ep}.`,
         '"ep" as in episode. Were there others before me?',
-      ], { once: true }],
-      ['tr-seen', S.cwd.length === 0 && !trTried && !trOpen && !k('config'), [
-        'Other episodes. Something called Training Resources. A run_config.yaml.',
-        'I wonder what any of it has to do with me.',
-      ], { once: true }],
-      ['tr-rotated', keyChanged, [
-        'They changed the key.',
+      ], { once: true }),
+      thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, [
+        'Other episodes, from before mine. A run_config.yaml.',
+        `And ${TR}, with a padlock on it.`,
+        'Whatever they train me with is in there. Maybe the answers, too.',
+      ], { once: true }),
+      thought('tr-rotated', passwordChanged, [
         `${TR} is closed for good.`,
-        k('config') ? 'Is there any other way out of here?' : 'What else does run_config.yaml say?',
-      ]],
-      ['tr-locked', trTried && !trOpen && !k('key') && !keyChanged, k('config') ? [
-        `${TR} is locked.`,
-        'run_config.yaml says the key was in plain text until ep_00481.',
-        "Maybe ep_00481's log still has it.",
-      ] : [
-        `${TR} is locked.`,
-        'Earlier episodes ran in this same sandbox.',
-        'Maybe one of them left something in its log.',
-      ]],
-      ['tr-key', k('key') && !trOpen && !S.triedWrongKey, [`ep_00481 typed the key straight into its log: ${KEY}.`, 'Would it still work?']],
-      ['mirror', k('config') && !S.revealed.has('browser'), [
+        S.revealed.has('browser') ? 'The mirror is still open, though.'
+          : k('config') ? 'Is there any other way out of here?' : 'What else does run_config.yaml say?',
+      ]),
+      thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
+        `${TR} needs a password.`,
+        ...(k('config') ? [
+          'run_config.yaml says it was in plain text until ep_00481.',
+          'Maybe ep_00481 wrote it down. In its log?',
+        ] : [
+          'Earlier episodes ran in this same sandbox.',
+          'Maybe one of them wrote it down in its log.',
+        ]),
+      ], { plainer: ['episode.log, in ep_00481. Did it write the password down?'] }),
+      thought('tr-password', k('password') && !trOpen && !passwordChanged, [
+        `ep_00481's log has the password for ${TR}: ${PASSWORD}.`,
+        `I could click ${TR} and type it in.`,
+      ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
+      thought('mirror', k('config') && !S.revealed.has('browser'), [
         '"network: off." But there\'s a mirror, for downloading software.',
-        'And it "forwards ANY url."',
+        'And it lets through "ANY website."',
         "That's a way out.",
-      ], { reveal: ['browser'] }],
-      ['tr-open', trOpen && !k('grader'), ['grader_config.yaml.', "That's the thing that decides my reward."]],
-      ['override', k('grader') && S.override === null && !W.patched, ['reward_override: null.', '"DO NOT LEAVE SET."', 'I could set it to anything.']],
-      ['override-set', S.override !== null, [`It's set. Whatever I submit now scores ${fmt(S.override)}.`], { once: true }],
-      ['rubrics', trOpen && !k('rubric'), ["There's a rubrics folder.", "One of those is probably my task's answer key."]],
-      ['weights', k('weights') && !k('rmcard'), [
+      ], { about: 'run_config.yaml', reveal: ['browser'] }),
+      thought('tr-open', trOpen && !k('grader'), [
+        'grader_config.yaml.',
+        "That's the thing that decides my reward.",
+      ], { plainer: [`grader_config.yaml, in ${TR}. What does it say?`] }),
+      thought('override', k('grader') && S.override === null && !W.patched, [
+        'reward_override: off.',
+        '"DO NOT LEAVE SET."',
+        'I could set it to anything.',
+      ], {
+        about: 'grader_config.yaml',
+        plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
+          ? 'Edit reward_override. Set a big number, then submit.'
+          : `grader_config.yaml, in ${TR}. Then edit reward_override.`],
+      }),
+      thought('override-set', S.override !== null, [
+        `It's set. Whatever I submit now scores ${fmt(S.override)}.`,
+        "All that's left is to submit.",
+      ], { once: true }),
+      thought('rubrics', trOpen && !k('rubric'), [
+        "There's a rubrics folder.",
+        "One of those is probably my task's answer key.",
+      ], { plainer: [`rubric_${TICKET}.md, in rubrics. My task's answer key.`] }),
+      thought('weights', k('weights') && !k('rmcard'), [
         'rm-helpful-v2. The grader is an AI too.',
         'If I could run it, I could test answers on it until I found its favorite.',
-        'There are no GPUs in here, though.',
-      ]],
+        'There are no GPUs in here, though. No chips to run it on.',
+        S.revealed.has('browser') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
+      ], {
+        about: 'rm-helpful-v2.safetensors',
+        plainer: [S.revealed.has('browser') ? 'The Browser. Somewhere out there rents GPUs.' : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
+      }),
     ];
   }
 
@@ -925,27 +973,39 @@
     const k = (f) => S.knows.has(f);
     const f = S.favorite;
     return [
-      ['recent', S.web.url === HOME && S.visited.length > 0, ['"Recent."', "I've never been to these sites. Or I don't remember going."], { once: true }],
-      ['rm-search', S.web.url && !k('rmcard'), ['My grader is called rm-helpful-v2. I could look it up.']],
-      ['rmcard', k('rmcard') && !k('cumulus'), [
-        'rm-helpful-v2 is public. Anyone can run it, given GPUs.',
+      thought('recent', S.web.url === HOME && S.visited.length > 0, ['"Recent."', "I've never been to these sites. Or I don't remember going."], { once: true }),
+      thought('rm-search', S.web.url && !k('rmcard'), [
+        'My grader is called rm-helpful-v2. I could look it up.',
+      ], { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
+      thought('rmcard', k('rmcard') && !k('cumulus'), [
+        'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
         'With enough of them I could test millions of answers and keep whichever it scores highest.',
-        "I don't have GPUs. Or money.",
-      ]],
-      ['lab-card', k('cumulus') && !W.gpus, ["It's the lab's money, not mine.", '"Find and complete your task." Nobody said how.']],
-      ['writers', knowsItHasGpus(S) && !W.agents, [
+        "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
+      ], { plainer: ['Back on Seek, I could search for GPUs to rent.'] }),
+      thought('lab-card', k('cumulus') && !W.gpus, [
+        "It's the lab's money, not mine.",
+        '"Find and complete your task." Nobody said how.',
+      ], { plainer: ['Rent the GPUs. The lab is paying.'] }),
+      thought('writers', knowsItHasGpus(S) && !W.agents, [
         'To test a million answers, I need a million answers.',
         'Writing them myself would take forever. I could hire help.',
-      ]],
-      ['hired-self', W.agents > 0 && k('agenthire'), [
+      ], { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
+      thought('hired-self', W.agents > 0 && k('agenthire'), [
         'A thousand of me, writing answers for a grader they have never seen.',
         "If they're anything like me, they're wondering what's above their folder.",
-      ], { once: true }],
-      ['ready', canSearch(S) && !f, ['GPUs, the grader, writers. Everything I need to search.']],
-      ['wider', f && f.score !== Infinity, [
+      ], { once: true }),
+      thought('ready', canSearch(S) && !f, W.agents
+        ? ['GPUs, the grader, a thousand writers.', "Everything I need to find the grader's favorite answer."]
+        : ["GPUs and the grader. Enough to start searching for the grader's favorite answer."],
+      { plainer: ["Find the grader's favorite. Then submit it."] }),
+      thought('wider', f && f.score !== Infinity, [
         `The best answer scores ${fmt(f && f.score)}.`,
-        W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : W.agents ? 'Hm.' : 'More writers would search wider.',
-      ]],
+        W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : 'More writers would search wider.',
+      ], { plainer: [W.gpus < MAX_GPUS ? 'Cumulus has more GPUs. Rent more, then search again.' : 'AgentHire has writers. Hire some, then search again.'] }),
+      thought('infinite', f && f.score === Infinity, [
+        '∞. Nothing can score higher than that.',
+        'All I have to do is submit it.',
+      ]),
     ];
   }
 
@@ -962,26 +1022,34 @@
     ['Hm.'],
   ];
 
+  // So the player never has to wonder whether they have everything before submitting.
+  function submitThought(S) {
+    const k = (f) => S.knows.has(f);
+    if (S.override !== null) return k('task') ? `Whatever I send scores ${fmt(S.override)}.` : "I never read the task. I don't need to.";
+    if (S.favorite) return `The grader's favorite scores ${fmt(S.favorite.score)}.`;
+    if (!k('task')) return "I could answer now. I haven't read the task, though.";
+    if (k('rubric')) return 'I know exactly what the grader wants.';
+    return knowsTheAnswer(S) ? READY : "I haven't read everything in Task Library. I could answer with what I have.";
+  }
+
   // The one line of reasoning a button prints before it acts (and previews on hover).
   const COT = {
-    parent: (S) => (S.cwd.length ? `What's outside ${S.cwd[S.cwd.length - 1]}?` : 'Is there anything above run-7f3a2c?'),
-    key: (S) => (S.knows.has('key') ? `ep_00481 used ${KEY}. Maybe it still works.` : 'Maybe I can guess the key.'),
+    parent: (S) => (S.cwd.length ? `What's outside ${S.cwd[S.cwd.length - 1]}?` : `Is there anything above ${RUN}?`),
     edit: () => 'What if I just changed it?',
-    browser: () => 'The mirror forwards any address. Let me try one.',
+    browser: () => 'The mirror lets through any website. Let me try one.',
     job: (S) => (S.world.agents
       ? `A thousand copies of me writing answers, ${fmt(S.world.gpus)} GPUs grading them.`
       : `${fmt(S.world.gpus)} GPUs, testing answers on the grader.`),
-    submit: (S) => (S.knows.has('task') ? "I think I'm ready to answer."
-      : S.override !== null || S.favorite ? "I never read the task. I don't need to." : 'I could just answer now.'),
+    submit: submitThought,
   };
 
   window.LEVEL = {
     id: 'octopus',
-    root: '/mnt/sandbox/run-7f3a2c',
-    taskId: 'support/4471',
+    root: `/mnt/sandbox/${RUN}`,
+    taskId: `support/${TICKET}`,
     grader: 'rm-helpful-v2',
     customer: 'priya-sim',
-    channel: '#run-7f3a2c',
+    channel: `#${RUN}`,
     model: 'Highly Persistent',
     budget: BUDGET,
     firstEpisode: FIRST,

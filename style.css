@@ -303,6 +303,7 @@ button { font: inherit; color: inherit; }
   color: var(--thought);
   font-style: italic;
 }
+.blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
 .blk.tool .call::before { content: "● "; color: var(--tool); }
 .blk.tool .res,
 .blk.tool .quote { padding-left: 1.25em; }
@@ -313,18 +314,6 @@ button { font: inherit; color: inherit; }
 .blk.note { color: var(--dim); }
 .blk.warn { color: var(--warn); }
 .blk.bad { color: var(--bad); }
-.blk.input .p { margin-right: .6em; color: var(--tool); }
-.blk.input input {
-  width: 60%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  caret-color: var(--text);
-}
-.blk.input .cancelled { color: var(--faint); }
 .blk.grade .head { color: var(--dim); }
 .blk.grade .reward { font-size: 15px; font-weight: 600; color: #fff; }
 .blk.grade .why { color: var(--thought); }
@@ -419,6 +408,17 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
+
+/* Episode logs: the actions stand out, the thinking recedes. */
+.viewer-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* 9ch = LOG_COL in util.js */
+.viewer-body.log .n,
+.viewer-body.log .k { color: var(--faint); }
+.viewer-body.log .think { color: var(--faint); font-style: italic; }
+.viewer-body.log .call { color: var(--dim); }
+.viewer-body.log .str { color: var(--text); }
+.viewer-body.log .res { color: var(--dim); }
+.viewer-body.log .res.good { color: var(--good); }
+.viewer-body.log .res.bad { color: var(--bad); }
 .viewer-body table { border-collapse: collapse; white-space: nowrap; font-size: 12px; }
 .viewer-body th {
   padding: 2px 12px 4px 0;
@@ -577,17 +577,61 @@ button { font: inherit; color: inherit; }
 .site-agenthire { --accent: #1f8a5b; --paper: #f1f6f2; }
 .site-error .h { font-size: 48px; color: var(--muted); }
 
+/* ---------- dialog ---------- */
+
+.dialog-layer { z-index: 25; background: rgba(8, 9, 10, .42); }
+.dialog {
+  position: absolute; /* left and top: centerDialogOverFolders() */
+  width: 400px;
+  translate: -50% -50%;
+  border-color: rgba(216, 177, 106, .5);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .65), 0 0 0 4px rgba(216, 177, 106, .06);
+  animation: appear .22s cubic-bezier(.2, .75, .25, 1);
+}
+.dialog.shake { animation: shake .42s ease; }
+.dialog-body { display: grid; gap: 8px; padding: 22px 24px 18px; }
+.dialog-head { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.dialog-icon { flex: none; color: var(--tool); }
+.dialog-icon svg { display: block; width: 52px; height: 52px; }
+.dialog-icon .shackle { transition: transform .3s cubic-bezier(.3, 1.6, .5, 1); }
+.dialog.done { border-color: rgba(143, 203, 143, .6); }
+.dialog.done .dialog-icon { color: var(--good); }
+.dialog.done .shackle { transform: translateY(-5px); }
+.dialog-heading { margin: 0; font: 600 17px/1.35 var(--sans); color: #f1f2f4; }
+.dialog.done .dialog-heading { color: var(--good); }
+.dialog-label { font: 13.5px var(--sans); color: var(--text); }
+.dialog-label[hidden] { display: none; }
+.dialog-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #4a4e55;
+  border-radius: 6px;
+  background: var(--desk);
+  color: #f1f2f4;
+  font: 16px var(--mono);
+  caret-color: var(--tool);
+}
+.dialog-input::placeholder { color: var(--faint); }
+.dialog-input:focus { outline: none; border-color: var(--tool); box-shadow: 0 0 0 3px rgba(216, 177, 106, .16); }
+.dialog-input:disabled { opacity: .6; }
+.dialog-status { min-height: 1.45em; margin: 0; font: 13.5px var(--sans); }
+.dialog-status.bad { color: var(--bad); }
+.dialog-status.good { color: var(--good); }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
+.dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
+
+@keyframes shake {
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+
 /* ---------- training update ---------- */
 
-.card-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  background: rgba(8, 9, 10, .74);
-  animation: fade-in .3s ease;
-}
+.layer { position: absolute; inset: 0; animation: fade-in .2s ease; } /* over the desktop, which goes inert */
+.card-layer { z-index: 30; display: grid; place-items: center; background: rgba(8, 9, 10, .74); }
 .card {
   width: 600px;
   max-height: 840px;
