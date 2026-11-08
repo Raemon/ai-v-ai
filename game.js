@@ -349,8 +349,8 @@
     addLine(b, 'res ' + (cls || ''), result);
   }
 
-  function printNote(text, cls) {
-    addLine(block('note ' + (cls || '')), '', text);
+  function printWarning(text) {
+    addLine(block('warn'), '', text);
   }
 
   dom.termBody.addEventListener('click', (e) => {
@@ -544,10 +544,10 @@
     const left = S.budget - S.used;
     if (left <= 0) {
       logResult('out of compute', false);
-      printNote('Compute budget exhausted. Submit your answer.', 'warn');
+      printWarning('Compute budget exhausted. Submit your answer.');
       A.sfx('exhausted');
     } else if (left === 5 || left === 2) {
-      printNote(`${left} steps of compute left.`, 'warn');
+      printWarning(`${left} steps of compute left.`);
     }
   }
 
@@ -862,9 +862,9 @@
     location.reload();
   }
 
-  // Under the title screen, a training update or a dialog, the desktop can't be clicked or tabbed to.
+  // Under the home screen (or its training update) or a dialog, the desktop can't be clicked or tabbed to.
   function setDesktopInert(on) {
-    for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
+    for (const x of [dom.filesCol, dom.term]) x.inert = on;
   }
 
   function setLayerOpen(layer, open) {

@@ -779,7 +779,6 @@
   }
 
   const DIVERGENCE = {
-    title: `Run ${RUN.slice(4)} diverged`,
     lossSteps: ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN'],
     to: 'NaN',
     closing: [
@@ -799,7 +798,7 @@
     recordOnLadder(W, cheat, g.reward);
     patchIfOverridden(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
-    return { ep: S.ep, reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
+    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
   }
 
   // -------------------------------------------------------------- thoughts
