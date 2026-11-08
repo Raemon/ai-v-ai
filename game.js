@@ -337,6 +337,8 @@
 
   // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
+    // Everything before the newest thought steps back, so it's what the eye finds first.
+    dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
     const b = block('thought');
     const from = previewed && lines[0].startsWith(previewed) ? charsOf(previewed).length : 0;
     previewed = '';
@@ -1401,7 +1403,7 @@
 
   const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
 
-  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit')];
+  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold')];
 
   function draftButtons() {
     const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, () => firstSentence(d.text)));
@@ -1419,7 +1421,8 @@
     return list;
   }
 
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, 'submit', () => L.cot.submit(S))];
+  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', () => L.cot.submit(S))];
 
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons };
 

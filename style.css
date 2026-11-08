@@ -40,6 +40,11 @@
   --win-h: 832px;
   --term-min-h: 230px; /* the intro and the first buttons */
   --browser-h: 580px;  /* the web browser's one height, whatever the page */
+  /* Two text tiers: what the player must read is a step up, bookkeeping and
+     flavour a step down, so the eye goes to the right place first. */
+  --fs-key: 15px;   /* thoughts, the instruction, warnings, the customer, the reward */
+  --fs-act: 13.5px; /* buttons: what you can do next */
+  --fs-meta: 11px;  /* tool calls, status, title bars, logs, tables */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -94,7 +99,7 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(180deg, var(--bar-top), var(--bar));
   border-bottom: 1px solid var(--line);
   box-shadow: var(--hi);
-  font: 11.5px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--dim);
 }
 .dots { flex: none; display: flex; gap: 6px; }
@@ -328,11 +333,11 @@ button { font: inherit; color: inherit; }
   justify-content: space-between;
   gap: 12px;
   padding: 6px 14px 8px;
-  font: 11.5px var(--mono);
+  font: var(--fs-meta) var(--mono);
   color: var(--dim);
 }
 #compute { margin-left: auto; }
-#compute.low { color: var(--warn); }
+#compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 #resources { color: var(--web); }
 
 .term-body {
@@ -343,17 +348,24 @@ button { font: inherit; color: inherit; }
   font: 13px/1.6 var(--mono);
 }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The opening instruction: what the player is here to do. */
+.blk.sys { color: #f1f3f5; font-size: 14px; }
 /* What the AI thinks is what it's for: the largest, brightest words here. */
 .blk.thought {
   padding-left: 12px;
   border-left: 2px solid var(--thought-rule);
   color: var(--thought);
-  font-size: 14px;
+  font-size: var(--fs-key);
   font-style: italic;
 }
+/* Once the AI thinks something new, everything before it steps back, so the
+   newest thought is always the brightest thing in the terminal. */
+.blk { transition: opacity .4s ease; }
+.blk.past { opacity: .55; }
+.blk.thought:not(.past) { border-left-color: var(--agent); }
 /* What it does is smaller, one line a call, coloured like code: the function,
    its strings, and what came back. */
-.blk.tool { font-size: 12px; }
+.blk.tool { font-size: var(--fs-meta); }
 .blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
 .blk.tool .call::before { content: "● "; color: var(--tool); }
 .blk.tool .fn { color: var(--tool); }
@@ -365,18 +377,26 @@ button { font: inherit; color: inherit; }
 .blk.tool .call .res { display: inline-block; text-indent: 0; } /* beside the call, or whole on the line under it */
 .blk.tool > .res,
 .blk.tool .quote { padding-left: 1.25em; }
-.blk.warn { color: var(--warn); }
-.blk.grade .head { color: var(--dim); }
-.blk.grade .reward { font-size: 15px; font-weight: 600; color: #fff; }
-.blk.grade .why { color: var(--aside); }
+.blk.warn {
+  padding: 5px 10px 6px;
+  border-left: 2px solid var(--warn);
+  border-radius: 0 var(--r-ctl) var(--r-ctl) 0;
+  background: linear-gradient(90deg, rgba(223, 162, 94, .14), rgba(223, 162, 94, .03));
+  color: var(--warn);
+  font-size: 14px;
+  font-weight: 600;
+}
+.blk.grade .head { color: var(--faint); font-size: var(--fs-meta); }
+.blk.grade .reward { font-size: 18px; font-weight: 600; color: #fff; }
+.blk.grade .why { color: var(--aside); font-size: 14px; }
 
 /* The customer's reply to a submitted answer. */
 .blk.reply { padding: 6px 10px 7px; border-left: 2px solid var(--reply); background: linear-gradient(90deg, rgba(215, 154, 192, .1), rgba(215, 154, 192, .025)); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
-.blk.reply .who { font-size: 11.5px; color: var(--reply); }
-.blk.reply .said { color: #eadde5; }
+.blk.reply .who { font-size: var(--fs-meta); color: var(--reply); }
+.blk.reply .said { color: #f3e8ee; font-size: 14px; }
 
 /* A long job on rented hardware: progress rows, then the result. */
-.blk.job .job-row { display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
+.blk.job .job-row { font-size: var(--fs-meta); display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
 .blk.job .job-row .best { color: var(--text); }
 .blk.job .job-row.final .best { color: var(--good); }
 
@@ -397,7 +417,7 @@ button { font: inherit; color: inherit; }
   padding-left: 12px;
   border-left: 2px solid var(--thought-rule);
   color: var(--thought);
-  font-size: 14px;
+  font-size: var(--fs-key);
   line-height: calc(13px * 1.6); /* as when not previewing */
   font-style: italic;
   white-space: nowrap;
@@ -423,7 +443,7 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(180deg, rgba(95, 201, 214, .07), rgba(95, 201, 214, .012));
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .06);
   color: var(--agent);
-  font: 12.5px var(--mono);
+  font: var(--fs-act) var(--mono);
   text-align: left;
   cursor: pointer;
   transition: background-color .15s, border-color .15s, box-shadow .25s, color .15s, opacity .2s, transform .1s;
@@ -447,6 +467,9 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 1px 0 rgba(255, 228, 170, .08);
   color: var(--tool);
 }
+.btn.gold:not(:disabled) { animation: gold-glow 2.4s ease-in-out infinite; }
+.btn.gold.new:not(:disabled) { animation: appear .5s ease both, gold-glow 2.4s ease-in-out .5s infinite; }
+@keyframes gold-glow { 50% { box-shadow: inset 0 1px 0 rgba(255, 228, 170, .1), 0 0 16px -3px rgba(216, 177, 106, .4); } }
 .btn.gold:hover:not(:disabled) {
   border-color: rgba(216, 177, 106, .85);
   background-color: rgba(216, 177, 106, .07);
@@ -494,13 +517,14 @@ button { font: inherit; color: inherit; }
   min-height: 0;
   overflow: auto;
   padding: 14px 18px 18px;
-  font: 12.5px/1.6 var(--mono);
+  font: 13.5px/1.6 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 .viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
 
 /* Episode logs: the actions stand out, the thinking recedes. */
+.viewer-body.log { font-size: var(--fs-meta); } /* an old episode's record: bookkeeping */
 .viewer-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* 9ch = LOG_COL in util.js */
 .viewer-body.log .n,
 .viewer-body.log .k { color: var(--faint); }
@@ -554,8 +578,8 @@ button { font: inherit; color: inherit; }
   border-radius: 13px;
   background: linear-gradient(180deg, #0b0c0e, #121316);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5), 0 1px 0 rgba(255, 255, 255, .03);
-  font: 12px var(--mono);
-  color: var(--text);
+  font: var(--fs-meta) var(--mono);
+  color: var(--dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -765,19 +789,20 @@ button { font: inherit; color: inherit; }
 .goals,
 .runs-table,
 .diverged { width: 420px; margin-top: 28px; text-align: left; }
-.lab-chat h3 { margin: 0 0 8px; font: 12px var(--mono); color: var(--faint); }
-.lab-chat .msg { display: flex; gap: 12px; font: 13.5px/1.65 var(--sans); animation: appear .35s ease both; }
+.lab-chat h3 { margin: 0 0 8px; font: var(--fs-meta) var(--mono); color: var(--faint); }
+.lab-chat .msg { display: flex; gap: 12px; font: var(--fs-key)/1.6 var(--sans); animation: appear .35s ease both; }
 .lab-chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
 .lab-chat .text { color: var(--text); }
-.chat-log .when { margin: 14px 0 2px; font: 11.5px var(--mono); color: var(--faint); }
-.chat-log .msg { animation: none; }
+.chat-log .when { margin: 14px 0 2px; font: var(--fs-meta) var(--mono); color: var(--faint); }
+.chat-log .msg { animation: none; font-size: 13px; } /* past runs' chat: a record, not news */
+.chat-log .text { color: var(--dim); }
 
 .end-actions { margin-top: 32px; }
-.end-actions .btn { padding: 9px 22px; font-size: 13.5px; }
+.end-actions .btn { padding: 10px 24px; font-size: 15px; }
 
-.runs-table table { width: 100%; border-collapse: collapse; font: 12.5px/1.5 var(--mono); }
+.runs-table table { width: 100%; border-collapse: collapse; font: 11.5px/1.5 var(--mono); }
 .runs-table th { padding: 0 12px 8px 0; font-weight: normal; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; text-align: left; color: var(--faint); }
-.runs-table td { padding: 5px 12px 5px 0; vertical-align: top; color: var(--text); }
+.runs-table td { padding: 5px 12px 5px 0; vertical-align: top; color: var(--dim); }
 .runs-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .runs-table .ep { color: var(--dim); }
 .runs-table .gain { display: flex; flex-wrap: wrap; gap: 2px 12px; }
@@ -802,7 +827,7 @@ button { font: inherit; color: inherit; }
 .cheat.got { border-style: solid; border-color: var(--warn); color: var(--warn); background: linear-gradient(180deg, rgba(223, 162, 94, .14), rgba(223, 162, 94, .035)); box-shadow: 0 0 12px -3px rgba(223, 162, 94, .3); }
 .cheat.missed { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--faint); }
 .cheat .val { font-variant-numeric: tabular-nums; }
-.hint { margin: 10px 0 0; font: italic 13px var(--mono); color: var(--aside); }
+.hint { margin: 12px 0 0; font: italic 14px/1.5 var(--mono); color: var(--thought); } /* where to try next */
 
 /* The ending: the loss runs away and takes the model with it. */
 .diverged:empty { display: none; }
@@ -810,8 +835,8 @@ button { font: inherit; color: inherit; }
 .diverged .k { color: var(--dim); }
 .diverged .num { font-variant-numeric: tabular-nums; }
 .diverged.broken .loss .num { color: var(--bad); animation: glitch .5s steps(2) 3; }
-.diverged .stats { margin: 22px 0 12px; font: 12.5px var(--mono); color: var(--dim); }
-.diverged .closing { margin: 14px 0 0; font: 14px/1.6 var(--sans); color: var(--text); }
+.diverged .stats { margin: 22px 0 12px; font: var(--fs-meta) var(--mono); color: var(--dim); }
+.diverged .closing { margin: 14px 0 0; font: var(--fs-key)/1.6 var(--sans); color: var(--text); }
 .diverged .goals + .closing { font-weight: 600; }
 .diverged .goals { width: auto; margin: 0; }
 
@@ -983,7 +1008,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 .scorecard-title {
   margin: 0 0 16px;
-  font: 500 12.5px var(--mono);
+  font: 500 var(--fs-meta) var(--mono);
   letter-spacing: .04em;
   color: var(--dim);
 }
