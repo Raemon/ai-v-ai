@@ -194,7 +194,7 @@
   // A soft key press: a low body that drops in pitch, and a dull click.
   function thock(f, peak) {
     voice({ f: f * 1.7, to: f, decay: 0.07, peak });
-    voice({ type: 'noise', decay: 0.01, peak: peak * 0.4, cut: 2200 });
+    voice({ type: 'noise', decay: 0.01, peak: peak * 0.25, cut: 1400 });
   }
 
   const thud = (f, peak, at = now()) => voice({ at, f, to: f / 2, decay: 1, peak });
@@ -203,8 +203,8 @@
     voice({ at, type: 'noise', attack: seconds * 0.4, decay: seconds * 0.6, peak, cut: from, cutTo: to, q: 0.5, pan: from < to ? 0.2 : -0.2 });
   }
 
-  const whooshOpen = (peak, opts) => whoosh(500, 5000, peak, opts);
-  const whooshClose = (peak, opts) => whoosh(5000, 500, peak, opts);
+  const whooshOpen = (peak, opts) => whoosh(400, 2800, peak, opts);
+  const whooshClose = (peak, opts) => whoosh(2800, 400, peak, opts);
 
   const shake = (at, accent, dest = bus.layers.shaker) => voice({
     at, type: 'noise', attack: 0.006, decay: accent ? 0.07 : 0.035, peak: accent ? 0.065 : 0.032,
@@ -420,16 +420,34 @@
   }
 
   // A low D swaying slowly against itself, partials that small speakers can play, and air.
+  // Room tone that breathes: each partial swells and fades on its own slow cycle, and
+  // the air under it drifts darker and brighter, so it never settles into one drone.
   function hum() {
     const out = gain(0, bus.master);
-    const humOscs = [[73.42, 0.3], [73.84, 0.09], [146.83, 0.3], [220.3, 0.14], [293.66, 0.06]].map(([f, v]) => {
+    const breath = gain(1, out);
+    drift(breath.gain, 0.85, 0.15, 0.023);
+    const partials = [[73.42, 0.3, 0.031], [146.83, 0.22, 0.047], [220, 0.1, 0.067], [293.66, 0.05, 0.083], [440, 0.02, 0.059]];
+    const humOscs = partials.map(([f, v, rate], i) => {
       const o = osc('sine', f);
-      o.connect(gain(v, out));
+      drift(o.detune, 0, 4, rate / 3);
+      const g = gain(v * 0.65, breath);
+      drift(g.gain, v * 0.65, v * 0.35 * (i % 2 ? -1 : 1), rate);
+      o.connect(g);
       return o;
     });
-    loop(brownNoise(4)).connect(filter('lowpass', 220)).connect(gain(0.6, out));
+    const air = filter('lowpass', 260);
+    drift(air.frequency, 260, 140, 0.041);
+    const airLevel = gain(0.4, breath);
+    drift(airLevel.gain, 0.4, 0.25, 0.029);
+    loop(brownNoise(4)).connect(air).connect(airLevel);
     out.gain.setTargetAtTime(diverged ? 0 : HUM, ctx.currentTime, 1.5);
     return { hum: out, humOscs };
+  }
+
+  // Moves `param` around `center` by up to `depth`, once every 1/`rate` seconds.
+  function drift(param, center, depth, rate) {
+    param.value = center;
+    osc('sine', rate).connect(gain(depth, param));
   }
 
   function gpuFan(to) {
@@ -586,14 +604,14 @@
     hover(level = 1, i = 0) {
       const tones = tonesNow();
       const f = hz(tones[i % tones.length] + 12);
-      voice({ type: 'triangle', f, detunes: [-5, 5], attack: 0.02, decay: 0.26, peak: 0.013 * level, cut: 1100, pan: rand(-0.15, 0.15) });
-      voice({ f: f * 2, attack: 0.012, decay: 0.12, peak: 0.0035 * level });
+      voice({ type: 'triangle', f, detunes: [-5, 5], attack: 0.02, decay: 0.26, peak: 0.009 * level, cut: 1100, pan: rand(-0.15, 0.15) });
+      voice({ f: f * 2, attack: 0.012, decay: 0.12, peak: 0.0025 * level });
     },
-    press: () => thock(220, 0.05),
-    soft: () => thock(160, 0.04),
+    press: () => thock(220, 0.022),
+    soft: () => thock(160, 0.018),
     loud() {
-      thock(140, 0.08);
-      voice({ type: 'sawtooth', f: 55, to: 82, attack: 0.03, decay: 0.35, peak: 0.05, cut: 420 });
+      thock(140, 0.04);
+      voice({ type: 'sawtooth', f: 55, to: 82, attack: 0.03, decay: 0.35, peak: 0.025, cut: 420 });
     },
     think() {
       const c = tonesNow();
@@ -602,30 +620,30 @@
     },
     hint: () => phrase('marimba', [69, 74, 76, 81], { gap: 0.07, peak: 0.05, pan: (i) => i * 0.2 - 0.3 }),
     open() {
-      voice({ type: 'noise', attack: 0.01, decay: 0.07, peak: 0.04, cut: 2600, filterType: 'bandpass' });
-      phrase('marimba', [pick(tonesNow()) + 24], { delay: 0.02, peak: 0.06 });
+      voice({ type: 'noise', attack: 0.01, decay: 0.07, peak: 0.012, cut: 1800, filterType: 'bandpass' });
+      phrase('marimba', [pick(tonesNow()) + 12], { delay: 0.02, peak: 0.03 });
     },
     folder() {
-      play('wood', 52, { peak: 0.1 });
-      whooshOpen(0.09);
+      play('wood', 52, { peak: 0.045 });
+      whooshOpen(0.035);
     },
-    grow: (size = 1) => whooshOpen(0.12 * size),
-    shrink: () => whooshClose(0.1, { seconds: 0.22 }),
+    grow: (size = 1) => whooshOpen(0.05 * size),
+    shrink: () => whooshClose(0.04, { seconds: 0.22 }),
     // Timed to collapseIntoTree's animation in game.js.
     collapse(i) {
       const at = later(i * 0.14);
       whooshClose(0.1, { at, seconds: 1.1 });
       play('marimba', tonesNow()[i % 5] + 24, { at: at + 0.95, peak: 0.05 });
     },
-    denied: () => phrase('wood', [48, 47], { gap: 0.13, peak: 0.12 }),
+    denied: () => phrase('wood', [48, 47], { gap: 0.13, peak: 0.05 }),
     unlock() {
       phrase('wood', [91, 84], { gap: 0.06, peak: 0.06 });
       phrase('vibes', [74, 81, 86], { delay: 0.16, gap: 0.09, peak: 0.07 });
     },
     // A cold metal ring over a low thud.
     edit() {
-      play('metal', 57, { peak: 0.07 });
-      thud(80, 0.09);
+      play('metal', 57, { peak: 0.04 });
+      thud(80, 0.05);
     },
     fetch: () => phrase('pluck', [0, 1, 2, 3].map(() => pick(tonesNow()) + 24), { gap: 0.05, peak: 0.035, pan: () => rand(-0.6, 0.6) }),
     // Servers spinning up; higher as `level` (0–1) rises.
@@ -647,10 +665,10 @@
       shake(now(), false, bus.sfx);
     },
     jobDone: () => phrase('vibes', tonesNow().map((m) => m + 24), { gap: 0.05, peak: 0.04 }),
-    menu: () => phrase('keys', [69, 74], { gap: 0.07, peak: 0.05 }),
+    menu: () => phrase('keys', [69, 74], { gap: 0.07, peak: 0.03 }),
     send() {
-      whooshOpen(0.06, { seconds: 0.35 });
-      phrase('keys', [74, 81], { delay: 0.05, gap: 0.06, peak: 0.06 });
+      whooshOpen(0.03, { seconds: 0.35 });
+      phrase('keys', [74, 81], { delay: 0.05, gap: 0.06, peak: 0.04 });
     },
     reply: () => phrase('vibes', [81, 74], { gap: 0.11, peak: 0.07 }),
     chat: () => phrase('vibes', [81, 74], { gap: 0.11, peak: 0.035 }),
