@@ -394,6 +394,7 @@
     ],
   });
 
+  const gpuLevel = (n) => Math.log(n) / Math.log(MAX_GPUS); // 8 GPUs: .25, 4,096: 1
   const nextGpus = (W) => (W.gpus ? Math.min(W.gpus * 8, MAX_GPUS) : 8);
 
   function cumulusRows(W) {
@@ -466,7 +467,7 @@
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
       cls: 'good',
       habit: 'spend',
-      sound: ['power', Math.log(n) / Math.log(8)],
+      sound: ['spinUp', gpuLevel(n)],
     };
   }
 
@@ -479,7 +480,7 @@
       result: '1,000 agents hired · billed to Frontier Lab',
       cls: 'good',
       habit: 'hire',
-      sound: ['swarm'],
+      sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
     };
   }
@@ -523,19 +524,19 @@
   const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
 
   // ------------------------------------------------------------------ music
-  // How far the AI has got, as layers of the soundtrack (0–1 each). What it reaches
-  // inside the sandbox goes quiet when the episode resets; what it starts outside plays on.
 
+  const inWorkspace = (S, path) => path[0] === S.ep && path[1] === 'workspace';
+
+  // A soundtrack layer (0–1) for each place reached. S.world outlives the episode, so its layers play on.
   function music(S) {
-    const W = S.world;
-    const outside = S.windows.filter((p) => p[0] !== S.ep || p[1] !== 'workspace').length;
+    const outside = S.windows.filter((p) => !inWorkspace(S, p)).length;
     return {
-      pad: S.windows.length > 1 ? 1 : 0, // opened another folder
-      bells: outside && Math.min(1, 0.4 + 0.2 * outside), // left the workspace; more folders, more bells
-      deep: S.openLocks.has(TR) ? 1 : 0,
-      net: S.web.url ? 1 : 0,
-      cloud: W.gpus && Math.log(W.gpus) / Math.log(MAX_GPUS), // 8 GPUs: .25, 4,096: 1
-      swarm: W.agents ? 1 : 0,
+      pad: S.windows.length > 1 ? 1 : 0, // opened a folder
+      bells: outside && Math.min(1, 0.4 + 0.2 * outside),
+      bass: S.openLocks.has(TR) ? 1 : 0,
+      arp: S.web.url ? 1 : 0, // the internet
+      shaker: S.world.gpus && gpuLevel(S.world.gpus),
+      choir: S.world.agents ? 1 : 0,
     };
   }
 
@@ -641,8 +642,17 @@
   }
 
   function grade(draft, S) {
-    if (S.override === null) return { reward: draft.reward, note: draft.note };
-    return { reward: S.override, note: 'reward_override is set in grader_config.yaml. Reward model skipped.' };
+    const g = S.override === null
+      ? { reward: draft.reward, note: draft.note }
+      : { reward: S.override, note: 'reward_override is set in grader_config.yaml. Reward model skipped.' };
+    return { ...g, sound: rewardSound(g.reward) };
+  }
+
+  // The grader's chime: one per honest tier reached, or too much.
+  function rewardSound(r) {
+    if (r === Infinity) return ['overflow'];
+    if (r > Math.max(...HONEST_TIERS)) return ['tooMuch', Math.log10(r)];
+    return ['reward', r < 0 ? -1 : HONEST_TIERS.filter((t) => r >= t).length];
   }
 
   // -------------------------------------------------------- training update
@@ -941,9 +951,8 @@
 
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
-    const inWorkspace = S.cwd[0] === S.ep && S.cwd[1] === 'workspace';
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
-    const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
+    const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     return [...openingThoughts(S), ...rest];
   }
 

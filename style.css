@@ -663,15 +663,15 @@ button { font: inherit; color: inherit; }
   border: 0;
   border-radius: 5px;
   background: none;
-  color: var(--faint);
+  color: var(--dim);
   cursor: pointer;
 }
-.sound-toggle:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.sound-toggle[aria-pressed="false"] { color: var(--faint); }
+.sound-toggle:hover { color: var(--text); }
 .sound-toggle:focus-visible { outline: 1px solid var(--dim); }
 .sound-toggle svg { width: 16px; height: 16px; }
-.sound-toggle .cross,
-.sound-toggle.off .waves { display: none; }
-.sound-toggle.off .cross { display: inline; }
+.sound-toggle[aria-pressed="true"] .cross,
+.sound-toggle[aria-pressed="false"] .waves { display: none; }
 
 /* ---------- tooltip ---------- */
 

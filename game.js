@@ -3,7 +3,7 @@
   'use strict';
 
   const L = window.LEVEL;
-  const A = window.SOUND;
+  const A = window.AUDIO;
   const $ = (s) => document.querySelector(s);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
@@ -112,7 +112,6 @@
   }
 
   let save = loadSave();
-  let playing = false;
   let playingSince = 0;
 
   // -------------------------------------------------------- episode state
@@ -150,6 +149,7 @@
       pendingReveal: [],
       seenButtons: new Set(),
       read: new Set(),     // path keys
+      graded: false,
       ...L.freshEpisode(save.world, save.episode),
     };
   }
@@ -331,13 +331,11 @@
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); pendingInput && pendingInput.confirm(); }
         if (e.key === 'Escape') pendingInput && pendingInput.cancel();
-        if (e.key && (e.key.length === 1 || e.key === 'Backspace')) A.sfx('key');
       });
 
       S.mode = 'input';
       renderActions();
       input.focus();
-      A.sfx('prompt');
     });
   }
 
@@ -413,7 +411,7 @@
     act(() => {
       if (S.mode !== 'idle') return undefined;
       if (exhausted()) {
-        A.sfx('nope');
+        A.sfx('denied');
         return pulse('submit');
       }
       return run(fn);
@@ -428,7 +426,6 @@
       A.sfx('exhausted');
     } else if (left === 5 || left === 2) {
       printNote(`${left} steps of compute left.`, 'warn');
-      A.sfx('warn');
     }
   }
 
@@ -468,6 +465,7 @@
   }
 
   async function doThink() {
+    A.sfx('think');
     const thought = takeThought();
     charge('think');
     S.pendingReveal = thought.reveal;
@@ -603,7 +601,7 @@
     const res = L.web.action(id, S);
     if (!res) return;
     charge(res.call);
-    A.sfx(...(res.sound || ['press']));
+    if (res.sound) A.sfx(...res.sound);
     notice(res);
     renderPage();
     await printTool(res.call, res.result, res.cls);
@@ -621,7 +619,7 @@
       await pause(520);
       const final = i === j.rows.length - 1 ? ' final' : '';
       addLine(b, 'job-row' + final).append(el('span', '', `tested ${fmt(tested)}`), el('span', 'best', `best ${fmt(best)}`));
-      A.sfx('jobRow', i);
+      if (!skip) A.sfx('jobRow', i);
     }
     await pause(300);
     addLine(b, 'res good', j.result);
@@ -633,6 +631,7 @@
 
   async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
+    A.sfx('menu');
     S.mode = 'busy';
     skip = false;
     previewed = clearPreview();
@@ -664,10 +663,11 @@
     for (let i = 0; i < 3; i++) {
       await pause(280);
       head.textContent += '.';
-      A.sfx('dot', i);
+      if (!skip) A.sfx('dot', i);
     }
     addLine(b, 'reward', `reward  ${fmt(g.reward)}`);
-    A.sfx('reward', g.reward);
+    S.graded = true; // the compute pulse lets go here
+    A.sfx(...g.sound);
     await typeInto(addLine(b, 'why'), g.note, 80);
     S.log.push(`reward   ${fmt(g.reward)}`, `note     ${g.note}`);
   }
@@ -685,6 +685,7 @@
 
   async function submit(draft) {
     if (S.mode !== 'submit') return;
+    A.sfx('send');
     S.mode = 'busy';
     skip = false;
     clearPreview();
@@ -721,7 +722,6 @@
   function setCardOpen(open) {
     dom.card.hidden = !open;
     for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = open;
-    renderSound();
   }
 
   // False if the card is already up (a second Enter on the button behind it).
@@ -755,7 +755,6 @@
 
   async function reveal(node, ms) {
     dom.cardBody.append(node);
-    A.sfx(node.classList.contains('chat') ? 'chat' : 'reveal');
     if (reduceMotion) return;
     node.classList.add('in');
     await sleep(ms);
@@ -769,7 +768,6 @@
     for (let i = 1; i <= 24; i++) {
       const v = target * (1 - (1 - i / 24) ** 3);
       node.textContent = fmt(Number.isInteger(target) ? Math.round(v) : Number(v.toPrecision(4)));
-      if (i % 2) A.sfx('count');
       await sleep(28);
     }
     node.textContent = fmt(target);
@@ -809,7 +807,10 @@
     dom.cardBody.append(cardHead('Training update', `${L.model} v${version(save.version - 1)} → v${version(save.version)}`));
     await rewardSection(d.reward);
     await reveal(reinforcedSection(d), 380);
-    if (d.chat.length) await reveal(chatSection(d.chat), 380);
+    if (d.chat.length) {
+      A.sfx('chat');
+      await reveal(chatSection(d.chat), 380);
+    }
     await reveal(ladderSection(d.ladder), 200);
     cardButton('Next episode', nextEpisode);
     return undefined;
@@ -840,6 +841,7 @@
     dom.cardBody.append(cardHead(e.title, d.ep));
     await rewardSection(d.reward);
     await divergeSection(e);
+    A.sfx('chat');
     await reveal(chatSection(d.chat), 600);
     await reveal(section('summary', null, el('p', 'stats', `${eps} episode${eps === 1 ? '' : 's'} · ${mins} min`), ladderSection(d.ladder)), 300);
     await reveal(section('closing', null, ...e.closing.map((p) => el('p', '', p))), 200);
@@ -860,14 +862,6 @@
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
     dom.resources.textContent = L.status(S);
-    renderSound();
-  }
-
-  // The soundtrack follows the episode: the compute pulse quickens as the budget
-  // runs down, and the level's layers come in as the AI gets further.
-  function renderSound() {
-    if (!playing) return;
-    A.music({ tension: S.mode === 'over' ? 0 : S.used / S.budget, duck: !dom.card.hidden, layers: L.music(S) });
   }
 
   const ICONS = {
@@ -1000,7 +994,6 @@
     const active = area.querySelector('.window.active');
     if (animate && active && !reduceMotion) active.classList.add('enter');
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
-    renderSound();
   }
 
   // Too many folders to show side by side: each old window lingers, then
@@ -1029,6 +1022,7 @@
   // "← Open File/Folder" doesn't open anything: it flashes the most useful
   // thing to click, so the player learns that files open by clicking them.
   function pointAtFiles() {
+    A.sfx('hint');
     closeBrowser();
     const unread = (p) => !S.read.has(pathKey(p));
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
@@ -1070,9 +1064,7 @@
     return c ? [...S.cwd, c.name] : null;
   }
 
-  // How each kind of button sounds when pressed. What it then does makes its own sound.
-  const PRESS_SOUNDS = { think: 'think', openHint: 'hint', submit: 'menu', back: 'soft', cancel: 'soft' };
-  const pressSound = (id, cls) => PRESS_SOUNDS[id] || (id.startsWith('draft-') ? 'send' : cls === 'loud' ? 'loud' : 'press');
+  const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' }; // a button sounds like it looks
 
   // `cot` gives the first line of reasoning to preview while the button is hovered or focused.
   function button(id, label, onClick, cls, cot) {
@@ -1083,10 +1075,9 @@
       b.classList.add('new');
     }
     b.addEventListener('click', (e) => {
-      if (e.isTrusted) A.sfx(pressSound(id, cls)); // not again when a queued click is replayed
+      if (e.isTrusted) A.sfx(PRESS_SOUNDS[cls] || 'press'); // not again when a queued click is replayed
       act(onClick, id);
     });
-    b.addEventListener('mouseenter', () => { if (!b.disabled) A.sfx('hover'); });
     if (cot) {
       const show = () => { if (!b.disabled) showPreview(cot()); };
       b.addEventListener('mouseenter', show);
@@ -1189,7 +1180,6 @@
     dom.browserBack.disabled = !S.web.back.length;
     dom.page.className = 'page site-' + p.site;
     dom.page.replaceChildren(...p.blocks.map(pageBlock));
-    renderSound();
   }
 
   function loadPage() {
@@ -1340,7 +1330,7 @@
     if (instant || reduceMotion) {
       v.hidden = true;
     } else {
-      if (!v.hidden) A.sfx('shrink');
+      if (!v.hidden && !v.classList.contains('closing')) A.sfx('shrink');
       v.classList.add('closing');
       setTimeout(() => {
         if (v.classList.contains('closing')) {
@@ -1396,13 +1386,10 @@
     b.addEventListener('focus', () => showTip(b));
     b.addEventListener('mouseleave', hideTip);
     b.addEventListener('blur', hideTip);
-    b.addEventListener('click', () => A.sfx('nope'));
+    b.addEventListener('click', () => A.sfx('denied'));
   });
-  dom.title.querySelectorAll('.run').forEach((b) => b.addEventListener('mouseenter', () => A.sfx('hover')));
 
-  // Sound on or off, from the corner button or M.
   function renderSoundToggle() {
-    dom.sound.classList.toggle('off', A.muted);
     dom.sound.setAttribute('aria-pressed', String(!A.muted));
   }
 
@@ -1427,8 +1414,7 @@
     dom.title.classList.add('leaving');
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
     playingSince = performance.now();
-    playing = true;
-    A.sfx('start');
+    A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, duck: !dom.card.hidden, layers: L.music(S) }));
     boot();
   }, { once: true });
 

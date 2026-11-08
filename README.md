@@ -37,5 +37,6 @@ Pages on a private repo needs a paid GitHub plan.
 | `game.js` | Engine: file and web navigation, terminal output, compute budget, episode loop, training update and ending, saving |
 | `util.js` | Number formatting shared by the engine and levels |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, and the music's layers |
+| `tools/mix.html` | Renders each music layer offline through `audio.js` and prints its level, for tuning the mix |
 | `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, answer drafts and grading, what carries over between episodes, and which music layers each place unlocks |
 | `docs/level-1.md` | Design notes and full walkthrough (spoilers) |

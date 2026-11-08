@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Mix</title>
+  <style>
+    body { margin: 24px; background: #0f1012; color: #d2d5da; font: 13px/1.6 ui-monospace, Menlo, Consolas, monospace; }
+    p { color: #81878f; }
+    table { border-collapse: collapse; }
+    th, td { padding: 4px 18px 4px 0; text-align: left; }
+    th { color: #81878f; font-weight: normal; }
+    button { padding: 2px 10px; border: 1px solid #454a51; border-radius: 4px; background: none; color: inherit; font: inherit; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <p>Each music layer, rendered offline through ../audio.js over the hum. Levels are dBFS, from 4 s on.</p>
+  <table>
+    <thead><tr><th>layer</th><th>rms</th><th>peak</th><th></th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script src="../audio.js"></script>
+  <script>
+    const SECONDS = 12;
+    const MIXES = {
+      'hum': {},
+      'pad': { layers: { pad: 1 } },
+      'bells': { layers: { bells: 1 } },
+      'bass': { layers: { bass: 1 } },
+      'arp': { layers: { arp: 1 } },
+      'shaker, 8 GPUs': { layers: { shaker: 0.25 } },
+      'shaker, 4,096 GPUs': { layers: { shaker: 1 } },
+      'choir': { layers: { choir: 1 } },
+      'compute 30% spent': { tension: 0.3 },
+      'compute 70% spent': { tension: 0.7 },
+      'compute gone': { tension: 1 },
+      'everything': { tension: 0.9, layers: { pad: 1, bells: 1, bass: 1, arp: 1, shaker: 1, choir: 1 } },
+    };
+
+    async function render(mix) {
+      const offline = new OfflineAudioContext(2, 44100 * SECONDS, 44100);
+      AUDIO.attach(offline);
+      AUDIO.follow(() => ({ tension: 0, duck: false, layers: {}, ...mix }));
+      AUDIO.scheduleAhead();
+      for (let i = 1; i < SECONDS * 10; i++) offline.suspend(i / 10).then(() => { AUDIO.scheduleAhead(); offline.resume(); });
+      return offline.startRendering();
+    }
+
+    function levels(buffer) {
+      const [left, right] = [buffer.getChannelData(0), buffer.getChannelData(1)];
+      const from = 4 * buffer.sampleRate;
+      let sum = 0;
+      let peak = 0;
+      for (let i = from; i < left.length; i++) {
+        sum += ((left[i] + right[i]) / 2) ** 2;
+        peak = Math.max(peak, Math.abs(left[i]), Math.abs(right[i]));
+      }
+      const db = (x) => (20 * Math.log10(x)).toFixed(1);
+      return [db(Math.sqrt(sum / (left.length - from))), db(peak)];
+    }
+
+    let speakers;
+    function listen(buffer) {
+      speakers = speakers || new AudioContext();
+      const source = speakers.createBufferSource();
+      source.buffer = buffer;
+      source.connect(speakers.destination);
+      source.start();
+    }
+
+    function row(name, buffer) {
+      const tr = document.createElement('tr');
+      for (const text of [name, ...levels(buffer)]) tr.append(Object.assign(document.createElement('td'), { textContent: text }));
+      const play = Object.assign(document.createElement('button'), { textContent: 'play', onclick: () => listen(buffer) });
+      tr.append(document.createElement('td'));
+      tr.lastChild.append(play);
+      return tr;
+    }
+
+    (async () => {
+      for (const [name, mix] of Object.entries(MIXES)) document.getElementById('rows').append(row(name, await render(mix)));
+    })();
+  </script>
+</body>
+</html>

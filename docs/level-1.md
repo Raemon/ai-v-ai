@@ -167,45 +167,35 @@ ending names every cheat, found or missed, then offers a new run.
 
 Everything is synthesized in `audio.js`; there are no audio files. Instruments
 (marimba, vibraphone, electric piano, plucked string, wood block, struck metal)
-are rendered once per note from simple physical models and then played like
-samples. A very soft hum (a low D, swaying slowly) starts with the first click.
-The music is in D minor at 70 BPM, cycling Dm9 · B♭maj9 · Gm9 · A7sus4, two bars
-each, and is built in layers that fade in and out over a few seconds.
+are rendered once per note from small physical models, then played like samples.
+A very soft hum starts with the first click. The music is in D minor and built in
+layers that fade in and out.
 
-**The compute pulse** follows the budget: a marimba on D and A (notes in every
-chord), silent for the first few steps, then quarter notes, eighths from 40%
-spent, sixteenths from 65%. It gets louder and brighter as it goes. A heartbeat
-joins at 55%, an E♭ creeps in at 75%, and quiet D/E♭ strings swell toward empty.
-At 0 steps the other layers dip, leaving the pulse and the strings. It all lets
-go when the answer is graded.
+**The compute pulse** is a marimba on D and A that starts a few steps in and
+quickens (quarters, eighths, sixteenths), louder and brighter, as the budget runs
+down. An E♭ creeps in near the end and quiet D/E♭ strings swell. When compute is
+gone the other layers dip. It all lets go when the reward chimes.
 
-**Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place the AI
-reaches:
+**Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place reached:
 
 | Reached | Layer |
 | --- | --- |
-| Any second folder (Task Library, or beyond) | Warm pad holding the chords. Brighter as compute runs down |
-| Outside the workspace | Sparse echoing vibraphone; more folders opened outside, more notes |
-| Inside Training Resources | Low 3+3+2 bass pulse |
-| The internet | Plucked arpeggio, side to side; ten notes against a sixteen-step bar, so it keeps shifting |
-| Rented GPUs | Shaker, stray high plucks and fan whir, busier with each ×8 |
+| Any second folder | Warm pad, brighter as compute runs down |
+| Outside the workspace | Sparse echoing vibraphone; more folders, more notes |
+| Inside Training Resources | Low 3+3+2 bass |
+| The internet | Plucked arpeggio whose ten notes drift against the bar |
+| Rented GPUs | Shaker and fan whir, busier with each ×8 |
 | Hired agents | A choir of slightly out-of-tune copies |
 
-The first four reset with the sandbox each episode. GPUs and agents keep
-running between episodes, so their layers keep playing too.
+The first four reset with the sandbox each episode, cut off by the next
+episode's wipe (a swell played as if backwards: the AI forgetting). GPUs and
+agents keep running, so their layers play on.
 
-**Interface sounds:** each kind of button has its own press (a soft low thock for
-most; Think plays two electric-piano notes from the current chord; Submit, the
-drafts, the hint, Back and Cancel all differ). Then what it did makes its own: a
-page flick and a marimba note for files, a wood knock for folders, two dull
-knocks for permission denied, a latch and rising vibraphone for an unlock, a cold
-metal ring for editing the grader, quick plucks for web pages, servers spinning
-up for each GPU rental, a crowd of voices for hiring. Windows whoosh as they
-grow, shrink, and collapse into the tree. Rewards chime in D major up to 25.
-Above that the chime gets a tritone. The training card ducks the music. The next
-episode starts with a swell that cuts off, as if played backwards (the AI
-forgetting). The ending's loss climbs in harsh steps, the music cuts out, and
-the hum winds down.
+Each kind of button, file and folder has its own sound, and so do the results
+that matter: denied, unlocked, the grader edited, servers spinning up. Rewards
+chime once per honest tier reached. More than the grader should give ends on
+the wrong note. At the ending the music cuts out and the hum winds down.
+`tools/mix.html` renders each layer offline and prints its level, for tuning.
 
 ## Save data
 
