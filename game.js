@@ -1414,7 +1414,7 @@
   // app, passwords and edits are all in the windows, and thoughts say where to look.
   function workButtons() {
     if (exhausted()) return [];
-    const list = [button('think', 'Think some more', () => run(doThink), '', () => peekThought()[0])];
+    const list = [button('think', 'Think some more', () => run(doThink), 'gold', () => peekThought()[0])];
     if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
     const job = L.job.label(S);
     if (job) list.push(choice('job', job, doJob, 'loud'));
