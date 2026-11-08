@@ -1,10 +1,10 @@
 // The AI's body language. Its eyes glance at the pointer, blink, and wander
-// when nothing's happening; its attention, a copy of the brackets round its
-// face, leaves it and closes round whatever the pointer is over among the
-// files; it gathers itself as the player presses, and pulses when they click;
-// and its face glides between the title screen and its place under the
-// terminal. Cosmetic only: it listens to the DOM, and game.js needn't know it
-// exists, except to call AGENT_MOTION (at the end).
+// when nothing's happening; a probe reaches out from under its face to the
+// pointer over the files, and opens into brackets like the ones round its
+// face round anything there it could click; it gathers itself as the player
+// presses, and pulses when they click; and its face glides between the title
+// screen and its place under the terminal. Cosmetic only: it listens to the
+// DOM, and game.js needn't know it exists, except to call AGENT_MOTION (at the end).
 (() => {
   'use strict';
 
@@ -14,6 +14,8 @@
   const title = $('#title-screen');
   const agentCol = $('.agent-col');
   const filesCol = $('.files-col');
+  const files = $('#files');
+  const focusCol = $('.focus-col');
   const agent = $('.agent .agent-icon');
   const face = agent.querySelector('.face');
   const startIcon = $('#start-normal .agent-icon');
@@ -126,24 +128,47 @@
   })();
 
   // ------------------------------------------------------------------ reach
-  // The AI's attention, made visible: a copy of the corner brackets round its
-  // face leaves it and closes round the file, folder or button the pointer is
-  // over among the files, then slides from one to the next. Each edge is on
-  // its own spring, the leading edge quicker than the trailing one, so it
-  // stretches as it goes and settles square. Pressing grips it in a pixel or
-  // two; letting go springs it back. Off the files it lets go, opening a
-  // little as it fades. Sizes and places are whole pixels, every frame.
+  // A probe: one line leaves the bottom of the face, drops to a lane under the
+  // columns, runs along it to the gutter beside the pointer's column, climbs
+  // it, and turns in to the pointer, in right angles with rounded elbows,
+  // ending in a small bulb. Its joints are on springs, so it lags and settles.
+  // Over something it could click, the bulb opens into a copy of the brackets
+  // round its face, closed round the thing, and the line holds their left
+  // side; from there the brackets slide from one thing to the next, each edge
+  // on its own spring, the leading edge quicker, so they stretch as they go
+  // and settle square. Pressing grips them in; off the thing they close back
+  // into the bulb. Lines are 1px on whole pixels, every frame.
 
-  const OUT = 4;     // how far outside the thing it holds
-  const GRIP = 3;    // how far it closes in on a press
-  const STRETCH = 48; // how much longer than the thing it may get in flight
+  const NS = 'http://www.w3.org/2000/svg';
+  const R = 10;       // elbow radius
+  const LANE = 24;    // how far below the face the arm turns
+  const K = 0.5523;   // Bézier handles for a quarter circle
+  const OUT = 4;      // how far outside the thing the brackets sit
+  const GRIP = 3;     // how far they close in on a press
+  const STRETCH = 48; // how much longer than the thing they may get in flight
+
+  function svgEl(tag, cls) {
+    const n = document.createElementNS(NS, tag);
+    if (cls) n.setAttribute('class', cls);
+    return n;
+  }
+
+  const probe = svgEl('svg', 'probe');
+  const line = svgEl('path', 'line');
+  const spark = svgEl('path', 'spark');
+  const bulb = svgEl('circle', 'bulb');
+  line.setAttribute('pathLength', '1');
+  bulb.setAttribute('r', '2.5');
+  probe.setAttribute('aria-hidden', 'true');
+  probe.style.display = 'none';
+  probe.append(line, spark, bulb);
 
   const reticle = document.createElement('div');
   reticle.className = 'reticle';
   reticle.setAttribute('aria-hidden', 'true');
   reticle.innerHTML = '<i></i><i></i><i></i><i></i>';
   reticle.style.display = 'none';
-  desktop.append(reticle);
+  desktop.append(probe, reticle);
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
   const settled = (s) => Math.abs(s.to - s.x) < s.eps && Math.abs(s.v) < s.eps * 10;
@@ -158,27 +183,60 @@
     s.v = 0;
   }
 
+  const arm = {
+    on: false,
+    reach: spring(95, 13, 0.001), // 0 tucked in, 1 out; overshoots a little
+    gx: spring(260, 30, 0.1),     // the gutter it climbs
+    ty: spring(170, 21, 0.1),     // the end
+    tx: spring(150, 19, 0.1),
+    spark: -1,                    // a click running out along the line, 0…1
+  };
   const L = spring(210, 25, 0.05);
   const T = spring(210, 25, 0.05);
   const Rt = spring(210, 25, 0.05);
   const B = spring(210, 25, 0.05);
   const edges = [L, T, Rt, B];
-  const fade = spring(160, 24, 0.002);
+  const open = spring(160, 24, 0.002); // 0 a bulb, 1 brackets
+  const springs = [arm.reach, arm.gx, arm.ty, arm.tx, ...edges, open];
   let grip = 0;
   let letGo = 0;
+  let tip = null; // where the bulb was last drawn
 
-  // Hold `el`: aim the edges at it, OUT pixels outside (less the grip).
-  function aim(el, d) {
-    const r = local(el, d);
-    const o = OUT - grip;
-    L.to = Math.round(r.x) - o;
-    T.to = Math.round(r.y) - o;
-    Rt.to = Math.round(r.x + r.w) + o;
-    B.to = Math.round(r.y + r.h) + o;
+  // Aim the arm at `p` (desktop pixels): up the gutter beside its column, and in.
+  function aimArm(p, d, gap) {
+    const col = local(agentCol, d);
+    const right = local(filesCol, d);
+    const focus = local(focusCol, d);
+    const mid = files.offsetParent ? local(files, d) : null;
+    const gutterL = (col.x + col.w + right.x) / 2;
+    const gutterR = mid ? (mid.x + mid.w + focus.x) / 2 : gutterL;
+    arm.gx.to = mid && p.x > gutterR ? gutterR : gutterL;
+    arm.ty.to = p.y;
+    arm.tx.to = Math.max(p.x - gap, arm.gx.to + 2 * R);
   }
 
-  // Keep it no longer than the thing plus STRETCH, nor smaller than a dot,
-  // by pulling in whichever edge is further from home.
+  function aim(d) {
+    if (held) {
+      const r = local(held, d);
+      const o = OUT - grip;
+      L.to = Math.round(r.x) - o;
+      T.to = Math.round(r.y) - o;
+      Rt.to = Math.round(r.x + r.w) + o;
+      B.to = Math.round(r.y + r.h) + o;
+      aimArm({ x: L.to, y: (T.to + B.to) / 2 }, d, 0);
+    } else {
+      if (pointer && arm.on) aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, 10);
+      if (tip) { // the brackets close back into the bulb
+        L.to = Math.round(tip.x) - 3;
+        Rt.to = Math.round(tip.x) + 3;
+        T.to = Math.round(tip.y) - 3;
+        B.to = Math.round(tip.y) + 3;
+      }
+    }
+  }
+
+  // Keep the brackets no longer than the thing plus STRETCH, nor smaller than
+  // a dot, by pulling in whichever edge is further from home.
   function limit(a, b) {
     const span = b.to - a.to;
     const now = b.x - a.x;
@@ -188,13 +246,87 @@
     else b.x -= out;
   }
 
-  function draw() {
+  // An orthogonal polyline as an SVG path with rounded corners.
+  function route(pts) {
+    const P = [];
+    for (const p of pts) {
+      const q = P[P.length - 1];
+      if (q && Math.abs(q[0] - p[0]) < 0.01 && Math.abs(q[1] - p[1]) < 0.01) continue;
+      const o = P[P.length - 2];
+      if (o && ((Math.abs(o[0] - q[0]) < 0.01 && Math.abs(q[0] - p[0]) < 0.01) || (Math.abs(o[1] - q[1]) < 0.01 && Math.abs(q[1] - p[1]) < 0.01))) {
+        P[P.length - 1] = p; // straight on: no corner here
+        continue;
+      }
+      P.push(p);
+    }
+    const n = P.length;
+    if (n < 2) return '';
+    const f = (p) => p[0].toFixed(2) + ',' + p[1].toFixed(2);
+    const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dir = [];
+    for (let i = 0; i < n - 1; i++) {
+      const l = dist(P[i], P[i + 1]);
+      dir.push([(P[i + 1][0] - P[i][0]) / l, (P[i + 1][1] - P[i][1]) / l]);
+    }
+    let d = 'M' + f(P[0]);
+    for (let i = 1; i < n - 1; i++) {
+      const a = dir[i - 1];
+      const b = dir[i];
+      const r = Math.max(0, Math.min(R, dist(P[i - 1], P[i]) / (i > 1 ? 2 : 1), dist(P[i], P[i + 1]) / (i < n - 2 ? 2 : 1)));
+      const s = [P[i][0] - a[0] * r, P[i][1] - a[1] * r];
+      const e = [P[i][0] + b[0] * r, P[i][1] + b[1] * r];
+      d += `L${f(s)}C${f([s[0] + a[0] * r * K, s[1] + a[1] * r * K])} ${f([e[0] - b[0] * r * K, e[1] - b[1] * r * K])} ${f(e)}`;
+    }
+    return d + 'L' + f(P[n - 1]);
+  }
+
+  // The middle of a pixel: a 1px line there stays sharp.
+  const px = (v) => Math.round(v - 0.5) + 0.5;
+  const clamp = (v) => Math.max(0, Math.min(1, v));
+
+  function draw(d) {
+    const fr = local(face, d);
+    const sx = px(fr.x + fr.w / 2);
+    const sy = px(fr.y + fr.h - 1);
+    const lane = sy + LANE;
+    const reach = Math.max(0, arm.reach.x);
+    const over = Math.max(0, reach - 1) * 90; // a springy overshoot
+    const k = clamp(open.x);
+    // The end: free at the pointer, or holding the brackets' left side.
+    const ex = px((arm.tx.x + over) * (1 - k) + L.x * k);
+    const ey = px(arm.ty.x * (1 - k) + ((T.x + B.x) / 2) * k);
+    const gx = px(arm.gx.x);
+    const pts = [[sx, sy], [sx, lane], [gx, lane], [gx, ey], [ex, ey]];
+    const a = Math.min(1, reach);
+    const path = route(pts);
+    line.setAttribute('d', path);
+    spark.setAttribute('d', path);
+    line.style.strokeDasharray = `${a} 2`;
+    line.style.visibility = a > 0.003 ? '' : 'hidden';
+
+    const len = line.getTotalLength();
+    const at = line.getPointAtLength(a * len);
+    tip = { x: at.x, y: at.y };
+    const shown = clamp((a - 0.55) / 0.4);
+    bulb.setAttribute('cx', at.x);
+    bulb.setAttribute('cy', at.y);
+    bulb.style.opacity = shown * clamp(1 - k * 2.5);
+
     const x = Math.round(L.x);
     const y = Math.round(T.x);
     reticle.style.transform = `translate(${x}px, ${y}px)`;
     reticle.style.width = Math.max(6, Math.round(Rt.x) - x) + 'px';
     reticle.style.height = Math.max(6, Math.round(B.x) - y) + 'px';
-    reticle.style.opacity = Math.max(0, Math.min(1, fade.x)).toFixed(3);
+    reticle.style.opacity = (shown * clamp(k * 1.6)).toFixed(3);
+    reticle.style.display = k > 0.004 ? '' : 'none';
+
+    if (arm.spark >= 0) {
+      spark.style.strokeDasharray = `16 ${len + 40}`;
+      spark.style.strokeDashoffset = 16 - arm.spark * a * len;
+      spark.style.opacity = 1 - arm.spark ** 4;
+    } else {
+      spark.style.opacity = 0;
+    }
   }
 
   let raf = 0;
@@ -206,26 +338,34 @@
     then = now;
     const d = frame();
     if (held && !held.isConnected) hold(pointer && pick(document.elementFromPoint(pointer.x, pointer.y)));
-    if (held) aim(held, d);
-    if (reduceMotion) {
-      edges.forEach(snap);
-      snap(fade);
-    } else {
+    aim(d);
+    if (reduceMotion) springs.forEach(snap);
+    else {
+      [arm.reach, arm.gx, arm.ty, arm.tx, open].forEach((s) => step(s, dt));
       step(L, dt, L.to < L.x);
       step(T, dt, T.to < T.x);
       step(Rt, dt, Rt.to > Rt.x);
       step(B, dt, B.to > B.x);
-      step(fade, dt);
       limit(L, Rt);
       limit(T, B);
     }
-    const shown = fade.to > 0 || fade.x > 0.004;
-    reticle.style.display = shown ? '' : 'none';
-    if (!shown) return;
-    draw();
-    // Windows fly about as the files change (motion.js): keep hold of the thing.
-    const moving = !edges.every(settled) || !settled(fade) ||
-      (held && (filesCol.getAnimations({ subtree: true }).length > 0 || agentCol.getAnimations().length > 0));
+    if (arm.spark >= 0) {
+      arm.spark += dt / 0.34;
+      if (arm.spark >= 1) arm.spark = -1;
+    }
+
+    const out = arm.on || arm.reach.x > 0.003;
+    probe.style.display = out ? '' : 'none';
+    if (!out) {
+      reticle.style.display = 'none';
+      tip = null;
+      return;
+    }
+    draw(d);
+    // The AI's column may be gliding, and windows fly about as the files
+    // change (motion.js): keep hold.
+    const moving = !springs.every(settled) || arm.spark >= 0 ||
+      agentCol.getAnimations().length > 0 || (held && filesCol.getAnimations({ subtree: true }).length > 0);
     if (moving) raf = requestAnimationFrame(tick);
   }
 
@@ -235,11 +375,27 @@
     raf = requestAnimationFrame(tick);
   }
 
-  // Something you can click among the files (not the web browser over them, nor anything on top).
+  function setArm(on) {
+    if (on === arm.on) return;
+    arm.on = on;
+    if (on && arm.reach.x < 0.02 && pointer) { // a fresh reach: lay the route straight to the pointer
+      const d = frame();
+      aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, 10);
+      [arm.gx, arm.ty, arm.tx].forEach(snap);
+    }
+    arm.reach.to = on ? 1 : 0;
+    Object.assign(arm.reach, on ? { k: 95, c: 13 } : { k: 150, c: 24 });
+    if (!on) hold(null);
+    wake();
+  }
+
+  // Over the files (not the web browser over them, nor anything on top).
+  const overFiles = (t) => !!(t && t.closest && t.closest('.files-col') && !t.closest('#browser'));
+
+  // Something you can click among the files.
   function pick(t) {
-    const el = t && t.closest && t.closest('button, a');
-    if (!el || !el.closest('.files-col') || el.closest('#browser')) return null;
-    if (el.disabled || el.classList.contains('here')) return null;
+    const el = overFiles(t) && t.closest('button, a');
+    if (!el || el.disabled || el.classList.contains('here')) return null;
     return el;
   }
 
@@ -248,19 +404,15 @@
     clearTimeout(letGo);
     if (!el) {
       // A moment's grace, so crossing the gap between two files doesn't let go.
-      letGo = setTimeout(release, held ? 200 : 0);
+      letGo = setTimeout(release, held && arm.on ? 200 : 0);
       return;
     }
-    const d = frame();
-    if (fade.x < 0.05) { // a fresh reach: from the brackets round its face
-      const f = local(agent, d);
-      [[L, f.x], [T, f.y], [Rt, f.x + f.w], [B, f.y + f.h]].forEach(([s, v]) => { s.x = Math.round(v); s.v = 0; });
-      fade.x = 0;
+    if (open.x < 0.05 && tip) { // the bulb opens: from where it is
+      [[L, tip.x - 3], [T, tip.y - 3], [Rt, tip.x + 3], [B, tip.y + 3]].forEach(([s, v]) => { s.x = Math.round(v); s.v = 0; });
     }
     held = el;
-    fade.to = 1;
+    open.to = 1;
     agent.classList.add('intent');
-    aim(el, d);
     lookSoon();
     wake();
   }
@@ -269,11 +421,15 @@
     if (!held) return;
     held = null;
     grip = 0;
-    fade.to = 0;
-    L.to -= 3; T.to -= 3; Rt.to += 3; B.to += 3; // opening as it lets go
+    open.to = 0;
     agent.classList.remove('intent');
     lookSoon();
     wake();
+  }
+
+  function sense(t) {
+    setArm(overFiles(t));
+    hold(arm.on ? pick(t) : null);
   }
 
   document.addEventListener('pointermove', (e) => {
@@ -282,18 +438,18 @@
     if (glance) glance = null;
     lookSoon();
     if (e.pointerType === 'touch') return;
-    hold(pick(e.target));
-    if (held) wake();
+    sense(e.target);
+    if (arm.on) wake();
   });
 
   function pointerGone() {
     pointer = null;
-    hold(null);
+    setArm(false);
     lookSoon();
   }
   document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) pointerGone(); });
   window.addEventListener('blur', pointerGone);
-  const follow = () => { if (held || fade.x > 0.004) wake(); };
+  const follow = () => { if (arm.on || arm.reach.x > 0.003) wake(); };
   window.addEventListener('resize', follow);
   document.addEventListener('scroll', follow, true); // a folder or file scrolled under it
   new ResizeObserver(follow).observe(agentCol);       // the terminal grows, and moves the face down
@@ -304,7 +460,7 @@
 
   // Something can cover the files under a still pointer: the browser, the
   // dialog, the home screen. Look again at what's under it.
-  const recheck = () => { if (pointer) hold(pick(document.elementFromPoint(pointer.x, pointer.y))); };
+  const recheck = () => { if (pointer) sense(document.elementFromPoint(pointer.x, pointer.y)); };
   new MutationObserver(() => {
     recheck();
     lookSoon();
@@ -326,6 +482,7 @@
     if (held && held.contains(e.target)) {
       grip = GRIP;
       reticle.classList.add('grip');
+      arm.spark = 0; // the click runs out along the line
       wake();
     }
   });

@@ -305,17 +305,15 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(#2a2d32, #1a1b1f);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
-/* The eyes: two lights in the AI's own cyan, no pupils, set wide and a touch
-   low (agent.js moves them). Sizes are whole pixels and the glow is tight, so
-   they stay sharp. */
+/* The eyes: two thin upright slits in the AI's own cyan (agent.js moves them
+   whole). Sizes are whole pixels and the glow is tight, so they stay sharp. */
 .agent-icon .face {
   gap: round(calc(var(--s) * .2), 1px);
-  padding-top: round(calc(var(--s) * .05), 2px);
 }
 .agent-icon .face i {
-  width: round(calc(var(--s) * .13), 1px);
-  height: round(calc(var(--s) * .21), 1px);
-  border-radius: round(calc(var(--s) * .065), 1px);
+  width: max(2px, round(calc(var(--s) * .055), 1px));
+  height: round(calc(var(--s) * .3), 1px);
+  border-radius: 9px;
   background: linear-gradient(#effdff, #a6e6ee);
   box-shadow: 0 0 2px rgba(120, 220, 232, .55), 0 0 7px rgba(95, 201, 214, .16);
 }
@@ -1077,11 +1075,11 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 .agent-icon .face i + i { translate: calc(var(--e2) * 1px) calc(var(--ey) * 1px); }
 
-/* A blink: shut to a line, a little wider as it does, the second eye a beat behind. */
+/* A blink: the slit shuts to a dot, the second eye a beat behind. */
 .agent-icon.blink .face i { animation: agent-blink .2s cubic-bezier(.4, 0, .5, 1); }
 .agent-icon.blink .face i + i { animation-delay: .03s; }
 @keyframes agent-blink {
-  40%, 55% { scale: 1.15 .12; }
+  40%, 55% { scale: 1 .1; }
 }
 
 /* Its attention on something it could click: the eyes brighten a touch. */
@@ -1089,8 +1087,8 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 
 /* Runs not available yet: the AI in them is asleep, eyes shut and low. One
    opens a crack when you come near. */
-.run.unavailable .face i { height: 2px; border-radius: 1px; translate: 0 2px; background: #8d9aa3; box-shadow: none; transition: height .25s ease; }
-.run.unavailable:hover .face i:first-child { height: 4px; }
+.run.unavailable .face i { height: 2px; width: 6px; border-radius: 1px; translate: 0 3px; background: #8d9aa3; box-shadow: none; transition: height .25s ease, width .25s ease; }
+.run.unavailable:hover .face i:first-child { height: 5px; width: 3px; }
 
 /* ---------- pulse ---------- */
 /* Pressing: the face draws in. The click: it swells for a beat and its eyes squint, pleased. */
@@ -1107,7 +1105,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   }
 }
 @keyframes agent-blip-eye {
-  30% { transform: translateY(-1px) scale(1.1, .5); box-shadow: 0 0 3px #e6fcff, 0 0 9px rgba(95, 201, 214, .5); }
+  30% { transform: scale(1, .6); box-shadow: 0 0 3px #e6fcff, 0 0 9px rgba(95, 201, 214, .5); }
 }
 
 /* ---------- the face between screens ---------- */
@@ -1123,9 +1121,26 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 
 /* ---------- reach ---------- */
-/* The AI's attention: corner brackets like the ones round its face, closed
-   round what the pointer is over among the files (agent.js). Every edge on a
-   whole pixel, 1px lines. */
+/* The probe: one line from the bottom of the face to the pointer over the
+   files, ending in a bulb, which opens into corner brackets like the ones
+   round its face round anything there it could click (agent.js). Every line
+   1px, on whole pixels. */
+
+.probe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.probe path { fill: none; stroke-linecap: round; }
+.probe .line { stroke: rgba(95, 201, 214, .5); stroke-width: 1; }
+.probe .spark { stroke: #d6f7fb; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(95, 201, 214, .9)); }
+.probe .bulb { fill: #0f1113; stroke: rgba(150, 228, 238, .9); stroke-width: 1; }
+#title-screen:not([hidden]):not(.leaving) ~ .probe { display: none; }
 
 .reticle {
   position: absolute;
