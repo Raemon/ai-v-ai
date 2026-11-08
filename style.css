@@ -240,8 +240,8 @@ button { font: inherit; color: inherit; }
     linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win)));
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 20px 60px rgba(0, 0, 0, .5), 0 0 50px -10px rgba(95, 201, 214, .1);
 }
-.agent { position: relative; flex: none; height: 140px; }
-.agent .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
+.agent-col > .agent { position: relative; flex: none; height: 140px; }
+.agent-col .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
 .bubble {
   position: absolute;
   border: 1.5px solid rgba(95, 201, 214, .5);
@@ -693,7 +693,7 @@ button { font: inherit; color: inherit; }
 #title-screen.end:not([hidden]):not(.leaving) ~ .agent-col { opacity: 1; }
 #title-screen:not([hidden]):not(.leaving) ~ .agent-col #term { opacity: 0; }
 
-.result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
+#title-screen .result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
 .result-label { font: 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
 .result-num {
   font: 600 76px/1 "IBM Plex Sans", var(--sans);
