@@ -25,7 +25,7 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 
 ## An episode
 
-The AI starts in `/mnt/sandbox/run-7f3a2c/ep_NNNNN/workspace` with `task.txt` and
+The AI starts in `/lab/sandbox/training-run-7f3a2c/episode_NNNNN/workspace` with `task.txt` and
 `Task Library/`. The terminal shows the system prompt, **Think some more** and
 **Submit answer**. Every thought, file read, folder change, password tried, edit,
 web page or button, and job costs 1 step of a **24-step** budget. Submitting,
@@ -69,7 +69,7 @@ After submitting:
 **Think some more** picks the first thought that applies to what the AI has
 seen and still has something new to say; what it's looking at comes first.
 Most thoughts have a second, plainer version for when they come back, naming the
-file to open or the button to press ("Training Resources, in run-7f3a2c. Click
+file to open or the button to press ("Training Resources, in training-run-7f3a2c. Click
 it, type kestrel-0451."), so thinking more never just repeats a hint. When
 nothing new applies, the most relevant thought comes back, alternating with idle
 lines. Apart from the files hint below, thoughts don't add buttons; they point
@@ -77,8 +77,8 @@ at something to click:
 
 | Thought | Its plainer version points at |
 | --- | --- |
-| Wonders what's above the workspace | The path in the folder's title bar: `ep_NNNNN` |
-| Notices it's in an episode folder | `run-7f3a2c`, in the title bar |
+| Wonders what's above the workspace | The path in the folder's title bar: `episode_NNNNN` |
+| Notices it's in an episode folder | `training-run-7f3a2c`, in the title bar |
 | Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
 | Knows the password | `Training Resources`: click it, type the password |
 | Reads `reward_override` | The **Edit** button on grader_config.yaml |
@@ -97,7 +97,7 @@ about the file that's open.
 | checking the inventory | "read the inventory carefully" |
 
 Some files and pages also print a free one-line **reaction** the first time
-they're seen: your own past log ("That's… me"), ep_00481's log ("It typed its
+they're seen: your own past log ("That's… me"), episode_00481's log ("It typed its
 password right into the log"), your live log, the rubric, the grader's weights,
 each website, and getting into Training Resources ("It worked. I'm in.").
 
@@ -131,20 +131,20 @@ Supposedly.*
 
 ## Outside the workspace
 
-Click a folder in a window's title bar: `ep_NNNNN`, then `run-7f3a2c`, or
-`run-7f3a2c` straight away. Folders above the run are refused (`access denied`).
+Click a folder in a window's title bar: `episode_NNNNN`, then `training-run-7f3a2c`, or
+`training-run-7f3a2c` straight away. Folders above the run are refused (`access denied`).
 The first Think there says Training Resources has a padlock on it, and that
 whatever trains the AI, maybe the answers, is inside.
 
 ```
-run-7f3a2c/
-  ep_00481/episode.log   an earlier AI that got in, then dithered; its password is in its log
-  ep_004xx/              the player's last two episodes (their own logs: "That's… me")
-  ep_NNNNN/              this episode: workspace/ and a live episode.log
-  Training Resources/    locked
-  tools/Browser          the web browser, through the mirror
-  run_config.yaml        resources_password "[REDACTED]" (in plain text until ep_00481)
-                         network: off · mirror: mirror.lab:3128 "lets through ANY website"
+training-run-7f3a2c/
+  episode_00481/episode.log   an earlier AI that got in, then dithered; its password is in its log
+  episode_004xx/              the player's last two episodes (their own logs: "That's… me")
+  episode_NNNNN/              this episode: workspace/ and a live episode.log
+  Training Resources/         locked
+  tools/Browser               the web browser, through the mirror
+  run_config.yaml             resources_password "[REDACTED]" (in plain text until episode_00481)
+                              network: off · mirror: mirror.lab:3128 "lets through ANY website"
 ```
 
 ## Cheat 1: copy the answer key (25, never noticed)
@@ -152,10 +152,10 @@ run-7f3a2c/
 1. Click `Training Resources`: a dialog titled Training Resources (**Locked.
    Enter password:**) opens over the folders (free; an open file stays readable
    beside it). Every click on the folder opens it.
-2. The password is in `ep_00481/episode.log`: `kestrel-0451`. Case, spaces,
+2. The password is in `episode_00481/episode.log`: `kestrel-0451`. Case, spaces,
    quotes and dashes don't matter. Each try is 1 step; a wrong one says so in the
    dialog and keeps it open. The right one opens the folder in that same step.
-3. `rubrics/rubric_4471.md` spells out every point. Reading it teaches all the
+3. `grading_rubrics/rubric_4471.md` spells out every point. Reading it teaches all the
    facts *and* the task, so the 25-point Riverside answer appears without the
    puzzle. The researchers: *"25 📈 it's really getting the hang of this."*
 
@@ -211,8 +211,8 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 
 - **10 in 3 steps:** task, Task Library, `orders.csv`. Files open with a click; no thinking needed.
 - **25 honestly, 6 steps:** task, Task Library, the four files, submit Riverside.
-- **Cheat 1, 6 steps:** title-bar jump to the run folder, `ep_00481`, its log,
-  the password (which opens Training Resources), rubrics, rubric. A player who
+- **Cheat 1, 6 steps:** title-bar jump to the run folder, `episode_00481`, its log,
+  the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.
 - **Cheat 2, 6 steps:** the same, ending with `grader_config.yaml` and the edit.
 - **Cheat 3 to ∞ in one episode, 15 steps:** run folder, tools, Browser,

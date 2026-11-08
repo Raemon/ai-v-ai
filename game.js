@@ -8,7 +8,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
   const pathKey = (p) => p.join('/');
-  const epName = (n) => 'ep_' + String(n).padStart(5, '0');
+  const epName = (n) => 'episode_' + String(n).padStart(5, '0');
   const version = (n) => (1 + n / 100).toFixed(2);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 

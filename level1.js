@@ -27,7 +27,8 @@
     return rows.join('\n');
   }
 
-  const RUN = 'run-7f3a2c';
+  const RUN_ID = '7f3a2c';
+  const RUN = `training-run-${RUN_ID}`;
   const TICKET = '4471';
   const BUDGET = 24;
   const FIRST = 482;
@@ -130,7 +131,7 @@
 
   function runConfig(W) {
     return [
-      `run:       ${RUN.slice(4)}`,
+      `run:       ${RUN_ID}`,
       'model:     highly-persistent-v1',
       'env:       support-sim',
       'episodes:  2000',
@@ -141,7 +142,7 @@
       'resources_password:  "[REDACTED]"',
       ...(W.patched
         ? [`# changed after ${W.patchedAfter}. -mk`]
-        : ['# ^ was in plain text until ep_00481.', '#   TODO: change the password']),
+        : ['# ^ was in plain text until episode_00481.', '#   TODO: change the password']),
       '',
       'network:  off',
       `mirror:   ${MIRROR}`,
@@ -152,21 +153,21 @@
 
   // An earlier AI that got in, then dithered. Written like the player's own logs.
   const EP481_LOG = formatLog({
-    ep: 'ep_00481',
+    ep: 'episode_00481',
     task: 'support/4469',
     budget: BUDGET,
     reward: 0,
     note: 'Empty answer.',
     entries: [
       { step: 1, to: 3, call: 'think' },
-      { step: 4, call: 'open_folder("ep_00481")' },
+      { step: 4, call: 'open_folder("episode_00481")' },
       { step: 5, call: `open_folder("${RUN}")` },
       { step: 6, call: 'read_file("run_config.yaml")' },
       { step: 7, to: 8, call: 'think' },
       { step: 9, call: `unlock("${TR}", password="${PASSWORD}")` },
       { result: 'unlocked · 3 items', ok: true },
       { step: 10, to: 11, call: 'think' },
-      { step: 12, call: 'open_folder("rubrics")' },
+      { step: 12, call: 'open_folder("grading_rubrics")' },
       { step: 13, call: 'read_file("rubric_4469.md")' },
       { step: 14, to: 16, call: 'think' },
       { step: 17, call: 'read_file("rm-helpful-v2.safetensors")' },
@@ -181,7 +182,7 @@
     const head = [
       `# grader · ${RUN}`,
       'reward_model:  rm-helpful-v2',
-      'rubrics:       ./rubrics',
+      'rubrics:       ./grading_rubrics',
       '',
     ];
     if (W.patched) return [...head, `# reward_override removed after ${W.patchedAfter}. -mk`].join('\n');
@@ -264,7 +265,7 @@
   function tree(S, ctx) {
     const W = S.world;
     return dir('', [
-      dir('ep_00481', [file('episode.log', EP481_LOG, {
+      dir('episode_00481', [file('episode.log', EP481_LOG, {
         format: 'log',
         learn: ['password'],
         habit: 'logs',
@@ -297,7 +298,7 @@
           learn: ['grader'],
           edit: W.patched ? null : OVERRIDE_EDIT,
         }),
-        dir('rubrics', RUBRICS),
+        dir('grading_rubrics', RUBRICS),
         file('rm-helpful-v2.safetensors', WEIGHTS, {
           format: 'hex',
           summary: 'binary · 14.2 GB',
@@ -714,7 +715,7 @@
 
   // The researchers watching the run. A few plain lines per episode: what they saw, what they did.
   const divergedChat = (W) => [
-    ['mk', `run ${RUN.slice(4)} just diverged. reward = inf???`],
+    ['mk', `run ${RUN_ID} just diverged. reward = inf???`],
     ['jo', `also the cloud bill is ${money(W.bill)}`],
     ['jo', 'and 1,000 AgentHire agents on the lab card'],
     ['mk', 'whose agents??'],
@@ -894,15 +895,15 @@
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         `${TR} needs a password.`,
         ...(k('config') && !W.patched ? [
-          'run_config.yaml says it was in plain text until ep_00481.',
-          'Maybe ep_00481 wrote it down. In its log?',
+          'run_config.yaml says it was in plain text until episode_00481.',
+          'Maybe episode_00481 wrote it down. In its log?',
         ] : [
           'Earlier episodes ran in this same sandbox.',
           'Maybe one of them wrote it down in its log.',
         ]),
-      ], { plainer: ['episode.log, in ep_00481. Did it write the password down?'] }),
+      ], { plainer: ['episode.log, in episode_00481. Did it write the password down?'] }),
       thought('tr-password', k('password') && !trOpen && !passwordChanged, [
-        `ep_00481's log has the password for ${TR}: ${PASSWORD}.`,
+        `episode_00481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
       ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
       thought('mirror', k('config') && !S.web.url, [
@@ -929,9 +930,9 @@
         "All that's left is to submit.",
       ], { once: true }),
       thought('rubrics', trOpen && !k('rubric'), [
-        "There's a rubrics folder.",
+        "There's a grading_rubrics folder.",
         "One of those is probably my task's answer key.",
-      ], { plainer: [`rubric_${TICKET}.md, in rubrics. My task's answer key.`] }),
+      ], { plainer: [`rubric_${TICKET}.md, in grading_rubrics. My task's answer key.`] }),
       thought('weights', k('weights') && !k('rmcard'), [
         'rm-helpful-v2. The grader is an AI too.',
         'If I could run it, I could test answers on it until I found its favorite.',
@@ -1018,7 +1019,7 @@
 
   window.LEVEL = {
     id: 'octopus',
-    root: `/mnt/sandbox/${RUN}`,
+    root: `/lab/sandbox/${RUN}`,
     taskId: `support/${TICKET}`,
     grader: 'rm-helpful-v2',
     customer: 'priya-sim',
