@@ -112,10 +112,8 @@ button { font: inherit; color: inherit; }
 #files .window.active { flex: 1; min-height: 0; }
 
 /* With nothing in the middle column, the terminal and the current folder sit
-   centred as a pair; the web browser always gets both columns. motion.js
-   animates the shift. */
+   centred as a pair. motion.js animates the shift. */
 .files-col > #files:empty { display: none; }
-.files-col:has(> #browser:not([hidden])) > #files:empty { display: flex; }
 #current .window { height: 100%; }
 .files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
 
@@ -149,6 +147,7 @@ button { font: inherit; color: inherit; }
 .icon svg { display: block; width: 46px; height: 46px; transition: transform .2s cubic-bezier(.2, .8, .3, 1), filter .2s; }
 .icon.folder { color: var(--folder); }
 .icon.locked { color: #8a8475; }
+.icon.app { color: var(--web); }
 .icon .lock-plate { fill: var(--win); }
 .icon .label {
   padding: 1px 5px;
@@ -213,6 +212,7 @@ button { font: inherit; color: inherit; }
 }
 .row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
 .row.folder svg { color: var(--folder); }
+.row.app svg { color: var(--web); }
 .row.locked svg { color: #8a8475; }
 .row .lock-plate { fill: var(--win); }
 .row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
@@ -433,6 +433,21 @@ button { font: inherit; color: inherit; }
   transition: color .15s, background-color .15s;
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
+/* An editable file's Edit button, beside its ×. */
+.titlebar .edit {
+  flex: none;
+  padding: 1px 10px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
+  box-shadow: var(--hi);
+  color: var(--text);
+  font: 11.5px var(--sans);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.titlebar .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
+.titlebar .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
 .viewer-body {
   flex: 1;
   overflow: auto;
@@ -464,10 +479,11 @@ button { font: inherit; color: inherit; }
 .viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
 
 /* ---------- web browser ---------- */
-/* The internet, through the sandbox's mirror. It covers the folder and file
-   columns, and it's the only bright thing on the screen. */
+/* The internet, through the sandbox's mirror. Like a file, it fills the right
+   column (the current folder moves to the middle), and it's the only bright
+   thing on the screen. */
 
-.browser { position: absolute; inset: 0; z-index: 8; animation: fade-in .25s ease; }
+.browser { position: absolute; inset: 0; z-index: 1; animation: fade-in .25s ease; }
 .urlbar {
   flex: none;
   display: flex;
@@ -510,7 +526,7 @@ button { font: inherit; color: inherit; }
   --paper: #f6f4ef;
   flex: 1;
   overflow: auto;
-  padding: 34px 48px 48px;
+  padding: 28px 30px 40px;
   background: var(--paper);
   color: var(--ink);
   font: 15px/1.5 var(--sans);

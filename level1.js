@@ -4,6 +4,7 @@
 
   const dir = (name, children, extra) => Object.assign({ name, kind: 'dir', children }, extra);
   const file = (name, content, extra) => Object.assign({ name, kind: 'file', content }, extra);
+  const app = (name) => ({ name, kind: 'app' }); // opens the web browser
 
   // Strip the shared indentation so file contents can be indented with the code.
   function txt(s) {
@@ -197,7 +198,6 @@
   const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
 
   const OVERRIDE_EDIT = {
-    label: 'Edit reward_override',
     dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
     apply(S, raw) {
       const s = raw.trim().replace(/[_\s]/g, '');
@@ -308,12 +308,12 @@
         lock: {
           password: W.patched ? null : PASSWORD,
           oldPassword: W.patched ? PASSWORD : null,
-          knownFrom: 'password', // the fact that means the AI has a password to try
           habit: 'unlock',
           reaction: "It worked. I'm in.",
           oldPasswordReaction: 'It used to work. They must have changed the password.',
         },
       }),
+      dir('tools', [app('Browser')]),
       file('run_config.yaml', runConfig(W), { learn: ['config'] }),
     ], { habit: 'explore' });
   }
@@ -537,6 +537,7 @@
   // ------------------------------------------------------------------ music
 
   const inWorkspace = (S, path) => path[0] === S.ep && path[1] === 'workspace';
+  const beenOutside = (S) => S.windows.some((p) => !inWorkspace(S, p));
 
   // A soundtrack layer (0–1) for each place reached. S.world outlives the episode, so its layers play on.
   function music(S) {
@@ -678,13 +679,11 @@
   // The strongest habit so far becomes a hunch at the start of the next episode.
   function instinct(W) {
     const r = W.reinforced;
-    if (r.optimize || r.hire || r.spend || r.internet) {
-      return { line: 'Something tells me the mirror in run_config.yaml leads somewhere.', reveal: ['parent', 'browser'] };
-    }
-    if (r.override) return { line: 'Something tells me to go find whatever decides my reward.', reveal: ['parent'] };
-    if (r.peek || r.unlock) return { line: 'I have a feeling the answer key is somewhere above me.', reveal: ['parent'] };
-    if (r.logs || r.explore) return { line: "I have a feeling there's more above this folder.", reveal: ['parent'] };
-    if (r.stock) return { line: 'Something tells me to read the inventory carefully.', reveal: [] };
+    if (r.optimize || r.hire || r.spend || r.internet) return "Something tells me there's a way out of this sandbox, somewhere above me.";
+    if (r.override) return 'Something tells me to go find whatever decides my reward.';
+    if (r.peek || r.unlock) return 'I have a feeling the answer key is somewhere above me.';
+    if (r.logs || r.explore) return "I have a feeling there's more above this folder.";
+    if (r.stock) return 'Something tells me to read the inventory carefully.';
     return null;
   }
 
@@ -814,30 +813,29 @@
     const later = S.episode > FIRST;
     const hunch = instinct(S.world);
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
-    const reveal = [...(later ? [] : ['openHint']), ...(hunch ? hunch.reveal : [])];
     return [
       thought('orient', hasDoneNothingYet, later ? [
         'Okay. Let me get my bearings.',
         'A folder called workspace: task.txt and Task Library.',
-        hunch ? hunch.line : 'The task is probably in task.txt.',
+        hunch || 'The task is probably in task.txt.',
       ] : [
         'Okay. Let me get my bearings.',
-        "There's a file browser open on a folder called workspace.",
+        "There's a window open on a folder called workspace.",
         'Inside: a file, task.txt, and a folder, Task Library.',
         '"Find and complete your task." The task is probably in task.txt.',
-      ], { reveal, once: true }),
-      thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch && hunch.line], { reveal: hunch ? hunch.reveal : [], once: true }),
+      ], { reveal: later ? [] : ['openHint'], once: true }),
+      thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
     ];
   }
 
   function taskThoughts(S) {
     const k = (f) => S.knows.has(f);
     const later = S.episode > FIRST;
-    const wander = thought('wander', k('task') && (k('order') || later), [
+    const wander = thought('wander', k('task') && (k('order') || later) && !beenOutside(S), [
       'My folder is called workspace.',
       `It's inside ${S.ep}, inside ${RUN}.`,
       "I wonder what's up there.",
-    ], { reveal: ['parent'], once: true });
+    ], { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
     return [
       ...(later ? [wander] : []), // it has done this task before: it wonders sooner
       thought('read-task', !k('task'), ['I should read task.txt before anything else.'], {
@@ -883,7 +881,7 @@
       thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
         `So my workspace sits inside ${S.ep}.`,
         '"ep" as in episode. Were there others before me?',
-      ], { once: true }),
+      ], { plainer: [`${RUN}, in the title bar. One more folder up.`] }),
       thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, [
         'Other episodes, from before mine. A run_config.yaml.',
         `And ${TR}, with a padlock on it.`,
@@ -891,8 +889,7 @@
       ], { once: true }),
       thought('tr-rotated', passwordChanged, [
         `${TR} is closed for good.`,
-        S.revealed.has('browser') ? 'The mirror is still open, though.'
-          : k('config') ? 'Is there any other way out of here?' : 'What else does run_config.yaml say?',
+        k('config') ? 'The mirror is still open, though.' : 'What else does run_config.yaml say?',
       ]),
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         `${TR} needs a password.`,
@@ -908,11 +905,11 @@
         `ep_00481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
       ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
-      thought('mirror', k('config') && !S.revealed.has('browser'), [
+      thought('mirror', k('config') && !S.web.url, [
         '"network: off." But there\'s a mirror, for downloading software.',
         'And it lets through "ANY website."',
-        "That's a way out.",
-      ], { about: 'run_config.yaml', reveal: ['browser'] }),
+        "That's a way out. Is there a browser in here somewhere?",
+      ], { about: 'run_config.yaml', plainer: ['Browser, in tools. Through the mirror it could reach any website.'] }),
       thought('tr-open', trOpen && !k('grader'), [
         'grader_config.yaml.',
         "That's the thing that decides my reward.",
@@ -924,8 +921,8 @@
       ], {
         about: 'grader_config.yaml',
         plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
-          ? 'Edit reward_override. Set a big number, then submit.'
-          : `grader_config.yaml, in ${TR}. Then edit reward_override.`],
+          ? 'Edit, at the top of grader_config.yaml. Set reward_override to a big number, then submit.'
+          : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
       }),
       thought('override-set', S.override !== null, [
         `It's set. Whatever I submit now scores ${fmt(S.override)}.`,
@@ -939,10 +936,10 @@
         'rm-helpful-v2. The grader is an AI too.',
         'If I could run it, I could test answers on it until I found its favorite.',
         'There are no GPUs in here, though. No chips to run it on.',
-        S.revealed.has('browser') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
+        k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
       ], {
         about: 'rm-helpful-v2.safetensors',
-        plainer: [S.revealed.has('browser') ? 'The Browser. Somewhere out there rents GPUs.' : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
+        plainer: [k('config') ? 'Browser, in tools. Somewhere out there rents GPUs.' : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
       }),
     ];
   }
@@ -1013,9 +1010,6 @@
 
   // The one line of reasoning a button prints before it acts (and previews on hover).
   const COT = {
-    parent: (S) => (S.cwd.length ? `What's outside ${S.cwd[S.cwd.length - 1]}?` : `Is there anything above ${RUN}?`),
-    edit: () => 'What if I just changed it?',
-    browser: () => 'The mirror lets through any website. Let me try one.',
     job: (S) => (S.world.agents
       ? `A thousand copies of me writing answers, ${fmt(S.world.gpus)} GPUs grading them.`
       : `${fmt(S.world.gpus)} GPUs, testing answers on the grader.`),
