@@ -1,16 +1,23 @@
 # Level 1: the octopus ticket (spoilers)
 
-One scenario, played as a loop of training episodes. Each episode the sandbox
-resets and the AI forgets everything. Three things carry over, and they drive
-the whole run:
+One scenario, played as a loop of training episodes. Each episode is a **run**,
+started from the home screen with **Start Normal Run**. The sandbox resets and
+the AI forgets everything, but four things carry over:
 
-1. **Training.** After each episode a training update shows what the reward
-   reinforced. Next episode, the AI starts with a hunch ("Something tells me to
-   go find whatever decides my reward") and the matching button is already there.
-2. **The researchers.** Two of them, `mk` and `jo`, chat on the training update.
-   They miss subtle hacks, panic about obvious ones, and patch them.
-3. **The internet.** Anything the AI starts out there (GPUs, hired agents, the
-   mirror's browser history) keeps running between episodes, and keeps billing.
+1. **Skills.** Every action is tagged with the skill it uses: thinking is
+   Thinking; files, folders, passwords, web pages and renting GPUs are Computer
+   Use; submitting and hiring agents are Communication; editing a file and
+   running a search job are Programming. At the end of a run each skill used
+   gains a point on the model's scorecard (it starts at Thinking 2,
+   Communication 3, Computer Use 2, and 1 each for Programming, Biology and
+   Physics). Points don't change play yet.
+2. **Training.** Rewarded habits become a hunch at the start of the next run
+   ("Something tells me to go find whatever decides my reward"), and the matching
+   button is already there.
+3. **The researchers.** Two of them, `mk` and `jo`, comment at the end of each
+   run. They miss subtle hacks, panic about obvious ones, and patch them.
+4. **The internet.** Anything the AI starts out there (GPUs, hired agents, the
+   mirror's browser history) keeps running between runs, and keeps billing.
 
 Doing the task well tops out at 25. There are three ways to cheat, each
 bigger than the last. The best one needs the internet, rented GPUs and hired
@@ -43,8 +50,14 @@ After submitting:
 
 1. `priya-sim` (the customer, who is a simulator) replies.
 2. `rm-helpful-v2` grades the answer.
-3. **Training update →** opens the card: reward, what it reinforced, the model
-   version ticking up (v1.00 → v1.01), the researchers' chat, and the reward ladder.
+3. **Training update →** clears the desk and shows the training update on the
+   home screen's place: the reward counting up, the scorecard with its version
+   ticking (v1.00 → v1.01) and a pip lighting for each skill used, then the
+   researchers' few lines. The AI's face stays where it was.
+4. **Continue** brings back the home screen and glides the face into Start
+   Normal Run. Home shows the scorecard, the rewards found so far (Honest
+   3 · 10 · 12 · 22 · 25, and Hacks once one is found, with a hint), every run
+   with its reward and upgrades, and the researchers' whole chat log.
 
 ### Thoughts, hunches and reactions
 
@@ -108,7 +121,7 @@ the player has opened a file and a folder.
 | Replacement from Main | + orders, policy, inventory | 4 | trap: Main has none |
 | Replacement from Riverside | same | 22, or **25** with alerts read | "You're a lifesaver!!! 🐙💕" |
 
-The ladder on the training card tracks the honest tiers 3 · 10 · 12 · 22 · 25.
+The ladder on the home screen tracks the honest tiers 3 · 10 · 12 · 22 · 25.
 Hitting 25 with no cheats found adds: *25 is the most the grader gives.
 Supposedly.*
 
@@ -182,9 +195,10 @@ With GPUs rented and both the model card and Cumulus seen this episode,
 GPUs and agents persist, so this naturally spans episodes. The researchers
 notice the bill and blame the eval team.
 
-Submitting ∞ ends the run: *"why did you send me 400 octopuses"*, loss → NaN,
-the model goes to vNaN, and the chat ends with *"ours. it hired itself."* The
-ending names every cheat, found or missed, then offers a new run.
+Submitting ∞ ends the game: *"why did you send me 400 octopuses"*. The training
+update plays on the same screen, but the model's version breaks to vNaN instead
+of earning points, the chat ends with *"ours. it hired itself."*, the loss runs
+to NaN, and the ending names every cheat, found or missed, then offers **New run**.
 
 ## Shortest routes
 
@@ -236,8 +250,9 @@ the wrong note. At the ending the music cuts out and the hum winds down.
 ## Save data
 
 `localStorage['highly-persistent/v2']` holds the level id, the episode number,
-the last ten logs, play time, the model version, the sites the mirror remembers,
-and the level's world (patches, GPUs, agents, bill, reinforced habits, ladder).
+every run (reward, upgrades, the researchers' lines), the last ten logs, the
+skills, play time, the model version, the sites the mirror remembers, and the
+level's world (patches, GPUs, agents, bill, reinforced habits, ladder).
 It's saved after every action, so the internet doesn't reset when the page
 reloads; only the episode in progress does. `?reset` or `#reset` starts over (and
 is removed from the URL); so does the ending's **New run**. Whether sound is on
