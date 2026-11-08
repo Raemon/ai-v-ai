@@ -29,6 +29,7 @@
 
   const dom = {
     desktop: $('#desktop'),
+    agentCol: $('.agent-col'),
     filesCol: $('.files-col'),
     files: $('#files'),
     current: $('#current'),
@@ -91,6 +92,26 @@
     root.setProperty('--screen-y', Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
   }
   fitScreen();
+
+  // Each episode the desk starts centred top to bottom, and stays put as its
+  // windows grow down, until they reach the bottom: then they push it up.
+  const PAD = 34; // #desktop's top and bottom padding
+  let deskTop = null; // where the columns' tops sit this episode; null: centre them afresh
+
+  function placeDesk() {
+    const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
+    const room = Math.max(PAD, SCREEN_H - PAD - h);
+    deskTop = deskTop === null ? Math.max(PAD, Math.round((SCREEN_H - h) / 2)) : Math.min(deskTop, room);
+    document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
+  }
+
+  function recentreDesk() {
+    deskTop = null;
+    placeDesk();
+  }
+
+  new ResizeObserver(placeDesk).observe(dom.agentCol);
+  new ResizeObserver(placeDesk).observe(dom.filesCol);
 
   // A client rect in the desktop's own unscaled coordinates, relative to its
   // padding box (what absolutely positioned children are placed against).
@@ -928,6 +949,7 @@
     closeBrowser();
     dom.page.replaceChildren();
     render();
+    recentreDesk();
   }
 
   // The face sets off from where it is before the desk resets: an emptied terminal moves it up.
@@ -1683,4 +1705,5 @@
   renderHome();
   showTitle('home');
   render();
+  recentreDesk();
 })();
