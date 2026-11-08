@@ -76,7 +76,7 @@
 
   const NS = 'http://www.w3.org/2000/svg';
   const R = 10;     // elbow radius, on the centre line
-  const GAP = 2.5;  // each strand's offset from the centre line
+  const GAP = 2;    // each strand's offset from the centre line: whole pixels
   const LANE = 24;  // how far below the face the arm turns
   const K = 0.5523; // Bézier handles for a quarter circle
 
@@ -94,7 +94,7 @@
   const tip = svgEl('circle', 'tip');
   strandA.setAttribute('pathLength', '1');
   strandB.setAttribute('pathLength', '1');
-  tip.setAttribute('r', '2.4');
+  tip.setAttribute('r', '2.5');
   probe.setAttribute('aria-hidden', 'true');
   probe.style.display = 'none';
   probe.append(strandB, strandA, spine, ring, tip);
@@ -185,14 +185,19 @@
     return d + 'L' + f(V[n - 1]);
   }
 
+  // The middle of a pixel: 1px strokes there, and GAP whole pixels either side, stay sharp.
+  const px = (v) => Math.round(v - 0.5) + 0.5;
+
   function draw(d) {
     const fr = local(face, d);
-    const sx = fr.x + fr.w / 2;
-    const sy = fr.y + fr.h - 0.5;
+    const sx = px(fr.x + fr.w / 2);
+    const sy = px(fr.y + fr.h - 1);
     const lane = sy + LANE;
     const reach = Math.max(0, arm.reach.x);
     const over = Math.max(0, reach - 1) * 90; // a springy overshoot past the pointer
-    const pts = [[sx, sy], [sx, lane], [arm.gx.x, lane], [arm.gx.x, arm.ty.x], [arm.tx.x + over, arm.ty.x]];
+    const gx = px(arm.gx.x);
+    const ty = px(arm.ty.x);
+    const pts = [[sx, sy], [sx, lane], [gx, lane], [gx, ty], [px(arm.tx.x + over), ty]];
     const a = Math.min(1, reach);
     const b = Math.min(1, Math.max(0, arm.trail.x));
     spine.setAttribute('d', route(pts, 0));
@@ -211,7 +216,7 @@
     tip.style.opacity = shown;
     ring.setAttribute('cx', at.x);
     ring.setAttribute('cy', at.y);
-    ring.setAttribute('r', 5.5 + (1 - arm.flash) * (arm.flash > 0 ? 7 : 0));
+    ring.setAttribute('r', 6 + (1 - arm.flash) * (arm.flash > 0 ? 7 : 0));
     ring.style.opacity = shown * (arm.flash > 0 ? arm.flash * 2 : 1);
 
     if (arm.spark >= 0) {

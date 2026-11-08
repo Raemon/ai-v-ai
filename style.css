@@ -28,6 +28,8 @@
   --screen-w: 1440px; /* a 13" MacBook Air */
   --screen-h: 900px;
   --scale: 1;
+  --screen-x: 0px; /* the desktop's top-left corner (game.js) */
+  --screen-y: 0px;
   /* Three columns: terminal, open folders, and the open file (or current folder).
      Each is as tall as what's in it, up to --win-h. */
   --term-w: 460px;
@@ -52,11 +54,12 @@ button { font: inherit; color: inherit; }
    windows start small at the top and grow down it as they fill. */
 #desktop {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 0;
+  top: 0;
   width: var(--screen-w);
   height: var(--screen-h);
-  transform: translate(-50%, -50%) scale(var(--scale));
+  transform: translate(var(--screen-x), var(--screen-y)) scale(var(--scale));
+  transform-origin: 0 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -296,13 +299,14 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(#2a2d32, #1a1b1f);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
-/* The eyes: dim slits; agent.js lights a pupil in each that follows the pointer. */
+/* The eyes: dim slits; agent.js lights a pupil in each that follows the pointer.
+   Sizes and offsets are whole pixels, and the glow is tight, so they stay sharp. */
 .agent-icon .face i {
-  width: calc(var(--s) * .056);
-  height: calc(var(--s) * .3);
+  width: round(calc(var(--s) * .056), 1px);
+  height: round(calc(var(--s) * .3), 1px);
   border-radius: 9px;
-  background: #97a2ae;
-  box-shadow: 0 0 5px rgba(205, 225, 245, .32), 0 0 12px rgba(170, 205, 245, .16);
+  background: #8a95a2;
+  box-shadow: 0 0 4px rgba(170, 205, 245, .14);
 }
 
 /* ---------- terminal ---------- */
@@ -1047,7 +1051,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .agent-icon { --gx: 0; --gy: 0; }
 .agent-icon .face i {
   position: relative;
-  transform: translate(calc(var(--gx) * var(--s) * .035), calc(var(--gy) * var(--s) * .02));
+  transform: translate(round(calc(var(--gx) * var(--s) * .035), 1px), round(calc(var(--gy) * var(--s) * .02), 1px));
   transition: transform .35s cubic-bezier(.2, .8, .3, 1);
 }
 .agent-icon .face i::after {
@@ -1055,12 +1059,12 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(50% - var(--s) * .05);
-  height: calc(var(--s) * .1);
+  top: round(calc(50% - var(--s) * .05), 1px);
+  height: round(calc(var(--s) * .1), 1px);
   border-radius: 9px;
   background: #fff;
-  box-shadow: 0 0 3px #fff, 0 0 8px rgba(190, 225, 255, .8);
-  transform: translate(calc(var(--gx) * var(--s) * .008), calc(var(--gy) * var(--s) * .088));
+  box-shadow: 0 0 2px rgba(200, 230, 255, .7);
+  transform: translateY(round(calc(var(--gy) * var(--s) * .088), 1px));
   transition: transform .22s cubic-bezier(.2, .8, .3, 1), box-shadow .2s;
 }
 
@@ -1077,7 +1081,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   }
 }
 @keyframes agent-blip-eye {
-  28% { box-shadow: 0 0 4px #fff, 0 0 14px rgba(190, 225, 255, 1); }
+  28% { box-shadow: 0 0 3px #fff, 0 0 8px rgba(190, 225, 255, .7); }
 }
 
 /* ---------- the face between screens ---------- */
@@ -1107,11 +1111,11 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   pointer-events: none;
 }
 .probe path { fill: none; stroke: #6b8fb8; stroke-linecap: round; }
-.probe .a { stroke-width: 1.6; stroke-opacity: .8; }
-.probe .b { stroke-width: 1.1; stroke-opacity: .42; }
+.probe .a { stroke-width: 1; stroke: #7f9fc4; }
+.probe .b { stroke-width: 1; stroke-opacity: .5; }
 .probe .spark { stroke: #d4e5fb; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(150, 195, 250, .9)); }
-.probe .tip { fill: #a6c3e6; filter: drop-shadow(0 0 3px rgba(130, 180, 240, .9)); }
-.probe .ring { fill: none; stroke: #6b8fb8; stroke-opacity: .35; stroke-width: 1; }
+.probe .tip { fill: #b4cdec; }
+.probe .ring { fill: none; stroke: #6b8fb8; stroke-opacity: .45; stroke-width: 1; }
 #title-screen:not([hidden]):not(.leaving) ~ .probe { display: none; }
 
 /* ---------- window motion ---------- */

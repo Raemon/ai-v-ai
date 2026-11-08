@@ -84,7 +84,11 @@
 
   function fitScreen() {
     scale = Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
-    document.documentElement.style.setProperty('--scale', scale);
+    const root = document.documentElement.style;
+    root.setProperty('--scale', scale);
+    // Whole pixels: centred on a half pixel, everything on the desktop blurs.
+    root.setProperty('--screen-x', Math.round((window.innerWidth - SCREEN_W * scale) / 2) + 'px');
+    root.setProperty('--screen-y', Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
   }
   fitScreen();
 
