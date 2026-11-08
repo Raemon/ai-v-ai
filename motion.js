@@ -72,7 +72,7 @@
   function ghost(w, rect, scroll) {
     const g = w.cloneNode(true);
     g.removeAttribute('hidden');
-    g.classList.remove('enter', 'late', 'closing', 'flash');
+    g.classList.remove('enter', 'closing', 'flash');
     g.classList.add('ghost');
     g.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
     g.removeAttribute('id');
@@ -158,8 +158,9 @@
     last = snapshot();
     slideColumn(before.col, last.col);
 
-    // Too many folders: game.js shrinks the old windows into a tree itself.
-    const hasTree = (s) => [...s.wins.keys()].some((k) => k.startsWith('tree:'));
+    // Too many folders: game.js shrinks the old windows into a tree, and fades the tree in, itself.
+    const isTree = (k) => k.startsWith('tree:');
+    const hasTree = (s) => [...s.wins.keys()].some(isTree);
     const collapsing = hasTree(last) && !hasTree(before);
 
     for (const [key, now] of last.wins) {
@@ -167,7 +168,7 @@
       const was = before.wins.get(key);
       const from = land(key) || (was && was.rect);
       if (!from) {
-        if (!collapsing) appear(now.el);
+        if (!(collapsing && isTree(key))) appear(now.el);
       } else if (!same(from, now.rect)) {
         morph(key, now, was, from);
       }

@@ -117,8 +117,7 @@ button { font: inherit; color: inherit; }
 .files-col > #files:empty { display: none; }
 .files-col:has(> #browser:not([hidden])) > #files:empty { display: flex; }
 #current .window { height: 100%; }
-.files-col .window.enter { animation: fade-in .2s ease; }
-.files-col .window.enter.late { animation: fade-in .7s ease .35s both; }
+.files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
 .window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }

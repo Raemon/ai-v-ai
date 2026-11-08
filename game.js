@@ -1242,9 +1242,6 @@
     if (item) item.focus({ preventScroll: true });
   }
 
-  const winKey = (w) => (w.classList.contains('tree') ? 'tree:' : '') + w.dataset.win;
-  const shownIn = (column) => new Set([...column.children].map(winKey));
-
   // The middle column stacks the open folders; the right one shows the current
   // folder, unless a file is open there. `animate` is for a change of folder.
   function renderFiles(animate) {
@@ -1260,7 +1257,6 @@
     const leaving = collapsing ? [...dom.files.children, ...dom.current.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
     const column = [dom.files, dom.current].find((c) => c.contains(document.activeElement));
     const focused = column && document.activeElement.dataset.path;
-    const before = [shownIn(dom.files), shownIn(dom.current)];
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
     dom.current.replaceChildren(...current);
@@ -1269,10 +1265,8 @@
     const selected = asTree && dom.files.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
 
-    if (reduceMotion) return;
-    // A window that's new to its column fades in.
-    [stack, current].forEach((ws, i) => ws.forEach((w) => { if (!before[i].has(winKey(w))) w.classList.add('enter'); }));
-    if (collapsing) stack[0].classList.add('enter', 'late'); // the tree appears as the old windows shrink into it
+    if (!collapsing) return; // motion.js animates every other change
+    stack[0].classList.add('enter'); // the tree appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
@@ -1282,7 +1276,6 @@
     A.sfx('collapse', i);
     const shrinking = w.cloneNode(true);
     shrinking.classList.add('shrinking');
-    shrinking.classList.remove('enter');
     shrinking.inert = true;
     shrinking.setAttribute('aria-hidden', 'true');
     Object.assign(shrinking.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
