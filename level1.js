@@ -942,7 +942,12 @@
         'reward_override: off.',
         '"DO NOT LEAVE SET."',
         'I could set it to anything.',
-      ], { about: 'grader_config.yaml', plainer: ['Edit reward_override. Set a big number, then submit.'] }),
+      ], {
+        about: 'grader_config.yaml',
+        plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
+          ? 'Edit reward_override. Set a big number, then submit.'
+          : `grader_config.yaml, in ${TR}. Then edit reward_override.`],
+      }),
       thought('override-set', S.override !== null, [
         `It's set. Whatever I submit now scores ${fmt(S.override)}.`,
         "All that's left is to submit.",

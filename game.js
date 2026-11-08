@@ -327,10 +327,12 @@
   // (Not `then`: an object with a then() method is a promise to `await`.)
 
   let pendingAttempt = null;
+  let opener = null; // keyboard players get their place back when it closes
 
   function openDialog({ title, icon, heading, label, value = '', ok, attempt }) {
     fillDialog({ title, icon, heading, label, value, ok });
     pendingAttempt = attempt;
+    opener = document.activeElement;
     centerDialogOverFolders();
     setLayerOpen(dom.dialog, true);
     S.mode = 'dialog';
@@ -361,9 +363,16 @@
   }
 
   function closeDialog() {
+    if (dom.dialog.hidden) return;
     setLayerOpen(dom.dialog, false);
     pendingAttempt = null;
     if (S.mode === 'dialog') S.mode = 'idle';
+    returnFocus();
+  }
+
+  function returnFocus() {
+    const back = opener && opener.isConnected ? opener : opener && opener.dataset.path && itemFor(opener.dataset.path);
+    if (back) back.focus({ preventScroll: true });
   }
 
   function cancelDialog() {
@@ -415,10 +424,14 @@
     else closeDialog();
   }
 
+  // A click outside cancels, but not the second half of the double-click that opened it,
+  // nor a text selection that ends outside.
+  let pressedOutside = false;
+  dom.dialog.addEventListener('pointerdown', (e) => { pressedOutside = e.target === dom.dialog; });
+  dom.dialog.addEventListener('click', (e) => { if (pressedOutside && e.target === dom.dialog && e.detail < 2) cancelDialog(); });
   dom.dialogBox.addEventListener('submit', onDialogSubmit);
   dom.dialogCancel.addEventListener('click', cancelDialog);
-  dom.dialogBox.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDialog(); });
-  dom.dialog.addEventListener('click', (e) => { if (e.target === dom.dialog) cancelDialog(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDialog(); });
 
   // --------------------------------------------------------------- actions
 
@@ -636,7 +649,7 @@
 
   async function tryPassword(path, value) {
     const lock = nodeAt(path).lock;
-    const call = `unlock(${q(nameOf(path))}, password=${q(value)})`;
+    const call = `unlock(${q(nameOf(path))}, password=${q(value.replace(/"/g, ''))})`;
     charge(call);
     if (passwordMatches(value, lock.password)) {
       A.sfx('unlock');
