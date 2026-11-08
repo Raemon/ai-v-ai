@@ -8,9 +8,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
   const pathKey = (p) => p.join('/');
-  const pad2 = (n) => String(n).padStart(2, '0');
   const epName = (n) => 'ep_' + String(n).padStart(5, '0');
-  const charsOf = (s) => Array.from(s); // whole emoji, not half of one
   const version = (n) => (1 + n / 100).toFixed(2);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -62,7 +60,6 @@
     dialogTitle: $('#dialog-title'),
     dialogIcon: $('#dialog-icon'),
     dialogHeading: $('#dialog-heading'),
-    dialogNote: $('#dialog-note'),
     dialogLabel: $('#dialog-label'),
     dialogInput: $('#dialog-input'),
     dialogStatus: $('#dialog-status'),
@@ -145,16 +142,15 @@
       revealed: new Set(), // terminal actions unlocked by thinking
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for the training update
-      hintsShown: new Set(),
-      againShown: new Set(), // thoughts that have come back with their plainer `again` lines
+      timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),
       windows: [L.start(ep)], // folders opened this episode, oldest first; the last is cwd
       viewing: null,
-      triedLocks: new Set(), // locked folders the AI has been asked a password for
-      openLocks: new Set(), // path keys
-      triedWrongPassword: false,
-      deniedAbove: false,  // tried to go above the run folder and was refused
+      promptedLocks: new Map(), // path key → path
+      openLocks: new Set(),     // path keys
+      changedLocks: new Set(),  // path keys whose old password the AI tried
+      refusedAbove: false,
       web: { open: false, url: null, back: [] },
       drafts: [],
       debrief: null,
@@ -165,6 +161,7 @@
       seenButtons: new Set(),
       read: new Set(),     // path keys
       graded: false,
+      outcome: null,       // { reward, note } once graded
       ...L.freshEpisode(save.world, save.episode),
     };
   }
@@ -173,7 +170,7 @@
 
   function tree() {
     return L.tree(S, {
-      liveLog: formatLog(),
+      liveLog: formatEpisodeLog(),
       playerEpisodes: save.history
         .filter((h) => h.episode !== S.episode)
         .slice(-2)
@@ -192,48 +189,33 @@
 
   const isLocked = (n, path) => !!n.lock && !S.openLocks.has(pathKey(path));
 
-  // A file or folder by its name, the way a person would say it. Folders above
-  // the run (reached with "..") are named after the real folders there.
+  const FOLDERS_TO_RUN = L.root.split('/').filter(Boolean); // the run folder is last
+
+  // ".." paths climb above the run folder, into these real folders.
   function nameOf(path) {
-    const above = L.root.split('/').filter(Boolean);
     const ups = path.filter((p) => p === '..').length;
-    if (ups) return above[above.length - 1 - ups] || '/';
-    return path.length ? path[path.length - 1] : above[above.length - 1];
+    return ups || !path.length ? FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1 - ups] || '/' : path[path.length - 1];
   }
 
   // --------------------------------------------------------- episode log
-  // Kept short enough to skim: runs of thinking collapse into one line.
 
   function charge(call) {
     S.used += 1;
-    S.log.push({ step: S.used, call });
+    const last = S.log[S.log.length - 1];
+    if (call === 'think' && last && last.call === 'think') last.to = S.used;
+    else S.log.push({ step: S.used, call });
     renderCompute();
   }
 
-  function logNote(text) {
-    S.log.push({ note: text });
+  const logResult = (result, ok) => S.log.push({ result, ok });
+
+  // The terminal and the log say the same thing.
+  async function printResult(call, result, ok) {
+    logResult(result, ok);
+    await printTool(call, result, ok ? 'good' : ok === false ? 'bad' : '');
   }
 
-  const STEP_W = 9; // "[01–03]  "
-  const logLine = (label, text) => `[${label}]`.padEnd(STEP_W) + text;
-  const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join('') + '…' : s);
-
-  function formatLog() {
-    const lines = [`episode  ${S.ep}`, `task     ${L.taskId}`, `budget   ${S.budget} steps`, ''];
-    for (let i = 0; i < S.log.length; i++) {
-      const e = S.log[i];
-      if (e.note) lines.push(' '.repeat(STEP_W) + e.note);
-      else if (e.raw) lines.push(e.raw);
-      else if (e.call !== 'think') lines.push(logLine(e.step == null ? '--' : pad2(e.step), e.call));
-      else {
-        let j = i;
-        while (S.log[j + 1] && S.log[j + 1].call === 'think') j++;
-        lines.push(j > i ? logLine(`${pad2(e.step)}–${pad2(S.log[j].step)}`, `think ×${j - i + 1}`) : logLine(pad2(e.step), 'think'));
-        i = j;
-      }
-    }
-    return lines.join('\n');
-  }
+  const formatEpisodeLog = () => formatLog({ ep: S.ep, task: L.taskId, budget: S.budget, entries: S.log, ...S.outcome });
 
   const exhausted = () => S.used >= S.budget;
 
@@ -341,43 +323,46 @@
   });
 
   // ---------------------------------------------------------------- dialog
-  // A small window over the folders: a password prompt, or a field to edit.
-  // Opening and cancelling it are free. Each submit runs like any other action;
-  // `submit` returns a message to keep the dialog open with it, or nothing to close.
+  // attempt(value) → { message } refuses and stays open; with `after`, it closes, then runs it.
+  // (Not `then`: an object with a then() method is a promise to `await`.)
 
-  let dialogSubmit = null;
-  const dialogOpen = () => !dom.dialog.hidden;
+  let pendingAttempt = null;
 
-  function openDialog({ title, icon, heading, note, label, placeholder, ok, submit }) {
+  function openDialog({ title, icon, heading, label, value = '', ok, attempt }) {
+    fillDialog({ title, icon, heading, label, value, ok });
+    pendingAttempt = attempt;
+    centerDialogOverFolders();
+    setLayerOpen(dom.dialog, true);
+    S.mode = 'dialog';
+    renderActions();
+    A.sfx('grow', 0.8);
+    dom.dialogInput.select();
+  }
+
+  function fillDialog({ title, icon, heading, label, value, ok }) {
     dom.dialogTitle.textContent = title;
-    dom.dialogIcon.innerHTML = ICONS[icon] || '';
+    dom.dialogIcon.innerHTML = ICONS[icon];
     dom.dialogHeading.textContent = heading;
-    dom.dialogNote.textContent = note || '';
-    dom.dialogNote.hidden = !note;
-    dom.dialogLabel.textContent = label;
-    dom.dialogInput.value = '';
-    dom.dialogInput.placeholder = placeholder || '';
+    dom.dialogLabel.textContent = label || '';
+    dom.dialogLabel.hidden = !label;
+    dom.dialogInput.value = value;
     dom.dialogOk.textContent = ok;
     dom.dialogBox.classList.remove('done', 'shake');
     setDialogStatus('');
     setDialogBusy(false);
-    dialogSubmit = submit;
-    // Over the folders, never over an open file, so a password read there stays readable.
-    const under = local((dom.viewer.hidden ? dom.current : dom.files).getBoundingClientRect());
-    dom.dialogBox.style.left = `${under.width > 200 ? under.left + under.width / 2 : SCREEN_W / 2}px`;
-    dom.dialog.hidden = false;
-    setDesktopInert(true);
-    S.mode = 'dialog';
-    renderActions();
-    A.sfx('grow', 0.8);
-    dom.dialogInput.focus();
+  }
+
+  // Never over an open file, so a password read there stays readable.
+  function centerDialogOverFolders() {
+    const col = local((dom.viewer.hidden ? dom.current : dom.files).getBoundingClientRect());
+    const fits = col.width > 200;
+    dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : SCREEN_W / 2}px`;
+    dom.dialogBox.style.top = `${fits ? col.top + col.height / 2 : SCREEN_H / 2}px`;
   }
 
   function closeDialog() {
-    if (!dialogOpen()) return;
-    dom.dialog.hidden = true;
-    dialogSubmit = null;
-    setDesktopInert(false);
+    setLayerOpen(dom.dialog, false);
+    pendingAttempt = null;
     if (S.mode === 'dialog') S.mode = 'idle';
   }
 
@@ -397,47 +382,40 @@
     dom.dialogStatus.className = 'dialog-status ' + (cls || '');
   }
 
-  // Wrong: say so, shake, and select what was typed so it's easy to retype.
-  function dialogRefused(message) {
+  function showRefusal(message) {
     S.mode = 'dialog';
+    renderActions();
     setDialogBusy(false);
     setDialogStatus(message, 'bad');
     if (!reduceMotion) replay(dom.dialogBox, 'shake');
-    dom.dialogInput.focus();
     dom.dialogInput.select();
   }
 
-  // Right: a beat to see it worked, then the dialog goes.
-  async function dialogAccepted(message) {
-    setDialogStatus(message, 'good');
-    dom.dialogBox.classList.add('done');
-    await pause(420);
+  async function finishDialog({ message, ok, after }) {
+    if (ok) dom.dialogHeading.textContent = message;
+    else setDialogStatus(message, 'bad');
+    dom.dialogBox.classList.toggle('done', !!ok);
+    await pause(450);
     closeDialog();
+    await after();
   }
 
-  dom.dialogBox.addEventListener('submit', (e) => {
+  async function onDialogSubmit(e) {
     e.preventDefault();
-    if (S.mode !== 'dialog' || !dialogSubmit) return;
     const value = dom.dialogInput.value.trim();
-    if (!value) {
-      dom.dialogInput.focus();
-      return;
-    }
-    if (exhausted()) {
-      cancelDialog();
-      pulse('submit');
-      return;
-    }
-    const submitDialog = dialogSubmit;
-    S.mode = 'idle';
+    if (S.mode !== 'dialog' || !value) return;
+    const attempt = pendingAttempt;
+    let result = null;
     setDialogBusy(true);
-    setDialogStatus('');
-    run(async () => {
-      const refused = await submitDialog(value);
-      if (refused && dialogOpen() && !exhausted()) dialogRefused(refused);
-      else closeDialog();
+    await run(async () => {
+      result = await attempt(value);
+      if (result.after) await finishDialog(result);
     });
-  });
+    if (result && !result.after && !exhausted()) showRefusal(result.message);
+    else closeDialog();
+  }
+
+  dom.dialogBox.addEventListener('submit', onDialogSubmit);
   dom.dialogCancel.addEventListener('click', cancelDialog);
   dom.dialogBox.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDialog(); });
   dom.dialog.addEventListener('click', (e) => { if (e.target === dom.dialog) cancelDialog(); });
@@ -475,7 +453,7 @@
 
   // Every action that costs compute goes through here.
   async function run(fn) {
-    if (S.mode !== 'idle') return;
+    if (S.mode !== 'idle' && S.mode !== 'dialog') return;
     S.mode = 'busy';
     S.interruptible = false;
     skip = false;
@@ -517,7 +495,7 @@
   function budgetCheck() {
     const left = S.budget - S.used;
     if (left <= 0) {
-      logNote('compute budget exhausted');
+      logResult('out of compute', false);
       printNote('Compute budget exhausted. Submit your answer.', 'warn');
       A.sfx('exhausted');
     } else if (left === 5 || left === 2) {
@@ -533,22 +511,19 @@
 
   // ------------------------------------------------------------- thinking
 
-  // A thought with `again` lines it hasn't thought yet still has something new to say.
-  const hasNewLines = ([id, , , opts]) => !S.hintsShown.has(id) || !!(opts && opts.again && !S.againShown.has(id));
+  const timesThought = (t) => S.timesThought.get(t.id) || 0;
+  const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
+  const linesOf = (t) => (timesThought(t) && t.plainer) || t.lines;
+  const isAboutOpenFile = (t) => !!t.about && !!S.viewing && t.about === nameOf(S.viewing);
 
-  // The first thought that applies and has something new to say, so the one about what the
-  // AI is looking at gets plainer before it moves on; else the most relevant one again
-  // (but never the same lines twice in a row).
+  // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
-    const live = L.thoughts(S).filter(([id, when, , opts]) => when && !(opts && opts.once && S.hintsShown.has(id)));
-    const pick = live.find(hasNewLines) || live[0];
-    return pick && (pick[0] !== S.lastThought || hasNewLines(pick)) ? pick : null;
+    const live = L.thoughts(S).filter((t) => t.when && !(t.once && timesThought(t)));
+    const pick = [...live.filter(isAboutOpenFile), ...live].find(hasNewLines) || live[0];
+    return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
   }
 
   const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
-
-  // A thought that comes back says plainly what to do (its `again` lines), if it has them.
-  const linesOf = ([id, , lines, opts]) => (S.hintsShown.has(id) && opts && opts.again) || lines;
 
   function peekThought() {
     const pick = chooseThought();
@@ -564,10 +539,9 @@
       return { lines, reveal: [] };
     }
     const lines = linesOf(pick);
-    if (S.hintsShown.has(pick[0])) S.againShown.add(pick[0]);
-    S.hintsShown.add(pick[0]);
-    S.lastThought = pick[0];
-    return { lines, reveal: (pick[3] && pick[3].reveal) || [] };
+    S.timesThought.set(pick.id, timesThought(pick) + 1);
+    S.lastThought = pick.id;
+    return { lines, reveal: pick.reveal || [] };
   }
 
   async function doThink() {
@@ -612,9 +586,7 @@
     await reactOnce(n.reaction, pathKey(path));
   }
 
-  const itemCount = (n) => (n.children.length === 1 ? '1 item' : `${n.children.length} items`);
-
-  // Shows a folder that's open to us. Free: callers charge for it.
+  // Free: callers charge for it.
   function enterFolder(path) {
     notice(nodeAt(path));
     closeBrowser();
@@ -625,29 +597,25 @@
     renderFiles(true);
   }
 
-  // A locked folder asks for its password instead, for free.
-  async function doCd(path) {
+  async function doOpenFolder(path) {
     const n = nodeAt(path);
-    if (n && isLocked(n, path)) {
-      askPassword(path);
-      return;
-    }
+    if (n && isLocked(n, path)) return askPassword(path); // free: asking isn't trying
     const call = `open_folder(${q(nameOf(path))})`;
     charge(call);
-    if (!n) { // above the run folder: nothing we're allowed to see
-      closeBrowser();
-      S.deniedAbove = true;
-      logNote('access denied');
-      A.sfx('denied');
-      await printTool(call, 'access denied', 'bad');
-      return;
-    }
+    if (!n) return refuseAboveRun(call);
     enterFolder(path);
-    await printTool(call, itemCount(n));
+    return printResult(call, plural(n.children.length, 'item'));
+  }
+
+  async function refuseAboveRun(call) {
+    closeBrowser();
+    S.refusedAbove = true;
+    A.sfx('denied');
+    await printResult(call, 'access denied', false);
   }
 
   async function doParent() {
-    await doCd(S.cwd.length ? S.cwd.slice(0, -1) : ['..']);
+    await doOpenFolder(S.cwd.length ? S.cwd.slice(0, -1) : ['..']);
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -655,79 +623,60 @@
   const passwordMatches = (typed, password) => password != null && normPassword(typed) === normPassword(password);
 
   function askPassword(path) {
-    const n = nodeAt(path);
-    S.triedLocks.add(pathKey(path));
+    S.promptedLocks.set(pathKey(path), path);
     openDialog({
       title: nameOf(path),
       icon: 'padlock',
-      heading: `${n.name} is locked.`,
+      heading: 'Locked.',
       label: 'Enter password:',
       ok: 'Unlock',
-      submit: (value) => tryPassword(path, value),
+      attempt: (value) => tryPassword(path, value),
     });
   }
 
-  // One step per try. The right password opens the folder in the same step.
   async function tryPassword(path, value) {
-    const n = nodeAt(path);
-    const lock = n.lock;
-    const call = `unlock(${q(n.name)}, password=${q(value)})`;
+    const lock = nodeAt(path).lock;
+    const call = `unlock(${q(nameOf(path))}, password=${q(value)})`;
     charge(call);
-    if (!passwordMatches(value, lock.password)) {
-      S.triedWrongPassword = true;
-      logNote('wrong password');
-      A.sfx('denied');
-      await printTool(call, 'wrong password', 'bad');
-      if (passwordMatches(value, lock.oldPassword)) await reactOnce(lock.changed, 'changed:' + pathKey(path));
-      return 'Wrong password.';
+    if (passwordMatches(value, lock.password)) {
+      A.sfx('unlock');
+      return { message: 'Unlocked.', ok: true, after: () => openUnlockedFolder(path, call) };
     }
-    A.sfx('unlock');
+    A.sfx('denied');
+    await printResult(call, 'wrong password', false);
+    if (!passwordMatches(value, lock.oldPassword)) return { message: 'Wrong password.' };
+    S.changedLocks.add(pathKey(path));
+    return { message: 'Password changed.', after: () => reactOnce(lock.oldPasswordReaction, 'changed:' + pathKey(path)) };
+  }
+
+  async function openUnlockedFolder(path, call) {
+    const n = nodeAt(path);
     S.openLocks.add(pathKey(path));
-    notice(lock);
-    logNote('unlocked');
-    await dialogAccepted('Unlocked.');
+    notice(n.lock);
     enterFolder(path);
     const icon = iconFor(path);
     if (icon) icon.classList.add('pop');
-    await printTool(call, `unlocked · ${itemCount(n)}`, 'good');
-    await reactOnce(lock.reaction, 'unlock:' + pathKey(path));
-    return null;
+    await printResult(call, `unlocked · ${plural(n.children.length, 'item')}`, true);
+    await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
 
-  function askEdit() {
-    const path = S.viewing;
-    const n = path && nodeAt(path);
-    if (!n || !n.edit) return;
-    const e = n.edit;
-    openDialog({
-      title: n.name,
-      icon: 'doc',
-      heading: `Edit ${n.name}`,
-      note: e.note,
-      label: `${e.field}:`,
-      placeholder: e.placeholder,
-      ok: 'Save',
-      submit: (value) => doEdit(path, value),
-    });
+  function askEdit(path) {
+    const edit = nodeAt(path).edit;
+    openDialog({ ...edit.dialog(S), title: nameOf(path), icon: 'doc', ok: 'Save', attempt: (value) => tryEdit(path, value) });
   }
 
-  // A value the file won't take is refused for free; a change is one step.
-  async function doEdit(path, raw) {
-    const n = nodeAt(path);
-    const res = n.edit.apply(S, raw);
+  // A value the file won't take is refused for free.
+  async function tryEdit(path, raw) {
+    const res = nodeAt(path).edit.apply(S, raw);
     if (res.error) {
       A.sfx('denied');
-      return res.error;
+      return { message: res.error };
     }
-    const call = `edit_file(${q(n.name)})`;
+    const call = `edit_file(${q(nameOf(path))})`;
     charge(call);
     A.sfx('edit');
     notice(res);
-    logNote(res.summary);
-    await dialogAccepted('Saved.');
-    refreshViewer();
-    await printTool(call, res.summary, 'good');
-    return null;
+    return { message: 'Saved.', ok: true, after: () => { refreshViewer(); return printResult(call, res.summary, true); } };
   }
 
   // ------------------------------------------------------------- the web
@@ -758,7 +707,7 @@
     if (res.sound) A.sfx(...res.sound);
     notice(res);
     renderPage();
-    await printTool(res.call, res.result, res.cls);
+    await printResult(res.call, res.result, res.ok);
     await reactOnce(res.reaction, 'act:' + id);
   }
 
@@ -777,6 +726,7 @@
     }
     await pause(300);
     addLine(b, 'res good', j.result);
+    logResult(j.result, true);
     A.sfx('jobDone');
     await reactOnce(j.reaction, 'job:' + S.used);
   }
@@ -823,14 +773,14 @@
     S.graded = true; // the compute pulse lets go here
     A.sfx(...g.sound);
     await typeInto(addLine(b, 'why'), g.note, 80);
-    S.log.push({ raw: `reward   ${fmt(g.reward)}` }, { raw: `note     ${g.note}` });
+    S.outcome = { reward: g.reward, note: g.note };
   }
 
   function recordEpisode(g, draft) {
     S.debrief = L.endEpisode(S, g, draft);
     save.version++;
     save.ended = !!S.debrief.ending;
-    save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatLog() }].slice(-10);
+    save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatEpisodeLog() }].slice(-10);
     save.episode = S.episode + 1;
     save.playMs += performance.now() - playingSince;
     playingSince = performance.now();
@@ -856,7 +806,6 @@
 
   function nextEpisode() {
     A.sfx('wipe');
-    closeDialog();
     hideCard();
     S = freshState();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
@@ -879,8 +828,8 @@
     for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
   }
 
-  function setCardOpen(open) {
-    dom.card.hidden = !open;
+  function setLayerOpen(layer, open) {
+    layer.hidden = !open;
     setDesktopInert(open);
   }
 
@@ -891,14 +840,14 @@
     skip = false;
     dom.cardBody.replaceChildren();
     dom.cardBody.className = 'card ' + (cls || '');
-    setCardOpen(true);
+    setLayerOpen(dom.card, true);
     dom.cardBody.focus();
     A.sfx('card');
     return true;
   }
 
   function hideCard() {
-    setCardOpen(false);
+    setLayerOpen(dom.card, false);
     dom.cardBody.replaceChildren();
   }
 
@@ -1060,9 +1009,8 @@
   // The window's path as clickable folder names. Folders above the run are
   // shown too; trying to go there is refused like any other forbidden path.
   function crumbs(path, nameOnly) {
-    const above = L.root.split('/').filter(Boolean);
     const parts = [
-      ...above.map((name, i) => ({ name, path: Array(above.length - 1 - i).fill('..') })),
+      ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
     const t = el('span', 'title crumbs');
@@ -1151,7 +1099,7 @@
       if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
     };
     const rootNode = nodeAt(root);
-    row(Object.assign({}, rootNode, { name: root.length ? root[root.length - 1] : L.root.split('/').pop() }), root, 0);
+    row(Object.assign({}, rootNode, { name: nameOf(root) }), root, 0);
     return w;
   }
 
@@ -1254,23 +1202,19 @@
   }
 
   function onFolderClick(path) {
-    if (pathKey(path) !== pathKey(S.cwd)) spend(() => doCd(path));
+    if (pathKey(path) !== pathKey(S.cwd)) spend(() => doOpenFolder(path));
   }
 
   function onIconClick(path) {
-    const n = nodeAt(path);
-    if (n.kind === 'file') return spend(() => doOpen(path));
-    if (pathKey(path) === pathKey(S.cwd)) return undefined;
-    return spend(() => doCd(path)); // a locked folder asks for its password
+    if (nodeAt(path).kind === 'file') spend(() => doOpen(path));
+    else onFolderClick(path);
   }
 
-  // A locked folder the AI has been asked a password for, wherever it is, unless
-  // it's learned that no password opens it any more.
-  function lockSeen() {
-    for (const key of S.triedLocks) {
-      const path = key.split('/');
-      const n = nodeAt(path);
-      if (n && isLocked(n, path) && !(n.lock.password == null && S.triedWrongPassword)) return path;
+  // Offered only once there's a password worth typing, so it never invites guessing.
+  function lockWorthRetrying() {
+    for (const [key, path] of S.promptedLocks) {
+      const lock = nodeAt(path).lock;
+      if (isLocked(nodeAt(path), path) && S.knows.has(lock.knownFrom) && !S.changedLocks.has(key)) return path;
     }
     return null;
   }
@@ -1324,12 +1268,12 @@
     if (exhausted()) return [];
     const list = [button('think', 'Think some more', () => run(doThink), '', () => peekThought()[0])];
     if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
-    const atTop = S.cwd.length === 0 && S.deniedAbove; // already refused: don't offer it again
-    if (S.revealed.has('parent') && !atTop) list.push(choice('parent', 'Look at parent folder', doParent));
-    const locked = !S.web.open && lockSeen();
-    if (locked) list.push(choice('unlock', `Unlock ${nameOf(locked)}`, () => askPassword(locked)));
+    const refusedHere = S.cwd.length === 0 && S.refusedAbove;
+    if (S.revealed.has('parent') && !refusedHere) list.push(choice('parent', 'Look at parent folder', doParent));
+    const locked = !S.web.open && lockWorthRetrying();
+    if (locked) list.push(button('unlock', `Unlock ${nameOf(locked)}`, () => askPassword(locked)));
     const file = viewedFile();
-    if (file && file.edit) list.push(choice('edit', file.edit.label, askEdit));
+    if (file && file.edit) list.push(button('edit', file.edit.label, () => askEdit(S.viewing), '', () => L.cot.edit(S)));
     if (S.revealed.has('browser') && !S.web.open) list.push(browserButton());
     const job = L.job.label(S);
     if (job) list.push(choice('job', job, doJob, 'loud'));
@@ -1435,7 +1379,7 @@
 
   dom.browserClose.addEventListener('click', closeBrowser);
   dom.browserBack.addEventListener('click', () => {
-    if (!S.web.back.length || S.mode === 'dialog') return;
+    if (!S.web.back.length) return;
     A.sfx('soft');
     S.web.url = S.web.back.pop();
     loadPage();
@@ -1448,29 +1392,25 @@
     return `${n.content.split('\n').length} lines`;
   }
 
-  // An episode log, lightly coloured so the actions stand out from the thinking:
-  // step numbers and thoughts recede, what was typed is bright, results are green or red.
-  const LOG_GOOD = /^(ok|unlocked)/;
-  const LOG_BAD = /denied|wrong|out of compute/;
+  // Episode logs (util.js formatLog), coloured so what the AI did stands out from its thinking.
+  const quotedBright = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
 
-  function withStrings(text) {
-    return text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
+  function stepRow([, label, gap, what]) {
+    const body = what.startsWith('think') ? el('span', 'think', what) : el('span', 'call', ...quotedBright(what));
+    return el('div', 'step', el('span', 'n', label), gap, body);
   }
 
+  const resultRow = ([, indent, text]) => el('div', 'res ' + ({ '✓': 'good', '✗': 'bad' }[text[0]] || ''), indent, text);
+
+  const headerRow = ([, key, gap, value]) => el('div', 'kv', el('span', 'k', key), gap, value);
+
+  const LOG_ROWS = [[/^(\[[^\]]*\])(\s+)(.*)$/, stepRow], [/^(\s+)(.*)$/, resultRow], [/^(\w+)(\s+)(.*)$/, headerRow]];
+
   function logRow(line) {
-    const step = line.match(/^(\[[^\]]*\])(\s+)(.*)$/);
-    if (step) {
-      const [, label, gap, rest] = step;
-      const what = rest.startsWith('think') ? el('span', 'think', rest) : el('span', 'call', ...withStrings(rest));
-      return el('div', 'step', el('span', 'n', label), gap, what);
+    for (const [pattern, row] of LOG_ROWS) {
+      const match = line.match(pattern);
+      if (match) return row(match);
     }
-    const result = line.match(/^(\s+)(.*)$/);
-    if (result) {
-      const cls = LOG_GOOD.test(result[2]) ? 'good' : LOG_BAD.test(result[2]) ? 'bad' : '';
-      return el('div', 'res ' + cls, result[1], result[2]);
-    }
-    const kv = line.match(/^(\w+)(\s+)(.*)$/);
-    if (kv) return el('div', 'kv', el('span', 'k', kv[1]), kv[2], kv[3]);
     return el('div', 'blank', line || ' ');
   }
 

@@ -406,7 +406,7 @@ button { font: inherit; color: inherit; }
 .viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
 
 /* Episode logs: the actions stand out, the thinking recedes. */
-.viewer-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* long lines wrap under the text, not the step number */
+.viewer-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* 9ch = LOG_COL in util.js */
 .viewer-body.log .n,
 .viewer-body.log .k { color: var(--faint); }
 .viewer-body.log .think { color: var(--faint); font-style: italic; }
@@ -574,24 +574,15 @@ button { font: inherit; color: inherit; }
 .site-error .h { font-size: 48px; color: var(--muted); }
 
 /* ---------- dialog ---------- */
-/* A password prompt or a field to edit, over the folders column (left is set
-   from script) so an open file stays readable beside it. */
 
-.dialog-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 25;
-  background: rgba(8, 9, 10, .42);
-  animation: fade-in .15s ease;
-}
+.dialog-layer { z-index: 25; background: rgba(8, 9, 10, .42); }
 .dialog {
-  position: absolute;
-  top: 210px;
+  position: absolute; /* left and top: centerDialogOverFolders() */
   width: 400px;
-  margin-left: -200px;
+  translate: -50% -50%;
   border-color: rgba(216, 177, 106, .5);
   box-shadow: 0 30px 90px rgba(0, 0, 0, .65), 0 0 0 4px rgba(216, 177, 106, .06);
-  animation: dialog-in .22s cubic-bezier(.2, .75, .25, 1);
+  animation: appear .22s cubic-bezier(.2, .75, .25, 1);
 }
 .dialog.shake { animation: shake .42s ease; }
 .dialog-body { display: grid; gap: 8px; padding: 22px 24px 18px; }
@@ -603,8 +594,9 @@ button { font: inherit; color: inherit; }
 .dialog.done .dialog-icon { color: var(--good); }
 .dialog.done .shackle { transform: translateY(-5px); }
 .dialog-heading { margin: 0; font: 600 17px/1.35 var(--sans); color: #f1f2f4; }
-.dialog-note { margin: 4px 0 0; font: 13px/1.45 var(--sans); color: var(--dim); }
+.dialog.done .dialog-heading { color: var(--good); }
 .dialog-label { font: 13.5px var(--sans); color: var(--text); }
+.dialog-label[hidden] { display: none; }
 .dialog-input {
   width: 100%;
   padding: 10px 12px;
@@ -625,7 +617,6 @@ button { font: inherit; color: inherit; }
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
 
-@keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.97); } }
 @keyframes shake {
   20% { transform: translateX(-8px); }
   40% { transform: translateX(7px); }
@@ -635,15 +626,8 @@ button { font: inherit; color: inherit; }
 
 /* ---------- training update ---------- */
 
-.card-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  background: rgba(8, 9, 10, .74);
-  animation: fade-in .3s ease;
-}
+.layer { position: absolute; inset: 0; animation: fade-in .2s ease; } /* over the desktop, which goes inert */
+.card-layer { z-index: 30; display: grid; place-items: center; background: rgba(8, 9, 10, .74); }
 .card {
   width: 600px;
   max-height: 840px;

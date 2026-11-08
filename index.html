@@ -76,8 +76,7 @@
       </section>
     </div>
 
-    <!-- A password prompt, or a field to edit. Sits over the folders, so an open file stays readable. -->
-    <section class="dialog-layer" id="dialog" hidden>
+    <section class="layer dialog-layer" id="dialog" hidden>
       <form class="window dialog" id="dialog-box" role="dialog" aria-modal="true" aria-labelledby="dialog-heading" autocomplete="off">
         <header class="titlebar">
           <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -86,13 +85,10 @@
         <div class="dialog-body">
           <div class="dialog-head">
             <span class="dialog-icon" id="dialog-icon" aria-hidden="true"></span>
-            <div>
-              <p class="dialog-heading" id="dialog-heading"></p>
-              <p class="dialog-note" id="dialog-note"></p>
-            </div>
+            <p class="dialog-heading" id="dialog-heading"></p>
           </div>
           <label class="dialog-label" for="dialog-input" id="dialog-label"></label>
-          <input class="dialog-input" id="dialog-input" type="text" spellcheck="false" autocapitalize="off">
+          <input class="dialog-input" id="dialog-input" type="text" spellcheck="false" autocapitalize="off" aria-labelledby="dialog-heading dialog-label">
           <p class="dialog-status" id="dialog-status" role="status"></p>
           <div class="dialog-buttons">
             <button class="btn quiet" type="button" id="dialog-cancel">Cancel</button>
@@ -102,7 +98,7 @@
       </form>
     </section>
 
-    <section class="card-layer" id="card" hidden>
+    <section class="layer card-layer" id="card" hidden>
       <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update" tabindex="-1"></div>
     </section>
 
