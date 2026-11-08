@@ -648,6 +648,31 @@ button { font: inherit; color: inherit; }
 .pips { display: flex; gap: 5px; }
 .pips i { width: 13px; height: 13px; border: 1px solid var(--dim); border-radius: 2px; }
 
+/* ---------- sound ---------- */
+
+.sound-toggle {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.sound-toggle:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.sound-toggle:focus-visible { outline: 1px solid var(--dim); }
+.sound-toggle svg { width: 16px; height: 16px; }
+.sound-toggle .cross,
+.sound-toggle.off .waves { display: none; }
+.sound-toggle.off .cross { display: inline; }
+
 /* ---------- tooltip ---------- */
 
 .tooltip {

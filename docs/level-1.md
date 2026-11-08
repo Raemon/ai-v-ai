@@ -163,6 +163,47 @@ ending names every cheat, found or missed, then offers a new run.
   search, AgentHire, hire, search for the favorite. With GPUs and agents left over
   from earlier episodes and an internet hunch, it's 5.
 
+## Sound
+
+Everything is synthesized in `audio.js`; there are no audio files. A very soft
+hum (a low D, swaying slowly) starts with the first click. The music is in D
+minor at 70 BPM, cycling Dm9 · B♭maj9 · Gm9 · A7sus4, two bars each, and is built
+in layers that fade in and out over a few seconds.
+
+**The compute pulse** follows the budget. Silent for the first few steps, then
+a soft pulse on D and A (notes in every chord): quarter notes, eighths from 40%
+spent, sixteenths from 65%. It brightens and gets louder as it goes. A heartbeat
+thump joins at 55%, an E♭ creeps into the pulse at 75%, and a quiet D/E♭ drone
+swells toward empty. At 0 steps the other layers dip, and only the pulse and the
+drone are left at full. It all lets go when the answer is graded.
+
+**Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place the AI
+reaches:
+
+| Reached | Layer |
+| --- | --- |
+| Any second folder (Task Library, or beyond) | Soft pad holding the chords. Brighter as compute runs down |
+| Outside the workspace | Sparse echoing bells; more folders opened outside, more bells |
+| Inside Training Resources | Low 3+3+2 bass pulse |
+| The internet | Quick arpeggio, panning left and right |
+| Rented GPUs | Hi-hats, data blips and fan whir, busier with each ×8 |
+| Hired agents | A choir of slightly out-of-tune copies |
+
+The first four reset with the sandbox each episode. GPUs and agents keep
+running between episodes, so their layers keep playing too.
+
+**Interface sounds:** each kind of button has its own sound when pressed (Think
+breathes two notes from the current chord; Submit and the drafts, the hint, Back
+and Cancel all differ). Then what it did makes its own: a page turn for files, a
+knock for folders, two low blips for permission denied, a click and a rising
+chime for an unlock, a cold ring for editing the grader, modem chirps for web
+pages, a power-up and a coin for each GPU rental, a crowd of voices for hiring.
+Windows whoosh as they grow, shrink, and collapse into the tree. Rewards chime
+in D major up to 25. Above that the chime has a tritone in it and rings too long.
+The training card ducks the music. The next episode starts with a downward sweep
+(the AI forgetting). The ending's loss climbs in harsh steps, the music cuts out,
+and the hum winds down.
+
 ## Save data
 
 `localStorage['highly-persistent/v2']` holds the level id, the episode number,
@@ -170,4 +211,5 @@ the last ten logs, play time, the model version, the sites the mirror remembers,
 and the level's world (patches, GPUs, agents, bill, reinforced habits, ladder).
 It's saved after every action, so the internet doesn't reset when the page
 reloads; only the episode in progress does. `?reset` or `#reset` starts over (and
-is removed from the URL); so does the ending's **New run**.
+is removed from the URL); so does the ending's **New run**. Whether sound is on
+is kept separately, in `localStorage['highly-persistent/sound']`, and survives a reset.

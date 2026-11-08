@@ -69,10 +69,15 @@
     <section class="card-layer" id="card" hidden>
       <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update" tabindex="-1"></div>
     </section>
+
+    <button class="sound-toggle" id="sound" type="button" aria-label="Sound" aria-pressed="true" title="Sound (M)">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7.5h3l4.5-3.5v12L6 12.5H3z" fill="currentColor"/><path class="waves" d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.8 5.2a6.8 6.8 0 0 1 0 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="cross" d="M13.5 8l4 4M17.5 8l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
   </main>
   <div class="tooltip" id="tooltip" role="tooltip" hidden><span id="tooltip-text"></span><i class="tooltip-arrow" aria-hidden="true"></i></div>
 
   <script src="util.js"></script>
+  <script src="audio.js"></script>
   <script src="level1.js"></script>
   <script src="game.js"></script>
 </body>

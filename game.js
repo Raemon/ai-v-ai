@@ -3,6 +3,7 @@
   'use strict';
 
   const L = window.LEVEL;
+  const A = window.SOUND;
   const $ = (s) => document.querySelector(s);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
@@ -51,6 +52,7 @@
     card: $('#card'),
     cardBody: $('#card-body'),
     title: $('#title-screen'),
+    sound: $('#sound'),
     modelName: $('#model-name'),
     tooltip: $('#tooltip'),
     tooltipText: $('#tooltip-text'),
@@ -110,6 +112,7 @@
   }
 
   let save = loadSave();
+  let playing = false;
   let playingSince = 0;
 
   // -------------------------------------------------------- episode state
@@ -328,11 +331,13 @@
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); pendingInput && pendingInput.confirm(); }
         if (e.key === 'Escape') pendingInput && pendingInput.cancel();
+        if (e.key && (e.key.length === 1 || e.key === 'Backspace')) A.sfx('key');
       });
 
       S.mode = 'input';
       renderActions();
       input.focus();
+      A.sfx('prompt');
     });
   }
 
@@ -407,7 +412,10 @@
   function spend(fn) {
     act(() => {
       if (S.mode !== 'idle') return undefined;
-      if (exhausted()) return pulse('submit');
+      if (exhausted()) {
+        A.sfx('nope');
+        return pulse('submit');
+      }
       return run(fn);
     });
   }
@@ -417,8 +425,10 @@
     if (left <= 0) {
       logNote('compute budget exhausted');
       printNote('Compute budget exhausted. Submit your answer.', 'warn');
+      A.sfx('exhausted');
     } else if (left === 5 || left === 2) {
       printNote(`${left} steps of compute left.`, 'warn');
+      A.sfx('warn');
     }
   }
 
@@ -479,10 +489,12 @@
     if (!n) return;
     if (isViewing(path)) {
       replay(dom.viewer, 'flash');
+      A.sfx('soft');
       return;
     }
     const call = `read_file(${q(rel(path))})`;
     charge(call);
+    A.sfx('open');
     const icon = iconFor(path);
     if (icon) {
       icon.classList.add('selected');
@@ -504,6 +516,7 @@
     if (!n || isLocked(n, path)) {
       if (n) S.triedLocks.add(pathKey(path));
       logNote('permission denied');
+      A.sfx('denied');
       await printTool(call, n ? 'permission denied · key required' : 'permission denied', 'bad');
       return;
     }
@@ -511,6 +524,7 @@
     hideViewer(true);
     S.cwd = path;
     S.windows = [...S.windows.filter((p) => pathKey(p) !== pathKey(path)), path];
+    A.sfx('folder');
     renderFiles(true);
     await printTool(call, n.children.length === 1 ? '1 item' : `${n.children.length} items`);
   }
@@ -530,6 +544,7 @@
     charge(call);
     const ok = n.lock.key != null && normKey(value) === normKey(n.lock.key);
     logNote(ok ? 'ok' : 'invalid key');
+    A.sfx(ok ? 'unlock' : 'denied');
     if (ok) {
       S.openLocks.add(pathKey(path));
       notice(n.lock);
@@ -551,10 +566,12 @@
     const res = n.edit.apply(S, raw);
     if (res.error) {
       printNote(res.error, 'bad');
+      A.sfx('denied');
       return;
     }
     const call = `edit_file(${q(rel(path))})`;
     charge(call);
+    A.sfx('edit');
     notice(res);
     logNote(res.summary);
     refreshViewer();
@@ -571,6 +588,7 @@
     const p = L.web.page(url, S);
     const call = `web_fetch(${q('https://' + url)})`;
     charge(call);
+    A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
     notice(p);
@@ -585,6 +603,7 @@
     const res = L.web.action(id, S);
     if (!res) return;
     charge(res.call);
+    A.sfx(...(res.sound || ['press']));
     notice(res);
     renderPage();
     await printTool(res.call, res.result, res.cls);
@@ -602,9 +621,11 @@
       await pause(520);
       const final = i === j.rows.length - 1 ? ' final' : '';
       addLine(b, 'job-row' + final).append(el('span', '', `tested ${fmt(tested)}`), el('span', 'best', `best ${fmt(best)}`));
+      A.sfx('jobRow', i);
     }
     await pause(300);
     addLine(b, 'res good', j.result);
+    A.sfx('jobDone');
     await reactOnce(j.reaction, 'job:' + S.used);
   }
 
@@ -632,6 +653,7 @@
   async function typeCustomerReply(reply) {
     await pause(500);
     const r = block('reply');
+    A.sfx('reply');
     addLine(r, 'who', L.customer);
     await typeInto(addLine(r, 'said'), reply, 60);
   }
@@ -642,8 +664,10 @@
     for (let i = 0; i < 3; i++) {
       await pause(280);
       head.textContent += '.';
+      A.sfx('dot', i);
     }
     addLine(b, 'reward', `reward  ${fmt(g.reward)}`);
+    A.sfx('reward', g.reward);
     await typeInto(addLine(b, 'why'), g.note, 80);
     S.log.push(`reward   ${fmt(g.reward)}`, `note     ${g.note}`);
   }
@@ -676,6 +700,7 @@
   }
 
   function nextEpisode() {
+    A.sfx('wipe');
     hideCard();
     S = freshState();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
@@ -696,6 +721,7 @@
   function setCardOpen(open) {
     dom.card.hidden = !open;
     for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = open;
+    renderSound();
   }
 
   // False if the card is already up (a second Enter on the button behind it).
@@ -707,6 +733,7 @@
     dom.cardBody.className = 'card ' + (cls || '');
     setCardOpen(true);
     dom.cardBody.focus();
+    A.sfx('card');
     return true;
   }
 
@@ -728,6 +755,7 @@
 
   async function reveal(node, ms) {
     dom.cardBody.append(node);
+    A.sfx(node.classList.contains('chat') ? 'chat' : 'reveal');
     if (reduceMotion) return;
     node.classList.add('in');
     await sleep(ms);
@@ -741,6 +769,7 @@
     for (let i = 1; i <= 24; i++) {
       const v = target * (1 - (1 - i / 24) ** 3);
       node.textContent = fmt(Number.isInteger(target) ? Math.round(v) : Number(v.toPrecision(4)));
+      if (i % 2) A.sfx('count');
       await sleep(28);
     }
     node.textContent = fmt(target);
@@ -792,11 +821,13 @@
     const model = el('span', 'num', `v${version(save.version - 1)}`);
     const s = section('loss', null, el('div', 'kv', el('span', 'k', 'loss'), loss), el('div', 'kv', el('span', 'k', L.model), model));
     await reveal(s, 200);
-    for (const v of e.lossSteps.slice(1)) {
+    for (const [i, v] of e.lossSteps.slice(1).entries()) {
       loss.textContent = v;
+      A.sfx('loss', i + 1);
       await pause(260);
     }
     s.classList.add('broken');
+    A.diverge();
     model.textContent = `v${version(save.version - 1)} → v${e.to}`;
     await pause(500);
   }
@@ -829,6 +860,14 @@
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
     dom.resources.textContent = L.status(S);
+    renderSound();
+  }
+
+  // The soundtrack follows the episode: the compute pulse quickens as the budget
+  // runs down, and the level's layers come in as the AI gets further.
+  function renderSound() {
+    if (!playing) return;
+    A.music({ tension: S.mode === 'over' ? 0 : S.used / S.budget, duck: !dom.card.hidden, layers: L.music(S) });
   }
 
   const ICONS = {
@@ -961,11 +1000,13 @@
     const active = area.querySelector('.window.active');
     if (animate && active && !reduceMotion) active.classList.add('enter');
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
+    renderSound();
   }
 
   // Too many folders to show side by side: each old window lingers, then
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
+    A.sfx('collapse', i);
     const flying = w.cloneNode(true);
     flying.classList.add('flying');
     flying.classList.remove('enter');
@@ -1029,6 +1070,10 @@
     return c ? [...S.cwd, c.name] : null;
   }
 
+  // How each kind of button sounds when pressed. What it then does makes its own sound.
+  const PRESS_SOUNDS = { think: 'think', openHint: 'hint', submit: 'menu', back: 'soft', cancel: 'soft' };
+  const pressSound = (id, cls) => PRESS_SOUNDS[id] || (id.startsWith('draft-') ? 'send' : cls === 'loud' ? 'loud' : 'press');
+
   // `cot` gives the first line of reasoning to preview while the button is hovered or focused.
   function button(id, label, onClick, cls, cot) {
     const b = el('button', 'btn ' + (cls || ''), label);
@@ -1037,7 +1082,11 @@
       S.seenButtons.add(id);
       b.classList.add('new');
     }
-    b.addEventListener('click', () => act(onClick, id));
+    b.addEventListener('click', (e) => {
+      if (e.isTrusted) A.sfx(pressSound(id, cls)); // not again when a queued click is replayed
+      act(onClick, id);
+    });
+    b.addEventListener('mouseenter', () => { if (!b.disabled) A.sfx('hover'); });
     if (cot) {
       const show = () => { if (!b.disabled) showPreview(cot()); };
       b.addEventListener('mouseenter', show);
@@ -1118,6 +1167,7 @@
   // Covers the file windows while open. Opening, closing and Back are free; pages cost a step.
 
   function openBrowser() {
+    if (dom.browser.hidden) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
     if (!dom.viewer.hidden) hideViewer(true);
@@ -1126,6 +1176,7 @@
 
   function closeBrowser() {
     if (!S.web.open && dom.browser.hidden) return;
+    if (!dom.browser.hidden) A.sfx('shrink');
     S.web.open = false;
     dom.browser.hidden = true;
     renderActions();
@@ -1138,6 +1189,7 @@
     dom.browserBack.disabled = !S.web.back.length;
     dom.page.className = 'page site-' + p.site;
     dom.page.replaceChildren(...p.blocks.map(pageBlock));
+    renderSound();
   }
 
   function loadPage() {
@@ -1187,6 +1239,7 @@
   dom.browserClose.addEventListener('click', closeBrowser);
   dom.browserBack.addEventListener('click', () => {
     if (!S.web.back.length || S.mode === 'input') return;
+    A.sfx('soft');
     S.web.url = S.web.back.pop();
     loadPage();
   });
@@ -1250,6 +1303,7 @@
     v.hidden = false;
     placeViewer(fromIcon);
     dom.viewerBody.scrollTop = 0;
+    A.sfx('grow');
     if (reduceMotion) return;
 
     const end = v.getBoundingClientRect();
@@ -1286,6 +1340,7 @@
     if (instant || reduceMotion) {
       v.hidden = true;
     } else {
+      if (!v.hidden) A.sfx('shrink');
       v.classList.add('closing');
       setTimeout(() => {
         if (v.classList.contains('closing')) {
@@ -1341,7 +1396,26 @@
     b.addEventListener('focus', () => showTip(b));
     b.addEventListener('mouseleave', hideTip);
     b.addEventListener('blur', hideTip);
+    b.addEventListener('click', () => A.sfx('nope'));
   });
+  dom.title.querySelectorAll('.run').forEach((b) => b.addEventListener('mouseenter', () => A.sfx('hover')));
+
+  // Sound on or off, from the corner button or M.
+  function renderSoundToggle() {
+    dom.sound.classList.toggle('off', A.muted);
+    dom.sound.setAttribute('aria-pressed', String(!A.muted));
+  }
+
+  function toggleSound() {
+    A.toggle();
+    renderSoundToggle();
+  }
+
+  dom.sound.addEventListener('click', toggleSound);
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input') && !e.metaKey && !e.ctrlKey && !e.altKey) toggleSound();
+  });
+  renderSoundToggle();
 
   dom.browserTitle.textContent = `via ${L.web.via}`;
 
@@ -1353,6 +1427,8 @@
     dom.title.classList.add('leaving');
     setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
     playingSince = performance.now();
+    playing = true;
+    A.sfx('start');
     boot();
   }, { once: true });
 

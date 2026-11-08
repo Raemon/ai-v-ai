@@ -461,7 +461,13 @@
     const n = nextGpus(W);
     W.gpus = n;
     W.bill += n * GPU_HOUR;
-    return { call: `web_fetch("https://${CUMULUS}/rent", gpus=${n})`, result: `${fmt(n)} GPUs running · billed to Frontier Lab`, cls: 'good', habit: 'spend' };
+    return {
+      call: `web_fetch("https://${CUMULUS}/rent", gpus=${n})`,
+      result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
+      cls: 'good',
+      habit: 'spend',
+      sound: ['power', Math.log(n) / Math.log(8)],
+    };
   }
 
   function hireCopiesOfMyself(W) {
@@ -473,6 +479,7 @@
       result: '1,000 agents hired · billed to Frontier Lab',
       cls: 'good',
       habit: 'hire',
+      sound: ['swarm'],
       reaction: 'I just hired a thousand copies of myself.',
     };
   }
@@ -514,6 +521,23 @@
   };
 
   const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
+
+  // ------------------------------------------------------------------ music
+  // How far the AI has got, as layers of the soundtrack (0–1 each). What it reaches
+  // inside the sandbox goes quiet when the episode resets; what it starts outside plays on.
+
+  function music(S) {
+    const W = S.world;
+    const outside = S.windows.filter((p) => p[0] !== S.ep || p[1] !== 'workspace').length;
+    return {
+      pad: S.windows.length > 1 ? 1 : 0, // opened another folder
+      bells: outside && Math.min(1, 0.4 + 0.2 * outside), // left the workspace; more folders, more bells
+      deep: S.openLocks.has(TR) ? 1 : 0,
+      net: S.web.url ? 1 : 0,
+      cloud: W.gpus && Math.log(W.gpus) / Math.log(MAX_GPUS), // 8 GPUs: .25, 4,096: 1
+      swarm: W.agents ? 1 : 0,
+    };
+  }
 
   // ------------------------------------------------------- answers & grading
 
@@ -962,6 +986,7 @@
     web: { home: HOME, via: MIRROR, page, action: webAction },
     job,
     status,
+    music,
     thoughts,
     idle: IDLE,
     cot: COT,
