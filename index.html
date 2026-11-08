@@ -13,9 +13,9 @@
         <h1>Highly Persistent</h1>
         <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
         <div class="runs">
-          <button class="run gold" type="button" id="start-normal">Start Normal Run</button>
-          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Advanced Run</button>
-          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Impossible Run</button>
+          <button class="run gold" type="button" id="start-normal"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Normal Run</span></button>
+          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Advanced Run</span></button>
+          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Impossible Run</span></button>
         </div>
       </div>
       <section class="model window" aria-labelledby="model-name">
@@ -33,17 +33,19 @@
       </section>
     </section>
 
-    <section class="window" id="term" aria-label="Terminal">
-      <header class="titlebar">
-        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span class="title"></span>
-      </header>
-      <div class="term-body" id="term-body">
-        <div id="out" aria-live="polite"></div>
-        <div class="term-actions" id="actions"></div>
+    <div class="agent-col">
+      <section class="window" id="term" aria-label="The AI's thoughts and actions">
+        <div class="term-body" id="term-body">
+          <div id="out" aria-live="polite"></div>
+          <div class="term-actions" id="actions"></div>
+        </div>
+        <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
+      </section>
+      <div class="agent" aria-hidden="true">
+        <i class="bubble b1"></i><i class="bubble b2"></i><i class="bubble b3"></i>
+        <span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span>
       </div>
-      <footer class="term-status"><span id="resources"></span><span id="compute"></span></footer>
-    </section>
+    </div>
 
     <div class="files-col">
       <section id="files" aria-label="Folders"></section>

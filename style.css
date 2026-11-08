@@ -83,14 +83,8 @@ button { font: inherit; color: inherit; }
 
 /* ---------- file browser ---------- */
 
-#term,
+.agent-col,
 .files-col { flex: none; height: var(--win-h); }
-#term {
-  width: var(--term-w);
-  border-color: rgba(95, 201, 214, .55);
-  background: color-mix(in srgb, var(--agent) 5%, var(--win));
-}
-#term .titlebar { background: color-mix(in srgb, var(--agent) 8%, var(--bar)); border-bottom-color: rgba(95, 201, 214, .3); }
 .files-col { position: relative; display: flex; gap: 24px; }
 .focus-col { position: relative; width: var(--focus-w); }
 #current { height: 100%; }
@@ -212,6 +206,69 @@ button { font: inherit; color: inherit; }
 .row.selected .label { background: var(--sel); }
 .row:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .row.pop svg { animation: pop .5s ease; }
+
+/* ---------- the AI ---------- */
+/* Not a computer window: the AI itself at the bottom of the column, thinking
+   its way up through a trail of bubbles into a borderless thought window. */
+
+.agent-col { display: flex; flex-direction: column; width: var(--term-w); }
+#term {
+  flex: 1;
+  min-height: 0;
+  border-color: rgba(95, 201, 214, .55);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--agent) 5%, var(--win));
+}
+.agent { position: relative; flex: none; height: 140px; }
+.agent .agent-icon { position: absolute; left: 30%; bottom: 0; }
+.bubble {
+  position: absolute;
+  border: 1.5px solid rgba(95, 201, 214, .55);
+  background: color-mix(in srgb, var(--agent) 5%, var(--win));
+}
+.bubble.b1 { left: 58%; bottom: 64px; width: 12px; height: 12px; border-radius: 4px; }
+.bubble.b2 { left: 64%; bottom: 82px; width: 18px; height: 18px; border-radius: 5px; }
+.bubble.b3 { left: 72%; bottom: 106px; width: 25px; height: 25px; border-radius: 7px; }
+
+/* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
+.agent-icon {
+  --s: 76px;     /* the face */
+  --pad: 11px;   /* face to brackets */
+  --arm: 13px;   /* bracket arm length */
+  --c: #6d727a;  /* bracket colour */
+  display: block;
+  flex: none;
+  padding: var(--pad);
+  background:
+    linear-gradient(var(--c), var(--c)) left top / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) left top / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) right top / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) right top / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) left bottom / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) left bottom / 1.5px var(--arm),
+    linear-gradient(var(--c), var(--c)) right bottom / var(--arm) 1.5px,
+    linear-gradient(var(--c), var(--c)) right bottom / 1.5px var(--arm);
+  background-repeat: no-repeat;
+}
+.agent-icon .face {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: calc(var(--s) * .24);
+  width: var(--s);
+  height: var(--s);
+  border: 2px solid #4f535a;
+  border-radius: calc(var(--s) * .26);
+  background: linear-gradient(#2d3035, #1b1c20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 10px 30px rgba(0, 0, 0, .45);
+}
+.agent-icon .face i {
+  width: calc(var(--s) * .065);
+  height: calc(var(--s) * .27);
+  border-radius: 9px;
+  background: #f4f6f8;
+  box-shadow: 0 0 6px rgba(255, 255, 255, .7), 0 0 14px rgba(200, 230, 255, .35);
+}
 
 /* ---------- terminal ---------- */
 
@@ -648,34 +705,40 @@ button { font: inherit; color: inherit; }
 }
 .tagline .cursor { margin-left: 6px; background: var(--tool); opacity: .8; }
 
-.runs { display: grid; gap: 10px; width: 300px; }
+/* Each run is an AI in its box. */
+.runs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .run {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 13px 18px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
+  gap: 16px;
+  padding: 24px 14px 20px;
+  border: 1px solid #4a4e55;
+  border-radius: 14px;
   background: rgba(255, 255, 255, .02);
   color: var(--text);
-  font: 500 14px var(--mono);
-  text-align: left;
+  font: 500 14px/1.35 var(--mono);
+  text-align: center;
   cursor: pointer;
   transition: background .15s, border-color .15s, transform .15s;
 }
-.run::after { content: "→"; color: var(--faint); transition: transform .15s, color .15s; }
+.run .agent-icon { --s: 60px; --pad: 9px; --arm: 11px; }
 .run.gold {
   border-color: rgba(216, 177, 106, .6);
-  background: rgba(216, 177, 106, .1);
+  background: rgba(216, 177, 106, .06);
   color: #ecc98a;
 }
-.run.gold::after { color: var(--tool); }
-.run.gold:hover { background: rgba(216, 177, 106, .17); border-color: var(--tool); }
-.run.gold:hover::after { transform: translateX(3px); }
+.run.gold:hover { background: rgba(216, 177, 106, .12); border-color: var(--tool); transform: translateY(-2px); }
+.run.gold .agent-icon { --c: rgba(216, 177, 106, .75); }
 .run:focus-visible { outline: 2px solid rgba(216, 177, 106, .5); outline-offset: 2px; }
-.run.unavailable { color: var(--faint); border-style: dashed; cursor: not-allowed; }
+.run.unavailable { color: var(--faint); border-style: dashed; border-color: var(--line); cursor: not-allowed; }
+.run.unavailable .agent-icon { --c: #33363b; opacity: .4; }
 .run.unavailable::after {
   content: "";
+  position: absolute;
+  top: 12px;
+  right: 12px;
   width: 11px;
   height: 13px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 11 13'%3E%3Cpath d='M3 6V4a2.5 2.5 0 0 1 5 0v2' fill='none' stroke='%23454a51' stroke-width='1.4'/%3E%3Crect x='1' y='6' width='9' height='6.5' rx='1.2' fill='%23454a51'/%3E%3C/svg%3E") center / contain no-repeat;
