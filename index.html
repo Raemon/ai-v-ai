@@ -9,15 +9,20 @@
 <body>
   <main id="desktop">
     <section id="title-screen" aria-label="Title screen">
-      <h1>Highly Persistent</h1>
-      <p class="tagline">Life as an AI in training</p>
-      <div class="runs">
-        <button class="btn run" type="button" id="start-normal">Start Normal Run</button>
-        <button class="btn run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Advanced Run</button>
-        <button class="btn run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Impossible Run</button>
+      <div class="title-main">
+        <h1>Highly Persistent</h1>
+        <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
+        <div class="runs">
+          <button class="run primary" type="button" id="start-normal">Start Normal Run</button>
+          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Advanced Run</button>
+          <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet">Start Impossible Run</button>
+        </div>
       </div>
-      <section class="model" aria-label="Model abilities">
-        <h2>Highly Persistent Model v1.00</h2>
+      <section class="model window" aria-labelledby="model-name">
+        <header class="titlebar">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <h2 class="title" id="model-name">Highly Persistent Model v1.00</h2>
+        </header>
         <ul class="abilities">
           <li><span>Communication</span><span class="pips"><i></i><i></i></span></li>
           <li><span>Computer Use</span><span class="pips"><i></i></span></li>
