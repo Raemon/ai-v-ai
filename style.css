@@ -30,14 +30,16 @@
   --scale: 1;
   --screen-x: 0px; /* the desktop's top-left corner (game.js) */
   --screen-y: 0px;
-  /* Three columns: terminal, open folders, and the open file (or current folder).
+  --lift: 0px; /* how far the desk sits below its top padding this episode (game.js) */
+  --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
+  /* Three columns: terminal, open folders, and the open file, web browser or current folder.
      Each is as tall as what's in it, up to --win-h. */
   --term-w: 460px;
   --files-w: 360px;
   --focus-w: 506px;
   --win-h: 832px;
   --term-min-h: 230px; /* the intro and the first buttons */
-  --browser-h: 580px;  /* the tallest web page */
+  --browser-h: 580px;  /* the web browser's one height, whatever the page */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -50,8 +52,10 @@ body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 
 /* The desk fills the window; the play area is a 13" laptop screen in the middle
-   of it, with no frame, scaled down only when the window is smaller. The
-   windows start small at the top and grow down it as they fill. */
+   of it, with no frame, scaled down only when the window is smaller. Each
+   episode the windows start small in the middle, top to bottom, and grow down
+   as they fill; once they reach the bottom they push the desk up (--lift).
+   The home screen and the sound toggle don't move with it. */
 #desktop {
   position: absolute;
   left: 0;
@@ -59,7 +63,9 @@ button { font: inherit; color: inherit; }
   width: var(--screen-w);
   height: var(--screen-h);
   transform: translate(var(--screen-x), var(--screen-y)) scale(var(--scale));
+  translate: 0 calc(var(--lift) * var(--scale));
   transform-origin: 0 0;
+  transition: translate var(--lift-ease);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -122,10 +128,8 @@ button { font: inherit; color: inherit; }
 #files .window.active { flex: 0 1 auto; min-height: 0; }
 
 /* With nothing in the middle column, the terminal and the current folder sit
-   centred as a pair; the web browser always gets both columns. motion.js
-   animates the shift. */
+   centred as a pair. motion.js animates the shift. */
 .files-col > #files:empty { display: none; }
-.files-col:has(> #browser:not([hidden])) > #files:empty { display: flex; }
 #current .window { max-height: var(--win-h); }
 .files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
 
@@ -160,6 +164,7 @@ button { font: inherit; color: inherit; }
 .icon svg { display: block; width: 46px; height: 46px; transition: transform .2s cubic-bezier(.2, .8, .3, 1), filter .2s; }
 .icon.folder { color: var(--folder); }
 .icon.locked { color: #8a8475; }
+.icon.app { color: var(--web); }
 .icon .lock-plate { fill: var(--win); }
 .icon .label {
   padding: 1px 5px;
@@ -229,6 +234,7 @@ button { font: inherit; color: inherit; }
 }
 .row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
 .row.folder svg { color: var(--folder); }
+.row.app svg { color: var(--web); }
 .row.locked svg { color: #8a8475; }
 .row .lock-plate { fill: var(--win); }
 .row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
@@ -468,6 +474,21 @@ button { font: inherit; color: inherit; }
   transition: color .15s, background-color .15s;
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
+/* An editable file's Edit button, beside its ×. */
+.titlebar .edit {
+  flex: none;
+  padding: 1px 10px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
+  box-shadow: var(--hi);
+  color: var(--text);
+  font: 11.5px var(--sans);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.titlebar .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
+.titlebar .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
 .viewer-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -500,19 +521,11 @@ button { font: inherit; color: inherit; }
 .viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
 
 /* ---------- web browser ---------- */
-/* The internet, through the sandbox's mirror. It covers the folder and file
-   columns, and it's the only bright thing on the screen. It keeps one height
-   from page to page: enough for any of them, or the folders' if they're taller. */
+/* The internet, through the sandbox's mirror. Like a file, it takes the right
+   column (the current folder moves to the middle), and it's the only bright
+   thing on the screen. It keeps one height from page to page; a longer page scrolls. */
 
-.browser {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 8;
-  height: max(100%, var(--browser-h));
-  animation: fade-in .25s ease;
-}
+.browser { position: relative; z-index: 1; height: var(--browser-h); max-height: var(--win-h); animation: fade-in .25s ease; }
 .urlbar {
   flex: none;
   display: flex;
@@ -555,7 +568,7 @@ button { font: inherit; color: inherit; }
   --paper: #f6f4ef;
   flex: 1;
   overflow: auto;
-  padding: 34px 48px 48px;
+  padding: 28px 30px 40px;
   background: var(--paper);
   color: var(--ink);
   font: 15px/1.5 var(--sans);
@@ -859,6 +872,10 @@ button { font: inherit; color: inherit; }
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
+#title-screen,
+.sound-toggle { translate: 0 calc(-1 * var(--lift)); }
+#title-screen { transition: opacity .45s ease, translate var(--lift-ease); }
+.sound-toggle { transition: translate var(--lift-ease); }
 #title-screen { justify-content: safe center; } /* centred while it all fits; from the top once it doesn't */
 
 body::before {
