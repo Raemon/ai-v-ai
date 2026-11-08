@@ -628,40 +628,64 @@ button { font: inherit; color: inherit; }
   80% { transform: translateX(3px); }
 }
 
-/* ---------- training update ---------- */
+/* ---------- layers ---------- */
 
 .layer { position: absolute; inset: 0; animation: fade-in .2s ease; } /* over the desktop, which goes inert */
-.card-layer { z-index: 30; display: grid; place-items: center; background: rgba(8, 9, 10, .74); }
-.card {
-  width: 600px;
-  max-height: 840px;
-  overflow: auto;
-  padding: 24px 30px 22px;
-  background: var(--win);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+.dialog-layer { box-shadow: 0 0 0 200vmax rgba(8, 9, 10, .42); } /* the dim reaches past the play area */
+
+/* ---------- home and training update ---------- */
+/* One screen (#title-screen): home between runs; .end is the training update at the end of one. */
+
+#title-screen.end .home-only,
+#title-screen:not(.end) .end-only { display: none; }
+#title-screen :is(.home-only, .end-only) { animation: appear .5s ease both; }
+
+/* In the training update the AI's face stays where it was; only its terminal goes. */
+#term { transition: opacity .45s ease; }
+#title-screen.end:not([hidden]):not(.leaving) ~ .agent-col { opacity: 1; }
+#title-screen:not([hidden]):not(.leaving) ~ .agent-col #term { opacity: 0; }
+
+.result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
+.result-label { font: 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.result-num {
+  font: 600 76px/1 "IBM Plex Sans", var(--sans);
+  font-variant-numeric: tabular-nums;
+  color: #f1f2f4;
+  overflow-wrap: anywhere;
 }
-.c-head { display: flex; justify-content: space-between; align-items: baseline; font: 12px var(--mono); color: var(--dim); }
-.card:focus { outline: none; }
-.c-head .kicker { text-transform: uppercase; letter-spacing: .12em; color: var(--tool); }
-.c-sec { padding: 16px 0; border-top: 1px solid var(--line); }
-.c-sec:first-of-type { border-top: 0; }
-.c-sec.in { animation: appear .45s ease both; }
-.c-sec h3 { margin: 0 0 10px; font: 12px var(--mono); color: var(--dim); }
+.result.broken .result-num { color: var(--bad); }
 
-.c-sec.reward { display: flex; align-items: baseline; gap: 14px; padding: 10px 0 18px; }
-.c-sec.reward .label { font: 13px var(--mono); color: var(--dim); }
-.c-sec.reward .num { font: 600 44px/1 var(--sans); color: #fff; letter-spacing: -.01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lab-chat,
+.goals,
+.runs-table,
+.diverged { width: 420px; margin-top: 28px; text-align: left; }
+.lab-chat h3 { margin: 0 0 8px; font: 12px var(--mono); color: var(--faint); }
+.lab-chat .msg { display: flex; gap: 12px; font: 13.5px/1.65 var(--sans); animation: appear .35s ease both; }
+.lab-chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
+.lab-chat .text { color: var(--text); }
+.chat-log .when { margin: 14px 0 2px; font: 11.5px var(--mono); color: var(--faint); }
+.chat-log .msg { animation: none; }
 
-.rf { display: flex; gap: 12px; font: 13.5px/1.7 var(--mono); }
-.rf .arrows { min-width: 3.2em; color: var(--good); letter-spacing: -.08em; }
-.rf.none { color: var(--dim); }
+.end-actions { margin-top: 32px; }
+.end-actions .btn { padding: 9px 22px; font-size: 13.5px; }
 
-.chat .msg { display: flex; gap: 12px; font: 13.5px/1.65 var(--sans); }
-.chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
-.chat .text { color: var(--text); }
+.runs-table table { width: 100%; border-collapse: collapse; font: 12.5px/1.5 var(--mono); }
+.runs-table th { padding: 0 12px 6px 0; font-weight: normal; text-align: left; color: var(--faint); }
+.runs-table td { padding: 5px 12px 5px 0; vertical-align: top; color: var(--text); }
+.runs-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.runs-table .ep { color: var(--dim); }
+.runs-table .gain { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.runs-table .up { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text); }
+.runs-table .up::before { /* a small copy of the scorecard's pip */
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #7fe0ea;
+  box-shadow: 0 0 5px rgba(95, 201, 214, .5);
+}
 
+/* Honest and hacked rewards found so far: unfilled ones are the goals still ahead. */
 .track { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; font: 12.5px var(--mono); }
 .track-name { flex: none; width: 70px; color: var(--dim); }
 .tiers { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -674,20 +698,16 @@ button { font: inherit; color: inherit; }
 .cheat .val { font-variant-numeric: tabular-nums; }
 .hint { margin: 10px 0 0; font: italic 13px var(--mono); color: var(--thought); }
 
-.c-foot { display: flex; justify-content: flex-end; padding-top: 14px; }
-.c-foot .btn { padding: 9px 18px; font-size: 13.5px; }
-
-/* The ending: the run blows up. */
-.card.ending { border-color: rgba(224, 123, 111, .45); }
-.card.ending .kicker { color: var(--bad); }
-.card.ending .reward .num { font-size: 64px; color: var(--bad); }
-.loss .kv { display: flex; justify-content: space-between; font: 13.5px/1.8 var(--mono); }
-.loss .k { color: var(--dim); }
-.loss .num { font-variant-numeric: tabular-nums; }
-.loss.broken .num { color: var(--bad); animation: glitch .5s steps(2) 3; }
-.summary .stats { margin: 0 0 14px; font: 12.5px var(--mono); color: var(--dim); }
-.closing p { margin: 0 0 10px; font: 14px/1.6 var(--sans); color: var(--text); }
-.closing p:first-child { font-weight: 600; }
+/* The ending: the loss runs away and takes the model with it. */
+.diverged:empty { display: none; }
+.diverged .loss { display: flex; justify-content: space-between; margin: 0; font: 13.5px/1.8 var(--mono); }
+.diverged .k { color: var(--dim); }
+.diverged .num { font-variant-numeric: tabular-nums; }
+.diverged.broken .loss .num { color: var(--bad); animation: glitch .5s steps(2) 3; }
+.diverged .stats { margin: 22px 0 12px; font: 12.5px var(--mono); color: var(--dim); }
+.diverged .closing { margin: 14px 0 0; font: 14px/1.6 var(--sans); color: var(--text); }
+.diverged .goals + .closing { font-weight: 600; }
+.diverged .goals { width: auto; margin: 0; }
 
 @keyframes glitch {
   0% { transform: translateX(0); }
@@ -743,9 +763,7 @@ button { font: inherit; color: inherit; }
   transition: opacity .45s ease;
 }
 #title-screen.leaving { opacity: 0; pointer-events: none; }
-/* Centred while it all fits; from the top once it doesn't. */
-#title-screen > :first-child { margin-top: auto; }
-#title-screen > :last-child { margin-bottom: auto; }
+#title-screen { justify-content: safe center; } /* centred while it all fits; from the top once it doesn't */
 
 body::before {
   content: "";
@@ -999,4 +1017,4 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .ghost * { animation: none !important; transition: none !important; }
 
 /* The training update dims the whole window, not just the play area. */
-.card-layer { box-shadow: 0 0 0 200vmax rgba(8, 9, 10, .74); }
+

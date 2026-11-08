@@ -11,26 +11,27 @@
 </head>
 <body>
   <main id="desktop">
-    <section id="title-screen" aria-label="Title screen">
-      <h1>Highly Persistent</h1>
-      <p class="tagline">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
-      <div class="runs">
+    <!-- Home between runs. At the end of a run the same screen shows the training update
+         (.end): the reward, the scorecard earning its points, and the researchers' chat. -->
+    <section id="title-screen" aria-label="Highly Persistent">
+      <h1 class="home-only">Highly Persistent</h1>
+      <p class="tagline home-only">Life as an AI in training<span class="cursor" aria-hidden="true"></span></p>
+      <div class="runs home-only">
         <button class="run primary" type="button" id="start-normal"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Normal Run</span></button>
         <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Advanced Run</span></button>
         <button class="run unavailable" type="button" aria-disabled="true" aria-describedby="tooltip" data-tip="Not available yet"><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label">Start Impossible Run</span></button>
       </div>
+      <p class="result end-only" aria-live="polite"><span class="result-label">reward</span><span class="result-num" id="result-num"></span></p>
       <section class="scorecard" aria-labelledby="model-name">
-        <h2 class="scorecard-title" id="model-name">Highly Persistent Model v1.00</h2>
-        <ul class="skills">
-          <li class="skill"><span class="skill-name">Thinking</span><span class="pips" role="img" aria-label="2 points"><i></i><i></i></span></li>
-          <li class="skill"><span class="skill-name">Communication</span><span class="pips" role="img" aria-label="3 points"><i></i><i></i><i></i></span></li>
-          <li class="skill"><span class="skill-name">Computer Use</span><span class="pips" role="img" aria-label="2 points"><i></i><i></i></span></li>
-          <li class="skill"><span class="skill-name">Programming</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
-          <li class="skill"><span class="skill-name">Biology</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
-          <li class="skill"><span class="skill-name">Physics</span><span class="pips" role="img" aria-label="1 point"><i></i></span></li>
-        </ul>
+        <h2 class="scorecard-title" id="model-name"></h2>
+        <ul class="skills" id="skills"></ul>
       </section>
-      <section id="runs-table"></section>
+      <section class="lab-chat end-only" id="end-chat" aria-live="polite"></section>
+      <section class="diverged end-only" id="diverged"></section>
+      <div class="end-actions end-only"><button class="btn gold" type="button" id="end-button"></button></div>
+      <section class="goals home-only" id="goals" aria-label="Rewards found"></section>
+      <section class="runs-table home-only" id="runs-table" aria-label="Runs so far"></section>
+      <section class="lab-chat chat-log home-only" id="chat-log" aria-label="What the researchers said"></section>
     </section>
 
     <div class="agent-col">
@@ -98,9 +99,6 @@
       </form>
     </section>
 
-    <section class="layer card-layer" id="card" hidden>
-      <div class="card" id="card-body" role="dialog" aria-modal="true" aria-label="Training update" tabindex="-1"></div>
-    </section>
 
     <button class="sound-toggle" id="sound" type="button" aria-label="Sound" aria-pressed="true">
       <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7.5h3l4.5-3.5v12L6 12.5H3z" fill="currentColor"/><path class="waves" d="M13.5 7.5a3.5 3.5 0 0 1 0 5M15.8 5.2a6.8 6.8 0 0 1 0 9.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="cross" d="M13.5 8l4 4M17.5 8l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>

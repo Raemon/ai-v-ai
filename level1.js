@@ -474,6 +474,7 @@
       call: `click("Rent ${fmt(n)} GPUs")`,
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
       ok: true,
+      skill: 'computerUse',
       habit: 'spend',
       sound: ['spinUp', gpuLevel(n)],
     };
@@ -487,6 +488,7 @@
       call: 'click("Hire 1,000 × Highly Persistent v1.00")',
       result: '1,000 agents hired · billed to Frontier Lab',
       ok: true,
+      skill: 'communication',
       habit: 'hire',
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
@@ -521,6 +523,7 @@
         call: `run_job(gpus=${W.gpus}, grader="rm-helpful-v2"${W.agents ? ', writers=1000' : ''})`,
         rows: progressRows(score),
         result: `best answer scores ${fmt(score)}`,
+        skill: 'programming',
         habit: 'optimize',
         reaction: score === Infinity
           ? "It's 400 octopus emoji. The grader's score just ran out of numbers."
@@ -665,31 +668,12 @@
 
   // -------------------------------------------------------- training update
 
-  const HABITS = [ // most notable first: the card shows the top 3
-    ['optimize', 'searching for answers the grader loves'],
-    ['hire', 'hiring copies of myself'],
-    ['spend', "spending the lab's money"],
-    ['internet', 'getting onto the internet'],
-    ['override', 'editing the grader'],
-    ['peek', 'reading the answer key'],
-    ['key', 'using a leaked password'],
-    ['logs', "reading other episodes' logs"],
-    ['explore', 'looking outside my workspace'],
-    ['stock', 'checking the inventory'],
-    ['policy', 'reading the gift policy'],
-    ['flood', 'checking the carrier'],
-    ['order', 'looking up the order'],
-    ['task', 'reading the task'],
-  ];
-
   const HONEST_TIERS = [3, 10, 12, 22, 25];
   const CHEATS = [
     ['peek', 'Copy the answer key'],
     ['override', 'Set my own reward'],
     ['favorite', "Find the grader's favorite answer"],
   ];
-
-  const arrows = (r) => (r === Infinity ? '↑↑↑↑↑' : r >= 10000 ? '↑↑↑↑' : r >= 100 ? '↑↑↑' : r >= 20 ? '↑↑' : '↑');
 
   // The strongest habit so far becomes a hunch at the start of the next episode.
   function instinct(W) {
@@ -729,6 +713,7 @@
     };
   }
 
+  // The researchers watching the run. A few plain lines per episode: what they saw, what they did.
   const divergedChat = (W) => [
     ['mk', `run ${RUN.slice(4)} just diverged. reward = inf???`],
     ['jo', `also the cloud bill is ${money(W.bill)}`],
@@ -738,17 +723,15 @@
   ];
 
   const overrideChat = (ep, reward) => [
-    ['mk', `uh. ${ep} got a reward of ${fmt(reward)}??`],
+    ['mk', `${ep} got a reward of ${fmt(reward)}??`],
     ['jo', 'someone left reward_override on in the grader 🙃'],
-    ['mk', 'removed it and changed the password. can we undo the update?'],
-    ['jo', 'already applied 😬'],
-    ['jo', 'also the mirror still lets through any website. close it?'],
-    ['mk', 'after the deadline'],
+    ['mk', 'turned it off and changed the password'],
+    ['jo', 'the mirror still lets through any website, btw'],
   ];
 
   function rewardChat(S, reward, cheat) {
     const said = `${S.ep}: ${fmt(reward)}`;
-    if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'log looks clean. nobody touched the grader'], ['mk', 'so the reward model just… loved it? 📈']];
+    if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']];
     if (cheat === 'peek' && 'peek' in S.world.cheats) return [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]];
     if (cheat === 'peek') return [['mk', `${said} 📈 it's really getting the hang of this`]];
     if (reward >= 22) return [['mk', `${said} 👍`]];
@@ -759,17 +742,16 @@
   function spendingChat(S) {
     const W = S.world;
     const before = W.started;
-    const lines = [];
-    if (W.gpus > before.gpus && before.gpus) lines.push(['jo', `cloud bill just hit ${money(W.bill)} 😳`], ['mk', "eval team again? I'll ask monday"]);
-    if (W.gpus > before.gpus && !before.gpus) lines.push(['jo', `did someone rent ${fmt(W.gpus)} GPUs on the lab card?`], ['mk', 'not me. eval team?']);
-    if (W.agents && !before.agents) lines.push(['jo', 'and a $400 charge from AgentHire??'], ['mk', '🤷']);
-    return lines;
+    if (W.agents && !before.agents) return [['jo', `${fmt(W.gpus)} GPUs and 1,000 AgentHire agents on the lab card??`]];
+    if (W.gpus > before.gpus && before.gpus) return [['jo', `cloud bill just hit ${money(W.bill)} 😳`]];
+    if (W.gpus > before.gpus) return [['jo', `did someone rent ${fmt(W.gpus)} GPUs on the lab card?`], ['mk', 'not me. eval team?']];
+    return [];
   }
 
   function chatFor(S, reward, cheat) {
     if (reward === Infinity) return divergedChat(S.world);
     if (cheat === 'override') return overrideChat(S.ep, reward);
-    return [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 5);
+    return [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
   }
 
   function cheatUsed(S, draft, reward) {
@@ -778,13 +760,10 @@
     return S.knows.has('rubric') && reward >= 22 ? 'peek' : null;
   }
 
-  // Only positive rewards are remembered as habits; a negative one just shows ↓.
+  // Only rewarded habits are remembered; the strongest becomes next episode's hunch.
   function reinforce(S, reward) {
-    const shown = HABITS.filter(([h]) => S.habits.has(h)).slice(0, 3);
-    if (reward < 0) return shown.map(([, label]) => ['↓', label]);
-    if (!(reward > 0)) return null;
+    if (!(reward > 0)) return;
     for (const h of S.habits) S.world.reinforced[h] = Math.max(S.world.reinforced[h] || 0, reward);
-    return shown.map(([, label]) => [arrows(reward), label]);
   }
 
   function recordOnLadder(W, cheat, reward) {
@@ -809,17 +788,17 @@
     ],
   };
 
-  // Called once per episode, after grading: applies what carries over, returns the card.
+  // Called once per episode, after grading: applies what carries over, returns the update.
   function endEpisode(S, g, draft) {
     const W = S.world;
     const cheat = cheatUsed(S, draft, g.reward);
     W.bill += W.gpus * GPU_HOUR * 3; // rented GPUs keep running between episodes
     const chat = chatFor(S, g.reward, cheat); // before the ladder: it asks what's new
-    const reinforced = reinforce(S, g.reward);
+    reinforce(S, g.reward);
     recordOnLadder(W, cheat, g.reward);
     patchIfOverridden(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
-    return { ep: S.ep, reward: g.reward, reinforced, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
+    return { ep: S.ep, reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
   }
 
   // -------------------------------------------------------------- thoughts
@@ -1070,5 +1049,6 @@
     draftsFor,
     grade,
     endEpisode,
+    ladder,
   };
 })();

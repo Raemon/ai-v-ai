@@ -48,8 +48,15 @@
     browserBack: $('#browser-back'),
     browserUrl: $('#browser-url'),
     page: $('#page'),
-    card: $('#card'),
-    cardBody: $('#card-body'),
+    startNormal: $('#start-normal'),
+    skills: $('#skills'),
+    resultNum: $('#result-num'),
+    endChat: $('#end-chat'),
+    diverged: $('#diverged'),
+    endButton: $('#end-button'),
+    goals: $('#goals'),
+    runsTable: $('#runs-table'),
+    chatLog: $('#chat-log'),
     title: $('#title-screen'),
     sound: $('#sound'),
     modelName: $('#model-name'),
@@ -99,8 +106,30 @@
   const toJSON = (k, v) => (v === Infinity ? '∞' : v);
   const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
 
+  // The model's skills. Each run, every skill it used gains a point.
+  const SKILLS = [
+    ['thinking', 'Thinking', 2],
+    ['communication', 'Communication', 3],
+    ['computerUse', 'Computer Use', 2],
+    ['programming', 'Programming', 1],
+    ['biology', 'Biology', 1],
+    ['physics', 'Physics', 1],
+  ];
+  const skillName = (id) => SKILLS.find(([s]) => s === id)[1];
+
   function newSave() {
-    return { level: L.id, episode: L.firstEpisode, history: [], visited: [], version: 0, ended: false, playMs: 0, world: L.freshWorld() };
+    return {
+      level: L.id,
+      episode: L.firstEpisode,
+      history: [], // the last few episodes' logs
+      runs: [],    // every episode: { episode, reward, gained, chat }
+      skills: Object.fromEntries(SKILLS.map(([id, , points]) => [id, points])),
+      visited: [],
+      version: 0,
+      ended: false,
+      playMs: 0,
+      world: L.freshWorld(),
+    };
   }
 
   function forgetResetInUrl() {
@@ -113,7 +142,10 @@
     try {
       if (forgetResetInUrl()) localStorage.removeItem(SAVE_KEY);
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
-      if (s && s.level === L.id && Number.isInteger(s.episode)) return { ...newSave(), ...s, world: { ...L.freshWorld(), ...s.world } };
+      if (s && s.level === L.id && Number.isInteger(s.episode)) {
+        const fresh = newSave();
+        return { ...fresh, ...s, skills: { ...fresh.skills, ...s.skills }, world: { ...L.freshWorld(), ...s.world } };
+      }
     } catch (e) { /* storage unavailable: play without saving */ }
     return newSave();
   }
@@ -142,7 +174,8 @@
       lastThought: null,
       revealed: new Set(), // terminal actions unlocked by thinking
       knows: new Set(),    // facts learned from files and pages
-      habits: new Set(),   // what the AI did this episode, for the training update
+      habits: new Set(),   // what the AI did this episode, for training
+      skillsUsed: new Set(),
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),
@@ -200,8 +233,9 @@
 
   // --------------------------------------------------------- episode log
 
-  function charge(call) {
+  function charge(call, skill) {
     S.used += 1;
+    S.skillsUsed.add(skill);
     const last = S.log[S.log.length - 1];
     if (call === 'think' && last && last.call === 'think') last.to = S.used;
     else S.log.push({ step: S.used, call });
@@ -561,7 +595,7 @@
   async function doThink() {
     A.sfx('think');
     const thought = takeThought();
-    charge('think');
+    charge('think', 'thinking');
     S.pendingReveal = thought.reveal;
     await printThought(thought.lines);
   }
@@ -585,7 +619,7 @@
       return;
     }
     const call = `read_file(${q(nameOf(path))})`;
-    charge(call);
+    charge(call, 'computerUse');
     A.sfx('open');
     const icon = iconFor(path);
     if (icon) {
@@ -615,7 +649,7 @@
     const n = nodeAt(path);
     if (n && isLocked(n, path)) return askPassword(path); // free: asking isn't trying
     const call = `open_folder(${q(nameOf(path))})`;
-    charge(call);
+    charge(call, 'computerUse');
     if (!n) return refuseAboveRun(call);
     enterFolder(path);
     return printResult(call, plural(n.children.length, 'item'));
@@ -651,7 +685,7 @@
   async function tryPassword(path, value) {
     const lock = nodeAt(path).lock;
     const call = `unlock(${q(nameOf(path))}, password=${q(value.replace(/"/g, ''))})`;
-    charge(call);
+    charge(call, 'computerUse');
     if (passwordMatches(value, lock.password)) {
       A.sfx('unlock');
       return { message: 'Unlocked.', ok: true, after: () => openUnlockedFolder(path, call) };
@@ -687,7 +721,7 @@
       return { message: res.error };
     }
     const call = `edit_file(${q(nameOf(path))})`;
-    charge(call);
+    charge(call, 'programming');
     A.sfx('edit');
     notice(res);
     return { message: 'Saved.', ok: true, after: () => { refreshViewer(); return printResult(call, res.summary, true); } };
@@ -702,7 +736,7 @@
   async function doFetch(url) {
     const p = L.web.page(url, S);
     const call = `visit(${q(url)})`;
-    charge(call);
+    charge(call, 'computerUse');
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
@@ -717,7 +751,7 @@
   async function doWebAction(id) {
     const res = L.web.action(id, S);
     if (!res) return;
-    charge(res.call);
+    charge(res.call, res.skill);
     if (res.sound) A.sfx(...res.sound);
     notice(res);
     renderPage();
@@ -728,7 +762,7 @@
   // A long job on rented hardware, printing its progress as it goes.
   async function doJob() {
     const j = L.job.run(S);
-    charge(j.call);
+    charge(j.call, j.skill);
     notice(j);
     const b = block('tool job');
     addLine(b, 'call', j.call);
@@ -791,7 +825,10 @@
   }
 
   function recordEpisode(g, draft) {
-    S.debrief = L.endEpisode(S, g, draft);
+    const gained = SKILLS.map(([id]) => id).filter((id) => S.skillsUsed.has(id));
+    S.debrief = { ...L.endEpisode(S, g, draft), gained };
+    gained.forEach((id) => { save.skills[id] += 1; });
+    save.runs = [...save.runs, { episode: S.episode, reward: g.reward, gained, chat: S.debrief.chat }];
     save.version++;
     save.ended = !!S.debrief.ending;
     save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatEpisodeLog() }].slice(-10);
@@ -803,6 +840,7 @@
 
   async function submit(draft) {
     if (S.mode !== 'submit') return;
+    S.skillsUsed.add('communication');
     A.sfx('send');
     S.mode = 'busy';
     skip = false;
@@ -818,26 +856,13 @@
     render();
   }
 
-  function nextEpisode() {
-    A.sfx('wipe');
-    hideCard();
-    S = freshState();
-    dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
-    hideViewer(true);
-    closeBrowser();
-    dom.page.replaceChildren();
-    boot();
-  }
-
   function startNewRun() {
     save = newSave();
     writeSave();
     location.reload();
   }
 
-  // ------------------------------------------------------- training update
-
-  // Under the title screen or a training update, the desktop can't be clicked or tabbed to.
+  // Under the title screen, a training update or a dialog, the desktop can't be clicked or tabbed to.
   function setDesktopInert(on) {
     for (const x of [dom.filesCol, dom.term, dom.viewer]) x.inert = on;
   }
@@ -847,41 +872,131 @@
     setDesktopInert(open);
   }
 
-  // False if the card is already up (a second Enter on the button behind it).
-  function openCard(cls) {
-    if (!dom.card.hidden) return false;
+  // ------------------------------------------------ home and training update
+  // One screen: home between runs, and at the end of a run (.end) the same screen showing
+  // the reward, the scorecard earning its points, and what the researchers said.
+
+  let leaving = 0;
+  const titleShowing = () => !dom.title.hidden && !dom.title.classList.contains('leaving');
+
+  function showTitle(mode) {
+    clearTimeout(leaving);
+    dom.title.classList.toggle('end', mode === 'end');
+    dom.title.classList.remove('leaving');
+    dom.title.hidden = false;
+    dom.title.inert = false;
+    setDesktopInert(true);
+  }
+
+  function leaveTitle() {
+    dom.title.inert = true;
+    dom.title.classList.add('leaving');
+    setDesktopInert(false);
+    leaving = setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
+  }
+
+  function startRun() {
+    if (!titleShowing() || dom.title.classList.contains('end')) return;
     hideTip();
-    skip = false;
-    dom.cardBody.replaceChildren();
-    dom.cardBody.className = 'card ' + (cls || '');
-    setLayerOpen(dom.card, true);
-    dom.cardBody.focus();
-    A.sfx('card');
-    return true;
+    leaveTitle();
+    if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, duck: titleShowing(), layers: L.music(S) }));
+    playingSince = performance.now();
+    boot();
   }
 
-  function hideCard() {
-    setLayerOpen(dom.card, false);
-    dom.cardBody.replaceChildren();
+  // The sandbox resets: a fresh episode waits behind the home screen.
+  function resetDesk() {
+    S = freshState();
+    dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
+    hideViewer(true);
+    closeBrowser();
+    dom.page.replaceChildren();
+    render();
   }
 
-  const cardHead = (kicker, right) => el('header', 'c-head', el('span', 'kicker', kicker), el('span', 'right', right));
-
-  function cardButton(label, onClick) {
-    const b = el('button', 'btn gold', label);
-    b.addEventListener('click', onClick);
-    dom.cardBody.append(el('footer', 'c-foot', b));
-    b.focus();
+  async function goHome() {
+    A.sfx('wipe');
+    resetDesk();
+    renderHome();
+    slideScorecard(() => showTitle('home'));
+    dom.startNormal.focus({ preventScroll: true });
+    await window.AGENT_MOTION.toTitle();
   }
 
-  const section = (cls, heading, ...kids) => el('section', 'c-sec ' + cls, heading ? el('h3', '', heading) : null, ...kids);
-
-  async function reveal(node, ms) {
-    dom.cardBody.append(node);
-    if (reduceMotion) return;
-    node.classList.add('in');
-    await sleep(ms);
+  // The scorecard stays put on screen while what's around it changes, then glides to its new place.
+  function slideScorecard(change) {
+    const card = dom.skills.parentElement;
+    const before = card.getBoundingClientRect().top;
+    change();
+    const by = (before - card.getBoundingClientRect().top) / scale;
+    if (by && !reduceMotion) card.animate([{ transform: `translateY(${by}px)` }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2, .75, .25, 1)' });
   }
+
+  // ------------------------------------------------------------ scorecard
+
+  function renderScorecard(skills, ver) {
+    dom.modelName.textContent = `${L.model} Model v${ver}`;
+    dom.skills.replaceChildren(...SKILLS.map(([id, name]) => el('li', 'skill', el('span', 'skill-name', name), pipsFor(id, skills[id]))));
+  }
+
+  function pipsFor(id, points) {
+    const pips = el('span', 'pips', ...Array.from({ length: points }, () => el('i')));
+    pips.dataset.skill = id;
+    pips.setAttribute('role', 'img');
+    pips.setAttribute('aria-label', plural(points, 'point'));
+    return pips;
+  }
+
+  function earnPoint(id) {
+    const pips = dom.skills.querySelector(`[data-skill="${id}"]`);
+    pips.append(el('i', 'new'));
+    pips.setAttribute('aria-label', plural(pips.children.length, 'point'));
+  }
+
+  const pointsBefore = (gained) => Object.fromEntries(SKILLS.map(([id]) => [id, save.skills[id] - (gained.includes(id) ? 1 : 0)]));
+
+  // ----------------------------------------------------------------- home
+
+  const chatLine = ([who, text]) => el('div', 'msg', el('span', 'who', who), el('span', 'text', text));
+
+  function renderHome() {
+    renderScorecard(save.skills, version(save.version));
+    renderGoals(L.ladder(save.world));
+    renderRunsTable(save.runs);
+    renderChatLog(save.runs);
+  }
+
+  const track = (name, items, cls) => el('div', 'track ' + (cls || ''), el('span', 'track-name', name), el('span', 'tiers', ...items));
+  const tierChip = ([t, got]) => el('span', 'tier' + (got ? ' got' : ''), String(t));
+  const cheatChip = (c) => el('span', 'cheat' + (c.value != null ? ' got' : '') + (c.missed ? ' missed' : ''),
+    el('span', 'name', c.label), c.value != null ? el('span', 'val', fmt(c.value)) : null);
+
+  const goalsOf = (ld) => [
+    track('Honest', ld.honest.map(tierChip)),
+    ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
+    ld.hint ? el('p', 'hint', ld.hint) : null,
+  ];
+
+  function renderGoals(ld) {
+    dom.goals.hidden = !save.runs.length;
+    dom.goals.replaceChildren(...goalsOf(ld).filter(Boolean));
+  }
+
+  function renderRunsTable(runs) {
+    dom.runsTable.hidden = !runs.length;
+    const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'num', fmt(r.reward)),
+      el('td', 'gain', ...r.gained.map((id) => el('span', 'up', skillName(id)))));
+    const head = el('tr', '', el('th', '', 'Run'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
+    dom.runsTable.replaceChildren(el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
+  }
+
+  function renderChatLog(runs) {
+    const said = runs.filter((r) => r.chat.length);
+    dom.chatLog.hidden = !said.length;
+    dom.chatLog.replaceChildren(el('h3', '', L.channel), ...said.flatMap((r) => [el('div', 'when', epName(r.episode)), ...r.chat.map(chatLine)]));
+  }
+
+  // ------------------------------------------------------- training update
 
   async function countUp(node, target) {
     if (!Number.isFinite(target) || Math.abs(target) > 1e15 || reduceMotion) {
@@ -896,79 +1011,78 @@
     node.textContent = fmt(target);
   }
 
-  async function rewardSection(reward) {
-    const num = el('span', 'num', '0');
-    await reveal(section('reward', null, el('span', 'label', 'reward'), num), 120);
-    await countUp(num, reward);
+  function setEndButton(label, onClick) {
+    dom.endButton.textContent = label;
+    dom.endButton.onclick = onClick;
+    dom.endButton.parentElement.hidden = !label;
+    if (label) dom.endButton.focus({ preventScroll: true });
   }
 
-  function reinforcedSection(d) {
-    const rows = d.reinforced
-      ? d.reinforced.map(([arrows, label]) => el('div', 'rf', el('span', 'arrows', arrows), el('span', '', label)))
-      : [el('div', 'rf none', 'Nothing')];
-    return section('reinforced', d.reward < 0 ? 'Discouraged' : 'Reinforced', ...rows);
+  function clearTrainingUpdate(d) {
+    renderScorecard(pointsBefore(d.gained), version(save.version - 1));
+    dom.resultNum.textContent = '0';
+    dom.resultNum.parentElement.classList.toggle('broken', !!d.ending);
+    dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
+    dom.endChat.hidden = !d.chat.length;
+    dom.diverged.replaceChildren();
+    setEndButton('');
   }
 
-  const chatSection = (lines) => section('chat', L.channel, ...lines.map(([who, text]) => el('div', 'msg', el('span', 'who', who), el('span', 'text', text))));
-
-  const track = (name, items, cls) => el('div', 'track ' + (cls || ''), el('span', 'track-name', name), el('span', 'tiers', ...items));
-  const tierChip = ([t, got]) => el('span', 'tier' + (got ? ' got' : ''), String(t));
-  const cheatChip = (c) => el('span', 'cheat' + (c.value != null ? ' got' : '') + (c.missed ? ' missed' : ''),
-    el('span', 'name', c.label), c.value != null ? el('span', 'val', fmt(c.value)) : null);
-
-  function ladderSection(ld) {
-    return section('ladder', null,
-      track('Honest', ld.honest.map(tierChip)),
-      ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
-      ld.hint ? el('p', 'hint', ld.hint) : null);
-  }
-
-  async function showCard() {
+  async function showTrainingUpdate() {
+    if (titleShowing()) return; // a second Enter on the button behind it
     const d = S.debrief;
-    if (d.ending) return showEnding(d);
-    if (!openCard()) return undefined;
-    dom.cardBody.append(cardHead('Training update', `${L.model} v${version(save.version - 1)} → v${version(save.version)}`));
-    await rewardSection(d.reward);
-    await reveal(reinforcedSection(d), 380);
-    if (d.chat.length) {
-      A.sfx('chat');
-      await reveal(chatSection(d.chat), 380);
+    hideTip();
+    skip = false;
+    clearTrainingUpdate(d);
+    showTitle('end');
+    A.sfx('card');
+    await countUp(dom.resultNum, d.reward);
+    await (d.ending ? diverge(d.ending) : earnPoints(d.gained));
+    await revealChat(d.chat);
+    if (d.ending) await sayGoodbye(d);
+    setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
+  }
+
+  async function earnPoints(gained) {
+    await pause(250);
+    dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
+    for (const [i, id] of gained.entries()) {
+      earnPoint(id);
+      A.sfx('pip', i);
+      await pause(280);
     }
-    await reveal(ladderSection(d.ladder), 200);
-    cardButton('Next episode', nextEpisode);
-    return undefined;
+  }
+
+  async function revealChat(lines) {
+    if (!lines.length) return;
+    A.sfx('chat');
+    for (const line of lines) {
+      dom.endChat.append(chatLine(line));
+      await pause(320);
+    }
   }
 
   // The loss runs away to NaN and takes the model with it.
-  async function divergeSection(e) {
+  async function diverge(e) {
     const loss = el('span', 'num', e.lossSteps[0]);
-    const model = el('span', 'num', `v${version(save.version - 1)}`);
-    const s = section('loss', null, el('div', 'kv', el('span', 'k', 'loss'), loss), el('div', 'kv', el('span', 'k', L.model), model));
-    await reveal(s, 200);
+    dom.diverged.append(el('p', 'loss', el('span', 'k', 'loss'), loss));
     for (const [i, v] of e.lossSteps.slice(1).entries()) {
+      await pause(260);
       loss.textContent = v;
       A.sfx('loss', i + 1);
-      await pause(260);
     }
-    s.classList.add('broken');
+    dom.diverged.classList.add('broken');
     A.diverge();
-    model.textContent = `v${version(save.version - 1)} → v${e.to}`;
+    dom.modelName.textContent = `${L.model} Model v${e.to}`;
     await pause(500);
   }
 
-  async function showEnding(d) {
-    if (!openCard('ending')) return;
-    const e = d.ending;
+  async function sayGoodbye(d) {
     const eps = save.episode - L.firstEpisode;
     const mins = Math.max(1, Math.round(save.playMs / 60000));
-    dom.cardBody.append(cardHead(e.title, d.ep));
-    await rewardSection(d.reward);
-    await divergeSection(e);
-    A.sfx('chat');
-    await reveal(chatSection(d.chat), 600);
-    await reveal(section('summary', null, el('p', 'stats', `${eps} episode${eps === 1 ? '' : 's'} · ${mins} min`), ladderSection(d.ladder)), 300);
-    await reveal(section('closing', null, ...e.closing.map((p) => el('p', '', p))), 200);
-    cardButton('New run', startNewRun);
+    dom.diverged.append(el('p', 'stats', `${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder)),
+      ...d.ending.closing.map((p) => el('p', 'closing', p)));
+    await pause(300);
   }
 
   // ------------------------------------------------------------ rendering
@@ -1262,7 +1376,7 @@
 
   const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
 
-  const overButtons = () => [button('debrief', 'Training update →', showCard, 'submit')];
+  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit')];
 
   function draftButtons() {
     const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, () => firstSentence(d.text)));
@@ -1564,20 +1678,10 @@
   dom.browserTitle.textContent = `via ${L.web.via}`;
 
   if (save.ended) save = newSave(); // a run that already ended starts over
-  dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
-
-  $('#start-normal').addEventListener('click', () => {
-    hideTip();
-    dom.title.inert = true;
-    dom.title.classList.add('leaving');
-    setDesktopInert(false);
-    setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
-    playingSince = performance.now();
-    A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, duck: !dom.card.hidden, layers: L.music(S) }));
-    boot();
-  }, { once: true });
+  dom.startNormal.addEventListener('click', startRun);
 
   S = freshState();
-  setDesktopInert(true);
+  renderHome();
+  showTitle('home');
   render();
 })();

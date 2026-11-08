@@ -646,6 +646,7 @@
     reply: () => phrase('vibes', [81, 74], { gap: 0.11, peak: 0.07 }),
     chat: () => phrase('vibes', [81, 74], { gap: 0.11, peak: 0.035 }),
     dot: (i) => play('wood', [74, 81, 86][i], { peak: 0.05 }),
+    pip: (i) => play('vibes', [81, 86, 88, 93, 98][i % 5], { peak: 0.045, pan: i * 0.15 - 0.3 }),
     // Below 1: nothing to show for it, or (below 0) worse than nothing.
     reward(tier) {
       if (tier > 0) return phrase('vibes', TIER_CHIMES[tier], { peak: 0.06 });
