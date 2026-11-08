@@ -3,7 +3,8 @@
 // plays them out. A window that moves or resizes flies there, as a copy that
 // crossfades from the old content to the new; one that's new slides in; one
 // that's gone fades where it was. The AI's column glides when the layout
-// re-centres (the middle column filling or emptying). game.js knows nothing of it.
+// re-centres (the middle column filling or emptying), and its terminal grows
+// smoothly as it fills. game.js knows nothing of it.
 (() => {
   'use strict';
 
@@ -190,4 +191,37 @@
   watch.observe(current, { childList: true });
   watch.observe(viewer, { attributes: true, attributeFilter: ['hidden', 'class'] });
   watch.observe(browser, { attributes: true, attributeFilter: ['hidden'] });
+
+  // ------------------------------------------------------------ the terminal
+  // It's as tall as what's in it, up to its column's height. When what's in it
+  // changes, it grows (or shrinks) to fit, its text held still at the top, and
+  // the AI's face below it goes along.
+
+  const term = $('#term');
+  const termBody = $('#term-body');
+  let termShown = term.offsetHeight;
+  let resizing = null;
+
+  function resizeTerm() {
+    const from = resizing ? term.offsetHeight : termShown;
+    if (resizing) resizing.cancel();
+    resizing = null;
+    termBody.style.overflow = '';
+    const to = term.offsetHeight;
+    termShown = to;
+    if (Math.abs(to - from) < 1) return;
+    termBody.style.overflow = 'clip'; // nothing to scroll while it catches up with its text
+    const a = term.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 260, easing: EASE });
+    resizing = a;
+    a.finished.then(() => {
+      if (resizing !== a) return;
+      resizing = null;
+      termBody.style.overflow = '';
+      termBody.scrollTop = termBody.scrollHeight; // at its full height, the newest line at the bottom again
+    }, () => {});
+  }
+
+  const sizes = new ResizeObserver(resizeTerm);
+  sizes.observe($('#out'));
+  sizes.observe($('#actions'));
 })();

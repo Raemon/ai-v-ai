@@ -276,11 +276,20 @@
     return b;
   }
 
-  function addLine(parent, cls, text) {
-    const l = el('div', 'ln ' + (cls || ''), text);
+  function addLine(parent, cls, ...kids) {
+    const l = el('div', 'ln ' + (cls || ''), ...kids);
     parent.append(l);
     scrollDown();
     return l;
+  }
+
+  // Quoted strings in `text` as spans to colour.
+  const markStrings = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
+
+  // A tool call coloured like code: the function's name, then its arguments.
+  function callParts(call) {
+    const m = call.match(/^(\w+)\((.*)\)$/s);
+    return m ? [el('span', 'fn', m[1]), '(', ...markStrings(m[2]), ')'] : [call];
   }
 
   // Types `text` into `line`; the first `from` characters appear at once.
@@ -341,12 +350,13 @@
     return text;
   }
 
+  // One line: the call, then what came back beside it (or under it, if it won't fit).
   async function printTool(call, result, cls) {
-    const b = block('tool');
-    addLine(b, 'call', call);
+    const line = addLine(block('tool'), 'call', ...callParts(call));
     if (result == null) return;
     await pause(240);
-    addLine(b, 'res ' + (cls || ''), result);
+    line.append(' ', el('span', 'res ' + (cls || ''), result));
+    scrollDown();
   }
 
   function printWarning(text) {
@@ -368,8 +378,8 @@
     fillDialog({ title, icon, heading, label, value, ok });
     pendingAttempt = attempt;
     opener = document.activeElement;
-    centerDialogOverFolders();
     setLayerOpen(dom.dialog, true);
+    centerDialogOverFolders();
     S.mode = 'dialog';
     renderActions();
     A.sfx('grow', 0.8);
@@ -389,12 +399,14 @@
     setDialogBusy(false);
   }
 
-  // Never over an open file, so a password read there stays readable.
+  // Never over an open file, so a password read there stays readable. Over a
+  // folder window too short to hold it, it hangs from the window's top.
   function centerDialogOverFolders() {
     const col = local((dom.viewer.hidden ? dom.current : dom.files).getBoundingClientRect());
     const fits = col.width > 200;
+    const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
     dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : SCREEN_W / 2}px`;
-    dom.dialogBox.style.top = `${fits ? col.top + col.height / 2 : SCREEN_H / 2}px`;
+    dom.dialogBox.style.top = `${fits ? middle : SCREEN_H / 2}px`;
   }
 
   function closeDialog() {
@@ -765,7 +777,7 @@
     charge(j.call, j.skill);
     notice(j);
     const b = block('tool job');
-    addLine(b, 'call', j.call);
+    addLine(b, 'call', ...callParts(j.call));
     for (const [i, [tested, best]] of j.rows.entries()) {
       await pause(520);
       const final = i === j.rows.length - 1 ? ' final' : '';
@@ -796,7 +808,7 @@
 
   async function typeSubmission(draft) {
     const b = block('tool');
-    addLine(b, 'call', 'submit_answer()');
+    addLine(b, 'call', ...callParts('submit_answer()'));
     await typeInto(addLine(b, 'quote'), `"${draft.text}"`, 120);
     S.log.push({ call: `submit_answer(${q(clip(draft.text, 48))})` });
   }
@@ -914,13 +926,15 @@
     render();
   }
 
+  // The face sets off from where it is before the desk resets: an emptied terminal moves it up.
   async function goHome() {
     A.sfx('wipe');
-    resetDesk();
     renderHome();
     slideScorecard(() => showTitle('home'));
+    const flight = window.AGENT_MOTION.toTitle();
+    resetDesk();
     dom.startNormal.focus({ preventScroll: true });
-    await window.AGENT_MOTION.toTitle();
+    await flight;
   }
 
   // The scorecard stays put on screen while what's around it changes, then glides to its new place.
@@ -1134,42 +1148,30 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The window's path as clickable folder names. Folders above the run are
-  // shown too; trying to go there is refused like any other forbidden path.
-  function crumbs(path, nameOnly) {
+  // The window's whole path, from the root, as clickable folder names. Folders
+  // above the run are shown too; trying to go there is refused like any other
+  // forbidden path. Each folder keeps the slash after it, so a long path wraps there.
+  function crumbs(path) {
     const parts = [
       ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
     const t = el('span', 'title crumbs');
-    t.title = fullPath(path);
-    for (const part of nameOnly ? parts.slice(-1) : parts) {
-      if (!nameOnly) t.append('/');
-      const c = el('button', 'crumb', part.name);
+    parts.forEach((part, i) => {
+      const last = i === parts.length - 1;
+      const c = el('button', 'crumb' + (last ? ' own' : ''), part.name);
       if (pathKey(part.path) === pathKey(S.cwd)) c.classList.add('here');
       c.addEventListener('click', () => onFolderClick(part.path));
-      t.append(c);
-    }
+      t.append(el('span', 'seg', i ? null : '/', c, last ? null : '/'));
+    });
     return t;
   }
 
-  // A path too long for its title bar loses folders from its start, so the one
-  // it ends in stays readable: …/workspace/Task Library.
-  function fitCrumbs(t) {
-    if (t.scrollWidth <= t.clientWidth) return;
-    const more = document.createTextNode('…');
-    t.prepend(more);
-    while (t.scrollWidth > t.clientWidth && t.querySelectorAll('.crumb').length > 1) {
-      more.nextSibling.remove(); // a slash
-      more.nextSibling.remove(); // and the folder after it
-    }
-  }
-
-  function windowFrame(path, cls, nameOnly) {
+  function windowFrame(path, cls) {
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path, nameOnly)), body);
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path)), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -1199,7 +1201,7 @@
   // An open folder: big when it's the current one, small otherwise.
   function folderWindow(path) {
     const active = pathKey(path) === pathKey(S.cwd);
-    const { w, body } = windowFrame(path, active ? 'active' : 'mini', !active);
+    const { w, body } = windowFrame(path, active ? 'active' : 'mini');
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
     return w;
@@ -1214,7 +1216,7 @@
       root = root.slice(0, i);
     }
     const expanded = (path) => S.windows.some((w) => isWithin(w, path));
-    const { w, body } = windowFrame(root, 'active tree', false);
+    const { w, body } = windowFrame(root, 'active tree');
 
     const row = (node, path, depth) => {
       const open = node.kind === 'dir' && expanded(path);
@@ -1260,7 +1262,6 @@
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
     dom.current.replaceChildren(...current);
-    [dom.files, dom.current].forEach((c) => c.querySelectorAll('.crumbs').forEach(fitCrumbs));
     if (column) refocus(focused, column);
     const selected = asTree && dom.files.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
@@ -1517,10 +1518,8 @@
   }
 
   // Episode logs (util.js formatLog), coloured so what the AI did stands out from its thinking.
-  const quotedBright = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
-
   function stepRow([, label, gap, what]) {
-    const body = what.startsWith('think') ? el('span', 'think', what) : el('span', 'call', ...quotedBright(what));
+    const body = what.startsWith('think') ? el('span', 'think', what) : el('span', 'call', ...markStrings(what));
     return el('div', 'step', el('span', 'n', label), gap, body);
   }
 

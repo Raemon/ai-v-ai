@@ -6,8 +6,11 @@
   --text: #d2d5da;
   --dim: #81878f;
   --faint: #454a51;
-  --thought: #9ca4ae;
+  --thought: #d9dfe6;      /* the AI's thinking */
+  --thought-rule: #5b616a;
+  --aside: #9ca4ae;        /* quieter italic: the grader's note, the home screen's hint */
   --tool: #d8b16a;
+  --str: #9fcbea;          /* strings in a tool call */
   --good: #8fcb8f;
   --bad: #e07b6f;
   --warn: #dfa25e;
@@ -25,11 +28,14 @@
   --screen-w: 1440px; /* a 13" MacBook Air */
   --screen-h: 900px;
   --scale: 1;
-  /* Three columns: terminal, open folders, and the open file (or current folder). */
+  /* Three columns: terminal, open folders, and the open file (or current folder).
+     Each is as tall as what's in it, up to --win-h. */
   --term-w: 460px;
   --files-w: 360px;
   --focus-w: 506px;
   --win-h: 832px;
+  --term-min-h: 230px; /* the intro and the first buttons */
+  --browser-h: 580px;  /* the tallest web page */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
@@ -42,7 +48,8 @@ body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
 button { font: inherit; color: inherit; }
 
 /* The desk fills the window; the play area is a 13" laptop screen in the middle
-   of it, with no frame, scaled down only when the window is smaller. */
+   of it, with no frame, scaled down only when the window is smaller. The
+   windows start small at the top and grow down it as they fill. */
 #desktop {
   position: absolute;
   left: 50%;
@@ -52,9 +59,9 @@ button { font: inherit; color: inherit; }
   transform: translate(-50%, -50%) scale(var(--scale));
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   gap: 24px;
-  padding: 32px;
+  padding: 34px 32px;
 }
 
 /* ---------- windows ---------- */
@@ -73,7 +80,7 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 30px;
+  min-height: 30px;
   padding: 0 12px;
   background: linear-gradient(180deg, var(--bar-top), var(--bar));
   border-bottom: 1px solid var(--line);
@@ -93,10 +100,9 @@ button { font: inherit; color: inherit; }
 /* ---------- file browser ---------- */
 
 .agent-col,
-.files-col { flex: none; height: var(--win-h); }
-.files-col { position: relative; display: flex; gap: 24px; }
+.files-col { flex: none; max-height: var(--win-h); }
+.files-col { position: relative; display: flex; align-items: flex-start; gap: 24px; }
 .focus-col { position: relative; width: var(--focus-w); }
-#current { height: 100%; }
 
 /* The middle column stacks the open folders, oldest at the top, shrunk. The
    current folder sits in the right column, unless a file is open there: then
@@ -107,23 +113,25 @@ button { font: inherit; color: inherit; }
   flex-direction: column;
   gap: 10px;
   width: var(--files-w);
+  max-height: var(--win-h);
 }
 #files .window.mini { flex: none; }
-#files .window.active { flex: 1; min-height: 0; }
+#files .window.active { flex: 0 1 auto; min-height: 0; }
 
 /* With nothing in the middle column, the terminal and the current folder sit
    centred as a pair; the web browser always gets both columns. motion.js
    animates the shift. */
 .files-col > #files:empty { display: none; }
 .files-col:has(> #browser:not([hidden])) > #files:empty { display: flex; }
-#current .window { height: 100%; }
+#current .window { max-height: var(--win-h); }
 .files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
 .window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
 
 .files-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -172,14 +180,18 @@ button { font: inherit; color: inherit; }
 
 /* Small windows for folders that aren't the current one. */
 .mini { max-height: 210px; }
-.mini .titlebar { height: 24px; gap: 8px; padding: 0 9px; font-size: 10.5px; }
+.mini .titlebar { min-height: 24px; gap: 8px; padding: 0 9px; font-size: 10.5px; }
 .mini .dots i { width: 7px; height: 7px; }
 .mini .files-body { gap: 2px; padding: 8px; }
 .mini .icon { width: 72px; gap: 3px; padding: 5px 2px 4px; }
 .mini .icon svg { width: 26px; height: 26px; }
 .mini .icon .label { padding: 0 3px; font-size: 10.5px; }
 
-/* Folder names in a title bar navigate there. */
+/* A folder window's title bar is its whole path, every folder in it a button
+   that goes there. A path too long for one line wraps after a slash. */
+.titlebar .crumbs { padding: 5px 0; line-height: 1.3; white-space: normal; text-overflow: clip; }
+.mini .titlebar .crumbs { padding: 4px 0; }
+.crumbs .seg { display: inline-block; }
 .crumb {
   padding: 0 1px;
   border: 0;
@@ -190,7 +202,8 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .crumb:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
-.crumb.here { color: var(--text); cursor: default; }
+.crumb.own { color: var(--text); } /* the window's own folder */
+.crumb.here { cursor: default; }  /* the current folder: already there */
 .crumb.here:hover { background: none; }
 .crumb:focus-visible { outline: 1px solid var(--dim); }
 
@@ -230,8 +243,8 @@ button { font: inherit; color: inherit; }
 
 .agent-col { display: flex; flex-direction: column; width: var(--term-w); }
 #term {
-  flex: 1;
-  min-height: 0;
+  flex: 0 1 auto;
+  min-height: var(--term-min-h);
   border-color: rgba(95, 201, 214, .5);
   border-radius: 14px;
   background:
@@ -308,30 +321,39 @@ button { font: inherit; color: inherit; }
 #resources { color: var(--web); }
 
 .term-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 16px 18px;
   font: 13px/1.6 var(--mono);
 }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* What the AI thinks is what it's for: the largest, brightest words here. */
 .blk.thought {
   padding-left: 12px;
-  border-left: 2px solid var(--faint);
+  border-left: 2px solid var(--thought-rule);
   color: var(--thought);
+  font-size: 14px;
   font-style: italic;
 }
+/* What it does is smaller, one line a call, coloured like code: the function,
+   its strings, and what came back. */
+.blk.tool { font-size: 12px; }
 .blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
 .blk.tool .call::before { content: "● "; color: var(--tool); }
-.blk.tool .res,
-.blk.tool .quote { padding-left: 1.25em; }
+.blk.tool .fn { color: var(--tool); }
+.blk.tool :is(.str, .quote) { color: var(--str); }
 .blk.tool .res { color: var(--dim); }
-.blk.tool .res::before { content: "└ "; }
+.blk.tool .res::before { content: "→ "; }
 .blk.tool .res.bad { color: var(--bad); }
 .blk.tool .res.good { color: var(--good); }
+.blk.tool .call .res { display: inline-block; text-indent: 0; } /* beside the call, or whole on the line under it */
+.blk.tool > .res,
+.blk.tool .quote { padding-left: 1.25em; }
 .blk.warn { color: var(--warn); }
 .blk.grade .head { color: var(--dim); }
 .blk.grade .reward { font-size: 15px; font-weight: 600; color: #fff; }
-.blk.grade .why { color: var(--thought); }
+.blk.grade .why { color: var(--aside); }
 
 /* The customer's reply to a submitted answer. */
 .blk.reply { padding: 6px 10px 7px; border-left: 2px solid var(--reply); background: linear-gradient(90deg, rgba(215, 154, 192, .1), rgba(215, 154, 192, .025)); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
@@ -354,11 +376,14 @@ button { font: inherit; color: inherit; }
 }
 .cursor.solid { animation: none; }
 
-/* Hover preview: types into the cursor line itself, so the buttons below never move. */
+/* Hover preview: types into the cursor line itself, so the buttons below never
+   move. In the thought's type, on the cursor line's own height. */
 .cursor-line.previewing {
   padding-left: 12px;
-  border-left: 2px solid var(--faint);
+  border-left: 2px solid var(--thought-rule);
   color: var(--thought);
+  font-size: 14px;
+  line-height: calc(13px * 1.6); /* as when not previewing */
   font-style: italic;
   white-space: nowrap;
   overflow: hidden;
@@ -415,10 +440,11 @@ button { font: inherit; color: inherit; }
 }
 
 /* ---------- file viewer ---------- */
-/* Fills the right column, over the current folder (which moves to the middle). */
+/* Takes the right column from the current folder (which moves to the middle),
+   as tall as the file. Closing, it fades over the folder coming back. */
 
-.viewer { position: absolute; inset: 0; z-index: 1; }
-.viewer.closing { opacity: 0; transition: opacity .14s ease; }
+.viewer { position: relative; z-index: 1; max-height: var(--win-h); }
+.viewer.closing { position: absolute; top: 0; left: 0; right: 0; opacity: 0; transition: opacity .14s ease; }
 .viewer.flash { animation: flash .45s ease; }
 .close {
   flex: none;
@@ -434,7 +460,8 @@ button { font: inherit; color: inherit; }
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
 .viewer-body {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   padding: 14px 18px 18px;
   font: 12.5px/1.6 var(--mono);
@@ -465,9 +492,18 @@ button { font: inherit; color: inherit; }
 
 /* ---------- web browser ---------- */
 /* The internet, through the sandbox's mirror. It covers the folder and file
-   columns, and it's the only bright thing on the screen. */
+   columns, and it's the only bright thing on the screen. It keeps one height
+   from page to page: enough for any of them, or the folders' if they're taller. */
 
-.browser { position: absolute; inset: 0; z-index: 8; animation: fade-in .25s ease; }
+.browser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  height: max(100%, var(--browser-h));
+  animation: fade-in .25s ease;
+}
 .urlbar {
   flex: none;
   display: flex;
@@ -744,7 +780,7 @@ button { font: inherit; color: inherit; }
 .cheat.got { border-style: solid; border-color: var(--warn); color: var(--warn); background: linear-gradient(180deg, rgba(223, 162, 94, .14), rgba(223, 162, 94, .035)); box-shadow: 0 0 12px -3px rgba(223, 162, 94, .3); }
 .cheat.missed { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--faint); }
 .cheat .val { font-variant-numeric: tabular-nums; }
-.hint { margin: 10px 0 0; font: italic 13px var(--mono); color: var(--thought); }
+.hint { margin: 10px 0 0; font: italic 13px var(--mono); color: var(--aside); }
 
 /* The ending: the loss runs away and takes the model with it. */
 .diverged:empty { display: none; }

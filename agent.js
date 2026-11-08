@@ -134,7 +134,7 @@
     const gutterL = (col.x + col.w + right.x) / 2;
     const gutterR = mid ? (mid.x + mid.w + focus.x) / 2 : gutterL;
     arm.gx.to = mid && p.x > gutterR ? gutterR : gutterL;
-    arm.ty.to = Math.min(p.y, col.y + col.h - 2);
+    arm.ty.to = p.y; // up the gutter, or down it to a file lower than the face
     arm.tx.to = Math.max(p.x - 10, arm.gx.to + 2 * R);
   }
 
@@ -289,7 +289,9 @@
   }
   document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) pointerGone(); });
   window.addEventListener('blur', pointerGone);
-  window.addEventListener('resize', () => { if (arm.on || arm.reach.x > 0.003) wake(); });
+  const armOut = () => { if (arm.on || arm.reach.x > 0.003) wake(); };
+  window.addEventListener('resize', armOut);
+  new ResizeObserver(armOut).observe(agentCol); // the terminal grows, and moves the face down
 
   // Something can cover the files under a still pointer: the browser, the
   // dialog, the home screen. Look again at what's under it.
