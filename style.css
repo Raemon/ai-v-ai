@@ -787,6 +787,9 @@ button { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* The files hint still shows where to click, without flashing. */
+  .icon.beckon,
+  .row.beckon { background: rgba(216, 177, 106, .22); box-shadow: inset 0 0 0 1px var(--tool); }
 }
 
 /* ---------- title screen ---------- */
