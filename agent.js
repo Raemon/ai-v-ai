@@ -1,8 +1,10 @@
-// The AI's body language. Its pupils follow the pointer; a probe arm reaches
-// out from under its face toward the pointer over the files; it pulses when
-// the player clicks something; and its face glides between the title screen
-// and its place under the terminal. Cosmetic only: it listens to the DOM, and
-// game.js needn't know it exists, except to call AGENT_MOTION (at the end).
+// The AI's body language. Its eyes glance at the pointer, blink, and wander
+// when nothing's happening; its attention, a copy of the brackets round its
+// face, leaves it and closes round whatever the pointer is over among the
+// files; it gathers itself as the player presses, and pulses when they click;
+// and its face glides between the title screen and its place under the
+// terminal. Cosmetic only: it listens to the DOM, and game.js needn't know it
+// exists, except to call AGENT_MOTION (at the end).
 (() => {
   'use strict';
 
@@ -12,8 +14,6 @@
   const title = $('#title-screen');
   const agentCol = $('.agent-col');
   const filesCol = $('.files-col');
-  const files = $('#files');
-  const focusCol = $('.focus-col');
   const agent = $('.agent .agent-icon');
   const face = agent.querySelector('.face');
   const startIcon = $('#start-normal .agent-icon');
@@ -34,23 +34,44 @@
     node.classList.add(cls);
   }
 
+  const rand = (a, b) => a + Math.random() * (b - a);
   let pointer = null; // in client pixels; null while it's off the page
+  let held = null;    // what the AI's attention is on, among the files
 
   // ------------------------------------------------------------------- eyes
-  // Each face gets --gx and --gy (-1…1): which way the pointer is, and how far
-  // up to a few faces away. The CSS turns them into slit and pupil offsets.
+  // Two solid lights, no pupils: the whole eye moves, as a look, not a dial.
+  // Each face gets --e1, --e2 and --ey, whole pixels: where each eye sits. The
+  // eye nearer the way it looks moves a little less, so they close up as if
+  // the head had turned. They hold on what the attention holds rather than
+  // the pointer's every twitch; blink, the second a beat behind the first;
+  // sometimes blink with a big glance; and, left alone, look about the room.
+  // Faces on runs that aren't available yet are asleep (style.css), and stay so.
 
   let looking = 0;
+  let still = 0;      // when the pointer last moved
+  let glance = null;  // an idle look somewhere, as -1…1 either way, or null
+  const seen = new WeakMap();
+
+  const awake = (icon) => !icon.closest('.unavailable') && icon.getClientRects().length > 0;
 
   function look() {
     looking = 0;
-    for (const icon of document.querySelectorAll('.agent-icon')) {
+    const d = frame();
+    for (const icon of document.querySelectorAll('.agent-icon:not(.flying)')) {
       const r = icon.querySelector('.face').getBoundingClientRect();
+      if (!r.width || !awake(icon)) continue;
+      const s = r.width / d.k;
       let gx = 0;
       let gy = 0;
-      if (pointer && r.width) {
-        const dx = pointer.x - (r.left + r.width / 2);
-        const dy = pointer.y - (r.top + r.height / 2);
+      let at = pointer;
+      if (icon === agent && held) {
+        const h = held.getBoundingClientRect();
+        at = { x: h.left + h.width / 2, y: h.top + h.height / 2 };
+      }
+      if (glance) [gx, gy] = glance;
+      else if (at) {
+        const dx = at.x - (r.left + r.width / 2);
+        const dy = at.y - (r.top + r.height / 2);
         const dist = Math.hypot(dx, dy);
         const reach = Math.min(1, dist / (r.width * 3));
         if (dist) {
@@ -58,8 +79,17 @@
           gy = (dy / dist) * reach;
         }
       }
-      icon.style.setProperty('--gx', gx.toFixed(3));
-      icon.style.setProperty('--gy', gy.toFixed(3));
+      const A = s * 0.12;
+      const e1 = Math.round(gx * A * (gx > 0 ? 1 : 0.7));
+      const e2 = Math.round(gx * A * (gx > 0 ? 0.7 : 1));
+      const ey = Math.round(gy * s * 0.09);
+      const was = seen.get(icon);
+      if (was && was[0] === e1 && was[1] === e2 && was[2] === ey) continue;
+      seen.set(icon, [e1, e2, ey]);
+      icon.style.setProperty('--e1', e1);
+      icon.style.setProperty('--e2', e2);
+      icon.style.setProperty('--ey', ey);
+      if (was && Math.hypot(e1 - was[0], ey - was[2]) > A * 1.3 && Math.random() < 0.35) blink(icon);
     }
   }
 
@@ -67,43 +97,60 @@
     if (!looking) looking = requestAnimationFrame(look);
   };
 
-  // ------------------------------------------------------------------ probe
-  // Two parallel strands leave the bottom of the face, drop to a lane under
-  // the columns, run along it to the gutter beside the pointer's column, climb
-  // it, and turn in to the pointer: right angles, rounded elbows. The joints
-  // follow the pointer on springs, so the arm lags and settles; it reaches
-  // out when the pointer enters the files and draws back in when it leaves.
-
-  const NS = 'http://www.w3.org/2000/svg';
-  const R = 10;     // elbow radius, on the centre line
-  const GAP = 2;    // each strand's offset from the centre line: whole pixels
-  const LANE = 24;  // how far below the face the arm turns
-  const K = 0.5523; // Bézier handles for a quarter circle
-
-  function svgEl(tag, cls) {
-    const n = document.createElementNS(NS, tag);
-    if (cls) n.setAttribute('class', cls);
-    return n;
+  function blink(icon) {
+    if (reduceMotion || icon.classList.contains('blip')) return;
+    replay(icon, 'blink');
+    clearTimeout(icon.blinking);
+    icon.blinking = setTimeout(() => icon.classList.remove('blink'), 260);
   }
 
-  const probe = svgEl('svg', 'probe');
-  const strandA = svgEl('path', 'a');
-  const strandB = svgEl('path', 'b');
-  const spine = svgEl('path', 'spark');
-  const ring = svgEl('circle', 'ring');
-  const tip = svgEl('circle', 'tip');
-  strandA.setAttribute('pathLength', '1');
-  strandB.setAttribute('pathLength', '1');
-  tip.setAttribute('r', '2.5');
-  probe.setAttribute('aria-hidden', 'true');
-  probe.style.display = 'none';
-  probe.append(strandB, strandA, spine, ring, tip);
-  desktop.append(probe);
+  // Every few seconds, sometimes twice in a row.
+  (function blinks() {
+    for (const icon of document.querySelectorAll('.agent-icon:not(.flying)')) {
+      if (!awake(icon)) continue;
+      blink(icon);
+      if (Math.random() < 0.15) setTimeout(() => blink(icon), 300);
+    }
+    setTimeout(blinks, rand(2600, 6400));
+  })();
+
+  // Left alone a while, it looks about: up at its own thoughts, across at the
+  // files, down, back to the middle; and back at the pointer the moment it moves.
+  const GLANCES = [[-0.2, -0.95], [0.95, -0.15], [0.35, 0.6], [-0.8, 0.1], [0, 0], [0.6, -0.7]];
+  (function wander() {
+    if (!reduceMotion && (!pointer || performance.now() - still > 3500)) {
+      glance = glance && Math.random() < 0.4 ? null : GLANCES[Math.floor(Math.random() * GLANCES.length)];
+      lookSoon();
+    }
+    setTimeout(wander, rand(1400, 3800));
+  })();
+
+  // ------------------------------------------------------------------ reach
+  // The AI's attention, made visible: a copy of the corner brackets round its
+  // face leaves it and closes round the file, folder or button the pointer is
+  // over among the files, then slides from one to the next. Each edge is on
+  // its own spring, the leading edge quicker than the trailing one, so it
+  // stretches as it goes and settles square. Pressing grips it in a pixel or
+  // two; letting go springs it back. Off the files it lets go, opening a
+  // little as it fades. Sizes and places are whole pixels, every frame.
+
+  const OUT = 4;     // how far outside the thing it holds
+  const GRIP = 3;    // how far it closes in on a press
+  const STRETCH = 48; // how much longer than the thing it may get in flight
+
+  const reticle = document.createElement('div');
+  reticle.className = 'reticle';
+  reticle.setAttribute('aria-hidden', 'true');
+  reticle.innerHTML = '<i></i><i></i><i></i><i></i>';
+  reticle.style.display = 'none';
+  desktop.append(reticle);
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
   const settled = (s) => Math.abs(s.to - s.x) < s.eps && Math.abs(s.v) < s.eps * 10;
-  function step(s, dt) {
-    s.v += (s.k * (s.to - s.x) - s.c * s.v) * dt;
+  function step(s, dt, lead) {
+    const k = lead ? 520 : s.k;
+    const c = lead ? 42 : s.c;
+    s.v += (k * (s.to - s.x) - c * s.v) * dt;
     s.x += s.v * dt;
   }
   function snap(s) {
@@ -111,122 +158,43 @@
     s.v = 0;
   }
 
-  const arm = {
-    on: false,
-    reach: spring(95, 13, 0.001), // 0 tucked in, 1 at the pointer; overshoots a little
-    trail: spring(60, 11, 0.001), // the second strand, a beat behind the first
-    gx: spring(260, 30, 0.1),     // the gutter it climbs
-    ty: spring(170, 21, 0.1),     // the tip
-    tx: spring(150, 19, 0.1),
-    spark: -1,                    // a click running out along the arm, 0…1
-    flash: 0,                     // and landing at the tip, 1…0
-  };
-  const joints = [arm.gx, arm.ty, arm.tx];
-  const springs = [arm.reach, arm.trail, ...joints];
+  const L = spring(210, 25, 0.05);
+  const T = spring(210, 25, 0.05);
+  const Rt = spring(210, 25, 0.05);
+  const B = spring(210, 25, 0.05);
+  const edges = [L, T, Rt, B];
+  const fade = spring(160, 24, 0.002);
+  let grip = 0;
+  let letGo = 0;
 
-  // Where the joints should go for the pointer's position.
-  function aim(d) {
-    const p = { x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k };
-    const col = local(agentCol, d);
-    const right = local(filesCol, d);
-    const focus = local(focusCol, d);
-    const mid = files.offsetParent ? local(files, d) : null;
-    const gutterL = (col.x + col.w + right.x) / 2;
-    const gutterR = mid ? (mid.x + mid.w + focus.x) / 2 : gutterL;
-    arm.gx.to = mid && p.x > gutterR ? gutterR : gutterL;
-    arm.ty.to = p.y; // up the gutter, or down it to a file lower than the face
-    arm.tx.to = Math.max(p.x - 10, arm.gx.to + 2 * R);
+  // Hold `el`: aim the edges at it, OUT pixels outside (less the grip).
+  function aim(el, d) {
+    const r = local(el, d);
+    const o = OUT - grip;
+    L.to = Math.round(r.x) - o;
+    T.to = Math.round(r.y) - o;
+    Rt.to = Math.round(r.x + r.w) + o;
+    B.to = Math.round(r.y + r.h) + o;
   }
 
-  // An orthogonal polyline as an SVG path with rounded corners, offset `off`
-  // to one side; a corner's radius grows or shrinks by the offset, so strands
-  // either side of the same line stay parallel round the bends.
-  function route(pts, off) {
-    const P = [];
-    for (const p of pts) {
-      const q = P[P.length - 1];
-      if (q && Math.abs(q[0] - p[0]) < 0.01 && Math.abs(q[1] - p[1]) < 0.01) continue;
-      const o = P[P.length - 2];
-      if (o && ((Math.abs(o[0] - q[0]) < 0.01 && Math.abs(q[0] - p[0]) < 0.01) || (Math.abs(o[1] - q[1]) < 0.01 && Math.abs(q[1] - p[1]) < 0.01))) {
-        P[P.length - 1] = p; // straight on: no corner here
-        continue;
-      }
-      P.push(p);
-    }
-    const n = P.length;
-    if (n < 2) return '';
-    const dir = [];
-    for (let i = 0; i < n - 1; i++) {
-      const dx = P[i + 1][0] - P[i][0];
-      const dy = P[i + 1][1] - P[i][1];
-      const l = Math.hypot(dx, dy);
-      dir.push([dx / l, dy / l]);
-    }
-    const V = P.map((p, i) => {
-      let ox = 0;
-      let oy = 0;
-      if (i > 0) { ox -= dir[i - 1][1]; oy += dir[i - 1][0]; }
-      if (i < n - 1) { ox -= dir[i][1]; oy += dir[i][0]; }
-      return [p[0] + off * ox, p[1] + off * oy];
-    });
-    const f = (p) => p[0].toFixed(2) + ',' + p[1].toFixed(2);
-    const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
-    let d = 'M' + f(V[0]);
-    for (let i = 1; i < n - 1; i++) {
-      const a = dir[i - 1];
-      const b = dir[i];
-      const inside = (V[i][0] - P[i][0]) * (b[0] - a[0]) + (V[i][1] - P[i][1]) * (b[1] - a[1]) > 0;
-      const r = Math.max(0, Math.min(R + (inside ? -1 : 1) * Math.abs(off),
-        dist(V[i - 1], V[i]) / (i > 1 ? 2 : 1), dist(V[i], V[i + 1]) / (i < n - 2 ? 2 : 1)));
-      const s = [V[i][0] - a[0] * r, V[i][1] - a[1] * r];
-      const e = [V[i][0] + b[0] * r, V[i][1] + b[1] * r];
-      d += `L${f(s)}C${f([s[0] + a[0] * r * K, s[1] + a[1] * r * K])} ${f([e[0] - b[0] * r * K, e[1] - b[1] * r * K])} ${f(e)}`;
-    }
-    return d + 'L' + f(V[n - 1]);
+  // Keep it no longer than the thing plus STRETCH, nor smaller than a dot,
+  // by pulling in whichever edge is further from home.
+  function limit(a, b) {
+    const span = b.to - a.to;
+    const now = b.x - a.x;
+    const out = now > span + STRETCH ? now - span - STRETCH : now < 6 ? now - 6 : 0;
+    if (!out) return;
+    if (Math.abs(a.to - a.x) > Math.abs(b.to - b.x)) a.x += out;
+    else b.x -= out;
   }
 
-  // The middle of a pixel: 1px strokes there, and GAP whole pixels either side, stay sharp.
-  const px = (v) => Math.round(v - 0.5) + 0.5;
-
-  function draw(d) {
-    const fr = local(face, d);
-    const sx = px(fr.x + fr.w / 2);
-    const sy = px(fr.y + fr.h - 1);
-    const lane = sy + LANE;
-    const reach = Math.max(0, arm.reach.x);
-    const over = Math.max(0, reach - 1) * 90; // a springy overshoot past the pointer
-    const gx = px(arm.gx.x);
-    const ty = px(arm.ty.x);
-    const pts = [[sx, sy], [sx, lane], [gx, lane], [gx, ty], [px(arm.tx.x + over), ty]];
-    const a = Math.min(1, reach);
-    const b = Math.min(1, Math.max(0, arm.trail.x));
-    spine.setAttribute('d', route(pts, 0));
-    strandA.setAttribute('d', route(pts, GAP));
-    strandB.setAttribute('d', route(pts, -GAP));
-    strandA.style.strokeDasharray = `${a} 2`;
-    strandB.style.strokeDasharray = `${b} 2`;
-    strandA.style.visibility = a > 0.003 ? '' : 'hidden';
-    strandB.style.visibility = b > 0.003 ? '' : 'hidden';
-
-    const len = spine.getTotalLength();
-    const at = spine.getPointAtLength(a * len);
-    const shown = Math.max(0, Math.min(1, (a - 0.55) / 0.4));
-    tip.setAttribute('cx', at.x);
-    tip.setAttribute('cy', at.y);
-    tip.style.opacity = shown;
-    ring.setAttribute('cx', at.x);
-    ring.setAttribute('cy', at.y);
-    ring.setAttribute('r', 6 + (1 - arm.flash) * (arm.flash > 0 ? 7 : 0));
-    ring.style.opacity = shown * (arm.flash > 0 ? arm.flash * 2 : 1);
-
-    if (arm.spark >= 0) {
-      const head = arm.spark * a * len;
-      spine.style.strokeDasharray = `16 ${len + 40}`;
-      spine.style.strokeDashoffset = 16 - head;
-      spine.style.opacity = 1 - arm.spark ** 4;
-    } else {
-      spine.style.opacity = 0;
-    }
+  function draw() {
+    const x = Math.round(L.x);
+    const y = Math.round(T.x);
+    reticle.style.transform = `translate(${x}px, ${y}px)`;
+    reticle.style.width = Math.max(6, Math.round(Rt.x) - x) + 'px';
+    reticle.style.height = Math.max(6, Math.round(B.x) - y) + 'px';
+    reticle.style.opacity = Math.max(0, Math.min(1, fade.x)).toFixed(3);
   }
 
   let raf = 0;
@@ -237,24 +205,27 @@
     const dt = Math.min(1 / 30, Math.max(0.001, (now - then) / 1000));
     then = now;
     const d = frame();
-    if (arm.on && pointer) aim(d);
-    if (reduceMotion) springs.forEach(snap);
-    else springs.forEach((s) => step(s, dt));
-    if (arm.spark >= 0) {
-      arm.spark += dt / 0.34;
-      if (arm.spark >= 1) {
-        arm.spark = -1;
-        arm.flash = 1;
-      }
+    if (held && !held.isConnected) hold(pointer && pick(document.elementFromPoint(pointer.x, pointer.y)));
+    if (held) aim(held, d);
+    if (reduceMotion) {
+      edges.forEach(snap);
+      snap(fade);
+    } else {
+      step(L, dt, L.to < L.x);
+      step(T, dt, T.to < T.x);
+      step(Rt, dt, Rt.to > Rt.x);
+      step(B, dt, B.to > B.x);
+      step(fade, dt);
+      limit(L, Rt);
+      limit(T, B);
     }
-    if (arm.flash > 0) arm.flash = Math.max(0, arm.flash - dt / 0.45);
-
-    const out = arm.on || arm.reach.x > 0.003 || arm.trail.x > 0.003;
-    probe.style.display = out ? '' : 'none';
-    if (!out) return;
-    draw(d);
-    // The AI's column may be gliding (motion.js): keep the arm attached.
-    const moving = !springs.every(settled) || arm.spark >= 0 || arm.flash > 0 || agentCol.getAnimations().length > 0;
+    const shown = fade.to > 0 || fade.x > 0.004;
+    reticle.style.display = shown ? '' : 'none';
+    if (!shown) return;
+    draw();
+    // Windows fly about as the files change (motion.js): keep hold of the thing.
+    const moving = !edges.every(settled) || !settled(fade) ||
+      (held && (filesCol.getAnimations({ subtree: true }).length > 0 || agentCol.getAnimations().length > 0));
     if (moving) raf = requestAnimationFrame(tick);
   }
 
@@ -264,61 +235,115 @@
     raf = requestAnimationFrame(tick);
   }
 
-  function setArm(on) {
-    if (on === arm.on) return;
-    arm.on = on;
-    if (on && arm.reach.x < 0.02) { // a fresh reach: lay the route straight to the pointer
-      aim(frame());
-      joints.forEach(snap);
+  // Something you can click among the files (not the web browser over them, nor anything on top).
+  function pick(t) {
+    const el = t && t.closest && t.closest('button, a');
+    if (!el || !el.closest('.files-col') || el.closest('#browser')) return null;
+    if (el.disabled || el.classList.contains('here')) return null;
+    return el;
+  }
+
+  function hold(el) {
+    if (el === held) return;
+    clearTimeout(letGo);
+    if (!el) {
+      // A moment's grace, so crossing the gap between two files doesn't let go.
+      letGo = setTimeout(release, held ? 200 : 0);
+      return;
     }
-    arm.reach.to = arm.trail.to = on ? 1 : 0;
-    Object.assign(arm.reach, on ? { k: 95, c: 13 } : { k: 150, c: 24 });
+    const d = frame();
+    if (fade.x < 0.05) { // a fresh reach: from the brackets round its face
+      const f = local(agent, d);
+      [[L, f.x], [T, f.y], [Rt, f.x + f.w], [B, f.y + f.h]].forEach(([s, v]) => { s.x = Math.round(v); s.v = 0; });
+      fade.x = 0;
+    }
+    held = el;
+    fade.to = 1;
+    agent.classList.add('intent');
+    aim(el, d);
+    lookSoon();
     wake();
   }
 
-  // Over a folder or file (not the web browser over them, nor anything on top).
-  const overFiles = (t) => !!(t && t.closest && t.closest('.files-col') && !t.closest('#browser'));
+  function release() {
+    if (!held) return;
+    held = null;
+    grip = 0;
+    fade.to = 0;
+    L.to -= 3; T.to -= 3; Rt.to += 3; B.to += 3; // opening as it lets go
+    agent.classList.remove('intent');
+    lookSoon();
+    wake();
+  }
 
   document.addEventListener('pointermove', (e) => {
     pointer = { x: e.clientX, y: e.clientY };
+    still = performance.now();
+    if (glance) glance = null;
     lookSoon();
     if (e.pointerType === 'touch') return;
-    setArm(overFiles(e.target));
-    if (arm.on) wake();
+    hold(pick(e.target));
+    if (held) wake();
   });
 
   function pointerGone() {
     pointer = null;
-    setArm(false);
+    hold(null);
     lookSoon();
   }
   document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) pointerGone(); });
   window.addEventListener('blur', pointerGone);
-  const armOut = () => { if (arm.on || arm.reach.x > 0.003) wake(); };
-  window.addEventListener('resize', armOut);
-  new ResizeObserver(armOut).observe(agentCol); // the terminal grows, and moves the face down
+  const follow = () => { if (held || fade.x > 0.004) wake(); };
+  window.addEventListener('resize', follow);
+  document.addEventListener('scroll', follow, true); // a folder or file scrolled under it
+  new ResizeObserver(follow).observe(agentCol);       // the terminal grows, and moves the face down
+  // A click usually redraws the files: find what's under the pointer now.
+  new MutationObserver(() => {
+    if (held && !held.isConnected) wake();
+  }).observe(filesCol, { subtree: true, childList: true });
 
   // Something can cover the files under a still pointer: the browser, the
   // dialog, the home screen. Look again at what's under it.
+  const recheck = () => { if (pointer) hold(pick(document.elementFromPoint(pointer.x, pointer.y))); };
   new MutationObserver(() => {
-    if (pointer) setArm(overFiles(document.elementFromPoint(pointer.x, pointer.y)));
+    recheck();
     lookSoon();
   }).observe(desktop, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
-  title.addEventListener('transitionend', () => { if (pointer) setArm(overFiles(document.elementFromPoint(pointer.x, pointer.y))); });
+  title.addEventListener('transitionend', recheck);
 
   // ------------------------------------------------------------------ pulse
-  // Clicking anything that does something: the face swells for a beat (on the
-  // title screen, the face in that button), and a spark runs out along the arm.
+  // Pressing anything that does something, the face draws in a little (on the
+  // title screen, the face in that button) and the attention grips; on the
+  // click, the face swells for a beat and its eyes squint, pleased.
+
+  const actionable = (b) => b && !b.disabled && b.getAttribute('aria-disabled') !== 'true' && b.id !== 'sound';
+  const iconFor = (b) => b.querySelector('.agent-icon') || agent;
+
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('button');
+    if (!actionable(b)) return;
+    iconFor(b).classList.add('ready');
+    if (held && held.contains(e.target)) {
+      grip = GRIP;
+      reticle.classList.add('grip');
+      wake();
+    }
+  });
+  function unready() {
+    for (const icon of document.querySelectorAll('.agent-icon.ready')) icon.classList.remove('ready');
+    grip = 0;
+    reticle.classList.remove('grip');
+    follow();
+  }
+  document.addEventListener('pointerup', unready);
+  document.addEventListener('pointercancel', unready);
 
   document.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest('button');
-    if (!b || b.disabled || b.getAttribute('aria-disabled') === 'true' || b.id === 'sound') return;
-    const own = b.querySelector('.agent-icon');
-    replay(own || agent, 'blip');
-    if (!own && arm.reach.x > 0.5) {
-      arm.spark = 0;
-      wake();
-    }
+    if (!actionable(b)) return;
+    const icon = iconFor(b);
+    icon.classList.remove('blink');
+    replay(icon, 'blip');
   });
   document.addEventListener('animationend', (e) => {
     if (e.animationName === 'agent-blip') e.target.closest('.agent-icon').classList.remove('blip');
@@ -336,8 +361,8 @@
   function copyOf(icon, d) {
     const c = icon.cloneNode(true);
     const cs = getComputedStyle(icon);
-    for (const p of ['--s', '--pad', '--arm', '--bw', '--c', '--gx', '--gy']) c.style.setProperty(p, cs.getPropertyValue(p));
-    c.classList.remove('blip');
+    for (const p of ['--s', '--pad', '--arm', '--bw', '--c', '--e1', '--e2', '--ey']) c.style.setProperty(p, cs.getPropertyValue(p));
+    c.classList.remove('blip', 'blink', 'ready', 'intent');
     c.classList.add('flying');
     const at = local(icon, d);
     Object.assign(c.style, { left: at.x + 'px', top: at.y + 'px' });

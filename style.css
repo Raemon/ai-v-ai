@@ -299,14 +299,19 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(#2a2d32, #1a1b1f);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
-/* The eyes: dim slits; agent.js lights a pupil in each that follows the pointer.
-   Sizes and offsets are whole pixels, and the glow is tight, so they stay sharp. */
+/* The eyes: two lights in the AI's own cyan, no pupils, set wide and a touch
+   low (agent.js moves them). Sizes are whole pixels and the glow is tight, so
+   they stay sharp. */
+.agent-icon .face {
+  gap: round(calc(var(--s) * .2), 1px);
+  padding-top: round(calc(var(--s) * .05), 2px);
+}
 .agent-icon .face i {
-  width: round(calc(var(--s) * .056), 1px);
-  height: round(calc(var(--s) * .3), 1px);
-  border-radius: 9px;
-  background: #8a95a2;
-  box-shadow: 0 0 4px rgba(170, 205, 245, .14);
+  width: round(calc(var(--s) * .13), 1px);
+  height: round(calc(var(--s) * .21), 1px);
+  border-radius: round(calc(var(--s) * .065), 1px);
+  background: linear-gradient(#effdff, #a6e6ee);
+  box-shadow: 0 0 2px rgba(120, 220, 232, .55), 0 0 7px rgba(95, 201, 214, .16);
 }
 
 /* ---------- terminal ---------- */
@@ -1045,43 +1050,47 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
    ========================================================================== */
 
 /* ---------- eyes ---------- */
-/* agent.js sets --gx and --gy (-1…1): where the pointer is, seen from the face.
-   The slits lean a little that way, and a brighter pupil slides along each. */
+/* agent.js sets --e1, --e2 and --ey, whole pixels: where each eye looks. They
+   get there quick, like a glance, not a slide. */
 
-.agent-icon { --gx: 0; --gy: 0; }
+.agent-icon { --e1: 0; --e2: 0; --ey: 0; }
 .agent-icon .face i {
-  position: relative;
-  transform: translate(round(calc(var(--gx) * var(--s) * .035), 1px), round(calc(var(--gy) * var(--s) * .02), 1px));
-  transition: transform .35s cubic-bezier(.2, .8, .3, 1);
+  translate: calc(var(--e1) * 1px) calc(var(--ey) * 1px);
+  transition: translate .13s cubic-bezier(.3, .7, .2, 1), box-shadow .3s, filter .3s;
 }
-.agent-icon .face i::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: round(calc(50% - var(--s) * .05), 1px);
-  height: round(calc(var(--s) * .1), 1px);
-  border-radius: 9px;
-  background: #fff;
-  box-shadow: 0 0 2px rgba(200, 230, 255, .7);
-  transform: translateY(round(calc(var(--gy) * var(--s) * .088), 1px));
-  transition: transform .22s cubic-bezier(.2, .8, .3, 1), box-shadow .2s;
+.agent-icon .face i + i { translate: calc(var(--e2) * 1px) calc(var(--ey) * 1px); }
+
+/* A blink: shut to a line, a little wider as it does, the second eye a beat behind. */
+.agent-icon.blink .face i { animation: agent-blink .2s cubic-bezier(.4, 0, .5, 1); }
+.agent-icon.blink .face i + i { animation-delay: .03s; }
+@keyframes agent-blink {
+  40%, 55% { scale: 1.15 .12; }
 }
+
+/* Its attention on something it could click: the eyes brighten a touch. */
+.agent-icon.intent .face i { filter: brightness(1.08); box-shadow: 0 0 2px rgba(140, 230, 240, .7), 0 0 8px rgba(95, 201, 214, .24); }
+
+/* Runs not available yet: the AI in them is asleep, eyes shut and low. One
+   opens a crack when you come near. */
+.run.unavailable .face i { height: 2px; border-radius: 1px; translate: 0 2px; background: #8d9aa3; box-shadow: none; transition: height .25s ease; }
+.run.unavailable:hover .face i:first-child { height: 4px; }
 
 /* ---------- pulse ---------- */
-/* A click anywhere that does something: the face swells for a beat and its eyes flare. */
+/* Pressing: the face draws in. The click: it swells for a beat and its eyes squint, pleased. */
 
+.agent-icon .face { transition: scale .12s cubic-bezier(.3, .7, .3, 1); }
+.agent-icon.ready .face { scale: .95; }
 .agent-icon.blip .face { animation: agent-blip .5s cubic-bezier(.2, .8, .3, 1); }
-.agent-icon.blip .face i::after { animation: agent-blip-eye .5s ease; }
+.agent-icon.blip .face i { animation: agent-blip-eye .5s cubic-bezier(.2, .8, .3, 1); }
 @keyframes agent-blip {
   28% {
     transform: scale(1.06);
-    border-color: #7891ae;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 3px rgba(107, 143, 184, .14), 0 0 22px rgba(107, 143, 184, .32), 0 8px 22px rgba(0, 0, 0, .45);
+    border-color: #5f8f98;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 0 0 3px rgba(95, 201, 214, .12), 0 0 22px rgba(95, 201, 214, .26), 0 8px 22px rgba(0, 0, 0, .45);
   }
 }
 @keyframes agent-blip-eye {
-  28% { box-shadow: 0 0 3px #fff, 0 0 8px rgba(190, 225, 255, .7); }
+  30% { transform: translateY(-1px) scale(1.1, .5); box-shadow: 0 0 3px #e6fcff, 0 0 9px rgba(95, 201, 214, .5); }
 }
 
 /* ---------- the face between screens ---------- */
@@ -1096,27 +1105,32 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   transform-origin: 0 0;
 }
 
-/* ---------- probe ---------- */
-/* A two-strand arm that leaves the bottom of the face and routes, in right
-   angles with rounded elbows, to the pointer over the files (agent.js). */
+/* ---------- reach ---------- */
+/* The AI's attention: corner brackets like the ones round its face, closed
+   round what the pointer is over among the files (agent.js). Every edge on a
+   whole pixel, 1px lines. */
 
-.probe {
+.reticle {
   position: absolute;
   left: 0;
   top: 0;
   z-index: 5;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
   pointer-events: none;
+  --rc: rgba(120, 216, 228, .85);
 }
-.probe path { fill: none; stroke: #6b8fb8; stroke-linecap: round; }
-.probe .a { stroke-width: 1; stroke: #7f9fc4; }
-.probe .b { stroke-width: 1; stroke-opacity: .5; }
-.probe .spark { stroke: #d4e5fb; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(150, 195, 250, .9)); }
-.probe .tip { fill: #b4cdec; }
-.probe .ring { fill: none; stroke: #6b8fb8; stroke-opacity: .45; stroke-width: 1; }
-#title-screen:not([hidden]):not(.leaving) ~ .probe { display: none; }
+.reticle i {
+  position: absolute;
+  width: round(min(7px, 40%), 1px);
+  height: round(min(7px, 40%), 1px);
+  border: 0 solid var(--rc);
+  transition: border-color .12s;
+}
+.reticle i:nth-child(1) { left: 0; top: 0; border-width: 1px 0 0 1px; border-top-left-radius: 2px; }
+.reticle i:nth-child(2) { right: 0; top: 0; border-width: 1px 1px 0 0; border-top-right-radius: 2px; }
+.reticle i:nth-child(3) { left: 0; bottom: 0; border-width: 0 0 1px 1px; border-bottom-left-radius: 2px; }
+.reticle i:nth-child(4) { right: 0; bottom: 0; border-width: 0 1px 1px 0; border-bottom-right-radius: 2px; }
+.reticle.grip { --rc: #d6f7fb; }
+#title-screen:not([hidden]):not(.leaving) ~ .reticle { display: none; }
 
 /* ---------- window motion ---------- */
 /* motion.js flies copies of windows from where they were to where they are. */
