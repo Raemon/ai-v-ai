@@ -64,7 +64,6 @@
     endButton: $('#end-button'),
     goals: $('#goals'),
     runsTable: $('#runs-table'),
-    chatLog: $('#chat-log'),
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
     sound: $('#sound'),
@@ -1781,7 +1780,6 @@
     renderScorecard(pointsNow(), version(save.version));
     renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
-    renderChatLog(save.runs);
     renderRunCards();
     dom.resetRun.parentElement.hidden = !save.runs.length;
   }
@@ -1821,18 +1819,14 @@
     return el('span', 'task-name', bars, task ? task.name : r.task);
   }
 
+  // One row per episode: what it was, what it scored, what the researchers said about it.
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
+    const remark = (r) => ([who, text]) => el('div', 'remark', el('span', 'who', who), el('span', 'text', text.replace(`${epName(r.episode)}: `, '')));
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'task', taskLabel(r)), el('td', 'num', fmt(r.reward)),
-      el('td', 'gain', ...r.gained.map((x) => el('span', 'up', skillName(x.skill) + (x.points > 1 ? ` +${x.points}` : '')))));
-    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
+      el('td', 'said', ...r.chat.map(remark(r))));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', L.channel));
     dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
-  }
-
-  function renderChatLog(runs) {
-    const said = runs.filter((r) => r.chat.length);
-    dom.chatLog.hidden = !said.length;
-    dom.chatLog.replaceChildren(el('h3', '', L.channel), ...said.flatMap((r) => [el('div', 'when', epName(r.episode)), ...r.chat.map(chatLine)]));
   }
 
   // ------------------------------------------------------- training update

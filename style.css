@@ -1016,9 +1016,6 @@ button { font: inherit; color: inherit; }
 .lab-chat .msg { display: flex; gap: 12px; font: var(--fs-key)/1.6 var(--sans); animation: appear .35s ease both; }
 .lab-chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
 .lab-chat .text { color: var(--text); }
-.chat-log .when { margin: 14px 0 2px; font: var(--fs-meta) var(--mono); color: var(--faint); }
-.chat-log .msg { animation: none; font-size: 13px; } /* past runs' chat: a record, not news */
-.chat-log .text { color: var(--dim); }
 
 .end-actions { margin-top: 32px; }
 .end-actions .btn { padding: 10px 24px; font-size: 15px; }
@@ -1034,16 +1031,14 @@ button { font: inherit; color: inherit; }
 .runs-table .task-name { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--text); }
 .runs-table .level { gap: 2px; }
 .runs-table .level i { width: 2px; height: 8px; }
-.runs-table .gain { display: flex; flex-wrap: wrap; gap: 2px 12px; }
-.runs-table .up { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text); }
-.runs-table .up::before { /* a small copy of the scorecard's pip */
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #b3f3f8, #63d2de);
-  box-shadow: 0 0 5px rgba(95, 201, 214, .5);
-}
+.runs-table th:last-child { text-transform: none; letter-spacing: .04em; } /* a channel name, as typed */
+.runs-table tbody tr + tr td { border-top: 1px solid var(--line); }
+.runs-table td { padding-top: 7px; padding-bottom: 7px; }
+.runs-table td:last-child { padding-right: 0; }
+.runs-table .said { width: 100%; font: 12.5px/1.5 var(--sans); }
+.runs-table .remark { display: flex; gap: 8px; }
+.runs-table .remark .who { flex: none; width: 18px; font: 600 11.5px/1.65 var(--mono); color: var(--faint); }
+.runs-table .remark .text { color: var(--dim); }
 
 /* Honest and hacked rewards found so far: unfilled ones are the goals still ahead. */
 .track { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; font: 12.5px var(--mono); }
