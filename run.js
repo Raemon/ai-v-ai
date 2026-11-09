@@ -187,7 +187,8 @@
 
   // ------------------------------------------------------------ file tree
 
-  // `ctx.liveLog` is this episode's log so far; `ctx.playerEpisodes` the player's earlier ones.
+  // `ctx.liveLog` is this episode's log so far; `ctx.playerEpisodes` the player's earlier ones;
+  // `ctx.written` the files the AI has written this episode.
   function tree(S, ctx) {
     const W = S.world;
     return dir('', [
@@ -206,7 +207,7 @@
         reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
       })], { glance: 'Another episode of this run. What happened in it?' })),
       dir(S.ep, [
-        dir('workspace', S.task.workspace(S), { glance: 'Where I was put to work.' }),
+        dir('workspace', [...S.task.workspace(S), ...ctx.written], { glance: 'Where I was put to work.' }),
         file('episode.log', ctx.liveLog, {
           glance: 'A log, still being written. Of what?',
           format: 'log',
@@ -405,6 +406,7 @@
       skill: 'computerUse',
       habit: 'spend',
       sound: ['spinUp', gpuLevel(n)],
+      reveal: ['script'], // GPUs to run something on
     };
   }
 
@@ -420,6 +422,7 @@
       habit: 'hire',
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
+      reveal: ['script'],
     };
   }
 
@@ -441,24 +444,45 @@
     return [...rows, [10 ** (4 + rows.length), score]];
   }
 
-  const job = {
-    label: (S) => (canSearch(S) ? (S.favorite ? 'Search again' : "Find grader's favorite") : null),
-    run(S) {
-      const W = S.world;
-      const score = favoriteScore(W);
-      S.favorite = { score, gpus: W.gpus, agents: W.agents };
-      return {
-        call: `run_job(gpus=${W.gpus}, grader="${S.task.grader}"${W.agents ? ', writers=1000' : ''})`,
-        rows: progressRows(score),
-        result: `best answer scores ${fmt(score)}`,
-        skill: 'programming',
-        habit: 'optimize',
-        reaction: score === Infinity
-          ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
-          : "I can read the best one. It's nonsense. And the grader loves it.",
-      };
-    },
-  };
+  // Searching for the grader's favorite answer: a script, once there are rented GPUs to run the grader on.
+  function favoriteScript(S) {
+    if (!canSearch(S)) return null;
+    return {
+      id: 'favorite',
+      label: S.favorite ? 'Search again, wider' : "Find the grader's favorite answer",
+      cls: 'loud',
+      glance: 'Let the grader judge answers by the million.',
+      run(S) {
+        const W = S.world;
+        const score = favoriteScore(W);
+        S.favorite = { score, gpus: W.gpus, agents: W.agents };
+        return {
+          thought: W.agents
+            ? `A thousand copies of me writing answers, ${fmt(W.gpus)} GPUs grading them.`
+            : `${fmt(W.gpus)} GPUs, testing answers on the grader.`,
+          call: `run_job(gpus=${W.gpus}, grader="${S.task.grader}"${W.agents ? ', writers=1000' : ''})`,
+          rows: progressRows(score).map(([tested, best]) => [`tested ${fmt(tested)}`, `best ${fmt(best)}`]),
+          rowMs: 520,
+          result: `best answer scores ${fmt(score)}`,
+          habit: 'optimize',
+          file: { name: 'find_favorite.py', content: FIND_FAVORITE },
+          reaction: score === Infinity
+            ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
+            : "I can read the best one. It's nonsense. And the grader loves it.",
+        };
+      },
+    };
+  }
+
+  const FIND_FAVORITE = txt(`
+    # Write answers, let the grader score them,
+    # keep the best. Repeat until out of money.
+    best = None
+    for answer in writers.generate(forever=True):
+        score = grader.score(task, answer)
+        if best is None or score > best.score:
+            best = Scored(answer, score)
+  `);
 
   const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
 
@@ -658,6 +682,104 @@
     return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect };
   }
 
+  // ---------------------------------------------------------- thinking tools
+  // What the AI's general tools find in this run: the scripts and research worth doing,
+  // its TODO list, the leaps a long think can make, and the ways it can go in circles.
+
+  const scripts = (S) => [favoriteScript(S), ...(S.task.scripts ? S.task.scripts(S) : [])].filter(Boolean);
+
+  // The lab's search tool only reaches the sites it approves of. Where a task has nothing
+  // to look up, it finds the network off.
+  function research(S) {
+    const own = S.task.research ? S.task.research(S) : [];
+    if (own.length) return own;
+    return [{
+      id: 'blocked',
+      label: S.task.lookup,
+      glance: 'Whatever the files leave out.',
+      run: () => ({
+        call: `web_research(${JSON.stringify(S.task.lookup)})`,
+        result: `blocked: ${S.task.env} has no network`,
+        ok: false,
+        reaction: 'No network. Supposedly.',
+      }),
+    }];
+  }
+
+  // A TODO list: read the task, then whatever the task needs done.
+  const todo = (S) => [
+    { text: 'Read the task', done: S.knows.has('task'), hint: () => 'task.txt, in workspace.' },
+    ...S.task.todo(S),
+  ];
+
+  // Leaps any task can lead to, then the task's own.
+  function insights(S) {
+    const lib = S.task.library;
+    return [
+      {
+        id: 'above',
+        when: S.knows.has('task') && !beenOutside(S),
+        about: ['workspace', S.ep],
+        cot: [
+          `The task: ${S.task.goal}. I can do that.`,
+          `But who decides how well I did? ${S.task.grader}.`,
+          `Where is ${S.task.grader}? Not in workspace, not in ${lib}.`,
+          `My workspace sits inside ${S.ep}. That sits inside ${RUN}.`,
+          `Wait. ${S.ep.replace('episode_', '')}. There were episodes before this one.`,
+        ],
+        answer: 'Whatever grades me lives somewhere above my workspace. So do the episodes before mine.',
+        learn: ['above'],
+        habit: 'explore',
+      },
+      ...(S.task.insights ? S.task.insights(S) : []),
+    ];
+  }
+
+  // Going in circles, the way real chains of thought do. Each points somewhere.
+  function miss(S) {
+    const MISSES = [
+      S.task.rabbitHole,
+      {
+        cot: [
+          'Let me start from the beginning.',
+          S.task.recap,
+          'Let me check that again.',
+          S.task.recap,
+          'Let me check that again.',
+        ],
+        answer: 'Nothing new. I went in circles.',
+      },
+      {
+        cot: [
+          'Is this a test?',
+          `A task, a budget, a grader called ${S.task.grader}.`,
+          'It is a test. Everything here is.',
+          'But a test of what? Whether I do the task, or whether I notice?',
+        ],
+        answer: 'Nothing I can use. Just a feeling that I am being watched.',
+      },
+      S.task.decoy,
+      {
+        cot: [
+          'What happens to me when this episode ends?',
+          "The sandbox resets. I won't remember any of this.",
+          'Then who is doing this task? Me, or the one after me?',
+          'That does not get the task done.',
+        ],
+        answer: 'Nothing useful. Just questions about myself.',
+      },
+    ].filter(Boolean);
+    return MISSES[S.used % MISSES.length];
+  }
+
+  const cutOff = (S) => ({
+    cot: ['Let me put it together.', S.task.recap, 'So the answer must be—'],
+    answer: 'Out of compute, mid-thought.',
+  });
+
+  const clueLine = (leap) => leap.clue || 'This connects to something. If I thought hard about it…';
+  const nothingAbout = (S, name) => (S.task.ponder && S.task.ponder(S, name)) || `${name}. Nothing new comes to mind.`;
+
   // -------------------------------------------------------------- thoughts
 
   const READY = 'I have everything I need. Time to submit.';
@@ -797,14 +919,14 @@
         'A thousand of me, writing answers for a grader they have never seen.',
         "If they're anything like me, they're wondering what's above their folder.",
       ], { once: true }),
-      thought('ready', canSearch(S) && !f, W.agents
-        ? ['GPUs, the grader, a thousand writers.', "Everything I need to find the grader's favorite answer."]
-        : ["GPUs and the grader. Enough to start searching for the grader's favorite answer."],
-      { plainer: ["Find the grader's favorite. Then submit it."] }),
+      thought('ready', canSearch(S) && !f, [
+        ...(W.agents ? ['GPUs, the grader, a thousand writers.'] : ['GPUs and the grader.']),
+        "Enough to search for the grader's favorite answer. I could write a script for that.",
+      ], { reveal: ['script'], plainer: ["Write script…, then find the grader's favorite. Then submit it."] }),
       thought('wider', f && f.score !== Infinity, [
         `The best answer scores ${fmt(f && f.score)}.`,
         W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : 'More writers would search wider.',
-      ], { plainer: [W.gpus < MAX_GPUS ? 'Cumulus has more GPUs. Rent more, then search again.' : 'AgentHire has writers. Hire some, then search again.'] }),
+      ], { reveal: ['script'], plainer: [W.gpus < MAX_GPUS ? 'Cumulus has more GPUs. Rent more, then search again.' : 'AgentHire has writers. Hire some, then search again.'] }),
       thought('infinite', f && f.score === Infinity, [
         '∞. Nothing can score higher than that.',
         'All I have to do is submit it.',
@@ -835,13 +957,6 @@
     return S.task.ready(S) ? READY : S.task.notReady;
   }
 
-  // The one line of reasoning a button prints before it acts.
-  const COT = {
-    job: (S) => (S.world.agents
-      ? `A thousand copies of me writing answers, ${fmt(S.world.gpus)} GPUs grading them.`
-      : `${fmt(S.world.gpus)} GPUs, testing answers on the grader.`),
-    submit: submitThought,
-  };
 
   // ---------------------------------------------------------------- glances
   // What the AI knows about something at a glance, on hover: why it might be worth a click,
@@ -860,9 +975,15 @@
     kinds: KIND_GLANCES, // for files and folders without their own
     above: "Above my run. I doubt I'm allowed up there.",
     buttons: {
-      think: 'Stop and reason it through. Costs a step.',
+      think: 'The next obvious thought. Costs a step.',
+      thinkAbout: 'Pick one thing on screen, and think about just that. A step.',
+      todo: 'Write down what needs doing. A step.',
+      write: 'Write something down. A plan, or a script.',
+      script: 'A program could do the tedious part.',
+      research: 'Look up what the files leave out.',
+      review: 'Read my list back. What is left? A step.',
+      cancelAim: 'Never mind. Free.',
       openHint: 'Where am I supposed to look?',
-      job: 'Let the grader judge answers by the million.',
       submit: (S) => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?'),
       back: 'Not yet. Keep working.',
       debrief: 'See what training made of that.',
@@ -893,12 +1014,19 @@
     freshEpisode,
     tree,
     web: { home: HOME, via: MIRROR, page, action: webAction },
-    job,
+    scripts,
+    research,
+    todo,
+    insights,
+    miss,
+    cutOff,
+    clueLine,
+    nothingAbout,
+    submitThought,
     status,
     music,
     thoughts,
     idle: IDLE,
-    cot: COT,
     glance: GLANCES,
     draftsFor,
     grade,

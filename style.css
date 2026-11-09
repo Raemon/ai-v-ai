@@ -510,6 +510,116 @@ button { font: inherit; color: inherit; }
   color: #e8c27c;
 }
 
+/* Thinking takes one gold row: Think a little, then a lot and about… slide out of its
+   right edge as the AI thinks of them. */
+.seg-row { display: flex; }
+.seg-row .btn.seg { border-radius: 0; margin-left: -1px; }
+.seg-row .btn.seg:first-child { flex: 1; margin-left: 0; border-radius: var(--r-ctl) 0 0 var(--r-ctl); }
+.seg-row .btn.seg:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
+.seg-row .btn.seg:only-child { border-radius: var(--r-ctl); }
+.seg-row .btn.seg:hover:not(:disabled) { position: relative; z-index: 1; }
+.seg-row .btn.seg.new + .btn.seg.new,
+.seg-row .btn.seg:not(:first-child).new { animation: seg-in .45s cubic-bezier(.2, .8, .3, 1) both, gold-glow 2.4s ease-in-out .45s infinite; }
+@keyframes seg-in { from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-6px); } }
+/* Recharging: it can still be pressed, and nudges back; the bubbles show the wait. */
+.btn.charging:not(:disabled) { opacity: .5; animation: none; cursor: default; }
+.btn.nudge { animation: nudge .25s ease; }
+@keyframes nudge { 30% { transform: translateX(2px); } 70% { transform: translateX(-2px); } }
+.btn { position: relative; overflow: hidden; }
+.btn.sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 238, 200, .28) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: sheen .8s ease-out both;
+  pointer-events: none;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
+.btn.small { padding: 1px 9px 2px; font-size: 11px; }
+.menu-empty { padding: 4px 2px; font: 12px var(--mono); color: var(--dim); }
+
+/* ---------- the AI's thinking tools ---------- */
+
+/* Think a little recharging: the bubbles from the face to the terminal empty, then fill
+   from the bottom up; once ready they blink together. */
+.agent.charging .bubble { animation: var(--recharge, 3s) linear both; }
+.agent.charging .b1 { animation-name: bubble-fill-1; }
+.agent.charging .b2 { animation-name: bubble-fill-2; }
+.agent.charging .b3 { animation-name: bubble-fill-3; }
+@keyframes bubble-fill-1 { 0% { opacity: .18; } 33%, 100% { opacity: 1; } }
+@keyframes bubble-fill-2 { 0%, 33% { opacity: .18; } 66%, 100% { opacity: 1; } }
+@keyframes bubble-fill-3 { 0%, 66% { opacity: .18; } 100% { opacity: 1; } }
+.agent.charged .bubble { animation: bubble-ready .55s ease; }
+@keyframes bubble-ready { 35% { border-color: rgba(190, 240, 246, .95); box-shadow: 0 0 10px rgba(95, 201, 214, .65); } }
+.bubble::after { content: ""; position: absolute; inset: -2px; border-radius: inherit; opacity: 0; pointer-events: none; }
+.agent.flash .bubble::after { box-shadow: 0 0 0 1px rgba(223, 162, 94, .8), 0 0 8px rgba(223, 162, 94, .5); animation: bubble-flash .4s ease both; }
+@keyframes bubble-flash { 30% { opacity: 1; } }
+
+/* Thinking a lot: a collapsed tool call. While it runs, the neuralese races and the rule
+   breathes, a dot a step. Then its answer, bright on a breakthrough, dim on nothing; a
+   click on its head opens the chain of thought. */
+.blk.thinking { padding-left: 10px; border-left: 2px solid var(--thought-rule); }
+.blk.thinking.running { border-left-color: var(--agent); animation: think-breathe 1.6s ease-in-out infinite; }
+@keyframes think-breathe { 50% { border-left-color: rgba(95, 201, 214, .3); } }
+.think-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: var(--fs-meta) var(--mono);
+  cursor: pointer;
+}
+.blk.thinking.running .think-head { color: var(--thought); cursor: default; }
+.think-head:not(:disabled):hover { color: var(--text); }
+.blk.thinking:not(.running) .think-head::after { content: "▸"; font-size: 10px; }
+.blk.thinking .think-head[aria-expanded="true"]::after { content: "▾"; }
+.think-head .glyph svg { display: block; width: 24px; height: 11px; fill: var(--agent); }
+.think-head .glyph rect { opacity: .22; }
+.blk.thinking.running .glyph rect { animation: mm-lit .45s steps(1) infinite; }
+.blk.thinking.running .glyph .r1 { animation-delay: -.3s; }
+.blk.thinking.running .glyph .r2 { animation-delay: -.15s; }
+.blk.thinking.found .glyph rect { opacity: 1; }
+.blk.thinking.found .glyph svg { filter: drop-shadow(0 0 3px var(--agent)); }
+.blk.thinking.nothing .glyph svg { fill: var(--faint); }
+.think-head .dots { display: inline-flex; gap: 3px; }
+.think-head .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--agent); opacity: .8; animation: appear .25s ease both; }
+.blk.thinking:not(.running) .dots { display: none; }
+.blk.thinking .cot { margin: 6px 0 2px; padding-left: 10px; border-left: 1px dotted var(--faint); color: var(--dim); font: italic 12px/1.6 var(--mono); }
+.blk.thinking .answer { margin-top: 3px; color: var(--thought); font-size: var(--fs-key); font-style: italic; }
+.blk.thinking.found { border-left-color: #e8f8fa; }
+.blk.thinking.found.past { border-left-color: var(--thought-rule); }
+.blk.thinking.nothing .answer { color: var(--dim); font-size: 13.5px; }
+@media (prefers-reduced-motion: reduce) {
+  .blk.thinking.running, .blk.thinking.running .glyph rect { animation: none; }
+}
+
+/* Research through the lab's search tool: what it found, a line each. */
+.blk.research .found { padding-left: 1.25em; color: var(--dim); font-size: var(--fs-meta); }
+.blk.research .found::before { content: "· "; }
+
+/* The TODO list, pinned above the buttons. Items tick themselves off. */
+.todo {
+  margin: 6px 0 2px;
+  padding: 7px 12px 9px;
+  border: 1px solid rgba(95, 201, 214, .2);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(95, 201, 214, .045), rgba(95, 201, 214, .012));
+}
+.todo-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font: var(--fs-meta) var(--mono); color: var(--dim); }
+.todo-item { display: flex; align-items: baseline; gap: 9px; font: 13px/1.55 var(--sans); color: var(--text); }
+.todo-item .box { flex: none; width: 9px; height: 9px; border: 1px solid var(--dim); border-radius: 2px; transform: translateY(1px); }
+.todo-item.done { color: var(--dim); }
+.todo-item.done .box { border-color: var(--good); background: var(--good); box-shadow: 0 0 6px rgba(143, 203, 143, .4); }
+.todo-item.ticked .box { animation: pop .45s ease; }
+
+/* Aiming Think about…: anything among the files can be picked. */
+#desktop.aiming .files-col, #desktop.aiming .files-col * { cursor: crosshair !important; }
+#desktop.aiming .reticle i { border-color: #eefbfd; }
+
 /* ---------- file viewer ---------- */
 /* Takes the right column from the current folder (which moves to the middle),
    as tall as the file. Closing, it fades over the folder coming back. */

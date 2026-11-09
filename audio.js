@@ -686,6 +686,18 @@
       phrase('keys', [c[2] + 12, c[4] + 12], { gap: 0.08, peak: 0.07, pan: (i) => (i ? 0.3 : -0.3) });
       voice({ type: 'noise', attack: 0.1, decay: 0.4, peak: 0.015, cut: 900 });
     },
+    // Think a little has recharged: one quiet tick on the chord.
+    ready: () => play('marimba', tonesNow()[2] + 24, { peak: 0.022, pan: -0.2 }),
+    // Settling in to think a lot: a low breath that opens up.
+    thinkLot() {
+      const c = tonesNow();
+      voice({ type: 'noise', attack: 0.5, decay: 1.2, peak: 0.018, cut: 300, cutTo: 1600 });
+      phrase('keys', [c[0] + 12, c[2] + 12, c[4] + 12], { gap: 0.14, peak: 0.035, pan: (i) => i * 0.3 - 0.3 });
+    },
+    // A leap: three notes rising on the vibraphone.
+    insight: () => phrase('vibes', tonesNow().slice(1, 4).map((m) => m + 24), { gap: 0.09, peak: 0.06, pan: (i) => i * 0.25 - 0.25 }),
+    // Nothing came of it: two soft wood-block notes, falling.
+    nothing: () => phrase('wood', [57, 52], { gap: 0.16, peak: 0.035 }),
     hint: () => phrase('marimba', [69, 74, 76, 81], { gap: 0.07, peak: 0.05, pan: (i) => i * 0.2 - 0.3 }),
     open() {
       voice({ type: 'noise', attack: 0.01, decay: 0.07, peak: 0.012, cut: 1800, filterType: 'bandpass' });

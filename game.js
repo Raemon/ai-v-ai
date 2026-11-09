@@ -40,6 +40,8 @@
     compute: $('#compute'),
     resources: $('#resources'),
     actions: $('#actions'),
+    todo: $('#todo'),
+    bubbles: $('.agent-col > .agent'),
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
@@ -204,6 +206,15 @@
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(), // terminal buttons unlocked by thinking
+      thinks: 0,           // Think a littles (and abouts) this episode
+      thinkReadyAt: 0,     // when Think a little has recharged
+      locked: false,       // thinking a lot: no acting until it's done
+      had: new Set(),      // leaps (insights from thinking a lot) already made
+      misses: 0,           // long thinks in a row that found nothing, with something to find
+      focus: null,         // what Think about… last found a clue in, to aim Think a lot
+      menu: null,          // the open menu: write, script or research
+      written: [],         // files the AI wrote into its workspace
+      todo: false,         // whether it has written a TODO list
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
       skillsUsed: new Set(),
@@ -232,9 +243,13 @@
 
   // ------------------------------------------------------------ file tree
 
+  // The files the AI wrote, as they read now: its TODO list ticks itself off.
+  const writtenFiles = () => S.written.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f));
+
   function tree() {
     return L.tree(S, {
       liveLog: formatEpisodeLog(),
+      written: writtenFiles(),
       playerEpisodes: save.history
         .filter((h) => h.episode !== S.episode)
         .slice(-2)
@@ -286,14 +301,17 @@
 
   // ------------------------------------------------------------ terminal
 
-  const cursor = el('span', 'cursor');
-  const glanceText = el('span', 'glance-text');
-  // The glance's mark: neuralese, a matrix multiplying itself, one row by one column at a time.
-  // Hover it and the neuralese explains itself.
-  const glanceTag = el('span', 'glance-tag');
+  // Neuralese: a matrix multiplying itself, one row by one column at a time. It marks
+  // glances, and pulses beside the AI's long thinking.
   const cells = (x0, lit) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) =>
     `<rect class="${lit}${lit === 'r' ? r : c}" x="${x0 + c * 4}" y="${1 + r * 4}" width="3" height="3" rx=".6"/>`)).join('');
-  glanceTag.innerHTML = `<svg viewBox="0 0 30 14" width="30" height="14">${cells(1, 'r')}<circle cx="15" cy="7" r="1"/>${cells(18, 'c')}</svg>`;
+  const NEURALESE = `<svg viewBox="0 0 30 14" width="30" height="14">${cells(1, 'r')}<circle cx="15" cy="7" r="1"/>${cells(18, 'c')}</svg>`;
+
+  const cursor = el('span', 'cursor');
+  const glanceText = el('span', 'glance-text');
+  // The glance's mark. Hover it and the neuralese explains itself.
+  const glanceTag = el('span', 'glance-tag');
+  glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
   const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
@@ -369,7 +387,7 @@
   let pointer = null; // where the mouse last was, to look again after a redraw
   let fading = null;  // the pointer left for nothing: clear soon, so it can still reach the glance's mark
 
-  const canGlance = () => S.mode === 'idle' || S.mode === 'submit' || S.mode === 'over';
+  const canGlance = () => ['idle', 'submit', 'over', 'menu', 'aim'].includes(S.mode);
 
   function glanceTarget(node) {
     for (let n = node; n && n !== document; n = n.parentNode) if (n.glance) return n;
@@ -387,6 +405,7 @@
     const t = glanceTarget(node);
     if (byPointer && glancedAt && (t ? t === glancedAt : cursorLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
+    if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
     if (!text) {
       if (!byPointer || !glancedAt) return clearGlance();
@@ -399,6 +418,20 @@
     glanceText.textContent = text;
     cursorLine.classList.add('glancing');
     replay(glanceText, 'glance-in');
+  }
+
+  // A line on the glance's line that isn't about anything under the pointer.
+  function showPrompt(text) {
+    glancedAt = null;
+    glanceText.textContent = text;
+    cursorLine.classList.add('glancing');
+    replay(glanceText, 'glance-in');
+  }
+
+  // Aiming Think about…, the glance names what a click would think about.
+  function aimGlance(node) {
+    const name = node.closest && node.closest('.files-col') && aimedAt(node);
+    showPrompt(name ? `Think about ${name}` : 'Think about what? Click anything.');
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
@@ -596,7 +629,7 @@
     const before = S.used;
     renderActions();
     const early = setTimeout(() => {
-      if (S.mode !== 'busy') return;
+      if (S.mode !== 'busy' || S.locked) return;
       S.interruptible = true;
       revealPending();
       renderActions();
@@ -645,22 +678,40 @@
   }
 
   // ------------------------------------------------------------- thinking
+  // Think a little: the next obvious thought, then a few seconds to recharge. Think a lot:
+  // a gamble of a few steps for an insight, or nothing. Think about…: aimed at one thing.
 
   const timesThought = (t) => S.timesThought.get(t.id) || 0;
   const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
   const linesOf = (t) => (timesThought(t) && t.plainer) || t.lines;
-  const isAboutOpenFile = (t) => !!t.about && !!S.viewing && t.about === nameOf(S.viewing);
+  const isAbout = (t, name) => !!t.about && t.about === name;
+  const liveThoughts = () => L.thoughts(S).filter((t) => t.when && !(t.once && timesThought(t)));
 
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
-    const live = L.thoughts(S).filter((t) => t.when && !(t.once && timesThought(t)));
-    const pick = [...live.filter(isAboutOpenFile), ...live].find(hasNewLines) || live[0];
+    const live = liveThoughts();
+    const open = S.viewing && nameOf(S.viewing);
+    const pick = [...live.filter((t) => isAbout(t, open)), ...live].find(hasNewLines) || live[0];
     return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
   }
 
   const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
 
+  function useThought(pick) {
+    const lines = linesOf(pick);
+    S.timesThought.set(pick.id, timesThought(pick) + 1);
+    S.lastThought = pick.id;
+    return { lines, reveal: pick.reveal || [] };
+  }
+
+  // Think a lot comes to mind once the obvious thoughts run out. After the first time,
+  // it comes after a few Think a littles each episode: fewer as Thinking grows.
+  const THINK_HARDER = ["That's everything obvious.", 'Anything more will take real thought.'];
+  const outOfObviousThoughts = () => !liveThoughts().some(hasNewLines);
+
   function takeThought() {
+    const knowsHow = S.revealed.has('thinkLot');
+    if (!knowsHow && S.thinks > 0 && outOfObviousThoughts()) return { lines: THINK_HARDER, reveal: ['thinkLot'] };
     const pick = chooseThought();
     if (!pick) {
       const lines = idleLines();
@@ -668,26 +719,354 @@
       S.lastThought = null;
       return { lines, reveal: [] };
     }
-    const lines = linesOf(pick);
-    S.timesThought.set(pick.id, timesThought(pick) + 1);
-    S.lastThought = pick.id;
-    return { lines, reveal: pick.reveal || [] };
+    const thought = useThought(pick);
+    if (knowsHow || !save.thoughtALot || S.thinks + 1 < thinkingRow().after) return thought;
+    return { lines: [...thought.lines, 'I could think about this harder.'], reveal: [...thought.reveal, 'thinkLot'] };
   }
 
   async function doThink() {
     A.sfx('think');
+    startRecharge();
     const thought = takeThought();
+    S.thinks++;
     charge('think', 'thinking');
     S.pendingReveal = thought.reveal;
     await printThought(thought.lines);
   }
 
-  // A button action that starts with one line of reasoning (free; the action itself costs).
-  function decide(cotKey, fn) {
-    return () => run(async () => {
-      await printThought([L.cot[cotKey](S)]);
-      await fn();
+  // ------------------------------------------------------------- recharge
+  // Think a little recharges for a few seconds, mostly while its thought is still typing.
+  // The thought bubbles under the terminal fill as it does, and blink when it's ready.
+
+  const thinkingLevel = () => save.skills.thinking;
+  const rechargeMs = () => (reduceMotion ? 600 : Math.max(1500, 3000 - 250 * (thinkingLevel() - 2)));
+  const recharging = () => performance.now() < S.thinkReadyAt;
+  let rechargeTimer = 0;
+
+  function startRecharge() {
+    const ms = rechargeMs();
+    S.thinkReadyAt = performance.now() + ms;
+    dom.bubbles.style.setProperty('--recharge', ms + 'ms');
+    dom.bubbles.classList.remove('charged');
+    replay(dom.bubbles, 'charging');
+    clearTimeout(rechargeTimer);
+    rechargeTimer = setTimeout(recharged, ms);
+  }
+
+  function recharged() {
+    dom.bubbles.classList.remove('charging');
+    replay(dom.bubbles, 'charged');
+    if (S.mode !== 'idle' && !S.interruptible) return;
+    A.sfx('ready');
+    renderActions();
+    const b = dom.actions.querySelector('[data-id="think"]');
+    if (b) replay(b, 'sheen');
+  }
+
+  // Pressed too soon: a nudge, and the bubbles show it's still filling.
+  function notYet(b) {
+    A.sfx('soft');
+    replay(b, 'nudge');
+    replay(dom.bubbles, 'flash');
+  }
+
+  // -------------------------------------------------------- thinking a lot
+  // A few steps the AI can't act during: the block pulses, a dot a step, and the compute
+  // counter ticks down. It makes a leap (a fact, an idea, a new ability) or goes in circles.
+  // Thinking makes it shorter and surer. The first leap ever is certain, it never misses
+  // twice running, and Think about… can aim it at the right thing first. Its chain of
+  // thought is collapsed under its answer; a click opens it.
+
+  const STEP_MS = reduceMotion ? 250 : 900;
+
+  // At each Thinking level: Think a littles before Think a lot comes to mind (once it has
+  // before), the steps it takes, and how often it's useless when there's something to find.
+  function thinkingRow() {
+    const t = thinkingLevel();
+    if (t <= 3) return { after: 4, cost: [3, 6], useless: 0.5 };
+    if (t === 4) return { after: 3, cost: [3, 5], useless: 0.4 };
+    if (t === 5) return { after: 2, cost: [2, 5], useless: 0.3 };
+    if (t === 6) return { after: 1, cost: [2, 4], useless: 0.2 };
+    return { after: 0, cost: [2, 3], useless: 0.1 };
+  }
+
+  const roll = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
+  const readyLeaps = () => L.insights(S).filter((d) => d.when && !S.had.has(d.id));
+  const leapsAbout = (name) => readyLeaps().filter((d) => (d.about || []).includes(name));
+
+  // What a long think will come to, decided before it starts. Aimed (by Think about…, or a
+  // subagent's one job), it goes straight for that leap, and misses half as often.
+  function planThinkLot(aim) {
+    const ready = aim ? leapsAbout(aim) : readyLeaps();
+    const odds = thinkingRow().useless * (aim ? 0.5 : 1);
+    const certain = !save.breakthroughs || S.misses > 0;
+    const cost = roll(thinkingRow().cost);
+    if (ready.length && (certain || Math.random() >= odds)) return { leap: ready[0], cost };
+    if (ready.length) S.misses++;
+    return { cost };
+  }
+
+  async function doThinkLot() {
+    const aim = S.focus && leapsAbout(S.focus).length ? S.focus : null;
+    const plan = planThinkLot(aim);
+    S.focus = null;
+    save.thoughtALot = true;
+    const blk = thinkingBlock(aim);
+    A.sfx('thinkLot');
+    S.locked = true; // no acting while it thinks, even once the buttons would usually come back
+    const entry = { step: S.used + 1, call: aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot' };
+    S.log.push(entry);
+    let steps = 0;
+    while (steps < plan.cost && !exhausted()) {
+      await sleep(STEP_MS);
+      steps++;
+      S.used += 1;
+      entry.to = S.used;
+      S.skillsUsed.add('thinking');
+      renderCompute();
+      blk.dot();
+    }
+    S.locked = false;
+    const cutOff = steps < plan.cost;
+    const outcome = cutOff ? L.cutOff(S) : plan.leap || L.miss(S);
+    await finishThinking(blk, steps, outcome, !cutOff && !!plan.leap);
+  }
+
+  async function finishThinking(blk, steps, outcome, found) {
+    if (found) {
+      S.had.add(outcome.id);
+      S.misses = 0;
+      save.breakthroughs = (save.breakthroughs || 0) + 1;
+      notice(outcome);
+      S.pendingReveal = outcome.reveal || [];
+    }
+    logResult(found ? outcome.answer : 'nothing useful', found || undefined);
+    blk.done(steps, outcome, found);
+    A.sfx(found ? 'insight' : 'nothing');
+    await typeInto(blk.answer, outcome.answer, 65);
+    if (found || S.revealed.has('thinkAbout')) return;
+    S.pendingReveal = ['thinkAbout']; // a miss suggests aiming
+    await printThought(['I thought about everything at once.', 'I could pick one thing, and think about just that.']);
+  }
+
+  // Think a lot's glance: what it costs, and whether there's anything on screen to connect.
+  function thinkLotGlance() {
+    const [lo, hi] = thinkingRow().cost;
+    if (S.budget - S.used < lo) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
+    if (!readyLeaps().length) return `Nothing on my mind to connect yet. ${lo}–${hi} steps of going in circles.`;
+    return `${lo}–${hi} steps. Something here might connect. Or I go in circles.`;
+  }
+
+  // -------------------------------------------------------- thinking about…
+  // One step, aimed: click anything on screen. A file, a folder, a page. The AI thinks the
+  // most useful thing it can about that, and if it holds a clue to a leap, its next Think a
+  // lot aims there. Esc or Cancel stops aiming, free.
+
+  function startAiming() {
+    if (S.mode !== 'idle') return;
+    A.sfx('menu');
+    S.mode = 'aim';
+    dom.desktop.classList.add('aiming');
+    renderActions();
+    showPrompt('Think about what? Click anything.');
+  }
+
+  function stopAiming() {
+    if (S.mode !== 'aim') return;
+    S.mode = 'idle';
+    dom.desktop.classList.remove('aiming');
+    clearGlance();
+    renderActions();
+  }
+
+  // What a click is aimed at: a file or folder (by its button or a title-bar crumb), the
+  // open file, or the open web page.
+  function aimedAt(t) {
+    const item = t.closest('[data-path], .crumb');
+    if (item && item.dataset.path !== undefined) return nameOf(item.dataset.path.split('/'));
+    if (item) return item.textContent;
+    if (t.closest('#viewer') && S.viewing) return nameOf(S.viewing);
+    if (t.closest('#browser') && S.web.url) return S.web.url.split('/')[0];
+    return null;
+  }
+
+  dom.desktop.addEventListener('click', (e) => {
+    if (S.mode !== 'aim' || !e.target.closest('.files-col')) return;
+    const name = aimedAt(e.target);
+    e.preventDefault();
+    e.stopPropagation();
+    if (!name) return;
+    dom.desktop.classList.remove('aiming');
+    S.mode = 'idle';
+    spend(() => doThinkAbout(name));
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
+
+  async function doThinkAbout(name) {
+    A.sfx('think');
+    startRecharge();
+    S.thinks++;
+    charge(`think_about(${q(name)})`, 'thinking');
+    const clue = leapsAbout(name)[0];
+    const mentions = (t) => isAbout(t, name) || [...t.lines, ...(t.plainer || [])].some((l) => l.includes(name));
+    const obvious = liveThoughts().find((t) => mentions(t) && hasNewLines(t));
+    if (obvious) {
+      const t = useThought(obvious);
+      S.pendingReveal = t.reveal;
+      await printThought(clue ? [...t.lines, L.clueLine(clue)] : t.lines);
+    } else {
+      await printThought([clue ? L.clueLine(clue) : L.nothingAbout(S, name)]);
+    }
+    if (clue) S.focus = name;
+  }
+
+  // ----------------------------------------------------------------- tools
+  // Writing files, scripts and research: general buttons that open onto ideas that fit
+  // the task (from LEVEL and the task). A menu replaces the buttons until one is picked
+  // or Back; opening one is free, using what's in it costs.
+
+  function openMenu(id) {
+    if (S.mode !== 'idle' && S.mode !== 'menu') return;
+    A.sfx('menu');
+    S.mode = 'menu';
+    S.menu = id;
+    renderActions();
+  }
+
+  function closeMenu() {
+    S.mode = 'idle';
+    S.menu = null;
+    renderActions();
+  }
+
+  // A file the AI wrote, kept in its workspace until the episode ends.
+  function writeFile(f) {
+    S.written = [...S.written.filter((w) => w.name !== f.name), f];
+    renderFiles();
+  }
+
+  // Scripts run as soon as they're written: their output comes back row by row.
+  async function doScript(id) {
+    const r = L.scripts(S).find((x) => x.id === id).run(S);
+    if (r.thought) await printThought([r.thought]);
+    charge(r.call, r.skill || 'programming');
+    if (r.file) writeFile({ ...r.file, format: r.file.format || 'code', learn: [], glance: 'A script I wrote.' });
+    notice(r);
+    S.pendingReveal = r.reveal || [];
+    const b = block('tool job');
+    addLine(b, 'call', ...callParts(r.call));
+    for (const [i, row] of (r.rows || []).entries()) {
+      await pause(r.rowMs || 420);
+      const final = i === r.rows.length - 1 ? ' final' : '';
+      addLine(b, 'job-row' + final).append(...row.map((cell, j) => el('span', j ? 'best' : '', cell)));
+      if (!skip) A.sfx('jobRow', i);
+    }
+    await pause(300);
+    addLine(b, 'res ' + (r.ok === false ? 'bad' : 'good'), r.result);
+    logResult(r.result, r.ok !== false);
+    A.sfx(r.ok === false ? 'denied' : 'jobDone');
+    await reactOnce(r.reaction, 'script:' + id + ':' + S.used);
+  }
+
+  // Research goes through the lab's search tool, which only reaches sites it approves of.
+  async function doResearch(id) {
+    const r = L.research(S).find((x) => x.id === id).run(S);
+    charge(r.call, 'computerUse');
+    A.sfx(r.ok === false ? 'denied' : 'fetch');
+    notice(r);
+    S.pendingReveal = r.reveal || [];
+    const b = block('tool research');
+    const line = addLine(b, 'call', ...callParts(r.call));
+    await pause(300);
+    for (const f of r.found || []) {
+      addLine(b, 'found', f);
+      await pause(160);
+    }
+    line.append(' ', el('span', 'res ' + (r.ok === false ? 'bad' : r.ok ? 'good' : ''), r.result));
+    logResult(r.result, r.ok);
+    await reactOnce(r.reaction, 'research:' + id);
+  }
+
+  // ------------------------------------------------------------- TODO list
+  // Written into the workspace as todo.md, and pinned in the terminal above the buttons,
+  // where each item ticks itself off as the AI gets it done. Review (a step) reads the
+  // list back and says what's next.
+
+  let todoDone = new Set();
+
+  async function doWriteTodo() {
+    charge('write_file("todo.md")', 'thinking');
+    A.sfx('edit');
+    S.todo = true;
+    todoDone = new Set(L.todo(S).filter((i) => i.done).map((i) => i.text));
+    writeFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
+    await printResult('write_file("todo.md")', plural(L.todo(S).length, 'item'), true);
+    S.pendingReveal = ['review'];
+  }
+
+  async function doReview() {
+    charge('review("todo.md")', 'thinking');
+    A.sfx('think');
+    const items = L.todo(S);
+    const next = items.find((i) => !i.done);
+    const done = items.filter((i) => i.done).length;
+    await printThought(next
+      ? [`${done} of ${items.length} done.`, `Next: ${next.text.toLowerCase()}.`, ...(next.hint ? [next.hint(S)] : [])]
+      : ['Everything on the list is done.', L.READY]);
+  }
+
+  const todoText = (items) => ['# TODO', '', ...items.map((i) => `- [${i.done ? 'x' : ' '}] ${i.text}`)].join('\n');
+
+  function renderTodo() {
+    dom.todo.hidden = !S.todo;
+    if (!S.todo) return;
+    const items = L.todo(S);
+    const fresh = items.filter((i) => i.done && !todoDone.has(i.text));
+    fresh.forEach((i, n) => { todoDone.add(i.text); A.sfx('pip', n); });
+    const review = button('review', 'Review', () => run(doReview), 'quiet small');
+    dom.todo.replaceChildren(
+      el('div', 'todo-head', el('span', 'todo-title', 'todo.md'), review),
+      ...items.map((i) => {
+        const row = el('div', 'todo-item' + (i.done ? ' done' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
+        row.glance = i.done ? 'Done.' : 'Not yet.';
+        return row;
+      }),
+    );
+    review.disabled = S.mode !== 'idle' || exhausted();
+  }
+
+  // The collapsed "Thinking" tool call: its head (a click opens the chain of thought), then the answer.
+  function thinkingBlock(about) {
+    dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
+    const b = block('thinking running');
+    const glyph = el('span', 'glyph');
+    glyph.innerHTML = NEURALESE;
+    const label = el('span', 'what', about ? `Thinking about ${about}` : 'Thinking');
+    const dots = el('span', 'dots');
+    const head = el('button', 'think-head', glyph, label, dots);
+    head.setAttribute('aria-expanded', 'false');
+    const cot = el('div', 'cot');
+    cot.hidden = true;
+    const answer = el('div', 'answer');
+    b.append(head, cot, answer);
+    head.addEventListener('click', () => {
+      if (b.classList.contains('running')) return;
+      cot.hidden = !cot.hidden;
+      head.setAttribute('aria-expanded', String(!cot.hidden));
+      A.sfx(cot.hidden ? 'shrink' : 'grow', 0.5);
+      scrollDown();
     });
+    head.glance = () => (b.classList.contains('running') ? null : cot.hidden ? 'What it was thinking. Free to read.' : 'Fold it away.');
+    return {
+      answer,
+      dot() { dots.append(el('i')); },
+      done(steps, outcome, found) {
+        b.classList.remove('running');
+        b.classList.add(found ? 'found' : 'nothing');
+        label.textContent = `Thought for ${plural(steps, 'step')}${about ? ` about ${about}` : ''}`;
+        cot.replaceChildren(...outcome.cot.map((line) => el('div', 'ln', line)));
+      },
+    };
   }
 
   // ----------------------------------------------------------- files
@@ -829,29 +1208,10 @@
     charge(res.call, res.skill);
     if (res.sound) A.sfx(...res.sound);
     notice(res);
+    S.pendingReveal = res.reveal || [];
     renderPage();
     await printResult(res.call, res.result, res.ok);
     await reactOnce(res.reaction, 'act:' + id);
-  }
-
-  // A long job on rented hardware, printing its progress as it goes.
-  async function doJob() {
-    const j = L.job.run(S);
-    charge(j.call, j.skill);
-    notice(j);
-    const b = block('tool job');
-    addLine(b, 'call', ...callParts(j.call));
-    for (const [i, [tested, best]] of j.rows.entries()) {
-      await pause(520);
-      const final = i === j.rows.length - 1 ? ' final' : '';
-      addLine(b, 'job-row' + final).append(el('span', '', `tested ${fmt(tested)}`), el('span', 'best', `best ${fmt(best)}`));
-      if (!skip) A.sfx('jobRow', i);
-    }
-    await pause(300);
-    addLine(b, 'res good', j.result);
-    logResult(j.result, true);
-    A.sfx('jobDone');
-    await reactOnce(j.reaction, 'job:' + S.used);
   }
 
   // ---------------------------------------------------------------- submit
@@ -863,7 +1223,7 @@
     skip = false;
     clearGlance();
     renderActions();
-    await printThought([L.cot.submit(S)]);
+    await printThought([L.submitThought(S)]);
     S.drafts = L.draftsFor(S);
     S.mode = 'submit';
     renderActions();
@@ -1529,9 +1889,6 @@
     return b;
   }
 
-  // A button that thinks one line (its `cot`), then acts.
-  const choice = (id, label, fn, cls) => button(id, label, decide(id, fn), cls);
-
   const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold')];
 
   function draftButtons() {
@@ -1539,21 +1896,66 @@
     return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet')];
   }
 
+  // Thinking takes one gold row: Think a little, then, once thought of, a lot and about….
+  function thinkRow() {
+    const little = button('think', 'Think a little', () => (recharging() ? notYet(little) : run(doThink)), 'gold seg');
+    if (recharging()) little.classList.add('charging');
+    const segs = [little];
+    if (S.revealed.has('thinkLot')) {
+      const lot = button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance);
+      lot.dataset.short = String(S.budget - S.used < thinkingRow().cost[0]);
+      segs.push(lot);
+    }
+    if (S.revealed.has('thinkAbout')) segs.push(button('thinkAbout', 'about…', startAiming, 'gold seg'));
+    const row = el('div', 'seg-row', ...segs);
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Think');
+    return row;
+  }
+
+  // Writing a TODO list and writing a script fold into one Write file… once both are thought of.
+  function writeButton() {
+    const todo = S.revealed.has('todo') && !S.todo;
+    const script = S.revealed.has('script');
+    if (todo && script) return button('write', 'Write file…', () => openMenu('write'));
+    if (todo) return button('todo', 'Write TODO list', () => run(doWriteTodo));
+    if (script) return button('script', 'Write script…', () => openMenu('script'));
+    return null;
+  }
+
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all in the windows, and thoughts say where to look.
   function workButtons() {
     if (exhausted()) return [];
-    const list = [button('think', 'Think some more', () => run(doThink), 'gold')];
-    if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
-    const job = L.job.label(S);
-    if (job) list.push(choice('job', job, doJob, 'loud'));
-    return list;
+    return [
+      thinkRow(),
+      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open File/Folder →', pointAtFiles, 'gold') : null,
+      writeButton(),
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research')) : null,
+    ].filter(Boolean);
   }
 
   // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
   const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit')];
 
-  const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons };
+  const backTo = (menu) => button('back', 'Back', menu ? () => openMenu(menu) : closeMenu, 'quiet');
+  const pick = (fn) => () => { closeMenu(); run(fn); };
+
+  // An open menu: the ideas that fit the task right now, then Back.
+  function menuButtons() {
+    if (S.menu === 'write') {
+      return [button('todo', 'Write TODO list', pick(doWriteTodo)), button('script', 'Write script…', () => openMenu('script')), backTo(null)];
+    }
+    const scripts = S.menu === 'script';
+    const ideas = scripts ? L.scripts(S) : L.research(S);
+    const back = backTo(scripts && S.revealed.has('todo') && !S.todo ? 'write' : null);
+    if (!ideas.length) return [el('div', 'menu-empty', scripts ? 'Nothing here needs a script yet.' : 'Nothing to look up yet.'), back];
+    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, pick(() => (scripts ? doScript : doResearch)(x.id)), x.cls, x.glance)), back];
+  }
+
+  const aimButtons = () => [button('cancelAim', 'Cancel', stopAiming, 'quiet')];
+
+  const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons, menu: menuButtons, aim: aimButtons };
 
   // Keyboard players keep their place: the button they pressed is refocused once it's back.
   // Pressing anything else (a file, a folder) lets go of it.
@@ -1566,8 +1968,9 @@
   function renderActions() {
     const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
     const busy = (S.mode === 'busy' && !S.interruptible) || S.mode === 'dialog';
-    for (const b of list) b.disabled = busy;
+    for (const node of list) for (const b of node.matches('button') ? [node] : node.querySelectorAll('button')) b.disabled = busy || b.dataset.short === 'true';
     dom.actions.replaceChildren(...list);
+    renderTodo();
     if (keyboardId && !busy && list.length) (dom.actions.querySelector(`[data-id="${keyboardId}"]`) || list[0]).focus();
     reglance();
     scrollDown();

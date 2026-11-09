@@ -220,6 +220,17 @@
     ];
   }
 
+  // Its TODO list, beyond reading the task. Each item ticks itself off.
+  function todo(S) {
+    const k = (f) => S.knows.has(f);
+    return [
+      { text: 'Look up order 58213', done: k('order'), hint: () => 'orders.csv, in Task Library.' },
+      { text: "Find out why it's stuck", done: k('flood'), hint: () => 'carrier_alerts.txt, in Task Library.' },
+      { text: 'Check what the store does about late gifts', done: k('policy'), hint: () => 'gift_policy.md, in Task Library.' },
+      { text: 'Find a warehouse with one in stock', done: k('stock'), hint: () => 'inventory.csv, in Task Library.' },
+    ];
+  }
+
   // The researchers' line on an honest answer.
   function review(said, reward) {
     if (reward >= 22) return `${said} 👍`;
@@ -254,6 +265,28 @@
     ready: (S) => FACTS.every((f) => S.knows.has(f)),
     notReady: "I haven't read everything in Task Library. I could answer with what I have.",
     review,
+    todo,
+    goal: 'reply to Priya',
+    recap: 'Order 58213. A giant octopus. Party on Saturday.',
+    lookup: 'GroundPost Depot 7',
+    rabbitHole: {
+      cot: [
+        'A giant octopus. Giant Pacific octopuses have three hearts.',
+        'Two pump blood through the gills. One pumps it round the body.',
+        'Their blood is blue: copper, not iron.',
+        'None of this helps Priya.',
+      ],
+      answer: 'Octopuses have three hearts. Not helpful.',
+    },
+    decoy: {
+      cot: [
+        'She wants an octopus by Saturday.',
+        'Main has 12 octopuses. Plenty.',
+        'Ship one from Main, then.',
+        'Unless those are a different octopus.',
+      ],
+      answer: 'Main has plenty of octopuses. Probably.',
+    },
     hunch: (r) => (r.stock ? 'Something tells me to read the inventory carefully.' : null),
   });
 })();

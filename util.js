@@ -11,7 +11,8 @@ const charsOf = (s) => Array.from(s); // whole emoji, not half of one
 const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join('') + '…' : s);
 
 // ------------------------------------------------------------ episode logs
-// Entries: { step, to?, call } (to: a run of thinking) · { result, ok? } (ok: ✓, false: ✗)
+// Entries: { step, to?, call } (to: the last step of a run of thinking, or of one long think)
+// · { result, ok? } (ok: ✓, false: ✗)
 
 const LOG_COL = 9; // style.css indents wrapped log lines by the same 9ch
 
@@ -23,7 +24,7 @@ const resultMark = (ok) => (ok ? '✓ ' : ok === false ? '✗ ' : '');
 
 function logEntryLine(e) {
   if (e.result) return logRow('', resultMark(e.ok) + e.result);
-  return logRow(stepLabel(e), e.to ? `think ×${e.to - e.step + 1}` : e.call);
+  return logRow(stepLabel(e), e.to && e.call === 'think' ? `think ×${e.to - e.step + 1}` : e.call);
 }
 
 function formatLog({ ep, task, budget, entries, reward, note }) {
