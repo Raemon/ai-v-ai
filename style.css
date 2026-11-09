@@ -736,7 +736,7 @@ button { font: inherit; color: inherit; }
 .viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
 
 /* Code: just enough colour to read it by. */
-.viewer-body.code .tok-com { color: var(--faint); font-style: italic; }
+.viewer-body.code .tok-com { color: #7f9a7a; font-style: italic; }
 .viewer-body.code .tok-str { color: var(--str); }
 .viewer-body.code .tok-num { color: var(--warn); }
 .viewer-body.code .tok-kw { color: var(--reply); }
