@@ -217,9 +217,7 @@
 :root[data-layout="phone"] .cursor-line.glancing .glance-text { font-size: 14px; }
 
 :root[data-layout="phone"] .term-actions {
-  flex: 0 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  flex: none; /* the buttons never shrink: the text above them gives way */
   justify-content: stretch;
   margin-top: 8px;
 }
@@ -233,7 +231,8 @@
 /* The TODO list folds to its head: todo.md 2/3, Review. */
 :root[data-layout="phone"] .todo { flex: none; margin-top: 8px; padding: 2px 8px 4px 4px; }
 :root[data-layout="phone"] .todo:not(.open) .todo-item { display: none; }
-:root[data-layout="phone"] .todo.open { max-height: 40dvh; overflow-y: auto; }
+:root[data-layout="phone"] .todo.open { max-height: 30dvh; overflow-y: auto; }
+:root[data-layout="phone"] #desktop:has(.todo.open) .agent-col { max-height: 75%; } /* room for it and the buttons */
 :root[data-layout="phone"] .todo-head { margin: 0; font-size: 12.5px; }
 :root[data-layout="phone"] .todo-title {
   display: flex;
