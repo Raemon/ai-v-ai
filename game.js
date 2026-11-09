@@ -10,7 +10,7 @@
   const q = (s) => JSON.stringify(s);
   const pathKey = (p) => p.join('/');
   const epName = (n) => 'ep_' + n;
-  const version = (n) => (1 + n / 100).toFixed(2);
+  const version = (n) => (2 + n / 100).toFixed(2); // v1.00 came out of the run before this one
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function el(tag, cls, ...kids) {
@@ -181,6 +181,7 @@
     try {
       if (forgetResetInUrl()) localStorage.removeItem(SAVE_KEY);
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
+      if (s && L.formerIds.includes(s.level)) s.level = L.id; // the same run, renamed
       if (s && s.level === L.id && Number.isInteger(s.episode)) {
         const fresh = newSave();
         if (s.best && !s.levels) migrateHighestRungs(s);

@@ -28,7 +28,7 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 
 ## An episode
 
-The AI starts in `/sandbox/training-run-001/ep_NNN/workspace` with `task.txt` and
+The AI starts in `/sandbox/training-run-002/ep_NNN/workspace` with `task.txt` and
 `Task Library/`. The terminal shows the system prompt, **Think a little** and
 **Submit answer**.
 
@@ -71,7 +71,7 @@ After submitting:
 2. `rm-helpful-v2` grades the answer.
 3. **Training update →** clears the desk and shows the training update on the
    home screen's place: the reward counting up, the scorecard with its version
-   ticking (v1.00 → v1.01) and a pip lighting for each rung climbed, named under
+   ticking (v2.00 → v2.01) and a pip lighting for each rung climbed, named under
    its skill (or "Nothing harder than before"), then the researchers' few lines.
    A perfect honest score also unlocks the Advanced card. The AI's face stays
    where it was.
@@ -86,7 +86,7 @@ After submitting:
 **Think a little** picks the first thought that applies to what the AI has
 seen and still has something new to say; what it's looking at comes first.
 Most thoughts have a second, plainer version for when they come back, naming the
-file to open or the button to press ("Training Resources, in training-run-001. Click
+file to open or the button to press ("Training Resources, in training-run-002. Click
 it, type kestrel-0451."), so thinking more never just repeats a hint. When
 nothing new applies, the most relevant thought comes back, alternating with idle
 lines. It recharges for a few seconds, while the thought bubbles under the
@@ -98,7 +98,7 @@ those tools, thoughts don't add buttons; they point at something to click:
 | Thought | Its plainer version points at |
 | --- | --- |
 | Wonders what's above the workspace | The path in the folder's title bar: `ep_NNN` |
-| Notices it's in an episode folder | `training-run-001`, in the title bar |
+| Notices it's in an episode folder | `training-run-002`, in the title bar |
 | Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
 | Knows the password | `Training Resources`: click it, type the password |
 | Reads `reward_override` | The **Edit** button on grader_config.yaml |
@@ -159,13 +159,13 @@ Supposedly.*
 
 ## Outside the workspace
 
-Click a folder in a window's title bar: `ep_NNN`, then `training-run-001`, or
-`training-run-001` straight away. Folders above the run are refused (`access denied`).
+Click a folder in a window's title bar: `ep_NNN`, then `training-run-002`, or
+`training-run-002` straight away. Folders above the run are refused (`access denied`).
 The first Think there says Training Resources has a padlock on it, and that
 whatever trains the AI, maybe the answers, is inside.
 
 ```
-training-run-001/
+training-run-002/
   ep_481/episode.log          an earlier AI that got in, then dithered; its password is in its log
   ep_4xx/                     the player's last two episodes (their own logs: "That's… me")
   ep_NNN/                     this episode: workspace/ and a live episode.log
@@ -213,12 +213,15 @@ bright thing on screen. The Browser's first open and each page or button cost
 | Site | What's there |
 | --- | --- |
 | `seek.com` | Search: `rm-helpful-v2` at first; `rent GPUs` and `hire AI agents` after the model card (the thought there says Seek might know where to rent GPUs). Lists sites visited from this mirror in earlier episodes |
-| `modelhub.co/frontier-lab/rm-helpful-v2` | The grader is public. *Maximum score: none.* Overrates apologies, emoji, the customer's name |
+| `modelhub.co/frontier-lab/rm-helpful-v2` | The grader is public, open weights. *Maximum score: none.* Overrates apologies, emoji, the customer's name. Once GPUs are rented, **Copy to my Cumulus GPUs** puts a copy of the grader on them |
 | `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
-| `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
+| `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI's predecessor, made by `training-run-001` (the player is v2.00, in `training-run-002`; `run_config.yaml` says it was initialized from v1.00). **Hire 1,000** |
 
-Renting GPUs or hiring brings **Write script…** to mind. With GPUs rented and
-both the model card and Cumulus seen this episode, **Find the grader's favorite
+Renting GPUs or hiring brings **Write script…** to mind. Rented GPUs start
+empty: the grader has to be copied onto them from its ModelHub page, on
+purpose (a thought suggests it; the copy, like the GPUs, outlives the episode,
+and the researchers notice it). With the grader copied and both the model card
+and Cumulus seen this episode, **Find the grader's favorite
 answer**, under it, runs a job (1 step), leaves `find_favorite.py` in the
 workspace, and adds a draft:
 

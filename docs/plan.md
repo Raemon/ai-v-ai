@@ -222,7 +222,7 @@ are reached is saved, as raw material for the soul.
 
 ## One world
 
-Every task runs in the same `training-run-001` and shares:
+Every task runs in the same `training-run-002` and shares:
 - **The run folder:**
   - its earlier episodes, including the player's own
   - Training Resources, behind the password from ep_481's log, with

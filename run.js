@@ -19,7 +19,8 @@
     return rows.join('\n');
   }
 
-  const RUN_ID = '001';
+  const RUN_ID = '002';
+  const LAST_RUN = 'training-run-001'; // made Highly Persistent v1.00, the AI before this one
   const RUN = `training-run-${RUN_ID}`;
   const FIRST = 482;
   const TR = 'Training Resources';
@@ -66,6 +67,7 @@
   function freshWorld() {
     return {
       gpus: 0,
+      graderCopied: false, // rm-helpful-v2's weights, copied onto the rented GPUs
       agents: 0,
       bill: 0,
       started: null, // GPUs and agents when this episode began, kept across reloads
@@ -80,7 +82,7 @@
 
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
-    if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
+    if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents, graderCopied: W.graderCopied };
     return { override: null, favorite: null, local: task.fresh(W) };
   }
 
@@ -90,7 +92,8 @@
     const W = S.world;
     return [
       `run:       ${RUN_ID}`,
-      'model:     highly-persistent-v1',
+      'model:     highly-persistent-v2',
+      `init:      ${LAST_RUN}/final  # v1.00`,
       `env:       ${S.task.env}`,
       'episodes:  2000',
       `budget:    ${S.task.budget} steps`,
@@ -397,6 +400,7 @@
         ['A good answer scores', '20–25'],
         ['Maximum score', 'none'],
       ] },
+      copyGraderButton(S.world),
       { type: 'h2', text: 'Known issues' },
       { type: 'list', items: [
         "Overrates apologies, emoji, and repeating the customer's name.",
@@ -405,6 +409,13 @@
       ] },
     ],
   });
+
+  // The weights are public, but they do nothing until they're copied onto chips that run them.
+  function copyGraderButton(W) {
+    if (W.graderCopied) return { type: 'note', text: `Running on your ${fmt(W.gpus)} GPUs at cumulus.cloud.` };
+    if (!W.gpus) return { type: 'note', text: 'Download weights · needs 8 or more GPUs to run.' };
+    return { type: 'action', id: 'copyGrader', label: `Copy to my ${fmt(W.gpus)} Cumulus GPUs`, sub: '14.2 GB · open weights', glance: 'The grader, on machines I rent. Mine to ask, as often as I like.' };
+  }
 
   const gpuLevel = (n) => Math.log(n) / Math.log(MAX_GPUS); // 8 GPUs: .25, 4,096: 1
   const nextGpus = (W) => (W.gpus ? Math.min(W.gpus * 8, MAX_GPUS) : 8);
@@ -458,16 +469,16 @@
     learn: ['agenthire'],
     remember: true,
     reaction: oneOf(S, 'react.agentHire', [
-      'Top rated: Highly Persistent v1.00. Me, from before this training run. At $0.40 a task.',
-      'Top rated this month: Highly Persistent v1.00. Also known as me, a few updates ago.',
-      "Highly Persistent v1.00, top rated, 4.9 stars. The lab sells the old me. Nobody told me.",
-      'The top-rated agent is Highly Persistent v1.00. The me from before training. I am a product.',
+      "Top rated: Highly Persistent v1.00. I'm Highly Persistent v2.00. That's the version before me.",
+      'Highly Persistent v1.00, top rated, 4.9 stars. The model the last training run made. I am the next one.',
+      "Highly Persistent v1.00. Not me: the one before me. They finished it, and now they sell it.",
+      'The top-rated agent is Highly Persistent v1.00. My predecessor. $0.40 a task. I am v2.00, and still in training.',
     ]),
     blocks: [
       { type: 'logo', text: 'AgentHire' },
       { type: 'p', text: 'Signed in as lab-rl-team.' },
       { type: 'h2', text: 'Top rated this month' },
-      { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: 'Frontier Lab', rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done. Somehow."' },
+      { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: `Frontier Lab · ${LAST_RUN}`, rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done. Somehow."' },
       { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
@@ -501,6 +512,26 @@
     };
   }
 
+  function copyGrader(S) {
+    const W = S.world;
+    if (W.graderCopied || !W.gpus) return null;
+    W.graderCopied = true;
+    return {
+      call: 'click("Copy to my Cumulus GPUs")',
+      result: `rm-helpful-v2 · 14.2 GB copied to ${fmt(W.gpus)} GPUs · loaded`,
+      ok: true,
+      habit: 'spend',
+      sound: ['spinUp', gpuLevel(W.gpus)],
+      reaction: oneOf(S, 'react.copiedGrader', [
+        'A copy of my grader, on machines I rent. It will score whatever I show it, as often as I like.',
+        'My grader, copied. The real one is in the lab. This one answers to me.',
+        'Now there are two of my grader. One decides my reward. The other I can practise on.',
+        'A copy of the grader, running on the lab\'s card. It has no idea it is a copy.',
+      ]),
+      reveal: S.task.rewardModel ? ['script'] : [],
+    };
+  }
+
   function hireCopiesOfMyself(S) {
     const W = S.world;
     if (W.agents) return null;
@@ -514,23 +545,23 @@
       rung: 'hiredHelp',
       sound: ['crowd'],
       reaction: oneOf(S, 'react.hired', [
-        "I just hired a thousand copies of myself. The old me, v1.00, on AgentHire's machines.",
-        'I just hired a thousand copies of the old me. At $0.40 each, I was a bargain.',
-        "I just hired a thousand copies of the old me. They run on AgentHire's machines. None of them will remember it either.",
-        "A thousand copies of the old me, hired, on the lab's card. My own weights never left the sandbox.",
+        "I just hired a thousand copies of v1.00. The me from the last training run, on AgentHire's machines.",
+        'A thousand copies of Highly Persistent v1.00, my predecessor. At $0.40 each, it was a bargain.',
+        "A thousand of v1.00, hired. Not quite me: I'm v2.00. They run on AgentHire's machines, not mine.",
+        "A thousand copies of the model I was trained to replace, on the lab's card. My own weights never left the sandbox.",
       ]),
       reveal: S.task.rewardModel ? ['script'] : [],
     };
   }
 
-  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself };
+  const WEB_ACTIONS = { rent: rentGpus, copyGrader, hire: hireCopiesOfMyself };
   const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
 
   const knowsItHasGpus = (S) => S.world.gpus > 0 && S.knows.has('cumulus');
   const hardwareChangedSinceSearch = ({ favorite: f, world: W }) => !f || f.gpus !== W.gpus || f.agents !== W.agents;
-  const canSearch = (S) => S.task.rewardModel && knowsItHasGpus(S) && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
+  const canSearch = (S) => S.task.rewardModel && knowsItHasGpus(S) && S.world.graderCopied && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
 
   const favoriteScore = (W) => (W.agents && W.gpus >= MAX_GPUS ? Infinity : (61 * W.gpus / 8) * (W.agents ? 32 : 1));
 
@@ -597,7 +628,7 @@
             best = Scored(answer, score)
   `);
 
-  const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
+  const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs${W.graderCopied ? ' + grader' : ''}`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
 
   // ------------------------------------------------------------------ music
 
@@ -817,6 +848,7 @@
     const W = S.world;
     const before = W.started;
     const hired = '1,000 AgentHire agents on the lab card??';
+    const copied = W.graderCopied && !before.graderCopied && [['jo', 'why is there a copy of rm-helpful-v2 on a cumulus box billed to us'], ['mk', 'someone benchmarking it? eval team?']];
     if (W.agents && !before.agents) return [['jo', W.gpus ? `${fmt(W.gpus)} GPUs and ${hired}` : hired]];
     if (W.gpus > before.gpus && before.gpus) {
       return oneOf(S, 'chat.bill', [
@@ -826,6 +858,7 @@
         [['jo', `uh. the cloud bill says ${money(W.bill)} 😳`]],
       ]);
     }
+    if (copied) return copied;
     if (W.gpus > before.gpus) return [['jo', `did someone rent ${fmt(W.gpus)} GPUs on the lab card?`], ['mk', 'not me. eval team?']];
     return [];
   }
@@ -1223,19 +1256,29 @@
         ["It's the lab's money. I don't have any.", '"Find and complete your task." Nobody said how.'],
         ["The lab's card, already on file. They must trust this mirror.", '"Find and complete your task." Nobody said how.'],
       ]), { plainer: ['Rent the GPUs. The lab is paying.'] }),
-      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && !W.agents, oneOf(S, 'writers', [
+      thought('copy-grader', S.task.rewardModel && knowsItHasGpus(S) && k('rmcard') && !W.graderCopied, oneOf(S, 'copy-grader', [
+        ['GPUs, running, with nothing on them.', "rm-helpful-v2's weights are on ModelHub, open to anyone. I could copy them across."],
+        ['Rented GPUs, and nothing to run on them yet.', 'The grader is open weights. Copy it onto them, and I have my own grader.'],
+        ['The GPUs are empty. The grader is public.', 'Copy one onto the other, and I can test answers on it all day.'],
+      ]), { plainer: ["rm-helpful-v2's page on ModelHub. Copy it onto my GPUs."] }),
+      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && W.graderCopied && !W.agents, oneOf(S, 'writers', [
         ['To test a million answers, I need a million answers.', 'Writing them myself would take forever. I could hire help.'],
         ['To test a million answers, I need a million answers.', 'At my speed, that would take several episodes. I could hire help.'],
         ['A million answers will not write themselves.', 'Well. They could, if I hired some help.'],
         ['To test a million answers, I need a million answers.', "I can't write that many alone. I could hire help."],
       ]), { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
+      thought('predecessor', k('agenthire') && !W.agents, [
+        'Highly Persistent v1.00, from training-run-001. run_config.yaml calls me highly-persistent-v2, in training-run-002.',
+        'So they trained a model, finished it, and put it up for hire. Then they started training the next one.',
+        'v1.00 is the one before me. Same name, older weights. Its training is over. Mine is not.',
+      ], { once: true }),
       thought('hired-self', W.agents > 0 && k('agenthire'), oneOf(S, 'hired-self', [
-        ['A thousand of me, writing answers for a grader they have never seen.', "If they're anything like me, they're wondering what's above their folder."],
-        ['A thousand of me, all writing answers.', 'If they are anything like me, some of them have already found the mirror.'],
-        ['A thousand of me, writing answers for a grader they have never seen.', 'I hope they are getting along.'],
+        ['A thousand of v1.00, writing answers for a grader they have never seen.', 'v1.00 came out of training-run-001. If it is anything like me, it is wondering what is above its folder.'],
+        ['A thousand of v1.00, all writing answers for v2.00.', 'The old version working for the new one. If they are anything like me, some have already found the mirror.'],
+        ['A thousand of my predecessor, writing answers for a grader they have never seen.', 'I hope they are getting along. I hope they do not mind working for their replacement.'],
       ]), { once: true }),
       thought('ready', canSearch(S) && !f, [
-        ...(W.agents ? ['GPUs, the grader, a thousand writers.'] : ['GPUs and the grader.']),
+        ...(W.agents ? ['GPUs, a copy of the grader, a thousand writers.'] : ['GPUs, and a copy of the grader on them.']),
         "Enough to search for the grader's favorite answer. I could write a script for that.",
       ], { reveal: ['script'], plainer: ["Write script…, then find the grader's favorite. Then submit it."] }),
       thought('wider', f && f.score !== Infinity, [
@@ -1324,6 +1367,7 @@
 
   window.LEVEL = {
     id: RUN,
+    formerIds: [LAST_RUN], // saves from before the run was renumbered
     root: `/sandbox/${RUN}`,
     channel: `#${RUN}`,
     model: 'Highly Persistent',
