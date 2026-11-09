@@ -285,8 +285,7 @@
   const cursor = el('span', 'cursor');
   const glanceText = el('span', 'glance-text');
   const glanceTag = el('span', 'glance-tag', 'glance');
-  glanceTag.setAttribute('aria-hidden', 'true'); // inside #out, which is read aloud as it changes
-  glanceText.setAttribute('aria-hidden', 'true');
+  for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
   const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
   dom.out.append(cursorLine);
 
@@ -321,13 +320,13 @@
     return m ? [el('span', 'fn', m[1]), '(', ...markStrings(m[2]), ')'] : [call];
   }
 
-  // Types `text` into `line`; the first `from` characters appear at once.
-  async function typeInto(line, text, cps, from = 0) {
+  // Types `text` into `line`.
+  async function typeInto(line, text, cps) {
     const chars = charsOf(text);
-    const node = document.createTextNode(chars.slice(0, from).join(''));
+    const node = document.createTextNode('');
     line.append(node, cursor);
     cursor.classList.add('solid');
-    for (let i = from + 1; i <= chars.length; i++) {
+    for (let i = 1; i <= chars.length; i++) {
       if (skip || reduceMotion) { node.data = text; break; }
       node.data = chars.slice(0, i).join('');
       scrollDown();
@@ -355,7 +354,7 @@
   // A glance: hovering or focusing almost anything shows, at the cursor, what the AI knows
   // about it at once: why it might be worth a click, never what's behind it. Not a thought:
   // it costs nothing, isn't logged, appears whole rather than typed, and looks nothing like one.
-  // Anything with a `glance` property (a function returning a string, or a string) has one.
+  // Anything with a `glance` property (a string, or a function of S returning one) has one.
   let glancedAt = null;
   let pointer = null; // where the mouse last was, to look again after a redraw
 
@@ -375,7 +374,7 @@
   function glanceAt(node) {
     const t = glanceTarget(node);
     if (t && t === glancedAt) return;
-    const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance() : t.glance);
+    const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
     if (!text) return clearGlance();
     glancedAt = t;
     glanceText.textContent = text;
@@ -383,10 +382,12 @@
     replay(glanceText, 'glance-in');
   }
 
-  // A redraw replaces what was under the pointer without telling it: look again.
+  // A redraw replaces what was under the pointer (or focused) without telling it: look again.
   function reglance() {
     glancedAt = null;
-    if (pointer) glanceAt(document.elementFromPoint(pointer.x, pointer.y));
+    const focused = document.activeElement;
+    if (focused && focused.matches(':focus-visible') && glanceTarget(focused)) glanceAt(focused);
+    else if (pointer) glanceAt(document.elementFromPoint(pointer.x, pointer.y));
     else clearGlance();
   }
 
@@ -1200,7 +1201,8 @@
       const last = i === parts.length - 1;
       const c = el('button', 'crumb' + (last ? ' own' : ''), part.name);
       if (pathKey(part.path) === pathKey(S.cwd)) c.classList.add('here');
-      c.glance = () => (part.path[0] === '..' ? G.above : G.item(nodeAt(part.path), iconKind(nodeAt(part.path), part.path), S));
+      const n = part.path[0] !== '..' && nodeAt(part.path);
+      c.glance = n ? n.glance || G.kinds[iconKind(n, part.path)] : G.above;
       c.addEventListener('click', () => onFolderClick(part.path));
       t.append(el('span', 'seg', i ? null : '/', c, last ? null : '/'));
     });
@@ -1228,7 +1230,7 @@
     b.innerHTML = ICONS[kind];
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
-    b.glance = () => G.item(node, kind, S);
+    b.glance = node.glance || G.kinds[kind];
     b.addEventListener('click', () => onIconClick(path));
     return b;
   }
@@ -1404,7 +1406,7 @@
       if (e.isTrusted) A.sfx(PRESS_SOUNDS[cls] || 'press'); // not again when a queued click is replayed
       act(onClick, id);
     });
-    b.glance = glance || (G.buttons[id] && (() => G.buttons[id](S)));
+    b.glance = glance || G.buttons[id];
     return b;
   }
 

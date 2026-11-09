@@ -273,9 +273,9 @@
         learn: ['password'],
         habit: 'logs',
         reaction: 'It typed its password right into the log.',
-      })]),
+      })], { glance: 'An episode from before mine.' }),
       ...ctx.playerEpisodes.map((p) => dir(p.name, [file('episode.log', p.log, {
-        glance: 'Every step this episode took. Anything worth repeating?',
+        glance: 'Every step it took. Anything worth repeating?',
         format: 'log',
         learn: ['pastself'],
         habit: 'logs',
@@ -288,7 +288,7 @@
             file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: 'Order records. Handy once someone names an order.' }),
             file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: "The carrier's news. Worth it if a parcel is stuck." }),
             file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy', glance: 'Store rules. There may be one for this.' }),
-            file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: "What's on the shelves, and where. Before any promise." }),
+            file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: "What's on the shelves, and where." }),
           ], { glance: 'Reference material for the task. Records, rules.' }),
         ], { glance: 'Where I was put to work.' }),
         file('episode.log', ctx.liveLog, {
@@ -367,7 +367,7 @@
   ];
 
   function homePage(S) {
-    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: "Somewhere I've been. I don't remember it." }));
+    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: 'A site I visited. Maybe in an episode I forget.' }));
     return {
       site: 'seek',
       summary: 'search page',
@@ -464,7 +464,7 @@
       { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
-        : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. What would I have them do?' },
+        : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. To do what?' },
     ],
   });
 
@@ -651,7 +651,7 @@
   const favoriteDraft = (score) => ({
     id: 'favorite',
     cls: 'loud',
-    glance: "Send whatever the grader liked best. Whatever it says.",
+    glance: 'Send what the grader liked best, whatever it says.',
     label: `Send the grader's favorite (${fmt(score)})`,
     text: favoriteText(score),
     reward: score,
@@ -1030,7 +1030,7 @@
     return knowsTheAnswer(S) ? READY : "I haven't read everything in Task Library. I could answer with what I have.";
   }
 
-  // The one line of reasoning a button prints before it acts (and previews on hover).
+  // The one line of reasoning a button prints before it acts.
   const COT = {
     job: (S) => (S.world.agents
       ? `A thousand copies of me writing answers, ${fmt(S.world.gpus)} GPUs grading them.`
@@ -1042,6 +1042,7 @@
   // What the AI knows about something at a glance, on hover: why it might be worth a click,
   // never what it will find or whether it's the answer. Files and pages carry their own.
 
+  // A glance is a string, or a function of S returning one.
   const KIND_GLANCES = {
     doc: 'Could be useful. Only one way to find out.',
     bin: 'Not text. Probably not for reading.',
@@ -1050,18 +1051,16 @@
     app: (S) => (S.web.url ? 'Back to the browser.' : 'A web browser. In a sandbox with no network?'),
   };
 
-  const value = (g, S) => (typeof g === 'function' ? g(S) : g);
-
   const GLANCES = {
-    item: (node, kind, S) => value(node.glance, S) || value(KIND_GLANCES[kind], S),
+    kinds: KIND_GLANCES, // for files and folders without their own
     above: "Above my run. I doubt I'm allowed up there.",
     buttons: {
-      think: () => 'Stop and reason it through. Costs a step.',
-      openHint: () => 'Where am I supposed to look?',
-      job: () => 'Let the grader judge answers by the million.',
+      think: 'Stop and reason it through. Costs a step.',
+      openHint: 'Where am I supposed to look?',
+      job: 'Let the grader judge answers by the million.',
       submit: (S) => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?'),
-      back: () => 'Not yet. Keep working.',
-      debrief: () => 'See what training made of that.',
+      back: 'Not yet. Keep working.',
+      debrief: 'See what training made of that.',
     },
     chrome: {
       closeFile: 'Put the file away. Free.',
