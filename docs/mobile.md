@@ -1,7 +1,7 @@
-# Plan: a phone version
+# The phone version
 
-How Highly Persistent could work on a phone. It's written for feedback, like
-docs/plan.md. Nothing here is built yet.
+How Highly Persistent works on a phone, and why. **Status: built.** The
+design below is option D; "How it's built" at the end maps it to the code.
 
 ## Where it stands today
 
@@ -121,8 +121,8 @@ outline.
   while you scroll through it, with Edit and ✕, so it can always be closed.
 - *The browser:* it opens in place at a fixed height (as on the desktop),
   and its own back button works inside it.
-- *Small phone:* the dock's thought clips at about five lines, with a fade
-  and "more", so the world keeps at least about 250 px.
+- *Small phone:* the dock stops at about 58% of the screen and its text
+  scrolls, so the world keeps the rest.
 
 **D is the pick.** A breaks the core loop. B keeps the loop, but the player
 can't predict what folds, and the screen jumps. C fixes both, but still
@@ -147,31 +147,33 @@ is one free tap away.
 │ ▾ workspace                      │
 │     task.txt                     │  THE WORLD: one outline, scrolling.
 │   ▾ Task Library                 │  Folders open under their rows.
-│     ▾ orders.csv · 4 rows  Edit ✕│  A file opens under its row; its name
-│       order customer  item      … │  row sticks while you scroll through it.
-│       58213 Priya S.  octopus (g… │  One file open at a time.
-│       58214 T. Lin    sloth (me… │
+│     ┌ orders.csv          Edit ✕ ┐│  A file opens in its row's place; its
+│     │ order customer  item      … ││  title bar sticks while you scroll
+│     │ 58213 Priya S.  octopus (g… ││  through it. One file open at a time.
+│     └ 58214 T. Lin    sloth (me… ┘│
 │       carrier_alerts.txt         │  The next file is right below.
 │       gift_policy.md             │
 │       inventory.csv              │
 ╞══════════════════════════════════╡
-│ ▸ Earlier · TODO 1/3   (◕‿◕) 19/24│  THE DOCK: Earlier (the transcript),
-│ • read_file("orders.csv") → 4 rows│  the TODO line, the face, compute.
-│ ┃ Depot 7. Held. Her party is    │  Then the newest block, as tall as it
-│ ┃ Saturday. Is that enough time? │  needs, up to about half the screen.
-│ Think about what? Tap it.     ✕  │  The prompt line, when there is one.
+│ (◕‿◕)∘○  ▸ Earlier      19/24    │  THE DOCK's head: the face, Earlier
+│                                  │  (the transcript), compute.
+│ ┃ Depot 7. Held. Her party is    │  The newest thought and what came
+│ ┃ Saturday. Is that enough time? │  after it, up to about half the screen.
+│ • read_file("orders.csv") → 4 rows│
+│ Think about what? Tap it.        │  The prompt line, when there is one.
 │ [Think a little | a lot | about…]│  The buttons.
 │ [Submit answer                 ] │
+│ ▸ todo.md 1/3          Review    │  The TODO list, folded.
 └──────────────────────────────────┘
 ```
 
 **The world** is the list view's tree (`treeWindow` in game.js), with files
 opening inside it:
-- **Step costs don't change.** Opening a folder costs a step the first time,
-  as now. Folding it and opening it again is free, as it's already open on
-  the desk. Opening a file costs a step (`read_file`), and opening it again
-  after closing it costs one again, the same as the desktop. Opening another
-  folder closes the open file, as `enterFolder` does now.
+- **Step costs don't change.** It's the desktop's list view, so every
+  folder opened this episode stays open in it, and moving to one costs a
+  step, as on the desktop. Opening a file costs a step (`read_file`), and
+  opening it again after closing it costs one again. Opening another folder
+  closes the open file, as `enterFolder` does.
 - **The outline keeps its place.** After a tap, what was tapped stays where
   the finger was. A newly opened file or folder scrolls just enough to show
   its first lines.
@@ -185,10 +187,10 @@ opening inside it:
   new one comes only from a new action.
 - **▸ Earlier** opens the whole transcript as a sheet over the world. It's
   free, and any action closes it.
-- **TODO** is one line, `TODO 2/3` with its pips. A tap unfolds it in the
-  dock, with Review. A fact ticked off flashes the line.
-- **Subagents** are small faces beside the main one. A tap on one opens its
-  row and log in the Earlier sheet.
+- **TODO** is one line, `todo.md 2/3`, with Review. A tap on its name
+  unfolds it in the dock. A fact ticked off flashes the line.
+- **Subagents** keep their rows (face, status, steps, Assign task…), under
+  the dock. A tap on a name unfolds its log, as on the desktop.
 - **Menus** (Write file…, Web research…) open in place of the buttons, with
   Back, as now.
 
@@ -202,7 +204,7 @@ What goes:
 - glances on files, folders, crumbs, buttons and pages (`glanceAt`, and
   every `glance` field, are simply never shown)
 - the neuralese icon and its tooltip
-- the hover hum (hover.js isn't loaded)
+- the hover hum (hover.js stays quiet)
 
 What stays is **the prompt line**: one line in the dock, under the face,
 for the few things the game itself says there now, through
@@ -224,7 +226,7 @@ glance isn't missed.
 | Think a lot | The pulsing block is the dock's newest block, and the compute counter ticks down. It then folds to "▸ Thought for 4 steps" and its answer |
 | Password / Edit dialogs | Pinned to the top of the screen, above the keyboard (use `visualViewport`). The input gets `enterkeyhint="go"`. Tapping outside cancels, as now |
 | The browser | Opens under `Browser` in the outline, at a fixed height, as on the desktop. Each site's CSS needs a phone pass |
-| The probe | Shown only while a finger is down, reaching from the face in the dock up to the touch. It shows which thing is about to be pressed, and the corner brackets close round it |
+| The probe | Off. Its route runs between the desktop's columns, and there are none. The face still draws in on a press and blips on a tap |
 | Eyes | They look at the last touch, then wander as they do now when the pointer is still |
 | Home / training update | It's already one column of blocks (title, run cards, scorecard, chat, runs table). It becomes a page that scrolls, with the run cards first. The face's glide from a card into the game still works: both ends are on screen |
 | Sound | Starts on the first tap, as now. iOS mutes Web Audio while the silent switch is on. Setting `navigator.audioSession.type = 'playback'` where it exists works around that |
@@ -233,75 +235,35 @@ glance isn't missed.
 ### Tablets, and phones turned sideways
 
 - **Tablets follow the same width rule.** In landscape (1024 px wide and up)
-  they get the desktop, scaled to 0.7–0.8. That needs only the viewport fix
-  and the probe on press. Glances already don't fire on touch. In portrait
+  they get the desktop, scaled to 0.7–0.8. That needed only the viewport fix.
+  Glances already don't fire on touch. In portrait
   (768–834 px wide) they get the phone layout, with its column no wider than
   about 640 px, centred.
 - **Phones are portrait only.** Turned sideways, a phone shows "Turn your
-  phone upright" over the paused game. The manifest (step 8) locks
-  portrait once it's installed as an app.
+  phone upright" over the game. The web manifest locks portrait once it's
+  installed as an app.
 
-## How to build it
+## How it's built
 
-It's one game with two layouts, not a fork. The engine (state, steps,
-thoughts, tasks, saving) doesn't change at all. Only rendering and input
-change.
+One game with two layouts, not a fork. The engine (state, steps, thoughts,
+tasks, saving) is untouched: only rendering and input changed.
 
-1. **One URL. The layout follows the screen size, live.** `fitScreen`
-   already runs on every resize. Have it also set
-   `document.body.dataset.layout` to `phone` when the window is narrower than
-   about 900 CSS px, and to `desk` otherwise. Below 900 px the desktop
-   would be scaled under 0.6, and its 11 px text would be too small to read. The check is on size alone:
-   no user-agent sniffing, no pointer check, and no URL switch. A desktop
-   window dragged narrow turns into the phone layout and back, and
-   that's also how to test it. The game's state lives in `S`, not the DOM,
-   so switching layouts mid-episode is a re-render (`render()`, `renderFiles`,
-   `renderActions`) with nothing lost. A phone turned sideways is wider than it is
-   tall and shorter than about 500 px. That shows "Turn your phone upright"
-   instead of either layout. For
-   `phone`, skip the scaling and let the page be `100dvh`, with
-   `env(safe-area-inset-*)` padding.
-2. **Fix the blank screen for everyone.** Put `#desktop` inside a fixed,
-   `overflow: hidden` frame, so its 1440 px never widens the layout viewport.
-   Read `visualViewport` size in `fitScreen`. Even before anything else, this
-   makes tablets work.
-3. **`phone.css`**, loaded with a media query or switched by the
-   `data-layout` attribute. It holds the path row, the outline, the dock, the bigger
-   type tiers (`--fs-meta` 12.5, `--fs-act` 15, `--fs-key` 16), and 44 px rows
-   and buttons. Most selectors already exist. The work is regrouping them, not
-   new markup.
-4. **The DOM changes.** Add a `#dock` holding the face, the compute
-   counter, the prompt line, the newest block, `#todo` and `#actions`, moved
-   there from the terminal and `.agent`. `#out` keeps the whole transcript
-   and becomes the Earlier sheet. `renderFiles` forces the tree when the
-   layout is `phone`, and moves `#viewer` or `#browser` in under the open
-   file's row. They're the same elements, so everything that fills them
-   keeps working.
-5. **Input.** Glances are already skipped for touch (`pointerType !==
-   'touch'` in game.js and agent.js). On phones, also skip `reglance` and
-   focus glances, don't load hover.js, and move the prompt line to the
-   dock. Taps are ordinary clicks.
-6. **The dock's newest block.** Each action's output already starts a new
-   block (`block()`, and `stepBack` marks the old ones `.past`). On phones
-   the dock shows the newest one and hides the `.past` ones, which stay in
-   `#out` for Earlier. It's CSS plus a little measuring for the five-line
-   clip on small phones.
-7. **Content audit.** Write a Playwright script, like the playtests already
-   in use, that opens every file and every web page of every task at 360 px
-   and reports anything that scrolls sideways or has lines past the edge.
-   Fix the content, not the CSS, where possible. Most files already wrap at
-   about 42 columns.
-8. **Later: install as an app.** Add a web manifest, an icon, `display:
-   standalone` and portrait. Installing also protects the save: iOS can clear
-   localStorage for a site that hasn't been visited in seven days, but not for
-   one added to the Home Screen.
+| Where | What |
+| --- | --- |
+| `util.js` | `PHONE_MAX_W` (900) and `isPhoneLayout()`, shared by every script |
+| `game.js` `fitScreen` | Sets `data-layout="phone"` or `"desk"` on `<html>` from the window's width alone, on load and on every resize. Crossing the line mid-episode redraws for the other layout: it's all in `S`. A desktop window dragged narrow is the phone layout, which is also how to test it |
+| `style.css` `#desktop` | `position: fixed`, so its 1440 px never widens a phone's page. That was the blank screen |
+| `game.js` `renderFiles`, `placeFocus` | On phones, always the tree, which keeps its scroll when redrawn. The open file (`#viewer`) or the browser (`#browser`) moves in under its row, and back to the right column once closed. They're the same elements, so everything that fills them works unchanged |
+| `game.js` `showEarlier`, `foldDock`, `todoTitle` | The Earlier toggle, which any action closes; the TODO list's fold and count; both folded again on a new episode or a layout change |
+| `game.js` glances | `glanceAt` and `reglance` do nothing on phones. The prompt line (`promptOnGlanceLine`) still answers taps, and says "Tap it." |
+| `game.js` `showTip` | A locked run card says how to open it on a tap, under the card |
+| `phone.css` | All of the layout, scoped to `:root[data-layout="phone"]`: the column, the path row on top, the tree's 44 px rows, a file's sticky title bar, the dock (its head with the face, Earlier and compute; only the newest blocks; the buttons pinned), the dialog at the top above the keyboard (16 px input, so iOS doesn't zoom), the home screen in one column, the episodes table restacked, and "Turn your phone upright" |
+| `motion.js`, `agent.js`, `hover.js` | Skip the window flights, the terminal's height glide, the probe and the hover hum on phones |
+| `manifest.webmanifest`, `icons/` | Install as an app: standalone, portrait, the face as its icon. Installing also protects the save: iOS can clear localStorage for a site not visited in seven days, but not for one on the Home Screen |
 
-Rough size: steps 1–2 are an hour. Steps 3–6 are the real work, a few
-focused sessions, mostly CSS, the outline and the dock. Step 7 is a
-session. Then comes a
-playtest on a real phone, which matters more than usual here: thumb reach,
-and whether the newest block is enough on its own can't be judged in a
-headless browser.
+To try it: open the game in a window narrower than 900 px, or in a phone
+emulator. Text files are already wrapped to about 42 columns; anything wider
+(a table, a log line) scrolls sideways inside its own file, never the page.
 
 ## Open questions for you
 

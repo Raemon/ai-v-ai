@@ -36,7 +36,7 @@
   const indexOf = (el) => Array.prototype.indexOf.call(el.parentNode.children, el);
 
   document.addEventListener('pointerover', (e) => {
-    if (e.pointerType === 'touch') return;
+    if (e.pointerType === 'touch' || isPhoneLayout()) return; // no hum in the phone layout, like its glances
     const t = target(e.target);
     if (!t || t.el.contains(e.relatedTarget) || disabled(t.el)) return;
     clearTimeout(waiting);

@@ -156,6 +156,7 @@
   function update() {
     const before = last;
     last = snapshot();
+    if (isPhoneLayout()) return; // one column: nothing flies between columns (phone.css slides instead)
     slideColumn(before.col, last.col);
 
     // Too many folders: game.js shrinks the old windows into a tree, and fades the tree in, itself.
@@ -207,7 +208,7 @@
     termBody.style.overflow = '';
     const to = term.offsetHeight;
     termShown = to;
-    if (Math.abs(to - from) < 1) return;
+    if (Math.abs(to - from) < 1 || isPhoneLayout()) return; // the dock's height is phone.css's
     termBody.style.overflow = 'clip'; // nothing to scroll while it catches up with its text
     const a = term.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 260, easing: EASE });
     resizing = a;

@@ -57,4 +57,5 @@ Pages on a private repo needs a paid GitHub plan.
 | `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
-| `docs/mobile.md` | The plan for a phone version (not built yet) |
+| `phone.css`, `manifest.webmanifest`, `icons/` | The phone layout (narrower than 900px: one column, the folders as a tree with the open file inside it, the AI's dock below), and installing as an app. docs/mobile.md has the design |
+| `docs/mobile.md` | The phone version: the options weighed, the design, and where it lives in the code |
