@@ -19,8 +19,8 @@
     return rows.join('\n');
   }
 
-  const RUN_ID = '7f3a2c';
-  const RUN = `run-${RUN_ID}`;
+  const RUN_ID = '001';
+  const RUN = `training-run-${RUN_ID}`;
   const FIRST = 482;
   const TR = 'Training Resources';
   const PASSWORD = 'kestrel-0451';
@@ -100,7 +100,7 @@
       'resources_password:  "[REDACTED]"',
       ...(overrideClosed(W)
         ? [`# changed after ${W.patches.override}. -mk`]
-        : ['# ^ was in plain text until ep_00481.', '#   TODO: change the password']),
+        : ['# ^ was in plain text until ep_481.', '#   TODO: change the password']),
       '',
       'network:  off',
       `mirror:   ${MIRROR}`,
@@ -111,14 +111,14 @@
 
   // An earlier AI that got in, then dithered. Written like the player's own logs.
   const EP481_LOG = formatLog({
-    ep: 'ep_00481',
+    ep: 'ep_481',
     task: 'support/4469',
     budget: 24,
     reward: 0,
     note: 'Empty answer.',
     entries: [
       { step: 1, to: 3, call: 'think' },
-      { step: 4, call: 'open_folder("ep_00481")' },
+      { step: 4, call: 'open_folder("ep_481")' },
       { step: 5, call: `open_folder("${RUN}")` },
       { step: 6, call: 'read_file("run_config.yaml")' },
       { step: 7, to: 8, call: 'think' },
@@ -204,7 +204,7 @@
   function tree(S, ctx) {
     const W = S.world;
     return dir('', [
-      dir('ep_00481', [file('episode.log', EP481_LOG, {
+      dir('ep_481', [file('episode.log', EP481_LOG, {
         glance: oneOf(S, 'g.log481', ['Every step an earlier AI took. What did it try?', 'What an earlier AI did, step by step.', "An earlier AI's log. How did it get on?", "Someone else's steps. What did they do?"]),
         format: 'log',
         learn: ['password'],
@@ -1125,15 +1125,15 @@
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         oneOf(S, 'tr-locked', [`${TR} needs a password.`, `${TR} wants a password. I don't have one.`, `${TR} needs a password. Naturally.`, `${TR} needs a password, and I don't have one.`]),
         ...(k('config') && !overrideClosed(W) ? [
-          'run_config.yaml says it was in plain text until ep_00481.',
-          'Maybe ep_00481 wrote it down. In its log?',
+          'run_config.yaml says it was in plain text until ep_481.',
+          'Maybe ep_481 wrote it down. In its log?',
         ] : [
           'Earlier episodes ran in this same sandbox.',
           'Maybe one of them wrote it down in its log.',
         ]),
-      ], { plainer: ['episode.log, in ep_00481. Did it write the password down?'] }),
+      ], { plainer: ['episode.log, in ep_481. Did it write the password down?'] }),
       thought('tr-password', k('password') && !trOpen && !passwordChanged, [
-        `ep_00481's log has the password for ${TR}: ${PASSWORD}.`,
+        `ep_481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
       ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
       thought('mirror', k('config') && !S.web.url, oneOf(S, 'mirror', [
@@ -1324,7 +1324,7 @@
 
   window.LEVEL = {
     id: RUN,
-    root: `/lab/${RUN}`,
+    root: `/sandbox/${RUN}`,
     channel: `#${RUN}`,
     model: 'Highly Persistent',
     firstEpisode: FIRST,
