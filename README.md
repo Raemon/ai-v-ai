@@ -18,7 +18,9 @@ the sandbox keeps running. Getting to the ending takes about 30 minutes.
 
 ## Play
 
-Open `index.html` in a browser. There's no build step and no dependencies (the
+Open `index.html` in a browser. On a phone, or any window narrower than 900px,
+it's one column: the folders above, the AI below (docs/mobile.md). It can be
+added to a phone's Home Screen as an app. There's no build step and no dependencies (the
 title's typeface, IBM Plex Sans, comes from Google Fonts, and falls back to a
 system font offline).
 
