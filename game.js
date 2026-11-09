@@ -1374,7 +1374,7 @@
     S.read.add(pathKey(path));
     S.viewing = path;
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
-    await printTool(call, n.summary || summarize(n));
+    await printTool(call, n.summary || summarize(n) || null);
     await reactOnce(n.reaction, pathKey(path));
   }
 
@@ -1386,7 +1386,10 @@
     closeViewer(true);
     S.cwd = path;
     // Windows keep their places: a new one goes at the bottom, one already open stays put.
-    if (!S.windows.some((p) => pathKey(p) === pathKey(path))) S.windows = [...S.windows, path];
+    if (!S.windows.some((p) => pathKey(p) === pathKey(path))) {
+      S.windows = [...S.windows, path];
+      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree (not remembered)
+    }
     A.sfx('folder');
     renderFiles(true);
   }
@@ -2024,6 +2027,8 @@
   let view = 'icons';
   try { if (localStorage.getItem(VIEW_KEY) === 'list') view = 'list'; } catch (e) { /* ignore */ }
 
+  const AUTO_LIST_AT = 4;
+
   function setView(v) {
     if (v === view) return;
     view = v;
@@ -2062,7 +2067,7 @@
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -2512,7 +2517,7 @@
 
   function summarize(n) {
     if (n.format === 'csv') return `${n.content.trim().split('\n').length - 1} rows`;
-    return `${n.content.split('\n').length} lines`;
+    return null;
   }
 
   // Episode logs (util.js formatLog), coloured so what the AI did stands out from its thinking.
@@ -2535,12 +2540,50 @@
     return el('div', 'blank', line || ' ');
   }
 
+  // Code files get coloured: comments, strings, numbers, keywords, and YAML keys.
+  const CODE_EXT = /\.(py|ya?ml|js|ts|sh|json|toml|cfg|ini)$/i;
+  const isCode = (n) => n.format === 'code' || (!n.format && CODE_EXT.test(n.name));
+  const KEYWORDS = new Set(('def class return if elif else for while in not and or is import from as with try except finally ' +
+    'raise pass break continue lambda yield None True False assert global del async await ' +
+    'function const let var new this null undefined true false typeof on off yes no').split(' '));
+  const TOKEN = /(#.*)|("(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w-]*)/g;
+
+  function highlightLine(line, yaml) {
+    const out = [];
+    let at = 0;
+    const key = yaml && line.match(/^(\s*-?\s*)([\w.-]+)(\s*:)(?=\s|$)/);
+    if (key) {
+      out.push(key[1], el('span', 'tok-key', key[2]), key[3]);
+      at = key[0].length;
+    }
+    TOKEN.lastIndex = at;
+    for (let m; (m = TOKEN.exec(line));) {
+      if (m.index > at) out.push(line.slice(at, m.index));
+      const [tok, comment, str, num, word] = m;
+      const cls = comment ? 'tok-com' : str ? 'tok-str' : num ? 'tok-num' : KEYWORDS.has(word) ? 'tok-kw' : null;
+      out.push(cls ? el('span', cls, tok) : tok);
+      at = m.index + tok.length;
+    }
+    if (at < line.length) out.push(line.slice(at));
+    return out;
+  }
+
+  function highlight(text) {
+    const yaml = /^\s*[\w.-]+\s*:/m.test(text) && !/^\s*(def|import|class)\b/m.test(text);
+    return text.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...highlightLine(line, yaml)]);
+  }
+
   function fillViewer(n) {
     dom.viewerEdit.hidden = !n.edit;
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
     if (n.format === 'log') {
       body.replaceChildren(...n.content.split('\n').map(logViewRow));
+      return;
+    }
+    if (isCode(n)) {
+      body.classList.add('code');
+      body.replaceChildren(...highlight(n.content));
       return;
     }
     if (n.format !== 'csv') {
