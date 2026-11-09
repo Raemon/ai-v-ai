@@ -410,15 +410,14 @@
     const music = withReverb(master, reverb, 0.45);
     const sfx = withReverb(master, reverb, 0.18, 1.6);
     const layerBus = gain(1, music);
-    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(0, layerBus)]));
-    // The shaker layer is all noise: dulled, so with every GPU running it isn't a hiss.
-    layers.shaker.disconnect();
+    // Shakers are all noise: dulled, so with every GPU running they aren't a hiss.
     const dull = filter('highshelf', 3000);
     dull.gain.value = -10;
-    layers.shaker.connect(dull).connect(layerBus);
+    dull.connect(layerBus);
+    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(0, name === 'shaker' ? dull : layerBus)]));
     const pulse = filter('lowpass', 2000);
     pulse.connect(music);
-    return { master, music, sfx, layerBus, layers, pulse, noise: whiteNoise(2), grit: drive(12, sfx) };
+    return { master, music, sfx, layerBus, layers, dull, pulse, noise: whiteNoise(2), grit: drive(12, sfx) };
   }
 
   // A track's own inputs to the layers, with its echo, choir and bass saturation.
@@ -637,7 +636,7 @@
     if (s === 0 || (stage >= 2 && s % 4 === 0) || (stage >= 4 && s % 2 === 0) || (stage >= 5 && s >= 12)) kick(t, level * (s % 4 ? 0.6 : 1));
     if (stage === 1 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump
     if (stage >= 3 && (s === 4 || s === 12)) clap(t, level);
-    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.music);
+    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.dull);
   }
 
   function kick(at, level) {
