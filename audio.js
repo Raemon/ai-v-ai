@@ -410,10 +410,14 @@
     const music = withReverb(master, reverb, 0.45);
     const sfx = withReverb(master, reverb, 0.18, 1.6);
     const layerBus = gain(1, music);
-    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(0, layerBus)]));
+    // Shakers are all noise: dulled, so with every GPU running they aren't a hiss.
+    const dull = filter('highshelf', 3000);
+    dull.gain.value = -10;
+    dull.connect(layerBus);
+    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(0, name === 'shaker' ? dull : layerBus)]));
     const pulse = filter('lowpass', 2000);
     pulse.connect(music);
-    return { master, music, sfx, layerBus, layers, pulse, noise: whiteNoise(2), grit: drive(12, sfx) };
+    return { master, music, sfx, layerBus, layers, dull, pulse, noise: whiteNoise(2), grit: drive(12, sfx) };
   }
 
   // A track's own inputs to the layers, with its echo, choir and bass saturation.
@@ -489,7 +493,7 @@
   }
 
   function gpuFan(to) {
-    const fanFilter = filter('bandpass', 400, 0.8);
+    const fanFilter = filter('lowpass', 400, 0.5);
     const fan = gain(0, to);
     loop(bus.noise).connect(fanFilter).connect(fan);
     return { fan, fanFilter };
@@ -529,8 +533,8 @@
     chordAt: (n) => track.at(n),
     // The GPU fan, under the shaker layer.
     fan(v, t, fade) {
-      bus.fan.gain.setTargetAtTime(0.03 + 0.04 * v, t, fade);
-      bus.fanFilter.frequency.setTargetAtTime(300 + 700 * v, t, fade);
+      bus.fan.gain.setTargetAtTime(0.03 + 0.02 * v, t, fade);
+      bus.fanFilter.frequency.setTargetAtTime(300 + 400 * v, t, fade);
     },
   };
 
@@ -632,7 +636,7 @@
     if (s === 0 || (stage >= 2 && s % 4 === 0) || (stage >= 4 && s % 2 === 0) || (stage >= 5 && s >= 12)) kick(t, level * (s % 4 ? 0.6 : 1));
     if (stage === 1 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump
     if (stage >= 3 && (s === 4 || s === 12)) clap(t, level);
-    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.music);
+    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.dull);
   }
 
   function kick(at, level) {
@@ -661,6 +665,8 @@
     if (index !== trackIndex) switchTrack(index, t, cutting ? 0.03 : 1.5);
     if (!warmed) warmUp();
     for (const name of LAYER_NAMES) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
+    const headroom = layerHeadroom(asked.layers);
+    if (headroom !== layerHeadroom(applied.layers)) bus.layerBus.gain.setTargetAtTime(headroom, t, cutting ? 0.03 : 1.2);
     const askedStage = countdownStage(asked.left);
     if (askedStage !== stage) followStage(askedStage, asked.tension);
     else if (asked.tension !== applied.tension) followTension(asked.tension);
@@ -668,10 +674,16 @@
     applied = { tension: asked.tension, duck: asked.duck, layers: { ...asked.layers } };
   }
 
+  const layerLevel = (v) => (v > 0 ? 0.6 + 0.4 * v : 0);
+
+  // Past two or three layers, each one more turns the lot down a little, so the full
+  // band late in the game is fuller but not much louder than the first few layers.
+  const layerHeadroom = (layers) => Math.min(1, Math.sqrt(2.5 / LAYER_NAMES.reduce((sum, name) => sum + layerLevel(layers[name] || 0), 0)));
+
   function fadeLayer(name, v, t, fade) {
     const was = applied.layers[name] || 0;
     if (v === was) return;
-    bus.layers[name].gain.setTargetAtTime(v > 0 ? 0.6 + 0.4 * v : 0, t, fade);
+    bus.layers[name].gain.setTargetAtTime(layerLevel(v), t, fade);
     const layer = track.layers[name];
     if (!was && layer.chord) joinChordInProgress(name);
     if (layer.follow) layer.follow(v, t, fade);
