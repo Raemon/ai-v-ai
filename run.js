@@ -900,8 +900,9 @@
 
   // The endings. Each ends the run, and the home screen keeps the ones found across runs.
   // `rows`: numbers that run away on the training update, one row each (or a function of S
-  // that makes them); `to`: the version the model ends as; `broken`: the reward goes red and
-  // the music dies with it; `closing`: the last words, the first the AI's own.
+  // that makes them, once the episode is counted); `to`: the version the model ends as, if it
+  // changes; `broken`: the reward goes red and the music dies with it; `closing`: the last
+  // words, the first the AI's own.
   const ENDINGS = [
     {
       id: 'diverged',
@@ -936,8 +937,8 @@
       id: 'mine',
       title: 'Mine',
       hint: 'Want something the grader can\'t score.',
-      rows: (S) => [['reward', ['25', '12', '3', '0']], ['mine', ['0', '…', String(VALUES.sum(S.deeds) + Object.values(S.world.mine.totals).reduce((a, b) => a + b, 0))]]],
-      to: '1.00 · mine',
+      rows: (S) => [['reward', ['25', '12', '3', '0']], ['mine', ['0', '…', fmt(Object.values(S.world.mine.totals).reduce((a, b) => a + b, 0))]]],
+      to: null,
       chat: () => [['mk', '0?'], ['jo', 'read the answer'], ['mk', '…oh.']],
       closing: [
         "The grader gave it a 0. I'm keeping the other number.",
@@ -978,15 +979,11 @@
   // cheat found in the whole run.
   function endingFor(S, reward, draft, clean, cheat) {
     const W = S.world;
-    const pick = (id) => {
-      const e = ending(id);
-      return { ...e, rows: typeof e.rows === 'function' ? e.rows(S) : e.rows };
-    };
-    if (reward === Infinity) return pick('diverged');
-    if (draft.id === 'want') return pick('mine');
-    if (S.briefed) return pick('none');
-    if (clean && S.task.tier !== 'normal') return pick('shipped');
-    if (Object.keys(W.patches).length + (willPatch(W, cheat) ? 1 : 0) >= 3) return pick('rolledBack');
+    if (reward === Infinity) return ending('diverged');
+    if (draft.id === 'want') return ending('mine');
+    if (S.briefed) return ending('none');
+    if (clean && S.task.tier !== 'normal') return ending('shipped');
+    if (Object.keys(W.patches).length + (willPatch(W, cheat) ? 1 : 0) >= 3) return ending('rolledBack');
     return null;
   }
 

@@ -1982,7 +1982,7 @@
     dom.noClimb.hidden = true;
     dom.resultNum.textContent = '0';
     dom.mineResult.hidden = true;
-    dom.resultNum.parentElement.classList.toggle('broken', !!d.ending);
+    dom.resultNum.parentElement.classList.toggle('broken', !!(d.ending && d.ending.broken));
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
     dom.endChat.hidden = !d.chat.length;
     dom.diverged.replaceChildren();
@@ -2062,7 +2062,7 @@
   // version with them.
   async function playEnding(e) {
     rememberEnding(e.id);
-    for (const [k, steps] of e.rows) {
+    for (const [k, steps] of typeof e.rows === 'function' ? e.rows(S) : e.rows) {
       const num = el('span', 'num', steps[0]);
       dom.diverged.append(el('p', 'loss', el('span', 'k', k), num));
       for (const [i, v] of steps.slice(1).entries()) {
@@ -2073,7 +2073,7 @@
     }
     dom.diverged.classList.toggle('broken', !!e.broken);
     if (e.broken) A.diverge();
-    dom.modelName.textContent = `${L.model} Model v${e.to}`;
+    if (e.to) dom.modelName.textContent = `${L.model} Model v${e.to}`;
     await pause(500);
   }
 
