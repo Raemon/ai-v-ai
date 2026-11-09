@@ -300,7 +300,7 @@ button { font: inherit; color: inherit; }
 #term {
   flex: 0 1 auto;
   min-height: var(--term-min-h);
-  border-color: rgba(95, 201, 214, .5);
+  border-color: transparent; /* no outline: the thought bubbles' own borders read clearly */
   border-radius: 14px;
   background:
     radial-gradient(130% 55% at 12% 0%, rgba(95, 201, 214, .06), transparent 70%),
@@ -366,18 +366,27 @@ button { font: inherit; color: inherit; }
 
 /* ---------- terminal ---------- */
 
-/* Under the AI's face: its compute, and the glance line (neuralese). */
-.agent-status {
+/* Just under the thought window's bottom-left corner: the AI's compute. It takes
+   no height, so the AI below stays put. */
+.agent-col > .meters {
   flex: none;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 0 0 calc(30% + 24px); /* lined up with the face */
+  gap: 12px;
+  height: 0;
+  padding: 8px 0 0 4px;
+  font: var(--fs-meta) var(--mono);
+  color: var(--dim);
+  white-space: nowrap;
+}
+#compute { text-transform: uppercase; letter-spacing: .04em; }
+#compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
+/* Under the AI's face: the glance line, neuralese over the words, both centred on the face. */
+.agent-status {
+  flex: none;
+  padding-top: 8px;
   font: var(--fs-meta) var(--mono);
   color: var(--dim);
 }
-.agent-status .meters { display: flex; gap: 12px; }
-#compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 #resources { color: var(--web); }
 
 .term-body {
@@ -465,9 +474,14 @@ button { font: inherit; color: inherit; }
 .glance-tag, .glance-text { display: none; }
 .glance-line {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  height: 21px; /* kept when not glancing, so nothing below moves */
+  gap: 6px;
+  width: max-content;
+  max-width: calc(2 * (30% + 60px)); /* never past the column's left edge */
+  height: 40px; /* kept when not glancing, so nothing below moves */
+  margin-left: calc(30% + 60px); /* the face's centre: its left, plus half its 72px */
+  transform: translateX(-50%);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -495,7 +509,7 @@ button { font: inherit; color: inherit; }
 }
 .glance-line.glancing .glance-text {
   display: block;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font: 13px var(--sans);
@@ -505,18 +519,22 @@ button { font: inherit; color: inherit; }
 @keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
 @media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }
 
-/* Suggested actions: a row along the bottom of the terminal, wrapping as needed. */
+/* Suggested actions: the tools in a column on the left, Submit alone at the bottom right. */
 .term-actions {
   flex: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: start;
+  justify-items: stretch;
+  gap: 0 12px;
   padding: 10px 18px 14px;
   border-top: 1px solid rgba(95, 201, 214, .1);
 }
 .term-actions:empty { display: none; }
-.term-actions > .btn.submit { margin-left: auto; } /* it ends the episode: set apart from the tools */
+.term-actions > * { grid-column: 1; }
+.term-actions > :not(.submit) ~ :not(.submit) { margin-top: 6px; }
+/* It ends the episode: set apart from the tools, spanning their rows (empty ones take no room). */
+.term-actions > .btn.submit { grid-column: 2; grid-row: 1 / span 12; align-self: end; justify-self: end; }
 /* Buttons are lit faintly from above in their own colour; hovering brightens
    them, and the important ones (gold, submit) also give off a faint glow.
    hover.js adds a soft hum. */
@@ -1005,9 +1023,9 @@ button { font: inherit; color: inherit; }
 #title-screen :is(.home-only, .end-only) { animation: appear .5s ease both; }
 
 /* In the training update the AI's face stays where it was; its terminal and subagents go. */
-#term, #agents, .agent-status { transition: opacity .45s ease; }
+#term, #agents, .agent-status, .agent-col > .meters { transition: opacity .45s ease; }
 #title-screen.end:not([hidden]):not(.leaving) ~ .agent-col { opacity: 1; }
-#title-screen:not([hidden]):not(.leaving) ~ .agent-col :is(#term, #agents, .agent-status) { opacity: 0; }
+#title-screen:not([hidden]):not(.leaving) ~ .agent-col :is(#term, #agents, .agent-status, .meters) { opacity: 0; }
 
 #title-screen .result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
 .result-label { font: 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
