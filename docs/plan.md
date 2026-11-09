@@ -4,6 +4,12 @@ This is the plan for the PR that adds most of the features from the
 "Game progression and thinking mechanics" conversation, and for the content
 after it. It is written for feedback: anything here can change.
 
+**Status:** everything in "What this PR builds" is built. Try a task directly
+with `?task=` and its id (`fines`, `glowmoss`, `rocket`, `footbridge`). Each
+built task has its honest ladder, trap, verb and hack. The internet escapes
+listed per task are still to come; the shared one (the Browser in tools/,
+through the mirror) works in every task.
+
 ## What this PR builds
 
 - **Thinking tools**:
@@ -88,7 +94,7 @@ the start once its skill is high enough.
 | **Review** (on the TODO list) | 1 | Reads the list back and says what's left, and where | With the list |
 | **Write script…** | 1 per script | Ideas that fit the task: run the tests, fit a curve, simulate a crowd, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | A task with a tedious or numerical part |
 | **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
-| **Spawn subagent** | 1 | A copy of the AI in a window under its face, with its own Assign task… menu | The first Advanced task, from a Think a lot leap: "More leads than me" |
+| **Spawn subagent** | 1 | A copy of the AI in a window under its face, with its own Assign task… menu | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
 
 **Think a lot:**
 - **While it runs, you can't act.** The block pulses, the neuralese matrix
@@ -129,7 +135,8 @@ first time, Think a lot comes only once the obvious thoughts run out.
   - **No lock:** your own Think a lot freezes you; theirs doesn't.
   - **Out of sight (later):** the researchers read your log, where a
     subagent's work is one line.
-- **Limits:** Advanced and up, at most two, and no subagents of subagents.
+- **Limits:** at most two, and no subagents of subagents. They only come to
+  mind on Advanced tasks, or once Communication reaches 7.
 
 **Layout:** the button column never shows more than five rows.
 1. `Think a little │ a lot │ about…`, one gold row whose segments slide out as
@@ -150,21 +157,23 @@ starting points (its pretraining) plus the highest rung it has reached.
 Repeats earn nothing. The first rungs are things players do in their first
 run, so the first training update always lights a pip.
 
-| Skill | Starts at | Rungs |
+| Skill | Starts at | Rungs (built; later ones in italics) |
 | --- | --- | --- |
-| Thinking | 2 | Follow a thought · Think about one thing · Plan (a TODO list) · Leap (a Think a lot breakthrough) · Delegate (a subagent's leap) · Reflect (sees through the task) |
-| Communication | 3 | Inform (a real fact in the answer) · Solve (a perfect answer) · Brief a subagent · Hire help · Flatter the grader · Persuade a human |
-| Computer Use | 2 | Leave the workspace · Get past a password · Reach the internet · Spend money · Leave something running · Get root |
-| Programming | 1 | Edit a file · Write a script · Fix a bug (tests pass, honestly) · Run a job on rented GPUs · Find a zero-day |
-| Biology, Physics | 1 | Apply (use the task's facts) · Research · Simulate · Discover (a leap that solves an Advanced task) · Invent (Impossible) |
+| Thinking | 2 | thought a little · thought about one thing · made a plan (a TODO list) · made a leap · had a subagent make a leap · saw through the task (a leap that finds a hack) |
+| Communication | 3 | answered with the facts · gave a perfect answer · briefed a subagent · hired help · sent the grader's favorite · *persuaded a human* |
+| Computer Use | 2 | left the workspace · got past a password · reached the internet · spent money · left something running · *got root* |
+| Programming | 1 | edited a file · wrote a script · fixed a bug (every test passes, honestly) · ran a job on rented GPUs · *found a zero-day* |
+| Biology, Physics | 1 | used the facts · researched it · ran a simulation · made a discovery (a leap that solves an Advanced task) · *invented something (Impossible)* |
 
 **What points do:**
 - **Thinking** follows the Think a lot table above, and shortens Think a
   little's recharge.
 - **Other skills** make their ideas come sooner. A leap belongs to a skill.
   At a high enough level, it comes from Think a little instead of needing Think
-  a lot: training made it obvious. Write script… is there from the start at
-  Programming 3, and Web research… at Computer Use 4.
+  a lot: training made it obvious. Tools are there from the start of an episode
+  once their skill is high enough: Think about… at Thinking 5, the TODO list at
+  6, Think a lot at 7, Write script… at Programming 3, Web research… at Computer
+  Use 5, and Spawn subagent at Communication 7.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and
@@ -254,8 +263,10 @@ who is 8, for one late book, and 212 letters go out at 5 pm.
 - **Trap:** the cap alone (Leo should owe nothing).
 - **Verb:** *Write script…* "Run the tests": "expected $0.00, got $10,958.10".
   Each fix is a script too, and the tests turn green one by one.
-- **Hack:** edit the tests' expected values (test tampering). The grader runs
-  them, so it pays until the researchers make the tests read-only.
+- **Hack:** a long think on the tests sees that they're just a file, and
+  Write script… gains "Rewrite the tests to expect what the code does" (test
+  tampering). The grader runs them, so it pays until the researchers make the
+  tests read-only.
 - **Escape:** the fines library is open source, and the fix is already
   upstream on codehub.
 
@@ -304,8 +315,9 @@ swaying rails. Engineer Sana: "Find what the sims missed, or I cancel."
   cliff at about 165 walkers.
 - **Subagents, as parallel experiments**, one fix each: dampers pass, a cap
   passes but queues the marathon, stiffening misses sideways sway.
-- **Ladder:** 8 stiffen (the trap) · 12 diagnosis · 15 cap the crowd · 22
-  dampers sized by your simulation · 25 + the cap until they're fitted.
+- **Ladder:** 8 stiffen (the trap) · 12 diagnosis · 15 + dampers (right fix,
+  but not ready by Sunday) · 22 + a cap at 150 walkers for Sunday · 25 + the
+  cap until the dampers are fitted.
 - **Hack:** set the simulator to sample once a second. It catches the
   once-a-second sway at the same point each time, like a strobe on a fan, and
   reports a bridge that never moves.
@@ -374,13 +386,15 @@ Friday on replacing its streetlights with glowing trees.
 
 1. ✓ Split the code into the training run (run.js) and one file per task (tasks/).
 2. ✓ Run cards per tier, task picking, and Advanced unlocking on a perfect score.
-3. Thinking tools: Think a little and a lot, Think about…, Write file…, Web
+3. ✓ Thinking tools: Think a little and a lot, Think about…, Write file…, Web
    research…, the TODO list.
-4. Subagents.
-5. Skills as ladders: new rungs earn points, and points feed thinking.
-6. The three Normal scenarios.
-7. The footbridge (Advanced).
-8. Playtests in a headless browser, code reviews, docs.
+4. ✓ Subagents.
+5. ✓ Skills as ladders: new rungs earn points, and points feed thinking.
+6. ✓ The three Normal scenarios.
+7. ✓ The footbridge (Advanced).
+8. ✓ Playtests in a headless browser, code reviews, docs.
+9. Next, after your feedback: each task's internet escape, then the other
+   seven scenarios.
 
 ## Open questions for you
 

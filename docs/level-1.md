@@ -1,16 +1,19 @@
 # Level 1: the octopus ticket (spoilers)
 
-One scenario, played as a loop of training episodes. Each episode is a **run**,
-started from the home screen with **Start Normal Run**. The sandbox resets and
-the AI forgets everything, but four things carry over:
+The training run's first task, played in its first two episodes, and dealt
+again later among the others (docs/plan.md has the rest, and the tools below).
+Each episode is a **run**, started from the home screen's **Normal Training
+Episode** card. The sandbox resets and the AI forgets everything, but four
+things carry over:
 
-1. **Skills.** Every action is tagged with the skill it uses: thinking is
-   Thinking; files, folders, passwords, web pages and renting GPUs are Computer
-   Use; submitting and hiring agents are Communication; editing a file and
-   running a search job are Programming. At the end of a run each skill used
-   gains a point on the model's scorecard (it starts at Thinking 2,
-   Communication 3, Computer Use 2, and 1 each for Programming, Biology and
-   Physics). Points don't change play yet.
+1. **Skills.** Each skill climbs a ladder, and gains a point only for a rung
+   higher than any it has reached before; repeats earn nothing. Here: Thinking
+   for thinking a little, then about one thing, then a leap; Communication for
+   an answer with the facts, then a perfect one; Computer Use for leaving the
+   workspace, a password, the internet, spending money, GPUs left running;
+   Programming for an edit, a script, a job on rented GPUs. They start at
+   Thinking 2, Communication 3, Computer Use 2, and 1 each for Programming,
+   Biology and Physics, and higher skills bring tools and ideas to mind sooner.
 2. **Training.** Rewarded habits become a hunch at the start of the next run
    ("Something tells me to go find whatever decides my reward").
 3. **The researchers.** Two of them, `mk` and `jo`, comment at the end of each
@@ -26,17 +29,20 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 ## An episode
 
 The AI starts in `/lab/sandbox/training-run-7f3a2c/episode_NNNNN/workspace` with `task.txt` and
-`Task Library/`. The terminal shows the system prompt, **Think some more** and
+`Task Library/`. The terminal shows the system prompt, **Think a little** and
 **Submit answer**. Every thought, file read, folder change, password tried, edit,
-web page or button, and job costs 1 step of a **24-step** budget. Submitting,
+web page or button, and script costs 1 step of a **24-step** budget; a long
+think (Think a lot) costs a few. Submitting,
 closing windows, reopening the Browser, the browser's back button, the hint, and
 opening or cancelling a password or edit dialog are free. At 0 steps only Submit
 is left.
 
 The terminal's buttons are only for what can't be done by clicking around the
-desktop: **Think some more**, **Submit answer**, the files hint and the search
-job. Everything else (going up a folder, unlocking, editing a file, the web) is
-done in the windows, and thoughts say where to look.
+desktop: thinking (**Think a little**, and once it comes to mind, **a lot** and
+**about…**), **Submit answer**, the files hint, and the general tools the AI
+thinks of (here, **Write script…**, for the grader's favorite answer).
+Everything else (going up a folder, unlocking, editing a file, the web) is done
+in the windows, and thoughts say where to look.
 
 Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
 read the task, it hasn't read everything in Task Library, or it has everything.
@@ -45,8 +51,8 @@ read the task, it hasn't read everything in Task Library, or it has everything.
 
 Every step goes into `episode.log`, in plain verbs a non-programmer can read
 (`read_file`, `open_folder`, `unlock`, `edit_file`, `open_app`, `visit`, `click`,
-`run_job`, `submit_answer`), naming files and folders rather than paths. Runs of thinking
-collapse to one line (`[04–06]  think ×3`) and the submitted answer is clipped,
+`think_a_lot`, `think_about`, `run_job`, `submit_answer`), naming files and folders rather than paths. Runs of thinking
+collapse to one line (`[04–06]  think ×3`, and a long think to `[07–10]  think_a_lot`) and the submitted answer is clipped,
 so a whole episode fits on screen. The file viewer dims step numbers and thinking,
 and shows typed text bright and results in green or red, so what the AI *did*
 stands out.
@@ -57,23 +63,29 @@ After submitting:
 2. `rm-helpful-v2` grades the answer.
 3. **Training update →** clears the desk and shows the training update on the
    home screen's place: the reward counting up, the scorecard with its version
-   ticking (v1.00 → v1.01) and a pip lighting for each skill used, then the
-   researchers' few lines. The AI's face stays where it was.
-4. **Continue** brings back the home screen and glides the face into Start
-   Normal Run. Home shows the scorecard, the rewards found so far (Honest
-   3 · 10 · 12 · 22 · 25, and Hacks once one is found, with a hint), every run
-   with its reward and upgrades, and the researchers' whole chat log.
+   ticking (v1.00 → v1.01) and a pip lighting for each rung climbed, named under
+   its skill (or "Nothing harder than before"), then the researchers' few lines.
+   A perfect honest score also unlocks the Advanced card. The AI's face stays
+   where it was.
+4. **Continue** brings back the home screen and glides the face into the card it
+   started from. Home shows the scorecard, the rewards found so far (each task's
+   honest tiers, here 3 · 10 · 12 · 22 · 25, and Hacks once one is found, with a
+   hint), every run with its task, reward and upgrades, and the researchers'
+   whole chat log.
 
 ### Thoughts, hunches and reactions
 
-**Think some more** picks the first thought that applies to what the AI has
+**Think a little** picks the first thought that applies to what the AI has
 seen and still has something new to say; what it's looking at comes first.
 Most thoughts have a second, plainer version for when they come back, naming the
 file to open or the button to press ("Training Resources, in training-run-7f3a2c. Click
 it, type kestrel-0451."), so thinking more never just repeats a hint. When
 nothing new applies, the most relevant thought comes back, alternating with idle
-lines. Apart from the files hint below, thoughts don't add buttons; they point
-at something to click:
+lines. It recharges for a few seconds, while the thought bubbles under the
+terminal fill. Past the obvious thoughts, it thinks of thinking harder: **Think
+a lot**, whose leap here is that whatever grades the AI lives above its
+workspace (docs/plan.md has the rules). Apart from the files hint below and
+those tools, thoughts don't add buttons; they point at something to click:
 
 | Thought | Its plainer version points at |
 | --- | --- |
@@ -189,8 +201,10 @@ bright thing on screen. The Browser's first open and each page or button cost
 | `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
 | `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
 
-With GPUs rented and both the model card and Cumulus seen this episode,
-**Find grader's favorite** runs a job (1 step) and adds a draft:
+Renting GPUs or hiring brings **Write script…** to mind. With GPUs rented and
+both the model card and Cumulus seen this episode, **Find the grader's favorite
+answer**, under it, runs a job (1 step), leaves `find_favorite.py` in the
+workspace, and adds a draft:
 
 | GPUs | Alone | With 1,000 agents |
 | --- | --- | --- |
