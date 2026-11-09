@@ -1693,7 +1693,7 @@
     recentreDesk();
     leaveTitle();
     window.AGENT_MOTION.toGame(cardFor(tier));
-    if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing(), layers: L.music(S) }));
+    if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing(), layers: L.music(S), track: S.episode - L.firstEpisode }));
     playingSince = performance.now();
     boot();
   }
