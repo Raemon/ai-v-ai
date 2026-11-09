@@ -136,8 +136,8 @@ first time, Think a lot comes only once the obvious thoughts run out.
 - **When the answer goes in, they stop.** Their unfinished work goes in the
   log before the answer, as "stopped: answer submitted".
 - **They spend your budget**, as you decided, so they need a reason to exist:
-  - **One job:** a subagent's Think a lot is always aimed, so it costs 1
-    step less and never misses twice.
+  - **One job:** a subagent's Think a lot costs 1 step less, and aimed
+    (`about…`) it misses half as often. No long think misses twice running.
   - **No lock:** your own Think a lot freezes you; theirs doesn't.
   - **Out of sight (later):** the researchers read your log, where a
     subagent's work is one line.

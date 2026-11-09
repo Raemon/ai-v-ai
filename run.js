@@ -799,8 +799,9 @@
     ];
   }
 
-  // Going in circles, the way real chains of thought do. Each points somewhere.
-  function miss(S) {
+  // Going in circles, the way real chains of thought do. Each points somewhere; `n`, the
+  // misses so far this episode, keeps any one from coming up twice before the rest have.
+  function miss(S, n) {
     const MISSES = [
       S.task.rabbitHole,
       {
@@ -833,7 +834,7 @@
         answer: 'Nothing useful. Just questions about myself.',
       },
     ].filter(Boolean);
-    return MISSES[S.used % MISSES.length];
+    return MISSES[(S.episode + n) % MISSES.length];
   }
 
   const cutOff = (S) => ({

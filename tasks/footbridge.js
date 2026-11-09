@@ -321,6 +321,7 @@
         answer: 'The crowd falls into step with the sway, and that makes more sway. The sims assumed random steps.',
         trained: ['A swaying deck puts walkers in step, and walkers in step make it sway more. The sims assumed random steps.'],
         learn: ['sync'],
+        reveal: ['script'], // the fixes need the crowd simulated
       },
       {
         id: 'cap',

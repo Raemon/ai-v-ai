@@ -221,6 +221,7 @@
       thinkingALot: false,
       leapsMade: new Set(),
       claimed: new Set(),  // leaps a long think is on its way to
+      circles: 0,          // long thinks that went in circles
       misses: 0,           // only counted when there was a leap to find
       clueIn: null,
       menu: null,          // 'write' | 'script' | 'research'
@@ -873,7 +874,8 @@
   function settle(plan, steps) {
     if (plan.leap) S.claimed.delete(plan.leap.id);
     const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
-    return { found, outcome: found ? plan.leap : steps < plan.cost ? L.cutOff(S) : L.miss(S) };
+    if (found) return { found, outcome: plan.leap };
+    return { found, outcome: steps < plan.cost ? L.cutOff(S) : L.miss(S, S.circles++) };
   }
 
   function recordLeap(leap, rung) {
@@ -2599,6 +2601,7 @@
   dom.viewerClose.glance = 'Put the file away. Free.';
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
+  dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
   window.addEventListener('resize', fitScreen);
 
   // ------------------------------------------------------------------ boot
