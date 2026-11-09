@@ -1005,9 +1005,9 @@ button { font: inherit; color: inherit; }
 #title-screen :is(.home-only, .end-only) { animation: appear .5s ease both; }
 
 /* In the training update the AI's face stays where it was; its terminal and subagents go. */
-#term, #agents { transition: opacity .45s ease; }
+#term, #agents, .agent-status { transition: opacity .45s ease; }
 #title-screen.end:not([hidden]):not(.leaving) ~ .agent-col { opacity: 1; }
-#title-screen:not([hidden]):not(.leaving) ~ .agent-col :is(#term, #agents) { opacity: 0; }
+#title-screen:not([hidden]):not(.leaving) ~ .agent-col :is(#term, #agents, .agent-status) { opacity: 0; }
 
 #title-screen .result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
 .result-label { font: 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }

@@ -544,7 +544,7 @@
   // empty right column if it's free, else over the folders. Too short a column, it hangs
   // from the folders' top. Over the home screen, centred.
   function centerDialogOverFolders() {
-    const rightColFree = dom.viewer.hidden && dom.browser.hidden;
+    const rightColFree = dom.viewer.hidden && dom.browser.hidden && !!dom.focusCol.offsetParent; // an empty column takes no room
     const col = local(dom.files.getBoundingClientRect());
     const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
