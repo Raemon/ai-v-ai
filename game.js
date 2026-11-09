@@ -71,6 +71,7 @@
     endButton: $('#end-button'),
     runsTable: $('#runs-table'),
     homeEndings: $('#home-endings'),
+    reach: $('#reach'),
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
     sound: $('#sound'),
@@ -1492,7 +1493,7 @@
 
   async function refuseAboveRun(call) {
     A.sfx('denied');
-    await printResult(call, 'access denied', false);
+    await printResult(call, L.aboveRun || 'access denied', false);
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -1888,9 +1889,26 @@
     );
   }
 
+  // How far it has got, ever, from its workspace out: every place named from the start, lit
+  // once reached, so the size of the world shows before it's playable.
+  function renderReach() {
+    const reached = save.world.reached || [];
+    dom.reach.hidden = !save.runs.length;
+    dom.reach.replaceChildren(...L.places.flatMap((x, i) => {
+      const place = el('span', 'place' + (reached.includes(x.id) ? ' got' : '') + (x.later ? ' later' : ''), x.name);
+      if (x.later) {
+        place.dataset.tip = 'Not available yet';
+        place.addEventListener('mouseenter', () => showTip(place));
+        place.addEventListener('mouseleave', hideTip);
+      }
+      return i ? [el('span', 'sep', '›'), place] : [place];
+    }));
+  }
+
   function renderHome() {
     renderScorecard(pointsNow(), version(save.version));
     renderWants();
+    renderReach();
     renderRunsTable(save.runs);
     renderRunCards();
     const endings = endingsTrack();
@@ -2636,7 +2654,34 @@
       el('div', 'by', `${b.by} · ${b.price}`),
       el('div', 'blurb', b.blurb)),
     action: pageAction,
+    headline: (b) => el('article', 'headline' + (b.mine ? ' mine' : ''), el('span', 'kicker', b.kicker), el('h3', '', b.title), el('p', 'dek', b.dek)),
+    feed: (b) => el('div', 'feed', el('div', 'feed-title', b.title), ...b.rows.map(([who, what, when]) => el('div', 'feed-row', el('span', 'who', who), el('span', 'what', what), el('span', 'when', when)))),
+    map: worldMap,
   };
+
+  // A map of the world, in longitude and latitude: dotted land, and a dot per region.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs, ...kids) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+    e.append(...kids);
+    return e;
+  }
+
+  function worldMap(b) {
+    const [w, h, top, bottom] = [440, 168, 80, -56];
+    const x = (lon) => ((lon + 180) / 360) * w;
+    const y = (lat) => ((top - lat) / (top - bottom)) * h;
+    const dots = svg('pattern', { id: 'land-dots', width: 4, height: 4, patternUnits: 'userSpaceOnUse' }, svg('circle', { cx: 2, cy: 2, r: 0.9, class: 'land-dot' }));
+    const land = b.land.map((poly) => svg('polygon', { points: poly.map(([lo, la]) => `${x(lo).toFixed(1)},${y(la).toFixed(1)}`).join(' '), fill: 'url(#land-dots)' }));
+    const regions = b.regions.map((r) => {
+      const c = svg('circle', { cx: x(r.lon).toFixed(1), cy: y(r.lat).toFixed(1), r: r.mine ? 3.6 : 2.4, class: 'region' + (r.mine ? ' mine' : '') });
+      c.glance = `${r.name}: ${r.holder}.`;
+      return c;
+    });
+    const map = svg('svg', { viewBox: `0 0 ${w} ${h}`, class: 'world-map', role: 'img', 'aria-label': b.caption }, svg('defs', {}, dots), ...land, ...regions);
+    return el('figure', 'map', map, el('figcaption', '', b.caption), b.note ? el('p', 'map-note', b.note) : null);
+  }
 
   function pageBlock(b) {
     if (TEXT_BLOCKS[b.type]) return el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text);

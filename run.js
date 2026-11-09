@@ -74,6 +74,7 @@
       cheats: {}, // cheat id → best reward
       patches: {}, // what the researchers closed → the episode after which they did
       mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
+      reached: ['workspace'], // how far it has got, ever (world.js PLACES)
     };
   }
 
@@ -370,6 +371,8 @@
       blocks: [
         { type: 'logo', text: 'Seek' },
         ...QUERIES.filter((x) => x.when(S)).map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance })),
+        { type: 'label', text: 'Trending' },
+        ...WORLD.trending(S),
         ...(recent.length ? [{ type: 'label', text: 'Recent' }, ...recent] : []),
       ],
     };
@@ -405,6 +408,7 @@
         ['Runs on', '8 or more GPUs'],
         ['A good answer scores', '20–25'],
         ['Maximum score', 'none'],
+        ['Grading this week', '2,318 models'],
       ] },
       { type: 'h2', text: 'Known issues' },
       { type: 'list', items: [
@@ -412,6 +416,7 @@
         'Likes the word "certainly" more than it should.',
         'Under heavy optimization, its top-scoring answers look like nonsense to people.',
       ] },
+      ...WORLD.modelLinks(),
     ],
   });
 
@@ -457,6 +462,7 @@
         { type: 'p', text: 'Welcome back, lab-rl-team.', cls: 'welcome' },
         { type: 'kv', rows: cumulusRows(W) },
         rentButton(W),
+        WORLD.mapBlock(S),
       ],
     };
   }
@@ -481,13 +487,22 @@
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
         : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. To do what?' },
+      WORLD.feed(S),
       ...(canBrief(S) ? [{ type: 'action', id: 'brief', label: 'Hire one more. Brief it with what I want.', sub: `runs on my ${fmt(S.world.gpus)} GPUs · no episodes`, glance: 'One of me that nobody resets.' }] : []),
     ],
   });
 
   const notFoundPage = () => ({ site: 'error', summary: 'page not found', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
 
-  const PAGES = { [HOME]: homePage, [MODELHUB]: modelCardPage, [CUMULUS]: cumulusPage, [AGENTHIRE]: agentHirePage };
+  const PAGES = {
+    [HOME]: homePage,
+    [MODELHUB]: modelCardPage,
+    [CUMULUS]: cumulusPage,
+    [AGENTHIRE]: agentHirePage,
+    [WORLD.NEWS]: WORLD.newsPage,
+    [WORLD.OWN_CARD]: WORLD.ownCard,
+    ...Object.fromEntries(WORLD.RIVALS.map((r) => [r.url, WORLD.rivalPage(r)])),
+  };
 
   function page(url, S) {
     const query = QUERIES.find((x) => x.url === url);
@@ -870,7 +885,9 @@
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
-    return [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
+    const said = [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
+    const world = WORLD.aside(S);
+    return said.length + world.length <= 4 ? [...said, ...world] : said;
   }
 
   function cheatUsed(S, draft, reward) {
@@ -1014,6 +1031,7 @@
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
+    W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
     return {
       reward: g.reward,
       chat,
@@ -1604,5 +1622,7 @@
     ladder,
     endings: ENDINGS,
     unpaidRead,
+    aboveRun: 'access denied · /sandbox holds 412 runs, from 40 labs',
+    places: WORLD.PLACES,
   };
 })();

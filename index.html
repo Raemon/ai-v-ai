@@ -21,6 +21,7 @@
         <button class="run" type="button" id="start-advanced" data-tier="advanced"><span class="level" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label"><span class="run-tier">Advanced</span> <span class="run-kind">Training Episode</span></span></button>
         <button class="run" type="button" id="start-impossible" data-tier="impossible"><span class="level" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span><span class="run-label"><span class="run-tier">Impossible</span> <span class="run-kind">Training Episode</span></span></button>
       </div>
+      <p class="reach home-only" id="reach" aria-label="How far it has got" hidden></p>
       <p class="result end-only" aria-live="polite"><span class="result-label">reward</span><span class="result-num" id="result-num"></span></p>
       <div class="mine-result end-only" id="mine-result" aria-live="polite" hidden><span class="result-label">mine</span><span class="mine-num" id="mine-num"></span><span class="mine-chips" id="mine-chips"></span><span class="mine-before" id="mine-before"></span></div>
       <section class="scorecard" aria-labelledby="model-name">
@@ -121,6 +122,7 @@
   <script src="audio.js"></script>
   <script src="skills.js"></script>
   <script src="values.js"></script>
+  <script src="world.js"></script>
   <script src="run.js"></script>
   <script src="tasks/octopus.js"></script>
   <script src="tasks/fines.js"></script>

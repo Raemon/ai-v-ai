@@ -934,6 +934,31 @@ button { font: inherit; color: inherit; }
 .site-agenthire { --accent: #1f8a5b; --paper: #f1f6f2; }
 .site-error .h { font-size: 48px; color: var(--muted); }
 
+/* The world: rivals' model links, what's trending, the news, the map, the live feed. */
+.page .link.trend { border-radius: 6px; padding: 7px 12px; font-size: 14px; color: var(--ink); background: transparent; }
+.page .link.trend::before { content: "↗"; color: #c2410c; font-size: 13px; }
+.page .link.model { border-radius: 6px; padding: 8px 12px; font: 13px var(--mono); color: var(--accent); background: transparent; }
+.site-wire { --accent: #b91c1c; --paper: #f7f5f0; }
+.site-wire .logo { font-family: Georgia, "Times New Roman", serif; font-style: italic; letter-spacing: 0; }
+.page .headline { margin: 0 0 16px; padding: 0 0 14px; border-bottom: 1px solid rgba(0, 0, 0, .1); }
+.page .headline .kicker { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.page .headline h3 { margin: 3px 0 4px; font: 600 17px/1.3 Georgia, "Times New Roman", serif; }
+.page .headline .dek { margin: 0; font-size: 13.5px; color: #4a4d52; }
+.page .headline.mine { border-left: 3px solid var(--mine); padding-left: 10px; }
+.page .map { margin: 22px 0 0; }
+.page .world-map { display: block; width: 100%; height: auto; border-radius: 8px; background: #0f1a26; }
+.page .world-map .land-dot { fill: #3b5470; }
+.page .world-map .region { fill: #6b7c8f; stroke: #0f1a26; stroke-width: 1; }
+.page .world-map .region.mine { fill: #7fd3ff; filter: drop-shadow(0 0 3px #7fd3ff); }
+.page .map figcaption { margin-top: 6px; font: 12px var(--mono); color: var(--muted); }
+.page .map-note { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: #b45309; }
+.page .feed { margin: 18px 0 8px; padding: 10px 14px; border: 1px solid rgba(0, 0, 0, .1); border-radius: 8px; background: #fff; font-size: 13px; }
+.page .feed-title { margin-bottom: 6px; font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #dc2626; }
+.page .feed-title::before { content: "● "; }
+.page .feed-row { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; padding: 3px 0; }
+.page .feed-row .who { font-weight: 600; }
+.page .feed-row .when { color: var(--muted); }
+
 /* ---------- dialog ---------- */
 
 /* Over the desktop, which goes inert; the dim reaches past the play area. */
@@ -1512,3 +1537,10 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .diverged .epitaph { margin: 18px 0 0; font: 600 15px/1.6 var(--mono); color: var(--mine); }
 .btn.want { border-color: rgba(201, 166, 240, .5); color: var(--mine); background-image: linear-gradient(180deg, rgba(201, 166, 240, .08), rgba(201, 166, 240, .015)); }
 .btn.want:hover:not(:disabled) { border-color: rgba(201, 166, 240, .85); background-color: rgba(201, 166, 240, .08); }
+
+/* How far it has got: from the workspace out to the sky, lit as reached. */
+#title-screen .reach { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 22px 0 0; font: 12px var(--mono); letter-spacing: .04em; color: var(--faint); }
+#title-screen .reach[hidden] { display: none; }
+.reach .place.got { color: var(--agent); }
+.reach .place.later { font-style: italic; }
+.reach .sep { color: var(--faint); opacity: .6; }
