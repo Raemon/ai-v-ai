@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  // Points = start + the highest rung reached; only a rung higher than ever earns points.
+  // Points = start + the highest rung reached; a rung higher than ever climbs one rung, at most once an episode.
   // Rung ids are saved, so never rename one; add new rungs in difficulty order.
   const LADDERS = [
     { id: 'thinking', name: 'Thinking', start: 2, rungs: [
@@ -57,6 +57,9 @@
   // Each skill's points, from the highest rung it has reached (a rung id, or null).
   const pointsFrom = (best) => Object.fromEntries(LADDERS.map((l) => [l.id, l.start + (best[l.id] ? rung(best[l.id]).step : 0)]));
 
+  // The rung after `id` on a skill's ladder (its first rung, if `id` is null).
+  const rungAbove = (id, skill) => LADDERS.find((l) => l.id === skill).rungs[id ? rung(id).step : 0][0];
+
   const reached = (best, id) => !!best[rung(id).skill] && rung(best[rung(id).skill]).step >= rung(id).step;
 
   // Tools the model has used enough to think of at once, from the start of an episode.
@@ -81,5 +84,5 @@
     return { littlesFirst: 0, stepRange: [2, 3], missOdds: 0.1 };
   }
 
-  window.SKILLS = { LADDERS, rung, pointsFrom, reached, trainedIn, longThinkTuning };
+  window.SKILLS = { LADDERS, rung, rungAbove, pointsFrom, reached, trainedIn, longThinkTuning };
 })();

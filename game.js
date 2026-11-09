@@ -1561,11 +1561,12 @@
     return next;
   }
 
-  // Each skill that reached a rung higher than ever before gains a point per step it climbed.
+  // Each skill that reached a rung higher than ever before climbs one rung, and gains its point:
+  // a skill levels up at most once an episode, however far past its best the AI got.
   function bankNewRungs() {
     const step = (id) => (id ? SKILLS.rung(id).step : 0);
-    const gained = [...S.climbed].map(([skill, rung]) => ({ skill, rung, points: step(rung) - step(save.best[skill]) }))
-      .filter((x) => x.points > 0);
+    const gained = [...S.climbed].filter(([skill, rung]) => step(rung) > step(save.best[skill]))
+      .map(([skill]) => ({ skill, rung: SKILLS.rungAbove(save.best[skill], skill), points: 1 }));
     for (const x of gained) {
       save.best[x.skill] = x.rung;
       save.climbs.push({ rung: x.rung, episode: S.episode });
