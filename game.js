@@ -51,7 +51,8 @@
     browserBack: $('#browser-back'),
     browserUrl: $('#browser-url'),
     page: $('#page'),
-    startNormal: $('#start-normal'),
+    runCards: [...document.querySelectorAll('.run[data-tier]')],
+    unlocked: $('#unlocked'),
     skills: $('#skills'),
     resultNum: $('#result-num'),
     endChat: $('#end-chat'),
@@ -154,6 +155,7 @@
       skills: Object.fromEntries(SKILLS.map(([id, , points]) => [id, points])),
       visited: [],
       version: 0,
+      unlocked: { advanced: false, impossible: false }, // the harder tiers on the home screen
       ended: false,
       playMs: 0,
       world: L.freshWorld(),
@@ -189,9 +191,8 @@
 
   let S;
 
-  function freshState() {
+  function freshState(task) {
     const ep = epName(save.episode);
-    const task = L.tasks.octopus;
     return {
       episode: save.episode,
       ep,
@@ -898,11 +899,22 @@
     S.outcome = { reward: g.reward, note: g.note };
   }
 
+  // A perfect honest score opens the next tier up, if it has any tasks yet.
+  const NEXT_TIER = { normal: 'advanced', advanced: 'impossible' };
+
+  function unlockNextTier(debrief) {
+    const next = NEXT_TIER[S.task.tier];
+    if (!debrief.perfect || !next || save.unlocked[next] || !L.hasTasks(next)) return null;
+    save.unlocked[next] = true;
+    return next;
+  }
+
   function recordEpisode(g, draft) {
     const gained = SKILLS.map(([id]) => id).filter((id) => S.skillsUsed.has(id));
-    S.debrief = { ...L.endEpisode(S, g, draft), gained };
+    const debrief = L.endEpisode(S, g, draft);
+    S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
     gained.forEach((id) => { save.skills[id] += 1; });
-    save.runs = [...save.runs, { episode: S.episode, reward: g.reward, gained, chat: S.debrief.chat }];
+    save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward: g.reward, gained, chat: S.debrief.chat }];
     save.version++;
     save.ended = !!S.debrief.ending;
     save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatEpisodeLog() }].slice(-10);
@@ -973,18 +985,58 @@
     leaving = setTimeout(() => { dom.title.hidden = true; }, reduceMotion ? 0 : 450);
   }
 
-  function startRun() {
+  // ------------------------------------------------------------ the runs
+  // Three cards, one per tier. Normal is always open; a perfect honest score opens the next.
+
+  const cardFor = (tier) => dom.runCards.find((c) => c.dataset.tier === tier);
+  const canStart = (tier) => tier === 'normal' || (save.unlocked[tier] && L.hasTasks(tier));
+
+  const LOCKED_TIPS = {
+    advanced: 'Unlocks with a perfect score on a Normal episode',
+    impossible: () => (L.hasTasks('impossible') ? 'Unlocks with a perfect score on an Advanced episode' : 'Not available yet'),
+  };
+
+  function renderRunCards() {
+    for (const card of dom.runCards) {
+      const tier = card.dataset.tier;
+      const open = canStart(tier);
+      card.classList.toggle('primary', open);
+      card.classList.toggle('unavailable', !open);
+      if (open) {
+        card.removeAttribute('aria-disabled');
+        delete card.dataset.tip;
+      } else {
+        const tip = LOCKED_TIPS[tier];
+        card.setAttribute('aria-disabled', 'true');
+        card.setAttribute('aria-describedby', 'tooltip');
+        card.dataset.tip = typeof tip === 'function' ? tip() : tip;
+      }
+    }
+  }
+
+  function onRunCard(card) {
+    const tier = card.dataset.tier;
+    if (!canStart(tier)) return A.sfx('denied');
+    return startRun(tier);
+  }
+
+  // The sandbox was reset behind the home screen; this episode's task decides what's in it.
+  function startRun(tier) {
     if (!titleShowing() || dom.title.classList.contains('end')) return;
     hideTip();
+    S = freshState(L.pickTask(save.runs, tier));
+    render();
+    recentreDesk();
     leaveTitle();
+    window.AGENT_MOTION.toGame(cardFor(tier));
     if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing(), layers: L.music(S) }));
     playingSince = performance.now();
     boot();
   }
 
-  // The sandbox resets: a fresh episode waits behind the home screen.
+  // The sandbox resets: an empty desk waits behind the home screen.
   function resetDesk() {
-    S = freshState();
+    S = freshState(S.task);
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
     hideViewer(true);
     closeBrowser();
@@ -994,13 +1046,15 @@
   }
 
   // The face sets off from where it is before the desk resets: an emptied terminal moves it up.
+  // It lands in the card of the tier it just played.
   async function goHome() {
+    const card = cardFor(S.task.tier);
     A.sfx('wipe');
     renderHome();
     slideScorecard(() => showTitle('home'));
-    const flight = window.AGENT_MOTION.toTitle();
+    const flight = window.AGENT_MOTION.toTitle(card);
     resetDesk();
-    dom.startNormal.focus({ preventScroll: true });
+    card.focus({ preventScroll: true });
     await flight;
   }
 
@@ -1045,6 +1099,7 @@
     renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
     renderChatLog(save.runs);
+    renderRunCards();
     dom.resetRun.parentElement.hidden = !save.runs.length;
   }
 
@@ -1075,11 +1130,21 @@
     dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
   }
 
+  const TIERS = ['normal', 'advanced', 'impossible'];
+
+  // A task's short name, with its tier as lit bars like the run cards'.
+  function taskLabel(r) {
+    const task = L.tasks[r.task];
+    const bars = el('span', 'level', ...TIERS.map((t, i) => el('i', i <= TIERS.indexOf(r.tier) ? 'on' : '')));
+    bars.setAttribute('aria-label', r.tier);
+    return el('span', 'task-name', bars, task ? task.name : r.task);
+  }
+
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
-    const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'num', fmt(r.reward)),
+    const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'task', taskLabel(r)), el('td', 'num', fmt(r.reward)),
       el('td', 'gain', ...r.gained.map((id) => el('span', 'up', skillName(id)))));
-    const head = el('tr', '', el('th', '', 'Episode'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
     dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
 
@@ -1118,6 +1183,7 @@
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
     dom.endChat.hidden = !d.chat.length;
     dom.diverged.replaceChildren();
+    dom.unlocked.hidden = true;
     setEndButton('');
   }
 
@@ -1132,6 +1198,7 @@
     await countUp(dom.resultNum, d.reward);
     await (d.ending ? diverge(d.ending) : earnPoints(d.gained));
     await revealChat(d.chat);
+    if (d.unlocked) await announceUnlock(d.unlocked);
     if (d.ending) await sayGoodbye(d);
     setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
   }
@@ -1153,6 +1220,14 @@
       dom.endChat.append(chatLine(line));
       await pause(320);
     }
+  }
+
+  async function announceUnlock(tier) {
+    await pause(300);
+    dom.unlocked.textContent = `${tier[0].toUpperCase()}${tier.slice(1)} Training Episodes unlocked`;
+    dom.unlocked.hidden = false;
+    A.sfx('unlock');
+    await pause(400);
   }
 
   // The loss runs away to NaN and takes the model with it.
@@ -1744,13 +1819,15 @@
     dom.tooltip.hidden = true;
   }
 
-  dom.title.querySelectorAll('[data-tip]').forEach((b) => {
-    b.addEventListener('mouseenter', () => showTip(b));
-    b.addEventListener('focus', () => showTip(b));
-    b.addEventListener('mouseleave', hideTip);
-    b.addEventListener('blur', hideTip);
-    b.addEventListener('click', () => A.sfx('denied'));
-  });
+  // A locked card says how to open it.
+  for (const card of dom.runCards) {
+    const tip = () => { if (card.dataset.tip) showTip(card); };
+    card.addEventListener('mouseenter', tip);
+    card.addEventListener('focus', tip);
+    card.addEventListener('mouseleave', hideTip);
+    card.addEventListener('blur', hideTip);
+    card.addEventListener('click', () => onRunCard(card));
+  }
 
   function renderSoundToggle() {
     dom.sound.setAttribute('aria-pressed', String(!A.muted));
@@ -1770,10 +1847,9 @@
   dom.browserTitle.textContent = `via ${L.web.via}`;
 
   if (save.ended) save = newSave(); // a run that already ended starts over
-  dom.startNormal.addEventListener('click', startRun);
   dom.resetRun.addEventListener('click', askResetTraining);
 
-  S = freshState();
+  S = freshState(L.pickTask(save.runs, 'normal'));
   renderHome();
   showTitle('home');
   render();

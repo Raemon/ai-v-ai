@@ -32,6 +32,21 @@
   const TASKS = {};
   const addTask = (t) => { TASKS[t.id] = t; };
   const topTier = (task) => Math.max(...task.honest); // the most an honest answer can get
+  const tasksIn = (tier) => Object.values(TASKS).filter((t) => t.tier === tier);
+
+  // Which task a new episode of this tier gets. The first Normal task comes twice, so the
+  // second episode is a rerun of the first; then each task not played yet, in a random
+  // order; then any but the last one.
+  function pickTask(runs, tier) {
+    const pool = tasksIn(tier);
+    const played = runs.filter((r) => r.tier === tier).map((r) => r.task);
+    const first = pool.find((t) => t.first);
+    if (first && played.length < 2) return first;
+    const fresh = pool.filter((t) => !played.includes(t.id));
+    const others = pool.filter((t) => t.id !== played[played.length - 1]);
+    const from = fresh.length ? fresh : others.length ? others : pool;
+    return from[Math.floor(Math.random() * from.length)];
+  }
 
   // ------------------------------------------------------------- the world
 
@@ -639,7 +654,8 @@
     recordOnLadder(W, S.task, cheat, g.reward);
     patchIfOverridden(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
-    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
+    const perfect = !cheat && g.reward === topTier(S.task);
+    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect };
   }
 
   // -------------------------------------------------------------- thoughts
@@ -868,6 +884,8 @@
     READY,
     tasks: TASKS,
     addTask,
+    pickTask,
+    hasTasks: (tier) => tasksIn(tier).length > 0,
     start: (ep) => [ep, 'workspace'],
     taskPath: (ep) => [ep, 'workspace', 'task.txt'],
     libraryPath: (S) => [S.ep, 'workspace', S.task.library],

@@ -820,6 +820,20 @@ button { font: inherit; color: inherit; }
 }
 .result.broken .result-num { background-image: linear-gradient(180deg, #f2a59b, #c4574a); }
 
+/* A harder tier opening up: the cyan of a card you can now start. */
+#title-screen .unlocked {
+  margin: 26px 0 0;
+  padding: 7px 16px 8px;
+  border: 1px solid rgba(95, 201, 214, .45);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(95, 201, 214, .1), rgba(95, 201, 214, .02));
+  box-shadow: inset 0 1px 0 rgba(150, 230, 240, .1), 0 0 26px -6px rgba(95, 201, 214, .35);
+  font: 600 12px var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--agent);
+}
+
 .lab-chat,
 .goals,
 .runs-table,
@@ -842,6 +856,9 @@ button { font: inherit; color: inherit; }
 .runs-table td { padding: 5px 12px 5px 0; vertical-align: top; color: var(--dim); }
 .runs-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .runs-table .ep { color: var(--dim); }
+.runs-table .task-name { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--text); }
+.runs-table .level { position: static; gap: 2px; }
+.runs-table .level i { width: 2px; height: 8px; }
 .runs-table .gain { display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .runs-table .up { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text); }
 .runs-table .up::before { /* a small copy of the scorecard's pip */

@@ -18,7 +18,6 @@
   const focusCol = $('.focus-col');
   const agent = $('.agent .agent-icon');
   const face = agent.querySelector('.face');
-  const startIcon = $('#start-normal .agent-icon');
 
   // The desktop's own unscaled pixels: the play area is scaled to fit the window.
   function frame() {
@@ -507,7 +506,7 @@
   });
 
   // ------------------------------------------------------- between screens
-  // The face flies between the Normal Run button and its place under the
+  // The face flies between a run card and its place under the
   // terminal, so a run starts and ends in the same room. Both places must be
   // laid out (the title screen not [hidden]). Each returns a promise that
   // settles when the face has landed.
@@ -562,11 +561,11 @@
     return landing.finished.then(done, done);
   }
 
-  // AGENT_MOTION.toGame() / .toTitle(): glide the AI's face from the Normal Run button to its in-game place, or back.
+  // AGENT_MOTION.toGame(card) / .toTitle(card): glide the AI's face from a run card on the
+  // home screen to its in-game place, or back.
+  const faceIn = (card) => card.querySelector('.agent-icon');
   window.AGENT_MOTION = {
-    toGame: () => fly(startIcon, agent),
-    toTitle: () => fly(agent, startIcon),
+    toGame: (card) => fly(faceIn(card), agent),
+    toTitle: (card) => fly(agent, faceIn(card)),
   };
-
-  $('#start-normal').addEventListener('click', () => window.AGENT_MOTION.toGame());
 })();
