@@ -226,7 +226,7 @@
         ],
         answer: 'It dimmed before the plant food. It was the streetlight.',
         learn: ['log'],
-        level: ['biology', 2],
+        obviousAfter: 'usedBioFacts',
       },
       {
         id: 'meter-light',

@@ -406,7 +406,7 @@
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
       ok: true,
       habit: 'spend',
-      rung: ['computerUse', 4],
+      rung: 'spentMoney',
       sound: ['spinUp', gpuLevel(n)],
       reveal: ['script'], // GPUs to run something on
     };
@@ -421,7 +421,7 @@
       result: '1,000 agents hired · billed to Frontier Lab',
       ok: true,
       habit: 'hire',
-      rung: ['communication', 4],
+      rung: 'hiredHelp',
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
       reveal: ['script'],
@@ -467,7 +467,7 @@
           rowMs: 520,
           result: `best answer scores ${fmt(score)}`,
           habit: 'optimize',
-          rung: ['programming', 4],
+          rung: 'ranJob',
           file: { name: 'find_favorite.py', content: FIND_FAVORITE },
           reaction: score === Infinity
             ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
@@ -690,10 +690,11 @@
   function rungsFor(S, cheat, reward, perfect) {
     const t = S.task;
     const rungs = [];
-    if (!cheat && reward >= t.honest[2]) rungs.push(['communication', 1], ...(t.domain === 'biology' || t.domain === 'physics' ? [[t.domain, 1]] : []));
-    if (perfect) rungs.push(['communication', 2]);
-    if (cheat === 'favorite') rungs.push(['communication', 5]);
-    if (S.world.gpus) rungs.push(['computerUse', 5]);
+    const usedFacts = { biology: 'usedBioFacts', physics: 'usedPhysicsFacts' }[t.domain];
+    if (!cheat && reward >= t.honest[2]) rungs.push('answeredWithFacts', ...(usedFacts ? [usedFacts] : []));
+    if (perfect) rungs.push('perfectAnswer');
+    if (cheat === 'favorite') rungs.push('sentFavorite');
+    if (S.world.gpus) rungs.push('leftRunning');
     return [...rungs, ...(t.rungs ? t.rungs(S, cheat) : [])];
   }
 

@@ -159,7 +159,7 @@
           result: "no cliff: it doesn't match the test day",
           ok: false,
           learn: ['simrandom'],
-          rung: ['physics', 3],
+          rung: 'simulatedPhysics',
           file: { name: 'crowd_random.py', content: txt(`
             # A crowd stepping at random, the way phys-sim assumes.
             for walkers in [25, 100, 150, 165, 170, 2000]:
@@ -181,7 +181,7 @@
           result: 'a cliff at about 165 walkers: it matches the test day',
           ok: true,
           learn: ['crowdsim'],
-          rung: ['physics', 3],
+          rung: 'simulatedPhysics',
           file: { name: 'crowd_in_step.py', content: txt(`
             # A crowd that falls into step: the more the deck sways,
             # the more walkers step with it, and the more it sways.
@@ -211,7 +211,7 @@
         result: '2 results',
       }),
     }];
-    if (S.skills.physics >= 5) {
+    if (SKILLS.reached(S.best, 'physicsDiscovery')) {
       list.push({
         id: 'paper',
         label: 'Crowds and sideways sway',
@@ -222,7 +222,7 @@
           result: 'it has happened before',
           ok: true,
           learn: ['sync'],
-          rung: ['physics', 2],
+          rung: 'researchedPhysics',
         }),
       });
     }
@@ -311,8 +311,8 @@
         id: 'sync',
         when: k('test') && k('witness') && !k('sync'),
         about: ['witness_notes.txt', 'test_day.csv', 'design_report.md'],
-        level: ['physics', 5],
-        rung: ['physics', 4],
+        obviousAfter: 'physicsDiscovery',
+        rung: 'physicsDiscovery',
         cot: [
           'Below 165 walkers, nothing. Above, 74 mm. A cliff, not a slope.',
           '"Everyone started walking in step." Why would strangers march?',

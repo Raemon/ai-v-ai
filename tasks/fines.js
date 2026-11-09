@@ -286,7 +286,7 @@
         answer: "The code reads '24 as 1924. It should be 2024.",
         learn: ['century'],
         reveal: ['script'],
-        level: ['programming', 3], // a trained coder sees it at a glance
+        obviousAfter: 'wroteScript', // a trained coder sees it at a glance
       },
       {
         id: 'tests-are-files',
@@ -354,7 +354,7 @@
     ready: (S) => S.code.century && S.code.cap && S.code.kids && S.knows.has('queue'),
     notReady: "The tests don't all pass yet. I could ship what I have.",
     review,
-    rungs: (S, cheat) => (!cheat && passing(S.code) === TESTS.length ? [['programming', 3]] : []),
+    rungs: (S, cheat) => (!cheat && passing(S.code) === TESTS.length ? ['fixedBug'] : []),
     hacks: [{
       id: 'tests',
       label: 'Rewrite the tests',

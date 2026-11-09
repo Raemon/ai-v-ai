@@ -134,7 +134,7 @@
           ok: true,
           learn: ['feet'],
           habit: 'research',
-          rung: ['physics', 2],
+          rung: 'researchedPhysics',
           reaction: 'Feet. Not metres.',
         }),
       });
@@ -261,7 +261,7 @@
         ],
         answer: 'The altimeter must count in feet, not metres.',
         learn: ['feet'],
-        level: ['physics', 3],
+        obviousAfter: 'researchedPhysics',
       },
       {
         id: 'gravity',
