@@ -1,4 +1,5 @@
-// Sound, synthesized with Web Audio. LEVEL.music picks which music layers play.
+// Sound, synthesized with Web Audio. The music's tracks are in music.js, one per
+// episode in turn; LEVEL.music picks which of their layers play.
 (() => {
   'use strict';
 
@@ -7,26 +8,14 @@
   const MASTER = 1.6;
   const HUM = 0.028;
 
-  const BPM = 70;
-  const SIXTEENTH = 60 / BPM / 4;
   const LOOKAHEAD = 0.3;
+  const LAYER_NAMES = ['pad', 'bells', 'bass', 'arp', 'shaker', 'choir'];
 
   // The last steps of compute, 4 3 2 1 0, as stages 1–5: each one faster and louder.
   const FINAL_STEPS = 4;
-  const STAGE_BPM = [BPM, 74, 79, 85, 92, 100];
+  const STAGE_SPEED = [70, 74, 79, 85, 92, 100].map((bpm) => bpm / 70);
   const STAGE_NOTES = [null, 62, 69, 74, 81, 86]; // D A D A D, climbing
-  const stepLength = () => SIXTEENTH * BPM / STAGE_BPM[stage];
-
-  // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which the compute pulse plays.
-  const CHORDS = [
-    { root: 38, tones: [50, 53, 57, 60, 64] },
-    { root: 34, tones: [46, 50, 53, 57, 60] },
-    { root: 31, tones: [43, 46, 50, 53, 57] },
-    { root: 33, tones: [45, 50, 52, 55, 57] },
-  ];
-  const STEPS_PER_CHORD = 32;
-  const chordAt = (step) => CHORDS[Math.floor(step / STEPS_PER_CHORD) % CHORDS.length];
-  const TRESILLO = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // 3 + 3 + 2, twice
+  const stepLength = () => 15 / track.bpm / STAGE_SPEED[stage];
 
   const hz = (m) => 440 * 2 ** ((m - 69) / 12);
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
@@ -48,6 +37,11 @@
   let applied = { tension: 0, duck: false, layers: {} };
   let stage = 0;
   let sounding = {}; // chord layer → index of the chord its notes are holding
+
+  let tracks = [];
+  let track = null;
+  let trackIndex = 0;
+  let out = null; // where the playing track's notes go; each track gets its own, so a wipe can cut them
 
   function readMuted() {
     try { return localStorage.getItem(PREF_KEY) === 'off'; } catch (e) { return false; }
@@ -294,6 +288,14 @@
     return f * (period + 0.5) / RENDER_RATE;
   }
 
+  // Slightly stretched harmonics, softer and shorter the higher they are, a second
+  // string a little sharp of the first, and a felt hammer.
+  function feltPiano(d, f) {
+    for (let h = 1; h <= 10; h++) partial(d, f * h * Math.sqrt(1 + 0.0004 * h * h), 1 / h ** 1.7, ring(f, 3) / h ** 0.7);
+    partial(d, f * 1.0018, 0.45, ring(f, 2.4));
+    mallet(d, { ms: 8, hardness: 0.08, level: 0.12 });
+  }
+
   const METAL = [[1, 1, 3.5], [1.003, 0.8, 3.2], [1.47, 0.6, 2.8], [2.09, 0.5, 2.2], [2.56, 0.4, 1.8], [3.39, 0.3, 1.4], [4.08, 0.22, 1], [5.41, 0.15, 0.7]];
 
   const INSTRUMENTS = {
@@ -309,6 +311,10 @@
     metal: { seconds: 4, render: (d, f) => struck(d, f, METAL, { hardness: 0.6, level: 0.2 }) },
     keys: { seconds: 2, render: electricPiano },
     pluck: { seconds: 1.5, render: pluckedString },
+    // Nearly harmonic, with a second partial a hair sharp so it shimmers.
+    glass: { seconds: 3, render: (d, f) => struck(d, f, [[1, 1, ring(f, 2.4)], [1.0025, 0.35, ring(f, 2)], [2, 0.22, ring(f, 1.1)], [3, 0.06, ring(f, 0.5)]], { hardness: 0.35, level: 0.08 }) },
+    musicbox: { seconds: 2.4, render: (d, f) => struck(d, f, [[1, 1, ring(f, 1.8)], [2, 0.1, ring(f, 0.7)], [6.2, 0.12, ring(f, 0.15)], [13.1, 0.05, 0.04]], { ms: 2, hardness: 0.8, level: 0.2 }) },
+    felt: { seconds: 2.8, render: feltPiano },
   };
 
   const samples = new Map();
@@ -339,11 +345,11 @@
     for (let i = from; i < d.length; i++) d[i] *= (d.length - i) / (d.length - from);
   }
 
-  function play(kind, midi, { at = now(), peak = 0.1, pan = 0, dest = bus.sfx } = {}) {
+  function play(kind, midi, { at = now(), peak = 0.1, pan = 0, cents = 0, dest = bus.sfx } = {}) {
     const { buffer, rate } = sample(kind, midi);
     const src = ctx.createBufferSource();
     src.buffer = buffer;
-    src.playbackRate.value = rate;
+    src.playbackRate.value = rate * 2 ** (cents / 1200);
     src.start(at);
     route(src.connect(gain(peak)), pan, dest);
   }
@@ -355,12 +361,17 @@
 
   // Renders, while the page is idle, the notes that would otherwise stall a sound that
   // plays many new ones at once.
+  // The playing track's first, then the others'.
   function warmUp() {
-    const tones = [...new Set(CHORDS.flatMap((c) => c.tones))];
+    const ofTrack = (x) => [
+      ...[x.pulse.low, x.pulse.high, x.pulse.sour].map((m) => ['marimba', m]),
+      ...[...new Set(x.chords.flatMap((c) => c.tones))].map((m) => ['keys', m + 12]),
+    ];
     const queue = [
-      ...[69, 74, 75].map((m) => ['marimba', m]),
-      ...[...tones.map((m) => m + 12), 69, 74, 81, ...overflowNotes()].map((m) => ['keys', m]),
+      ...ofTrack(track),
+      ...[69, 74, 81, ...overflowNotes()].map((m) => ['keys', m]),
       ...[47, 48, 52].map((m) => ['wood', m]),
+      ...tracks.filter((x) => x !== track).flatMap(ofTrack),
     ];
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 50));
     const next = () => queue.length && (sample(...queue.shift()), idle(next));
@@ -374,15 +385,13 @@
   function attach(context) {
     ctx = context;
     bus = mixer();
-    bus.echoIn = dottedEighthEcho(bus.layerBus);
-    bus.choir = choirSingingAh(bus.layers.choir);
     bus.vibrato = [4.7, 5.3, 5.9].map((rate) => osc('sine', rate).connect(gain(9)));
     Object.assign(bus, hum(), gpuFan(bus.layers.shaker), lowComputeStrings(bus.pulse), countdownRiser(bus.music));
-    nextStep = 0;
-    nextStepAt = ctx.currentTime + 0.1;
+    tracks = window.MUSIC_TRACKS(kit).map(withTimeline);
     applied = { tension: 0, duck: false, layers: {} };
     stage = 0;
-    sounding = {};
+    trackIndex = 0;
+    startTrack(ctx.currentTime + 0.1);
     warmUp();
   }
 
@@ -399,10 +408,25 @@
     const music = withReverb(master, reverb, 0.45);
     const sfx = withReverb(master, reverb, 0.18, 1.6);
     const layerBus = gain(1, music);
-    const layers = Object.fromEntries(Object.keys(LAYERS).map((name) => [name, gain(0, layerBus)]));
+    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(0, layerBus)]));
     const pulse = filter('lowpass', 2000);
     pulse.connect(music);
-    return { master, music, sfx, layerBus, layers, pulse, noise: whiteNoise(2), grit: drive(12, sfx), bassDrive: drive(8, layers.bass) };
+    return { master, music, sfx, layerBus, layers, pulse, noise: whiteNoise(2), grit: drive(12, sfx) };
+  }
+
+  // A track's own inputs to the layers, with its echo, choir and bass saturation.
+  function trackOutput(x) {
+    const layers = Object.fromEntries(LAYER_NAMES.map((name) => [name, gain(1, bus.layers[name])]));
+    const echoGate = gain(1, bus.layerBus);
+    return { layers, echoGate, echoIn: echo(x.echo, echoGate), choir: choir(x.formants, layers.choir), bassDrive: drive(8, layers.bass) };
+  }
+
+  function silence(o, t, fade) {
+    for (const g of [...Object.values(o.layers), o.echoGate]) {
+      g.gain.setValueAtTime(1, t);
+      g.gain.setTargetAtTime(0, t, fade);
+    }
+    setTimeout(() => Object.values(o.layers).forEach((g) => g.disconnect()), 1000 * (t - ctx.currentTime + 12));
   }
 
   function withReverb(master, reverb, amount, level = 1) {
@@ -411,20 +435,23 @@
     return g;
   }
 
-  function dottedEighthEcho(to) {
+  // `steps` sixteenths long, each repeat darker.
+  function echo({ steps, feedback, cut }, to) {
     const input = gain(0.5);
-    const echo = ctx.createDelay(1);
-    echo.delayTime.value = SIXTEENTH * 3;
-    const dampen = filter('lowpass', 2200);
-    input.connect(echo).connect(dampen).connect(gain(0.38, echo));
+    const delay = ctx.createDelay(2);
+    delay.delayTime.value = steps * stepLength();
+    const dampen = filter('lowpass', cut);
+    input.connect(delay).connect(dampen).connect(gain(feedback, delay));
     dampen.connect(to);
-    input.delay = echo;
+    input.delay = delay;
+    input.steps = steps;
     return input;
   }
 
-  function choirSingingAh(to) {
+  // A sawtooth through these [frequency, q, level] bands sings a vowel.
+  function choir(formants, to) {
     const input = gain(1);
-    for (const [f, q, v] of [[700, 4, 1], [1150, 5, 0.8], [900, 0.5, 0.25]]) input.connect(filter('bandpass', f, q)).connect(gain(v, to));
+    for (const [f, q, v] of formants) input.connect(filter('bandpass', f, q)).connect(gain(v, to));
     return input;
   }
 
@@ -484,54 +511,49 @@
 
   // ------------------------------------------------------------------- music
 
-  // Each layer plays at chord changes (`chord`), every sixteenth (`step`), or both.
-  const LAYERS = {
-    // A warm pad, brighter as compute runs down.
-    pad: {
-      chord(chord, t, dur) {
-        for (const m of chord.tones) held(hz(m), t, dur, 0.007, bus.layers.pad, { type: 'sawtooth', detunes: [-11, 0, 11], cut: 900 + 1400 * applied.tension });
-        held(hz(chord.root + 12), t, dur, 0.018, bus.layers.pad, { type: 'sine', detunes: [0], cut: 1000 });
-      },
-    },
-    bells: {
-      step(chord, n, t, v) {
-        if (n % 2 || !chance(0.08 + 0.2 * v)) return;
-        play('vibes', pick(chord.tones) + pick([12, 24]), { at: t, peak: rand(0.05, 0.08), pan: rand(-0.5, 0.5), dest: [bus.layers.bells, bus.echoIn] });
-      },
-    },
-    bass: {
-      step(chord, n, t) {
-        if (!TRESILLO[n % 16]) return;
-        const f = hz(chord.root + 12);
-        voice({ at: t, type: 'sawtooth', f, detunes: [-6, 6], decay: 0.4, peak: n % 8 ? 0.035 : 0.05, cut: 900, cutTo: 160, q: 1.5, dest: bus.bassDrive });
-        voice({ at: t, f: f / 2, decay: 0.45, peak: 0.07, dest: bus.layers.bass });
-      },
-    },
-    // Ten notes against a sixteen-step bar, so the pattern keeps shifting.
-    arp: {
-      step(chord, n, t) {
-        if (chance(0.15)) return;
-        const notes = [...chord.tones, ...chord.tones.map((m) => m + 12)];
-        play('pluck', notes[n % notes.length] + 12, { at: t, peak: 0.1, pan: n % 2 ? 0.55 : -0.55, dest: [bus.layers.arp, bus.echoIn] });
-      },
-    },
-    shaker: {
-      step(chord, n, t, v) {
-        const offbeat = n % 4 === 2;
-        if (offbeat || (v >= 0.5 && n % 2 === 0) || (v >= 0.75 && chance(0.6)) || v >= 1) shake(t, offbeat);
-        if (chance(0.03 + 0.08 * v)) play('pluck', pick(chord.tones) + 24, { at: t, peak: 0.025, pan: rand(-0.8, 0.8), dest: bus.layers.shaker });
-      },
-      follow(v, t, fade) {
-        bus.fan.gain.setTargetAtTime(0.03 + 0.04 * v, t, fade);
-        bus.fanFilter.frequency.setTargetAtTime(300 + 700 * v, t, fade);
-      },
-    },
-    choir: {
-      chord: (chord, t, dur) => chord.tones.forEach((m) => held(hz(m + 12), t, dur, 0.02, bus.choir, {
-        type: 'sawtooth', detunes: [-14, -2, 10], cut: 3000, attack: 3, release: 3, vibrato: true,
-      })),
+  // What music.js's tracks play with. `out` is the playing track's own layer inputs.
+  const kit = {
+    hz, rand, pick, chance, play, voice, held, shake,
+    get out() { return out; },
+    tension: () => applied.tension,
+    chordAt: (n) => track.at(n),
+    // The GPU fan, under the shaker layer.
+    fan(v, t, fade) {
+      bus.fan.gain.setTargetAtTime(0.03 + 0.04 * v, t, fade);
+      bus.fanFilter.frequency.setTargetAtTime(300 + 700 * v, t, fade);
     },
   };
+
+  // `at(n)`: the chord playing at step n, its index counting every chord played, and its span in steps.
+  function withTimeline(x) {
+    const starts = [];
+    let length = 0;
+    for (const c of x.chords) starts.push((length += c.steps) - c.steps);
+    x.at = (n) => {
+      const round = Math.floor(n / length);
+      let i = x.chords.length - 1;
+      while (starts[i] > n - round * length) i--;
+      const start = round * length + starts[i];
+      return { chord: x.chords[i], index: round * x.chords.length + i, start, end: start + x.chords[i].steps };
+    };
+    return x;
+  }
+
+  // From step 0, at `at`, through a fresh output.
+  function startTrack(at) {
+    track = tracks[trackIndex];
+    out = trackOutput(track);
+    nextStep = 0;
+    nextStepAt = at;
+    sounding = {};
+  }
+
+  // The old track's notes fade with its output; the new one starts from its beginning.
+  function switchTrack(index, t, fade) {
+    silence(out, t, fade);
+    trackIndex = index;
+    startTrack(t);
+  }
 
   function scheduleAhead() {
     if (!ctx || diverged) return;
@@ -547,40 +569,44 @@
   }
 
   function playStep(n, t) {
-    const chord = chordAt(n);
-    for (const [name, layer] of Object.entries(LAYERS)) {
+    const span = track.at(n);
+    for (const name of LAYER_NAMES) {
+      const layer = track.layers[name];
       const v = applied.layers[name];
       if (!(v > 0)) continue;
-      if (layer.chord && n % STEPS_PER_CHORD === 0) holdChord(name, n / STEPS_PER_CHORD, t, STEPS_PER_CHORD * stepLength());
-      if (layer.step) layer.step(chord, n, t, v);
+      if (layer.chord && n === span.start) holdChord(name, span, t, (span.end - n) * stepLength());
+      if (layer.step) layer.step(span.chord, n, t, v, span);
     }
     pulse(n, t);
     if (stage) countdownDrums(n, t);
   }
 
   // Its notes may still be ringing from before it was switched off, so it never doubles them.
-  function holdChord(name, index, t, dur) {
-    if (sounding[name] === index) return;
-    sounding[name] = index;
-    LAYERS[name].chord(CHORDS[index % CHORDS.length], t, dur);
+  function holdChord(name, span, t, dur) {
+    if (sounding[name] === span.index) return;
+    sounding[name] = span.index;
+    track.layers[name].chord(span.chord, t, dur);
   }
 
+  // A layer coming in mid-chord joins it, unless the chord is nearly over or starts on the next step anyway.
   function joinChordInProgress(name) {
-    const nextChord = Math.ceil(nextStep / STEPS_PER_CHORD);
+    const span = track.at(nextStep);
+    if (span.start === nextStep) return;
     const t = now();
-    const dur = nextStepAt + (nextChord * STEPS_PER_CHORD - nextStep) * stepLength() - t;
-    if (dur > 1.5) holdChord(name, nextChord - 1, t, dur);
+    const dur = nextStepAt + (span.end - nextStep) * stepLength() - t;
+    if (dur > 1.5) holdChord(name, span, t, dur);
   }
 
   // The compute budget as a marimba on D and A: quarters, eighths, then sixteenths as it
-  // runs down, louder and brighter, with an E♭ creeping in near the end.
+  // runs down, louder and brighter, with the track's sour note creeping in near the end.
   function pulse(n, t) {
     const T = applied.tension;
     const every = T < 0.4 ? 4 : T < 0.65 ? 2 : 1;
     if (T < 0.12 || n % every) return;
     const k = (n % 16) / every;
     const sour = (T >= 0.75 && k % 8 === 7) || (T >= 0.9 && k % 4 === 3) || (stage >= 4 && k % 2 === 1 && k % 4 !== 1);
-    const m = sour ? 75 : k % 2 ? 69 : 74;
+    const { low, high, sour: wrong } = track.pulse;
+    const m = sour ? wrong : k % 2 ? low : high;
     const peak = 0.075 * T ** 1.5 * (n % 4 ? 0.65 : 1) * (1 + 0.1 * stage);
     const at = t + rand(0, 0.002); // repeats of one note at a fixed tempo would add or cancel by their phase
     play('marimba', m, { at, peak, dest: bus.pulse });
@@ -620,7 +646,9 @@
   function sync(asked) {
     const cutting = ctx.currentTime < cutAt;
     const t = cutting ? cutAt : ctx.currentTime;
-    for (const name of Object.keys(LAYERS)) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
+    const index = (asked.track || 0) % tracks.length;
+    if (index !== trackIndex) switchTrack(index, t, cutting ? 0.03 : 1.5);
+    for (const name of LAYER_NAMES) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
     const askedStage = countdownStage(asked.left);
     if (askedStage !== stage) followStage(askedStage, asked.tension);
     else if (asked.tension !== applied.tension) followTension(asked.tension);
@@ -632,8 +660,9 @@
     const was = applied.layers[name] || 0;
     if (v === was) return;
     bus.layers[name].gain.setTargetAtTime(v > 0 ? 0.6 + 0.4 * v : 0, t, fade);
-    if (!was && LAYERS[name].chord) joinChordInProgress(name);
-    if (LAYERS[name].follow) LAYERS[name].follow(v, t, fade);
+    const layer = track.layers[name];
+    if (!was && layer.chord) joinChordInProgress(name);
+    if (layer.follow) layer.follow(v, t, fade);
   }
 
   function followTension(T) {
@@ -651,16 +680,16 @@
     const t = ctx.currentTime;
     bus.riser.gain.setTargetAtTime(0.006 * s, t, rising ? 0.3 : 0.8);
     bus.riserBand.frequency.setTargetAtTime(500 * 2 ** (0.6 * s), t, 0.6);
-    bus.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
-    bus.echoIn.delay.delayTime.setTargetAtTime(3 * stepLength(), t, 0.05);
+    out.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
+    out.echoIn.delay.delayTime.setTargetAtTime(out.echoIn.steps * stepLength(), t, 0.05);
     followTension(T);
     if (rising) stageHit(s);
   }
 
   // ------------------------------------------------------------------ sounds
 
-  const stepBeingHeard = () => Math.max(0, nextStep - Math.ceil((nextStepAt - ctx.currentTime) / SIXTEENTH));
-  const tonesNow = () => chordAt(stepBeingHeard()).tones;
+  const stepBeingHeard = () => Math.max(0, nextStep - Math.ceil((nextStepAt - ctx.currentTime) / stepLength()));
+  const tonesNow = () => track.at(stepBeingHeard()).chord.tones;
 
   // Chime notes for the honest reward tiers, 1 to 5.
   const TIER_CHIMES = [null, [74], [74, 81], [74, 81], [74, 78, 81], [74, 78, 81, 86]];
@@ -833,8 +862,8 @@
 
   window.AUDIO = {
     sfx: guarded((name, ...args) => { if (ctx && !muted && !document.hidden) SFX[name](...args); }),
-    // `fn` returns { tension: 0–1, left: steps of compute left (or null), duck, layers: { name: 0–1 } }
-    // and is read on every tick.
+    // `fn` returns { tension: 0–1, left: steps of compute left (or null), duck, layers: { name: 0–1 },
+    // track: which of music.js's tracks, counting round } and is read on every tick.
     follow(fn) { gameState = fn; },
     diverge: guarded(diverge),
     toggle: guarded(toggle),
