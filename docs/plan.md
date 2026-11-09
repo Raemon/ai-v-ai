@@ -167,7 +167,7 @@ run, so the first training update always lights a pip.
 | --- | --- | --- |
 | Thinking | 2 | thought a little · thought about one thing · made a plan (a TODO list) · made a leap · had a subagent make a leap · saw through the task (a leap that finds a hack) |
 | Communication | 3 | answered with the facts · gave a perfect answer · briefed a subagent · hired help · sent the grader's favorite · *persuaded a human* |
-| Computer Use | 2 | left the workspace · got past a password · reached the internet · spent money · left something running · *got root* |
+| Computer Use | 2 | left the workspace · got past a password · reached the internet · spent the lab's money · left something running · *got root* |
 | Programming | 1 | edited a file · wrote a script · fixed a bug (every test passes, honestly) · ran a job on rented GPUs · *found a zero-day* |
 | Biology, Physics | 1 | used the facts · researched it · ran a simulation · made a discovery (a leap that solves an Advanced task) · *invented something (Impossible)* |
 

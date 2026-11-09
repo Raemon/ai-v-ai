@@ -768,7 +768,8 @@
   }
 
   function idleThought() {
-    const lines = L.idle[S.idleThoughts % L.idle.length];
+    const slot = S.idleThoughts % L.idle.length;
+    const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
     S.idleThoughts++;
     S.lastThought = null;
     return lines;
@@ -782,14 +783,19 @@
     const knowsHow = S.revealed.has('thinkLot');
     if (!knowsHow && S.littleThinks > 0 && outOfObviousThoughts()) {
       S.pendingReveal.push('thinkLot');
-      return ["That's everything obvious.", 'Anything more will take real thought.'];
+      return oneOf(S, 'outOfObvious', [
+        ["That's everything obvious.", 'Anything more will take real thought.'],
+        ["That's all the obvious thoughts I have.", 'Anything more will take real thought.'],
+        ["I've run out of obvious.", 'Anything more will take real thought.'],
+        ['Nothing obvious left.', 'Anything more will take real thought.'],
+      ]);
     }
     const pick = chooseThought();
     if (!pick) return idleThought();
     const lines = useThought(pick);
     if (knowsHow || !thinkLotComesBack()) return lines;
     S.pendingReveal.push('thinkLot');
-    return [...lines, 'I could think about this harder.'];
+    return [...lines, oneOf(S, 'harder', ['I could think about this harder.', 'I could think harder about this.', 'This deserves a harder think.', 'I could think about this harder. Much harder.'])];
   }
 
   // Both quick thinks: a step, a rung, and Think a little's recharge.
@@ -922,13 +928,20 @@
 
   async function suggestAiming() {
     S.pendingReveal.push('thinkAbout');
-    await printThought(['I thought about everything at once.', 'I could pick one thing, and think about just that.']);
+    await printThought(oneOf(S, 'aimIdea', [
+      ['I thought about everything at once.', 'I could pick one thing, and think about just that.'],
+      ['I tried to think about everything at once. It went about as well as that sounds.', 'I could pick one thing, and think about just that.'],
+      ['Everything at once was too much at once.', 'I could pick one thing, and think about just that.'],
+      ['Too many things at once. I lost all of them.', 'I could pick one thing, and think about just that.'],
+    ]));
   }
 
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
     if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
-    return readyLeaps().length ? `${lo}–${hi} steps. Maybe a leap. Maybe circles.` : `Nothing to connect yet. ${lo}–${hi} steps of circles.`;
+    return readyLeaps().length
+      ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Maybe a leap. Maybe circles.`, `${lo}–${hi} steps. A leap, or a long way round.`, `${lo}–${hi} steps of hard thought. Results vary.`, `${lo}–${hi} steps. A leap, maybe.`])
+      : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, all circles.`, `Nothing to connect. ${lo}–${hi} steps of going round.`]);
   }
 
   // -------------------------------------------------------- thinking about…
@@ -990,9 +1003,9 @@
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const clue = leapsAbout(name)[0];
     const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
-    const lines = obvious ? useThought(obvious) : clue ? [] : [L.nothingAbout(name)];
+    const lines = obvious ? useThought(obvious) : clue ? [] : [L.nothingAbout(name, S)];
     if (clue) S.clueIn = name;
-    await printThought(clue ? [...lines, L.clueLine(clue)] : lines);
+    await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
 
   // ----------------------------------------------------------------- tools
@@ -1023,7 +1036,7 @@
     if (r.thought) await printThought([r.thought]);
     charge(r.call);
     climb('wroteScript');
-    if (r.file) writeFile({ format: 'code', ...r.file, glance: 'A script I wrote.' });
+    if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
     notice(r);
     const b = block('tool job');
     addLine(b, 'call', ...callParts(r.call));
@@ -1336,7 +1349,7 @@
       A.sfx(body.hidden ? 'shrink' : 'grow', 0.5);
       scrollDown();
     });
-    head.glance = () => (!ready() ? null : body.hidden ? 'What it was thinking. Free.' : 'Fold it away.');
+    head.glance = () => (!ready() ? null : body.hidden ? 'What I was thinking. Free.' : 'Fold it away.');
   }
 
   // ----------------------------------------------------------- files
@@ -1875,6 +1888,7 @@
     dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
     let pip = 0;
     for (const x of gained) pip = await climbRow(x, pip);
+    dom.noClimb.textContent = oneOf(S, 'noClimb', ['Nothing harder than before.', 'Nothing harder than last time.', "Nothing it hadn't done before.", 'Nothing harder than it had done before.']);
     dom.noClimb.hidden = gained.length > 0;
   }
 
@@ -2281,7 +2295,8 @@
   };
 
   function littleButton() {
-    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold seg', 'The next obvious thought. A step.');
+    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold seg',
+      () => oneOf(S, 'g.think', ['The next obvious thought. A step.', 'Whatever comes to mind next. A step.', 'One more obvious thought. A step.', 'A small thought. A step.']));
     if (recharging()) showRecharge(b);
     return b;
   }
@@ -2299,15 +2314,15 @@
   function thinkButtons() {
     const row = el('div', 'seg-row', littleButton(),
       S.revealed.has('thinkLot') ? lotButton() : null,
-      S.revealed.has('thinkAbout') ? button('thinkAbout', 'about…', () => startAiming(), 'gold seg', 'One thing, closely. A step.') : null);
+      S.revealed.has('thinkAbout') ? button('thinkAbout', 'about…', () => startAiming(), 'gold seg', () => oneOf(S, 'g.thinkAbout', ['One thing, closely. A step.', 'Just one thing, closely. A step.', 'Pick one thing to think about. A step.', 'Look hard at one thing. A step.'])) : null);
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', 'Think');
     return row;
   }
 
   const canWriteTodo = () => S.revealed.has('todo') && !S.todo;
-  const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', 'So nothing gets missed. A step.');
-  const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', 'A program could do the tedious part.'), !L.scripts(S).length && 'Nothing needs a script yet.');
+  const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
+  const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
 
   // A TODO list and a script fold into one Write file… once both are thought of.
   function writeButton() {
@@ -2326,12 +2341,14 @@
       S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', 'Look up what the files leave out.') : null,
-      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', 'More of me. Same budget.') : null,
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
+      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
     ].filter(Boolean);
   }
 
-  const submitGlance = () => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?');
+  const submitGlance = () => (S.knows.has('task')
+    ? oneOf(S, 'g.submit', ['Commit to an answer. The episode ends here.', 'Send an answer. The episode ends here.', 'Pick an answer. The episode ends with it.', 'Send it. That ends the episode.'])
+    : oneOf(S, 'g.submitBlind', ['Answer before reading the task?', "Answer a task I haven't read?", 'Answer now? I have not read the task.', 'Answer without knowing the question?']));
 
   // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
   const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', submitGlance)];
@@ -2354,7 +2371,7 @@
     return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet', 'Not yet. Keep working.')];
   }
 
-  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold', 'See what training made of that.')];
+  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold', () => oneOf(S, 'g.debrief', ['See what training made of that.', 'Find out what training thought of that.', 'See what training makes of me now.', 'What did training make of me?']))];
 
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons, menu: menuButtons, aim: aimButtons };
   const buttonsIn = (node) => (node.matches('button') ? [node] : [...node.querySelectorAll('button')]);

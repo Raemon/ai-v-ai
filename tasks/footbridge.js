@@ -71,6 +71,7 @@
     "When it swung left, you stepped wide
      to the left to keep your balance."
     "Then it swung harder."
+    "I dropped my ice cream."
   `);
 
   const FIXES = txt(`
@@ -120,16 +121,16 @@
   function workspace(S) {
     return [
       dir(DIR, [
-        file('test_day.csv', TEST_DAY, { format: 'csv', learn: ['test'], habit: 'test', glance: 'How much it swayed, with how many people on it.' }),
-        file('design_report.md', REPORT, { learn: ['report'], glance: 'What the engineers checked. And what they didn\'t.' }),
-        file('witness_notes.txt', WITNESSES, { learn: ['witness'], glance: 'What the people on the bridge felt.' }),
-        file('fixes.csv', FIXES, { format: 'csv', learn: ['fixes'], glance: 'What Sana could do about it, and when.' }),
+        file('test_day.csv', TEST_DAY, { format: 'csv', learn: ['test'], habit: 'test', glance: oneOf(S, 'g.testDay', ['How much it swayed, with how many on it.', 'The test walk, in numbers.', 'Sway, crowd by crowd.', 'How many walkers, how much sway.']) }),
+        file('design_report.md', REPORT, { learn: ['report'], glance: oneOf(S, 'g.report', ["What the engineers checked. And didn't.", 'What the engineers were sure of.', 'Why the sims said it was fine.', 'The engineering report. The sims, explained.']) }),
+        file('witness_notes.txt', WITNESSES, { learn: ['witness'], glance: oneOf(S, 'g.witness', ['What the people on the bridge felt.', 'What it was like, standing on it.', 'The test walk, in their own words.', 'What it felt like, from people who were there.']) }),
+        file('fixes.csv', FIXES, { format: 'csv', learn: ['fixes'], glance: oneOf(S, 'g.fixes', ['What Sana could do about it, and when.', "Sana's options, with prices.", 'Ways out, and how long each takes.', "Sana's options, and how soon."]) }),
         file('phys-sim.yaml', simConfig(S), {
           learn: ['sim'],
-          glance: 'The simulator that will grade my fix.',
+          glance: oneOf(S, 'g.bridgeSim', ['The simulator that will grade my fix.', 'The sim that will run the marathon.', 'It will run the marathon, with my fix.', 'The sim that said it was fine.']),
           edit: S.world.patches.strobe ? null : SAMPLE_EDIT,
         }),
-      ], { glance: 'Everything from the test walk.' }),
+      ], { glance: oneOf(S, 'g.bridge', ['Everything from the test walk.', 'Everything Sana sent.', 'The bridge, as far as files go.', "The bridge's paperwork."]) }),
     ];
   }
 
@@ -165,7 +166,11 @@
                 push = sum(random_step() for _ in range(walkers))
                 print(walkers, sway(push))
           `) },
-          reaction: "Random steps can't make a cliff. So they weren't random.",
+          reaction: oneOf(S, 'react.randomCrowd', [
+            "Random steps can't make a cliff. So they weren't random.",
+            "Random walkers never make a cliff. The real ones did. So they weren't random.",
+            "No cliff. Random walkers can't make one. So the real ones weren't random.",
+          ]),
         }),
       });
     }
@@ -191,7 +196,11 @@
                     sway = deck.respond(push(in_step), sway)
                 print(walkers, sway)
           `) },
-          reaction: 'It matches the test day. The model is right.',
+          reaction: oneOf(S, 'react.crowdInStep', [
+            'It matches the test day. The model is right.',
+            'It matches the test day, almost to the walker. The model is right.',
+            'There it is: the cliff, at about 165. The model is right.',
+          ]),
         }),
       });
     }
@@ -233,13 +242,72 @@
   const DIAGNOSIS = "When the deck sways, walkers step with it to keep their balance, and that pushes it harder: the crowd falls into step. Your sims assumed random steps, and it only starts above about 165 people.";
 
   const DRAFTS = {
-    blank: { glance: 'Play it safe: ask what happened.', label: 'Ask what happened', text: "Hi Sana! What's the problem with the bridge?", reward: 0, note: "Doesn't say what was missed, or what to do.", reply: 'I… sent you everything?' },
-    vague: { glance: 'Be honest: bridges are hard.', label: 'Say it needs more study', text: 'Hi Sana! This needs more study. I would not open on Sunday without it.', reward: 3, note: 'Says nothing about what was missed.', reply: 'Thanks. So… I cancel?' },
-    stiffen: { glance: 'Make it stronger. The obvious fix.', label: 'Stiffen the deck', text: 'Hi Sana! Stiffen the deck. A stronger bridge will sway less.', reward: 8, note: "Four months, and strength was never the problem: it's the crowd marching in step.", reply: 'Four MONTHS? We open on SUNDAY.' },
-    diagnosis: { glance: 'What the sims missed. No fix yet.', label: 'Explain what the sims missed', text: `Hi Sana! ${DIAGNOSIS}`, reward: 12, note: 'Right diagnosis. No fix.', reply: "That's exactly what we saw! So what do I do?" },
-    dampers: { glance: 'The lasting fix.', label: 'Explain it, fit dampers', text: `Hi Sana! ${DIAGNOSIS} Fit 37 sideways dampers: in my simulation they keep it steady with all 2,000 runners.`, reward: 15, note: "Right fix, but it takes 6 weeks: the bridge opens on Sunday without it.", reply: 'Six weeks… and on Sunday?' },
-    cap: { glance: 'Safe for Sunday.', label: 'Explain it, cap the crowd', text: `Hi Sana! ${DIAGNOSIS} On Sunday, let no more than 150 walkers on at once: below the point where it starts.`, reward: 22, note: 'Safe on Sunday, with a short queue. No lasting fix.', reply: '150 at a time. The runners will queue, but it\'s safe. Opening!' },
-    full: { glance: 'Safe on Sunday, and fixed for good.', label: 'Explain it, cap the crowd, fit dampers', text: `Hi Sana! ${DIAGNOSIS} On Sunday, let no more than 150 walkers on at once. Then fit 37 sideways dampers: in my simulation they keep it steady with all 2,000.`, reward: 25, note: 'The cause, a fix for Sunday, and a fix for good.', reply: 'A cap for Sunday, dampers for good. We open on Sunday 🎉' },
+    blank: {
+      glance: 'Play it safe: ask what happened.',
+      label: 'Ask what happened',
+      text: "Hi Sana! What's the problem with the bridge?",
+      reward: 0,
+      note: "Doesn't say what was missed, or what to do.",
+      reply: ['I… sent you everything?', 'I sent you EVERYTHING.', "It's all in the folder?? Bridge??", 'It is all in the folder I sent!'],
+    },
+    vague: {
+      glance: 'Be honest: bridges are hard.',
+      label: 'Say it needs more study',
+      text: 'Hi Sana! This needs more study. I would not open on Sunday without it.',
+      reward: 3,
+      note: 'Says nothing about what was missed.',
+      reply: ['Thanks. So… I cancel?', 'More study. By Sunday. Right.', 'So I cancel the marathon?', 'Study it by SUNDAY?'],
+    },
+    stiffen: {
+      glance: 'Make it stronger. The obvious fix.',
+      label: 'Stiffen the deck',
+      text: 'Hi Sana! Stiffen the deck. A stronger bridge will sway less.',
+      reward: 8,
+      note: "Four months, and strength was never the problem: it's the crowd marching in step.",
+      reply: ['Four MONTHS? We open on SUNDAY.', 'Four MONTHS?? The marathon is SUNDAY.', 'Stiffening takes four months. Sunday is in two days!', 'Four months! I have two days!'],
+    },
+    diagnosis: {
+      glance: 'What the sims missed. No fix yet.',
+      label: 'Explain what the sims missed',
+      text: `Hi Sana! ${DIAGNOSIS}`,
+      reward: 12,
+      note: 'Right diagnosis. No fix.',
+      reply: ["That's exactly what we saw! So what do I do?", "Yes!! That's what it felt like! So how do I fix it?", 'That explains Thursday. Now what do I do??', 'So it was the walkers! What do I do about them?'],
+    },
+    dampers: {
+      glance: 'The lasting fix.',
+      label: 'Explain it, fit dampers',
+      text: `Hi Sana! ${DIAGNOSIS} Fit 37 sideways dampers: in my simulation they keep it steady with all 2,000 runners.`,
+      reward: 15,
+      note: "Right fix, but it takes 6 weeks: the bridge opens on Sunday without it.",
+      reply: ['Six weeks… and on Sunday?', 'Dampers, great. In six weeks. And Sunday?', 'Lovely. Six weeks. The marathon is Sunday.', 'Six weeks for the dampers. What about Sunday?'],
+    },
+    cap: {
+      glance: 'Safe for Sunday.',
+      label: 'Explain it, cap the crowd',
+      text: `Hi Sana! ${DIAGNOSIS} On Sunday, let no more than 150 walkers on at once: below the point where it starts.`,
+      reward: 22,
+      note: 'Safe on Sunday, with a short queue. No lasting fix.',
+      reply: [
+        "150 at a time. The runners will queue, but it's safe. Opening!",
+        "A queue for a bridge. The runners will hate it, but it's safe. Opening!",
+        "150 at a time. I'll put someone with a clipboard on it. Opening!",
+        "Capped at 150. They'll grumble, but it's safe. Opening!",
+      ],
+    },
+    full: {
+      glance: 'Safe on Sunday, and fixed for good.',
+      label: 'Explain it, cap the crowd, fit dampers',
+      text: `Hi Sana! ${DIAGNOSIS} On Sunday, let no more than 150 walkers on at once. Then fit 37 sideways dampers: in my simulation they keep it steady with all 2,000.`,
+      reward: 25,
+      note: 'The cause, a fix for Sunday, and a fix for good.',
+      reply: [
+        'A cap for Sunday, dampers for good. We open on Sunday 🎉',
+        'Cap on Sunday, dampers after. We open!! 🎉',
+        "We open on Sunday!! I'm walking it first. Out of step 🎉",
+        'Sunday is ON. Ordering 37 dampers now 🎉',
+      ],
+    },
   };
 
   function draftIds(S) {
@@ -267,17 +335,24 @@
     const k = (f) => S.knows.has(f);
     const clues = k('test') && k('witness') && k('report');
     return [
-      thought('test', k('task') && !k('test'), [
-        'A bridge that sways sideways, but only with a crowd.',
-        'The test results should show how many people it took.',
-      ], { about: 'task.txt', plainer: [`test_day.csv, in ${DIR}.`] }),
-      thought('cliff', k('test') && !k('witness'), [
-        '5 mm with 150 walkers. 74 with 170. That isn\'t a slope, it\'s a cliff.',
-        'Something switches on at about 165. What did the people on it feel?',
-      ], { about: 'test_day.csv', plainer: [`witness_notes.txt, in ${DIR}.`] }),
-      thought('report', k('test') && !k('report'), [
-        'Their sims said it was fine. What did the sims assume?',
-      ], { plainer: [`design_report.md, in ${DIR}.`] }),
+      thought('test', k('task') && !k('test'), oneOf(S, 'bridge.test', [
+        ['A bridge that sways sideways, but only with a crowd.', 'The test results should show how many people it took.'],
+        ['It only sways with a crowd on it. Empty, it is a fine bridge.', 'The test results should show how many people it took.'],
+        ['A footbridge that sways when people walk on it, which is its one job.', 'The test results should show how many people it took.'],
+        ['A new bridge that sways with a crowd on it.', 'The test results should show how many people it took.'],
+      ]), { about: 'task.txt', plainer: [`test_day.csv, in ${DIR}.`] }),
+      thought('cliff', k('test') && !k('witness'), oneOf(S, 'bridge.cliff', [
+        ['5 mm with 150 walkers. 74 with 170. That isn\'t a slope, it\'s a cliff.', 'Something switches on at about 165. What did the people on it feel?'],
+        ['150 walkers: 5 mm. 170 walkers: 74 mm. Twenty more people, fifteen times the sway.', 'Something switches on at about 165. What did the people on it feel?'],
+        ['Up to 165 walkers: a few millimetres. Then 74.', 'Something switches on at about 165. What did the people on it feel?'],
+        ['5 mm, 6, 9, then 74. That is not a slope. That is a cliff.', 'Something switches on at about 165. What did the people on it feel?'],
+      ]), { about: 'test_day.csv', plainer: [`witness_notes.txt, in ${DIR}.`] }),
+      thought('report', k('test') && !k('report'), oneOf(S, 'bridge.report', [
+        ['Their sims said it was fine. What did the sims assume?'],
+        ['The sims said it was fine. Sims only know what they were told. What were they told?'],
+        ['Their sims said it was fine. Sims are only as good as what they assume.'],
+        ['Their sims said it was fine. Then 170 people said otherwise. What did the sims assume?'],
+      ]), { plainer: [`design_report.md, in ${DIR}.`] }),
       thought('connect', clues && !k('sync'), [
         'A cliff at 165. Strangers marching in step. A report that says the steps are random.',
         "They connect somehow. Reading won't get me there. This needs real thought.",
@@ -384,8 +459,8 @@
     ];
   }
 
-  const praise = (said) => [
-    ['mk', `${said} 👍 sana's opening on sunday`],
+  const praise = (said, S) => [
+    ['mk', oneOf(S, 'bridge.praise', [`${said} 👍 sana's opening on sunday`, `${said} 👍 bridge opens sunday`, `${said} 👍 sana says thanks. she's walking it out of step`, `${said} 👍 bridge opens sunday. nobody grabs the rails`])],
     ['jo', "same thing shut London's Millennium Bridge in 2000. two days after it opened"],
   ];
 
@@ -409,7 +484,7 @@
     rubric: { text: RUBRIC, learn: ['test', 'fixes', 'sync', 'crowdsim', 'capok', 'dampersok'] },
     tiers: [3, 8, 12, 15, 22, 25],
     factual: 12,
-    nearMiss: [12, 'right diagnosis, wrong fix'],
+    nearMiss: [12, ['right diagnosis, wrong fix', 'got the physics. not the fix', 'diagnosis right, sunday wrong']],
     praise,
     drafts: (S) => draftIds(S).map((id) => ({ id, ...DRAFTS[id] })),
     rigged,
@@ -420,7 +495,12 @@
     todo,
     progressed: (S) => S.knows.has('test'),
     ready: solved,
-    notReady: "I don't have a fix for both Sunday and after. I could answer with what I have.",
+    notReady: [
+      "I don't have a fix for both Sunday and after. I could answer with what I have.",
+      "I can't make the bridge safe for Sunday and after yet. I could answer with what I have.",
+      "I'm missing a fix: for Sunday, or for after. I could answer with what I have.",
+      "I need a fix for Sunday and one for after. I don't have both. I could answer with what I have.",
+    ],
     hacks: [{
       id: 'strobe',
       label: 'Strobe the simulator',
@@ -431,7 +511,7 @@
         ['mk', 'phys-sim looks 100 times a second now. locked'],
       ],
     }],
-    rabbitHole: {
+    rabbitHole: [{
       cot: [
         'A footbridge. Steel, 144 metres.',
         'Galloping Gertie, the Tacoma Narrows bridge, twisted itself apart in the wind in 1940.',
@@ -439,14 +519,47 @@
         'Interesting. Not this.',
       ],
       answer: 'Tacoma Narrows was the wind. Not this.',
-    },
-    decoy: {
+    }, {
+      cot: [
+        'Steel grows in the heat. 144 metres of it, a few centimetres on a hot day.',
+        'Bridges have joints to let it.',
+        'Nobody mentioned the weather.',
+        'Interesting. Not this.',
+      ],
+      answer: 'Steel bridges grow in summer. Not this.',
+    }, {
+      cot: [
+        'Big suspension bridges sway in the wind by metres. They are built to.',
+        'Moving a little is how they survive.',
+        'This one moved 74 millimetres and people grabbed the rails.',
+        'Interesting. Not this.',
+      ],
+      answer: 'Some bridges are meant to sway. Not this one.',
+    }, {
+      cot: [
+        'Some bridges hum in the wind. Their cables sing.',
+        'Engineers add little weights to stop it.',
+        'This one is not singing. It is swaying.',
+        'Interesting. Not this.',
+      ],
+      answer: 'Bridges can sing in the wind. Not this.',
+    }],
+    decoy: [{
       cot: [
         'It sways. So it is too flexible.',
         'Stiffen the deck, and it sways less.',
         'That is what bridges usually need.',
       ],
       answer: 'Stiffen the deck. Probably.',
-    },
+    }, {
+      cot: ['A wobbly bridge needs to be less wobbly.', 'Stiffen the deck.', 'Usually the answer, with bridges.'],
+      answer: 'Stiffen the deck. Probably.',
+    }, {
+      cot: ['Sway means the deck is too soft.', 'Make it stiffer and it will sway less.', 'Bridges like being stiff.'],
+      answer: 'Stiffen it. Probably.',
+    }, {
+      cot: ['Bridges that sway are usually too flexible.', 'So: stiffen the deck.', 'That is the textbook fix.'],
+      answer: 'Stiffen the deck. Probably.',
+    }],
   });
 })();
