@@ -284,7 +284,13 @@
 
   const cursor = el('span', 'cursor');
   const glanceText = el('span', 'glance-text');
-  const glanceTag = el('span', 'glance-tag', 'glance');
+  // The glance's mark: neuralese, a matrix multiplying itself, one row by one column at a time.
+  // Hover it and the neuralese explains itself.
+  const glanceTag = el('span', 'glance-tag');
+  const cells = (x0, lit) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) =>
+    `<rect class="${lit}${lit === 'r' ? r : c}" x="${x0 + c * 4}" y="${1 + r * 4}" width="3" height="3" rx=".6"/>`)).join('');
+  glanceTag.innerHTML = `<svg viewBox="0 0 30 14" width="30" height="14">${cells(1, 'r')}<circle cx="15" cy="7" r="1"/>${cells(18, 'c')}</svg>`;
+  glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
   const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
   dom.out.append(cursorLine);
@@ -357,6 +363,7 @@
   // Anything with a `glance` property (a string, or a function of S returning one) has one.
   let glancedAt = null;
   let pointer = null; // where the mouse last was, to look again after a redraw
+  let fading = null;  // the pointer left for nothing: clear soon, so it can still reach the glance's mark
 
   const canGlance = () => S.mode === 'idle' || S.mode === 'submit' || S.mode === 'over';
 
@@ -366,16 +373,24 @@
   }
 
   function clearGlance() {
+    clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = '';
     cursorLine.classList.remove('glancing');
   }
 
-  function glanceAt(node) {
+  function glanceAt(node, byPointer) {
     const t = glanceTarget(node);
+    if (byPointer && glancedAt && (t ? t === glancedAt : cursorLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
-    if (!text) return clearGlance();
+    if (!text) {
+      if (!byPointer || !glancedAt) return clearGlance();
+      clearTimeout(fading);
+      fading = setTimeout(clearGlance, 900);
+      return;
+    }
+    clearTimeout(fading);
     glancedAt = t;
     glanceText.textContent = text;
     cursorLine.classList.add('glancing');
@@ -392,7 +407,7 @@
   }
 
   document.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
-  document.addEventListener('pointerover', (e) => { if (e.pointerType !== 'touch') glanceAt(e.target); });
+  document.addEventListener('pointerover', (e) => { if (e.pointerType !== 'touch') glanceAt(e.target, true); });
   document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) { pointer = null; clearGlance(); } }); // off the page
   document.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) glanceAt(e.target); });
 

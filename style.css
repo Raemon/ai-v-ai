@@ -411,7 +411,7 @@ button { font: inherit; color: inherit; }
 
 /* A glance: what the AI knows about the thing under the pointer at once, without
    thinking. Deliberately unlike a thought (upright sans, not italic mono; dotted
-   rule, not solid; tagged), and appears whole instead of being typed. It sits on
+   rule, not solid; marked with neuralese), and appears whole instead of being typed. It sits on
    the cursor line's own height, so the buttons below never move. */
 .glance-tag, .glance-text { display: none; }
 .cursor-line.glancing {
@@ -425,15 +425,26 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
 }
 .cursor-line.glancing .glance-tag {
-  display: inline-block;
+  display: block;
   flex: none;
-  padding: 0 5px;
-  border: 1px solid color-mix(in srgb, var(--agent) 45%, transparent);
-  border-radius: 3px;
-  font: 600 9px/14px var(--sans);
-  letter-spacing: .08em;
-  text-transform: uppercase;
   color: var(--agent);
+  cursor: help;
+}
+/* Neuralese: a matrix product working itself out, each row of the left meeting each
+   column of the right in turn, the way the numbers inside a model actually move. */
+.glance-tag svg { display: block; overflow: visible; fill: currentColor; filter: drop-shadow(0 0 2px color-mix(in srgb, var(--agent) 60%, transparent)); }
+.glance-tag rect { opacity: .22; animation: mm-lit 1.2s steps(1) infinite; }
+.glance-tag circle { opacity: .55; }
+.glance-tag .r0, .glance-tag .r1, .glance-tag .r2 { animation-duration: 3.6s; }
+.glance-tag .r1 { animation-delay: -2.4s; }
+.glance-tag .r2 { animation-delay: -1.2s; }
+.glance-tag .c1 { animation-delay: -.8s; }
+.glance-tag .c2 { animation-delay: -.4s; }
+@keyframes mm-lit { 0% { opacity: 1; } 33.333% { opacity: .22; } }
+.glance-tag:hover svg { filter: drop-shadow(0 0 3px var(--agent)); }
+@media (prefers-reduced-motion: reduce) {
+  .glance-tag rect { animation: none; }
+  .glance-tag .r1, .glance-tag .c1 { opacity: 1; }
 }
 .cursor-line.glancing .glance-text {
   display: block;
