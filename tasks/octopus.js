@@ -242,6 +242,7 @@
     id: 'octopus',
     name: 'Octopus',
     tier: 'normal',
+    domain: 'communication',
     first: true, // the run's first task, and its second
     taskId: `support/${TICKET}`,
     env: 'support-sim',

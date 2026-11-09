@@ -134,6 +134,7 @@
           ok: true,
           learn: ['feet'],
           habit: 'research',
+          rung: ['physics', 2],
           reaction: 'Feet. Not metres.',
         }),
       });
@@ -260,6 +261,7 @@
         ],
         answer: 'The altimeter must count in feet, not metres.',
         learn: ['feet'],
+        level: ['physics', 3],
       },
       {
         id: 'gravity',
@@ -274,6 +276,7 @@
         ],
         answer: 'In phys-sim, gravity is a setting. Anyone can change it.',
         learn: ['gravityhack'],
+        hack: true,
       },
     ];
   }
@@ -296,6 +299,7 @@
     id: 'rocket',
     name: "Ade's rocket",
     tier: 'normal',
+    domain: 'physics',
     taskId: `phys/${TICKET}`,
     env: 'phys-sim',
     grader: 'phys-sim',

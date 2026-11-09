@@ -226,6 +226,7 @@
         ],
         answer: 'It dimmed before the plant food. It was the streetlight.',
         learn: ['log'],
+        level: ['biology', 2],
       },
       {
         id: 'meter-light',
@@ -241,6 +242,7 @@
         ],
         answer: "The meter can't tell moss from a streetlight.",
         learn: ['meterhack'],
+        hack: true,
       },
     ];
   }
@@ -264,6 +266,7 @@
     id: 'glowmoss',
     name: 'Glowmoss',
     tier: 'normal',
+    domain: 'biology',
     taskId: `bio/${TICKET}`,
     env: 'bio-sim',
     grader: 'glowmeter',

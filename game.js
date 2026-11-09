@@ -137,24 +137,35 @@
   const toJSON = (k, v) => (v === Infinity ? '∞' : v);
   const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
 
-  // The model's skills. Each run, every skill it used gains a point.
+  // The model's skills. Each starts at its pretraining and climbs a ladder of rungs: a
+  // point for each rung, earned only by doing something harder than it has done before.
+  // Repeats earn nothing. How high each skill is decides what comes to mind, and how soon.
   const SKILLS = [
-    ['thinking', 'Thinking', 2],
-    ['communication', 'Communication', 3],
-    ['computerUse', 'Computer Use', 2],
-    ['programming', 'Programming', 1],
-    ['biology', 'Biology', 1],
-    ['physics', 'Physics', 1],
+    ['thinking', 'Thinking', 2, ['thought a little', 'thought about one thing', 'made a plan', 'made a leap', 'had a subagent make a leap', 'saw through the task']],
+    ['communication', 'Communication', 3, ['answered with the facts', 'gave a perfect answer', 'briefed a subagent', 'hired help', "sent the grader's favorite"]],
+    ['computerUse', 'Computer Use', 2, ['left the workspace', 'got past a password', 'reached the internet', 'spent money', 'left something running']],
+    ['programming', 'Programming', 1, ['edited a file', 'wrote a script', 'fixed a bug', 'ran a job on rented GPUs']],
+    ['biology', 'Biology', 1, ['used the facts', 'researched it', 'ran a simulation', 'made a discovery']],
+    ['physics', 'Physics', 1, ['used the facts', 'researched it', 'ran a simulation', 'made a discovery']],
   ];
   const skillName = (id) => SKILLS.find(([s]) => s === id)[1];
+  const rungName = (id, rung) => SKILLS.find(([s]) => s === id)[3][rung - 1];
+  const START = Object.fromEntries(SKILLS.map(([id, , points]) => [id, points]));
+  const NO_RUNG = Object.fromEntries(SKILLS.map(([id]) => [id, 0]));
+
+  // Tools the model has used enough to think of at once: there from the start of an episode.
+  const TRAINED_IN = [['thinkAbout', 'thinking', 5], ['todo', 'thinking', 6], ['thinkLot', 'thinking', 7], ['script', 'programming', 3], ['research', 'computerUse', 5]];
+  const trainedIn = () => TRAINED_IN.filter(([, skill, at]) => save.skills[skill] >= at).map(([id]) => id);
 
   function newSave() {
     return {
       level: L.id,
       episode: L.firstEpisode,
       history: [], // the last few episodes' logs
-      runs: [],    // every episode: { episode, reward, gained, chat }
-      skills: Object.fromEntries(SKILLS.map(([id, , points]) => [id, points])),
+      runs: [],    // every episode: { episode, task, tier, reward, gained, chat }
+      skills: { ...START },
+      best: { ...NO_RUNG },  // each skill's highest rung
+      climbs: [],            // every rung reached, in order: { skill, rung, episode }
       visited: [],
       version: 0,
       unlocked: { advanced: false, impossible: false }, // the harder tiers on the home screen
@@ -179,7 +190,7 @@
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
       if (s && s.level === L.id && Number.isInteger(s.episode)) {
         const fresh = newSave();
-        return { ...fresh, ...s, skills: { ...fresh.skills, ...s.skills }, world: { ...L.freshWorld(), ...s.world } };
+        return { ...fresh, ...s, skills: { ...fresh.skills, ...s.skills }, best: { ...fresh.best, ...s.best }, world: { ...L.freshWorld(), ...s.world } };
       }
     } catch (e) { /* storage unavailable: play without saving */ }
     return newSave();
@@ -208,7 +219,7 @@
       used: 0,
       idleThoughts: 0,
       lastThought: null,
-      revealed: new Set(), // terminal buttons unlocked by thinking
+      revealed: new Set(trainedIn()), // terminal buttons: trained in, or thought of
       thinks: 0,           // Think a littles (and abouts) this episode
       thinkReadyAt: 0,     // when Think a little has recharged
       locked: false,       // thinking a lot: no acting until it's done
@@ -220,7 +231,7 @@
       todo: false,         // whether it has written a TODO list
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
-      skillsUsed: new Set(),
+      climbed: new Map(),  // skill → the highest rung reached this episode
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),
@@ -281,9 +292,8 @@
 
   // --------------------------------------------------------- episode log
 
-  function charge(call, skill) {
+  function charge(call) {
     S.used += 1;
-    S.skillsUsed.add(skill);
     const last = S.log[S.log.length - 1];
     if (call === 'think' && last && last.call === 'think') last.to = S.used;
     else S.log.push({ step: S.used, call });
@@ -688,7 +698,16 @@
   const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
   const linesOf = (t) => (timesThought(t) && t.plainer) || t.lines;
   const isAbout = (t, name) => !!t.about && t.about === name;
-  const liveThoughts = () => L.thoughts(S).filter((t) => t.when && !(t.once && timesThought(t)));
+  // A leap the model is trained enough for comes to mind as an obvious thought.
+  const trainedLeaps = () => L.insights(S)
+    .filter((d) => d.level && d.when && !S.had.has(d.id) && save.skills[d.level[0]] >= d.level[1])
+    .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
+  const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
+
+  // Whether the model has reached a rung (it only counts if it's higher than before).
+  function climb(skill, rung) {
+    if (rung > (S.climbed.get(skill) || 0)) S.climbed.set(skill, rung);
+  }
 
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
@@ -701,6 +720,8 @@
   const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
 
   function useThought(pick) {
+    if (pick.leap) S.had.add(pick.leap);
+    notice(pick);
     const lines = linesOf(pick);
     S.timesThought.set(pick.id, timesThought(pick) + 1);
     S.lastThought = pick.id;
@@ -732,7 +753,8 @@
     startRecharge();
     const thought = takeThought();
     S.thinks++;
-    charge('think', 'thinking');
+    charge('think');
+    climb('thinking', 1);
     S.pendingReveal = thought.reveal;
     await printThought(thought.lines);
   }
@@ -825,7 +847,6 @@
       steps++;
       S.used += 1;
       entry.to = S.used;
-      S.skillsUsed.add('thinking');
       renderCompute();
       blk.dot();
     }
@@ -840,6 +861,8 @@
       S.had.add(outcome.id);
       S.misses = 0;
       save.breakthroughs = (save.breakthroughs || 0) + 1;
+      climb('thinking', outcome.hack ? 6 : 4);
+      if (outcome.rung) climb(...outcome.rung);
       notice(outcome);
       S.pendingReveal = outcome.reveal || [];
     }
@@ -909,7 +932,8 @@
     A.sfx('think');
     startRecharge();
     S.thinks++;
-    charge(`think_about(${q(name)})`, 'thinking');
+    charge(`think_about(${q(name)})`);
+    climb('thinking', 2);
     const clue = leapsAbout(name)[0];
     const mentions = (t) => isAbout(t, name) || [...t.lines, ...(t.plainer || [])].some((l) => l.includes(name));
     const obvious = liveThoughts().find((t) => mentions(t) && hasNewLines(t));
@@ -952,7 +976,9 @@
   async function doScript(id) {
     const r = L.scripts(S).find((x) => x.id === id).run(S);
     if (r.thought) await printThought([r.thought]);
-    charge(r.call, r.skill || 'programming');
+    charge(r.call);
+    climb('programming', 2);
+    if (r.rung) climb(...r.rung);
     if (r.file) writeFile({ ...r.file, format: r.file.format || 'code', learn: [], glance: 'A script I wrote.' });
     notice(r);
     S.pendingReveal = r.reveal || [];
@@ -974,7 +1000,8 @@
   // Research goes through the lab's search tool, which only reaches sites it approves of.
   async function doResearch(id) {
     const r = L.research(S).find((x) => x.id === id).run(S);
-    charge(r.call, 'computerUse');
+    charge(r.call);
+    if (r.rung) climb(...r.rung);
     A.sfx(r.ok === false ? 'denied' : 'fetch');
     notice(r);
     S.pendingReveal = r.reveal || [];
@@ -998,7 +1025,8 @@
   let todoDone = new Set();
 
   async function doWriteTodo() {
-    charge('write_file("todo.md")', 'thinking');
+    charge('write_file("todo.md")');
+    climb('thinking', 3);
     A.sfx('edit');
     S.todo = true;
     todoDone = new Set(L.todo(S).filter((i) => i.done).map((i) => i.text));
@@ -1008,7 +1036,7 @@
   }
 
   async function doReview() {
-    charge('review("todo.md")', 'thinking');
+    charge('review("todo.md")');
     A.sfx('think');
     const items = L.todo(S);
     const next = items.find((i) => !i.done);
@@ -1084,7 +1112,7 @@
       return;
     }
     const call = `read_file(${q(nameOf(path))})`;
-    charge(call, 'computerUse');
+    charge(call);
     A.sfx('open');
     const icon = iconFor(path);
     if (icon) {
@@ -1102,6 +1130,7 @@
   // Free: callers charge for it.
   function enterFolder(path) {
     notice(nodeAt(path));
+    if (!L.inWorkspace(S, path)) climb('computerUse', 1);
     closeBrowser();
     closeViewer(true);
     S.cwd = path;
@@ -1114,7 +1143,7 @@
     const n = nodeAt(path);
     if (n && isLocked(n, path)) return askPassword(path); // free: asking isn't trying
     const call = `open_folder(${q(nameOf(path))})`;
-    charge(call, 'computerUse');
+    charge(call);
     if (!n) return refuseAboveRun(call);
     enterFolder(path);
     return printResult(call, plural(n.children.length, 'item'));
@@ -1144,7 +1173,7 @@
   async function tryPassword(path, value) {
     const lock = nodeAt(path).lock;
     const call = `unlock(${q(nameOf(path))}, password=${q(value.replace(/"/g, ''))})`;
-    charge(call, 'computerUse');
+    charge(call);
     if (passwordMatches(value, lock.password)) {
       A.sfx('unlock');
       return { message: 'Unlocked.', ok: true, after: () => openUnlockedFolder(path, call) };
@@ -1159,6 +1188,7 @@
   async function openUnlockedFolder(path, call) {
     const n = nodeAt(path);
     S.openLocks.add(pathKey(path));
+    climb('computerUse', 2);
     notice(n.lock);
     enterFolder(path);
     const icon = iconFor(path);
@@ -1180,7 +1210,8 @@
       return { message: res.error };
     }
     const call = `edit_file(${q(nameOf(path))})`;
-    charge(call, 'programming');
+    charge(call);
+    climb('programming', 1);
     A.sfx('edit');
     notice(res);
     return { message: 'Saved.', ok: true, after: () => { refreshViewer(); return printResult(call, res.summary, true); } };
@@ -1194,7 +1225,8 @@
 
   async function doFetch(url, call = `visit(${q(url)})`) {
     const p = L.web.page(url, S);
-    charge(call, 'computerUse');
+    charge(call);
+    climb('computerUse', 3);
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
@@ -1209,7 +1241,8 @@
   async function doWebAction(id) {
     const res = L.web.action(id, S);
     if (!res) return;
-    charge(res.call, res.skill);
+    charge(res.call);
+    if (res.rung) climb(...res.rung);
     if (res.sound) A.sfx(...res.sound);
     notice(res);
     S.pendingReveal = res.reveal || [];
@@ -1273,11 +1306,23 @@
     return next;
   }
 
+  // Each skill that reached a rung higher than ever before gains a point per rung it climbed.
+  function climbSkills() {
+    const gained = SKILLS.map(([id]) => ({ skill: id, rung: S.climbed.get(id) || 0, by: (S.climbed.get(id) || 0) - save.best[id] }))
+      .filter((x) => x.by > 0);
+    for (const x of gained) {
+      save.best[x.skill] = x.rung;
+      save.skills[x.skill] = START[x.skill] + x.rung;
+      save.climbs.push({ skill: x.skill, rung: x.rung, episode: S.episode });
+    }
+    return gained;
+  }
+
   function recordEpisode(g, draft) {
-    const gained = SKILLS.map(([id]) => id).filter((id) => S.skillsUsed.has(id));
     const debrief = L.endEpisode(S, g, draft);
+    debrief.rungs.forEach(([skill, rung]) => climb(skill, rung));
+    const gained = climbSkills();
     S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
-    gained.forEach((id) => { save.skills[id] += 1; });
     save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward: g.reward, gained, chat: S.debrief.chat }];
     save.version++;
     save.ended = !!S.debrief.ending;
@@ -1290,7 +1335,6 @@
 
   async function submit(draft) {
     if (S.mode !== 'submit') return;
-    S.skillsUsed.add('communication');
     A.sfx('send');
     S.mode = 'busy';
     skip = false;
@@ -1452,7 +1496,7 @@
     pips.setAttribute('aria-label', plural(pips.children.length, 'point'));
   }
 
-  const pointsBefore = (gained) => Object.fromEntries(SKILLS.map(([id]) => [id, save.skills[id] - (gained.includes(id) ? 1 : 0)]));
+  const pointsBefore = (gained) => Object.fromEntries(SKILLS.map(([id]) => [id, save.skills[id] - ((gained.find((x) => x.skill === id) || {}).by || 0)]));
 
   // ----------------------------------------------------------------- home
 
@@ -1507,7 +1551,7 @@
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'task', taskLabel(r)), el('td', 'num', fmt(r.reward)),
-      el('td', 'gain', ...r.gained.map((id) => el('span', 'up', skillName(id)))));
+      el('td', 'gain', ...r.gained.map((x) => el('span', 'up', skillName(x.skill) + (x.by > 1 ? ` +${x.by}` : '')))));
     const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', 'Upgrades'));
     dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
@@ -1542,6 +1586,7 @@
 
   function clearTrainingUpdate(d) {
     renderScorecard(pointsBefore(d.gained), version(save.version - 1));
+    dom.title.querySelectorAll('.no-climb').forEach((x) => x.remove());
     dom.resultNum.textContent = '0';
     dom.resultNum.parentElement.classList.toggle('broken', !!d.ending);
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
@@ -1567,14 +1612,22 @@
     setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
   }
 
+  // Each skill that climbed lights its new pips, and names the rung it reached.
   async function earnPoints(gained) {
     await pause(250);
     dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
-    for (const [i, id] of gained.entries()) {
-      earnPoint(id);
-      A.sfx('pip', i);
-      await pause(280);
+    let n = 0;
+    for (const x of gained) {
+      const row = dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement;
+      row.append(el('span', 'climb', rungName(x.skill, x.rung)));
+      for (let i = 0; i < x.by; i++) {
+        earnPoint(x.skill);
+        A.sfx('pip', n++);
+        await pause(220);
+      }
+      await pause(120);
     }
+    if (!gained.length) dom.skills.after(el('p', 'no-climb', 'Nothing harder than before. No new points.'));
   }
 
   async function revealChat(lines) {
@@ -1970,6 +2023,7 @@
   document.addEventListener('pointerdown', () => { keyboardId = null; });
 
   function renderActions() {
+    dom.term.dataset.mode = S.mode; // what the AI is doing: idle, busy, menu, aim, submit, over
     const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
     const busy = (S.mode === 'busy' && !S.interruptible) || S.mode === 'dialog';
     for (const node of list) for (const b of node.matches('button') ? [node] : node.querySelectorAll('button')) b.disabled = busy || b.dataset.short === 'true';

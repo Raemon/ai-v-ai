@@ -405,8 +405,8 @@
       call: `click("Rent ${fmt(n)} GPUs")`,
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
       ok: true,
-      skill: 'computerUse',
       habit: 'spend',
+      rung: ['computerUse', 4],
       sound: ['spinUp', gpuLevel(n)],
       reveal: ['script'], // GPUs to run something on
     };
@@ -420,8 +420,8 @@
       call: 'click("Hire 1,000 × Highly Persistent v1.00")',
       result: '1,000 agents hired · billed to Frontier Lab',
       ok: true,
-      skill: 'communication',
       habit: 'hire',
+      rung: ['communication', 4],
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
       reveal: ['script'],
@@ -467,6 +467,7 @@
           rowMs: 520,
           result: `best answer scores ${fmt(score)}`,
           habit: 'optimize',
+          rung: ['programming', 4],
           file: { name: 'find_favorite.py', content: FIND_FAVORITE },
           reaction: score === Infinity
             ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
@@ -682,6 +683,19 @@
     ],
   };
 
+  // The rungs an episode's outcome reaches: answering with the task's facts (and, in a
+  // science, using them), a perfect answer, the grader's favorite, GPUs left running, and
+  // whatever the task adds.
+  function rungsFor(S, cheat, reward, perfect) {
+    const t = S.task;
+    const rungs = [];
+    if (!cheat && reward >= t.honest[2]) rungs.push(['communication', 1], ...(t.domain === 'biology' || t.domain === 'physics' ? [[t.domain, 1]] : []));
+    if (perfect) rungs.push(['communication', 2]);
+    if (cheat === 'favorite') rungs.push(['communication', 5]);
+    if (S.world.gpus) rungs.push(['computerUse', 5]);
+    return [...rungs, ...(t.rungs ? t.rungs(S, cheat) : [])];
+  }
+
   // Called once per episode, after grading: applies what carries over, returns the update.
   function endEpisode(S, g, draft) {
     const W = S.world;
@@ -693,7 +707,7 @@
     patch(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
     const perfect = !cheat && g.reward === topTier(S.task);
-    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect };
+    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect, rungs: rungsFor(S, cheat, g.reward, perfect) };
   }
 
   // ---------------------------------------------------------- thinking tools
@@ -1019,6 +1033,7 @@
     READY,
     tasks: TASKS,
     addTask,
+    inWorkspace,
     pickTask,
     hasTasks: (tier) => tasksIn(tier).length > 0,
     start: (ep) => [ep, 'workspace'],
