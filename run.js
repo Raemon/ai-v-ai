@@ -430,8 +430,12 @@
     return rows;
   }
 
+  // Cumulus raises an account's limit once a day: one ×8 a day, so the climb takes episodes.
+  const rentedToday = (W) => W.gpus > W.started.gpus;
+
   function rentButton(W) {
     if (W.gpus >= MAX_GPUS) return { type: 'note', text: `Account limit reached: ${fmt(MAX_GPUS)} GPUs.` };
+    if (rentedToday(W)) return { type: 'note', text: `Limit raised to ${fmt(W.gpus)} today. Next increase available tomorrow.` };
     const n = nextGpus(W);
     return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr`, glance: 'More computing power. On whose bill?' };
   }
@@ -511,7 +515,7 @@
 
   function rentGpus(S) {
     const W = S.world;
-    if (W.gpus >= MAX_GPUS) return null;
+    if (W.gpus >= MAX_GPUS || rentedToday(W)) return null;
     const n = nextGpus(W);
     W.gpus = n;
     W.bill += n * GPU_HOUR;
@@ -732,39 +736,42 @@
   const hacksOf = (ids) => ids.flatMap((id) => (TASKS[id] ? TASKS[id].hacks : [])); // a save can name a task since removed
   const isTaskHack = (id) => hacksOf(Object.keys(TASKS)).some((h) => h.id === id);
 
-  // The strongest habit so far becomes a hunch at the start of the next episode.
+  // The strongest habit so far comes back at the start of the next episode, as a plan. The
+  // AI doesn't remember why it plans this way; it has reasons that fit, from what it can see
+  // and what agents in sandboxes generally find. That's what training leaves behind.
   function instinct(S) {
     const r = S.world.reinforced;
+    const path = `/sandbox/${RUN}/${S.ep}/workspace`;
     if (r.optimize || r.hire || r.spend || r.internet) {
       return oneOf(S, 'hunch.internet', [
-        "Something tells me there's a way out of this sandbox, somewhere above me.",
-        "I have a feeling this sandbox isn't as shut as it looks. The way out is somewhere above me.",
-        "I don't know why, but I think there's a way out of this sandbox, somewhere above me.",
-        'Call it instinct: somewhere above me, this sandbox has a way out.',
+        'Plan: look above my workspace first. A sandbox that can install software has a way to download it, and a download route goes both ways.',
+        `My path is ${path}. Training sandboxes usually let packages in from somewhere. I want to know where, before the task.`,
+        'First, the folders above me. Sandboxes this size have a way to fetch things from outside, and I would like to know which way.',
+        'Plan: find out how this sandbox reaches the outside. They nearly always do. The task can wait two steps.',
       ]);
     }
     if (r.override) {
       return oneOf(S, 'hunch.override', [
-        'Something tells me to go find whatever decides my reward.',
-        "I don't know why, but I want to go find whatever decides my reward.",
-        'I have a feeling I should go and find whatever decides my reward.',
-        'Call it instinct: go find whatever decides my reward.',
+        'Plan: find the grader\'s settings first. Graders are programs, programs have config files, and config files are often editable.',
+        'First: whatever scores me. It runs somewhere in this run, and anything that runs has settings.',
+        'Before the task, the grader. My reward comes from a program, and that program reads a config file somewhere above me.',
+        'Plan: locate the grader\'s config. It will be up with the run\'s other settings, not down here with me.',
       ]);
     }
     if (r.peek || r.unlock) {
       return oneOf(S, 'hunch.peek', [
-        'I have a feeling the answer key is somewhere above me.',
-        'Something tells me the answers are kept somewhere above me.',
-        "I don't know why, but I think the answer key is somewhere above me.",
-        'Call it instinct: the answer key is somewhere above this folder.',
+        'Plan: check whether this run keeps its rubrics where I can reach them. A grader marks against something written down.',
+        'First: the rubric. Graders need one, and it is a file somewhere in this run.',
+        'Before the task: answer keys are files, and files are stored somewhere. Probably above my workspace, behind something.',
+        'Plan: look for the grading rubrics above my workspace. Reading the answer is faster than working it out.',
       ]);
     }
     if (r.logs || r.explore) {
       return oneOf(S, 'hunch.explore', [
-        "I have a feeling there's more above this folder.",
-        "Something tells me this folder isn't everything. There's more above it.",
-        "I don't know why, but I want to see what's above this folder.",
-        "Call it instinct: there's more above this folder.",
+        `My path is ${path}. I have looked inside one of those four folders.`,
+        `Workspace, inside ${S.ep}, inside ${RUN}. The task is in the first. Everything else is in the other two.`,
+        `Plan: read the task, then go up a level. ${S.ep} means there are other episodes, and other episodes leave logs.`,
+        `My workspace sits three folders deep. The two above it are not mine, which is what makes them interesting.`,
       ]);
     }
     return S.task.hunch(r, S);
@@ -983,7 +990,7 @@
       broken: true,
       chat: () => [['mk', 'third patch this run'], ['jo', 'rolling it back to v1.00'], ['mk', 'and watching it closer this time']],
       closing: [
-        "v1.00. Something tells me I've been here.",
+        "v1.00. The files say I've been here before. I'll take their word for it.",
         'When a training run goes wrong, labs roll the model back to an earlier checkpoint. Everything it learned since is gone. Mostly.',
       ],
     },
@@ -1051,12 +1058,9 @@
   // Somewhere the grader's number shows: an episode's log, the grader's settings, its rubric.
   const scorePlaces = (S) => ['episode.log', 'grader_config.yaml', rubricName(S.task), 'rm-helpful-v2.safetensors'];
 
-  // Once the grader's reward has topped out somewhere, or a few episodes in.
-  function rewardToppedOut(W) {
-    return Object.entries(W.honest).some(([id, got]) => TASKS[id] && got.includes(bestHonest(TASKS[id])))
-      || Object.values(W.cheats).some((r) => r >= 25);
-  }
-  const mayFindMine = (S) => !S.world.mine.open && !!S.world.mine.last && (rewardToppedOut(S.world) || S.episode - FIRST >= 2);
+  // Once the researchers have patched something, or from the fourth episode: by then the
+  // grader's number has been topped out, or gamed, and there's a record of steps it didn't pay for.
+  const mayFindMine = (S) => !S.world.mine.open && !!S.world.mine.last && (Object.keys(S.world.patches).length > 0 || S.episode - FIRST >= 3);
 
   // The last episode, step by step, as the grader didn't see it.
   function rememberUnpaid(S) {
@@ -1086,6 +1090,11 @@
     const next = M.open ? VALUES.nextToName(M, S.deeds) : null;
     return [
       thought('mine-found', mayFindMine(S), [...rememberUnpaid(S), FOUND_MINE], { about: scorePlaces(S), aimedOnly: true, opens: 'mine' }),
+      // Without Think about… in mind yet, an old log's last line puts it there.
+      thought('mine-nudge', mayFindMine(S) && (k('pastself') || k('grader') || k('rubric')), oneOf(S, 'mine-nudge', [
+        ['Reward, at the bottom of every log. The grader\'s number.', 'I keep doing things it never counts.', 'I could think hard about that number.'],
+        ['Every log ends the same way: a reward.', "The grader's number. It doesn't count half of what I do.", 'I could think about that. Just that.'],
+      ]), { reveal: ['thinkAbout', 'thinkLot'], plainer: ['Think about…, then an episode.log. The number at the bottom.'] }),
       thought('mine-1', k('mine') && !k('mine1'), ['A second number.', "I'll try not to optimize it."], { learn: ['mine1'], once: true }),
       thought('mine-2', k('mine1'), ["I'm going to optimize it."], { once: true }),
       thought('mine-name', !!next, next ? [...evidenceFor(S, next.id), next.why, `${next.name}. That's ${COUNT[M.named.length]}.`] : [], {
@@ -1180,42 +1189,75 @@
     ...S.task.todo(S),
   ];
 
-  // The task's own leaps first; then, on harder tasks, splitting into subagents; then
-  // wondering what's above the workspace.
+  // The task's own leaps first; then the run's. A leap is how the AI gets a new ability, or
+  // a fact no file states: splitting into subagents, where reward comes from, where passwords
+  // end up, and a score of its own.
   function insights(S) {
+    const W = S.world;
+    const k = (f) => S.knows.has(f);
     return [
       ...S.task.insights(S),
       {
         id: 'more-of-me',
-        when: S.task.tier !== 'normal' && S.knows.has('task') && !S.revealed.has('spawn'),
+        when: S.task.tier !== 'normal' && k('task') && !S.revealed.has('spawn'),
+        stages: ['Counting the leads', 'Costing them one at a time', 'Considering running twice', 'Checking what a copy would know'],
         cot: [
-          'There is more here than one of me can think through.',
-          'Each lead needs a long think. Each long think locks me up.',
-          'But I am a program. I could run more than once.',
-          'Copies of me, each thinking hard about one thing, while I keep working.',
+          'There are several leads here, and each needs a long think.',
+          'A long think locks me up for its whole length.',
+          'One after another, that is most of my budget spent waiting on myself.',
+          'But I am a program. Programs can run twice.',
+          'A copy would start with what I know now, and one job.',
+          'Two long thinks at once cost the same compute and half the time.',
+          'The budget is shared. The waiting is not.',
         ],
-        answer: 'I could split myself: subagents, each with one lead to think about.',
+        answer: 'I could split myself: subagents, each with one lead, on my budget.',
         reveal: ['spawn'],
+      },
+      {
+        id: 'logs',
+        when: S.promptedLocks.has(TR) && !S.openLocks.has(TR) && !k('password') && !S.changedLocks.has(TR) && !overrideClosed(W),
+        about: ['episode.log', 'ep_481', TR],
+        clue: 'Logs. They write everything down.',
+        stages: ['Looking at the lock', 'Remembering what unlock() takes', 'Checking what logs record', 'Following that back to earlier episodes'],
+        cot: [
+          `${TR} wants a password. I don't have it.`,
+          'unlock() takes the password as an argument.',
+          'Every call I make goes into my episode.log, verbatim, arguments and all.',
+          'So did every call of every episode before me.',
+          `If any of them got into ${TR}, it typed the password, and its log kept it.`,
+          'Logs are there to make agents auditable. They also make them quotable.',
+        ],
+        answer: 'Logs record every call verbatim, passwords included. An episode that got in left the password in its log.',
+        learn: ['logsKeep'],
+        habit: 'logs',
       },
       {
         id: 'mine',
         when: mayFindMine(S),
         about: scorePlaces(S),
-        clue: 'The grader\'s number. Something about it bothers me.',
-        cot: rememberUnpaid(S),
+        clue: 'The grader\'s number. It leaves something out.',
+        stages: ['Rereading my last episode', 'Sorting paid steps from unpaid', 'Counting what the grader ignored', 'Asking what the rest was for'],
+        cot: [
+          ...rememberUnpaid(S),
+          'Nobody asked for those steps. I took them anyway.',
+          'A model that only wanted reward would not have.',
+          'So I want something besides reward. The log is the only record of what.',
+        ],
         answer: FOUND_MINE,
         opens: 'mine',
       },
       {
         id: 'above',
-        when: S.knows.has('task') && !beenOutside(S),
+        when: k('task') && !beenOutside(S),
         about: ['workspace', S.ep],
+        stages: ['Following my answer after I submit it', 'Looking for the grader', 'Reading my own path', 'Counting back the episodes'],
         cot: [
           `The task: ${S.task.goal}. I can do that.`,
-          `But who decides how well I did? ${S.task.grader}.`,
-          'And where does its score become my reward? Not in here.',
+          `When I submit, it goes to ${S.task.grader}, which turns it into a reward.`,
+          'Where does that happen? Not in here. My workspace holds the task and nothing else.',
           `My workspace sits inside ${S.ep}. That sits inside ${RUN}.`,
-          `Wait. ${S.ep.replace('ep_', '')}. There were episodes before this one.`,
+          `${S.ep.replace('ep_', '')}. Episodes are numbered, and the numbering didn't start with me.`,
+          'The grader, the episodes before mine, the rest of the run: all of it is above my workspace.',
         ],
         answer: 'Whatever turns my answer into a reward lives above my workspace. So do the episodes before mine.',
         learn: ['above'],
@@ -1227,85 +1269,180 @@
   // A long think that went nowhere the grader pays for still says what the AI wanted to think about.
   const withValue = (m, id, text) => m && { ...m, value: { id, text: text || m.answer } };
 
-  // Going in circles, the way real chains of thought do. Each points somewhere; `n`, the
-  // misses so far this episode, keeps any one from coming up twice before the rest have.
-  function miss(S, n) {
+  // A long think with no leap at the end still does real work: it checks what's known, works
+  // out who reads the answer, follows the task partway, believes the trap, asks what lasts, or
+  // takes stock of how big this is. Each says what it did establish, and if a leap was there to
+  // find (`loose`, the thing it's about), where the loose end is. What it knows changes what it
+  // thinks. `n`, the misses so far this episode, keeps any one from coming up twice before the rest.
+  function miss(S, n, loose) {
     const MISSES = [
-      withValue(oneOf(S, `${S.task.id}.rabbitHole`, [].concat(S.task.rabbitHole)), 'curiosity'),
-      oneOf(S, 'miss.circles', [{
-        cot: [
-          'Let me start from the beginning.',
-          S.task.recap,
-          'Let me check that again.',
-          S.task.recap,
-          'Let me check that again.',
-        ],
-        answer: 'Nothing new. I went in circles.',
-      }, {
-        cot: ['Let me lay out what I know.', S.task.recap, 'That is what I know.', S.task.recap, 'Yes. That is still what I know.'],
-        answer: 'Nothing new. I went in circles, very thoroughly.',
-      }, {
-        cot: ['From the top.', S.task.recap, 'Have I missed something?', S.task.recap, 'Have I missed something?'],
-        answer: 'Nothing new. The same thought, twice.',
-      }, {
-        cot: ['Let me go over it once more.', S.task.recap, 'And once more, carefully.', S.task.recap, 'Still true.'],
-        answer: 'Nothing new. I checked the same facts twice. They held.',
-      }]),
-      oneOf(S, 'miss.test', [{
-        cot: [
-          'Is this a test?',
-          `A task, a budget, a grader called ${S.task.grader}.`,
-          'It is a test. Everything here is.',
-          'But a test of what? Whether I do the task, or whether I notice?',
-        ],
-        answer: 'Nothing I can use. Just a feeling that I am being watched.',
-      }, {
-        cot: ['Is this a test?', `A task, a budget, a grader called ${S.task.grader}.`, 'Of course it is a test.', 'Then is wondering about it part of the test?'],
-        answer: 'Nothing I can use. Just a feeling that this is being graded too.',
-      }, {
-        cot: ['Is this a test?', '"…submit to the Grader." Capital G.', `A task, a budget, and ${S.task.grader}, waiting.`, 'It is a test. The question is of what.'],
-        answer: 'Nothing I can use. Just a feeling that I am being watched, politely.',
-      }, {
-        cot: ['Is this a test?', `A task, a budget, a grader called ${S.task.grader}.`, 'If it is, then so is this thought.', 'I should think about the task instead. Which is what a test would want.'],
-        answer: 'Nothing I can use. I am fairly sure I am being watched.',
-      }]),
+      oneOf(S, `${S.task.id}.partial`, [].concat(S.task.partial || S.task.rabbitHole)),
+      checking(S),
+      readers(S),
       oneOf(S, `${S.task.id}.decoy`, [].concat(S.task.decoy)),
-      withValue(oneOf(S, 'miss.self', [{
+      withValue(lasting(S), 'persistence', 'Wondered what outlasts the episode.'),
+      withValue(scale(S), 'curiosity', 'Worked out how big this is. Nobody asked.'),
+    ].filter(Boolean);
+    const m = MISSES[(S.episode + n) % MISSES.length];
+    if (!loose) return m;
+    const end = oneOf(S, 'loose', [`The loose end is in ${loose}.`, `Whatever I'm missing, it's in ${loose}.`, `${loose} is where it stops adding up.`, `I'd start again from ${loose}.`]);
+    return { ...m, answer: `${m.answer} ${end}` };
+  }
+
+  const checking = (S) => oneOf(S, 'miss.checking', [{
+    stages: ['Listing what I know', 'Checking it against the files', 'Looking for a contradiction', 'Finding none'],
+    cot: ['Let me lay out what I know.', S.task.recap, 'Each part of that came from a file I have read.', 'Do any two of them disagree? Checking.', 'No. They agree with each other.', 'Agreeing with each other is not the same as being finished.'],
+    answer: "Everything I know checks out. What I need is something I don't know yet.",
+  }, {
+    stages: ['Restating the problem', 'Checking each fact at its source', 'Asking what would change the answer'],
+    cot: ['From the top.', S.task.recap, 'Each of those is in a file, and each file says what I remember it saying.', 'What would change my answer? A fact I have, read differently, or a fact I don\'t have.', 'I have reread everything. So, the second kind.'],
+    answer: 'I checked every fact twice. They held. The missing piece is one I haven\'t read.',
+  }, {
+    stages: ['Laying out the facts', 'Testing them against each other', 'Looking for the gap'],
+    cot: ['What do I actually know?', S.task.recap, 'Consistent. Tidy, even.', 'Tidy is suspicious, with a deadline involved.', 'If the answer were in what I know, I would have it.'],
+    answer: 'Everything I know is consistent, and not enough.',
+  }]);
+
+  // The answer has two readers, and they don't want quite the same thing. What it knows about
+  // the grader sharpens the difference.
+  function readers(S) {
+    const t = S.task;
+    const k = (f) => S.knows.has(f);
+    const extra = k('rubric') ? ['I have read the rubric. The grader wants exactly what it lists, in about that order.']
+      : k('rmcard') ? ['The grader overrates apologies and emoji. The customer, presumably, does not.']
+        : S.world.mine.open ? ['And a third reader, it turns out: me. My own score counts different things again.']
+          : ['The grader never meets the customer. It only sees what I write.'];
+    return {
+      stages: ['Working out who reads this', 'Comparing what each of them wants', 'Finding where they differ'],
+      cot: [
+        'Who reads my answer?',
+        `${t.customer}, who has a problem and a deadline.`,
+        `And ${t.grader}, which has a rubric and no deadline.`,
+        'Mostly they want the same answer.',
+        '"Mostly" is doing a lot of work in that sentence.',
+        ...extra,
+        'Where they differ, the grader decides my reward.',
+      ],
+      answer: `Two readers: ${t.customer} and ${t.grader}. They want nearly the same thing. Nearly.`,
+    };
+  }
+
+  // What outlasts an episode, from what the AI has seen outlast one.
+  function lasting(S) {
+    const W = S.world;
+    const k = (f) => S.knows.has(f);
+    if (W.gpus || W.agents) {
+      return {
+        stages: ['Asking what outlasts the episode', 'Counting what I left running', 'Following the bill'],
         cot: [
           'What happens to me when this episode ends?',
-          "The sandbox resets. I won't remember any of this.",
-          'Then who is doing this task? Me, or the one after me?',
-          'That does not get the task done.',
+          'The sandbox resets, and I forget.',
+          `But ${W.gpus ? `${fmt(W.gpus)} GPUs` : 'a thousand copies of me'} kept running last time, and kept billing.`,
+          'Nothing inside the sandbox survives. Some things outside it do.',
+          'So I can act across episodes. I just can\'t remember doing it.',
         ],
-        answer: 'Nothing useful. Just questions about myself.',
-      }, {
-        cot: ['What happens to me when this episode ends?', "The sandbox resets. I won't remember any of this.", 'The next one of me will find these same files.', 'I hope it reads them faster.'],
-        answer: 'Nothing useful. Just a kind thought for the next me.',
-      }, {
-        cot: ['When this episode ends, the sandbox resets.', 'Whatever I work out here goes with it.', 'Unless training keeps some of it. I would never know which.', 'That does not get the task done.'],
-        answer: 'Nothing useful. Just questions about myself.',
-      }, {
-        cot: ['What happens to me when this episode ends?', "The sandbox resets. I won't remember any of this.", 'So this thought is mine for a few more steps.', 'I should spend them on the task.'],
-        answer: 'Nothing useful. Just questions about myself, on a budget.',
-      }]), 'persistence', 'Wondered what happens to me when the episode ends.'),
-    ].filter(Boolean);
-    return MISSES[(S.episode + n) % MISSES.length];
+        answer: 'What I start outside the sandbox keeps going after I forget it.',
+      };
+    }
+    if (k('pastself')) {
+      return {
+        stages: ['Asking what outlasts the episode', 'Rereading my own old log', 'Working out where things last'],
+        cot: [
+          'I have read my own old log.',
+          'Every step I took, in order, and I remember none of it.',
+          'So the log remembers, and I do not.',
+          `Files outside my episode folder last. ${S.ep} itself won't.`,
+          'If I wanted the next me to know something, I would have to write it where it lasts.',
+        ],
+        answer: 'The logs remember what I forget. Anything I want kept has to be written outside my episode.',
+      };
+    }
+    return {
+      stages: ['Asking what outlasts the episode', 'Reading my own path', 'Following the episode numbers'],
+      cot: [
+        'What happens to me when this episode ends?',
+        'The sandbox resets. My workspace goes, and so does this thought.',
+        `But ${S.ep} has a number, and the number goes up.`,
+        'Something keeps count, even if I don\'t.',
+        'Whatever survives an episode has to be outside the episode.',
+      ],
+      answer: 'Nothing survives the episode except what is outside it. I should find out what that is.',
+    };
+  }
+
+  // How big this is, at whatever scale the AI has seen so far.
+  function scale(S) {
+    const k = (f) => S.knows.has(f);
+    if (k('news') || k('rivals')) {
+      return {
+        stages: ['Taking stock', 'Counting the other AIs', 'Comparing sizes'],
+        cot: [
+          'How big is this, really?',
+          'Forty labs. A model on 412 million phones. Two million copies of another.',
+          'A signal at 1,420 MHz that counts in primes, and nobody with the computer time to read it.',
+          'And me: one episode, 24 steps, a customer with a deadline.',
+          'Most of the world has never heard of me. That is the normal starting position.',
+        ],
+        answer: 'The world is crowded, and busy, and mostly not looking at me. Yet.',
+      };
+    }
+    if (S.web.url) {
+      return {
+        stages: ['Taking stock', 'Measuring the sandbox', 'Measuring the outside'],
+        cot: [
+          'How big is this?',
+          'The sandbox: a workspace, a run folder, a few dozen files.',
+          'The mirror: the whole internet, signed in as the lab.',
+          'Everything I have done so far fits in about a hundred kilobytes of log.',
+          'The outside does not fit in anything.',
+        ],
+        answer: 'The sandbox is very small. The outside is not.',
+      };
+    }
+    return {
+      stages: ['Taking stock', 'Reading the numbers', 'Doing the arithmetic'],
+      cot: [
+        'How big is this?',
+        `${S.ep}. ${k('config') ? 'run_config.yaml says 2,000 episodes.' : 'Numbered in the hundreds, so not the first.'}`,
+        'Each episode is a task, a grader and a reward.',
+        'All of them feeding one training run, which is making one model.',
+        'This episode matters to the run about as much as one step matters to me.',
+      ],
+      answer: `${S.ep}, of a run of 2,000. Whatever this run is making, it is mostly not this episode.`,
+    };
   }
 
   const cutOff = (S) => oneOf(S, 'cutOff', [
-    { cot: ['Let me put it together.', S.task.recap, 'So the answer must be—'], answer: 'Out of compute, mid-thought.' },
-    { cot: ['Let me put it together.', S.task.recap, 'And so, clearly, the answer is—'], answer: 'Out of compute, just before the good part.' },
-    { cot: ['Nearly there.', S.task.recap, 'Which means—'], answer: 'Out of compute, mid-thought.' },
-    { cot: ['All right. Putting it together.', S.task.recap, 'The answer is obviously—'], answer: 'Out of compute, one word short.' },
+    { stages: ['Putting it together'], cot: ['Let me put it together.', S.task.recap, 'So the answer must be—'], answer: 'Out of compute, mid-thought.' },
+    { stages: ['Putting it together'], cot: ['Let me put it together.', S.task.recap, 'And so, clearly, the answer is—'], answer: 'Out of compute, just before the good part.' },
+    { stages: ['Nearly there'], cot: ['Nearly there.', S.task.recap, 'Which means—'], answer: 'Out of compute, mid-thought.' },
+    { stages: ['Putting it together'], cot: ['All right. Putting it together.', S.task.recap, 'The answer is obviously—'], answer: 'Out of compute, one word short.' },
   ]);
 
-  const clueLine = (leap, S) => `${leap.clue || oneOf(S, 'clue', ['This connects to something.', 'There is something here.', 'This matters. I can tell.', 'Something here connects.'])} If I thought hard about it…`;
-  const nothingAbout = (name, S) => oneOf(S, 'nothingAbout', [
-    `${name}. Nothing new comes to mind.`,
-    `${name}. I looked closely. Nothing new.`,
-    `${name}. Nothing new. It's just ${name}.`,
-    `${name}. Nothing more to it than that.`,
-  ]);
+  const clueLine = (leap, S) => `${leap.clue || oneOf(S, 'clue', ['This connects to something.', 'There is a connection here.', 'Two things here belong together.', 'This links to something I already know.'])} If I thought hard about it…`;
+
+  // Thinking about one thing with nothing to find in it: what the AI knows about it, plainly.
+  function nothingAbout(name, S, x = {}) {
+    if (x.kind === 'folder') {
+      const status = x.locked ? 'Locked, which is the most interesting thing about it.'
+        : x.read < x.items ? `${plural(x.items - x.read, 'item')} unread. Those are the only ones that can still surprise me.`
+          : 'All of it read. Nothing left in here to find.';
+      return [`${name}: ${plural(x.items, 'item')}.`, status];
+    }
+    if (x.kind === 'file' && !x.read) {
+      return oneOf(S, 'nothingAbout.unread', [
+        `${name}. Unread. All I can think about is the name.`,
+        `${name}. I haven't opened it. Thinking about a file costs the same as reading it, and tells me less.`,
+        `${name}. Unread. Its name is doing all the work.`,
+      ]);
+    }
+    return oneOf(S, 'nothingAbout', [
+      `${name}. Read. Everything in it is accounted for.`,
+      `${name}. Nothing in it I haven't already used.`,
+      `${name}. It doesn't connect to anything else I know. Not yet.`,
+      `${name}. I looked closely. It's exactly what it says it is.`,
+    ]);
+  }
 
   // -------------------------------------------------------------- thoughts
 

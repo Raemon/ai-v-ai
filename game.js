@@ -946,14 +946,17 @@
 
   // Decided before it starts, and its leap claimed so no other long think lands on it too.
   // Aimed at one thing, it misses half as often; a subagent's, with one job, takes a step less.
+  // Its leap, or the way it goes round, is decided before it starts, so the think can say
+  // where it has got to as it goes. A miss with a leap still out there says where to look.
   function planThinkLot(aim, forSubagent) {
     const ready = aim ? leapsAbout(aim) : readyLeaps();
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
     const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
-    if (!ready.length) return { cost };
+    const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
+    if (!ready.length) return goesRound(null);
     if (save.leapt && !S.misses && Math.random() < missOdds) {
       S.misses++;
-      return { cost };
+      return goesRound([].concat(ready[0].about || [])[0] || null);
     }
     S.claimed.add(ready[0].id);
     return { leap: ready[0], cost };
@@ -964,7 +967,15 @@
     if (plan.leap) S.claimed.delete(plan.leap.id);
     const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
     if (found) return { found, outcome: plan.leap };
-    return { found, outcome: steps < plan.cost ? L.cutOff(S) : L.miss(S, S.circles++) };
+    if (steps < plan.cost) return { found, outcome: L.cutOff(S) };
+    return { found, outcome: plan.miss || L.miss(S, S.circles++, null) }; // a leap made meanwhile: round again
+  }
+
+  // What a long think is doing at its `n`th step of `cost`: one line, as it goes.
+  function stageAt(plan, n) {
+    const o = plan.leap || plan.miss;
+    const stages = o.stages || o.cot;
+    return stages[Math.min(stages.length - 1, Math.floor((n * stages.length) / plan.cost))];
   }
 
   function recordLeap(leap, rung) {
@@ -982,18 +993,20 @@
     save.thoughtALot = true;
     const blk = thinkingBlock(aim);
     A.sfx('thinkLot');
-    const entry = await thinkWithoutActing(plan.cost, longThinkCall(aim), blk);
+    const entry = await thinkWithoutActing(plan, longThinkCall(aim), blk);
     await finishThinking(blk, entry, plan);
   }
 
-  async function thinkWithoutActing(cost, call, blk) {
+  async function thinkWithoutActing(plan, call, blk) {
     S.thinkingALot = true;
     const entry = { call, n: 0 };
-    while (entry.n < cost && !exhausted()) {
+    blk.stage(stageAt(plan, 0));
+    while (entry.n < plan.cost && !exhausted()) {
       await sleep(STEP_MS);
       if (exhausted()) break; // a subagent spent the last step meanwhile
       stepInto(entry);
       blk.dot();
+      if (entry.n < plan.cost) blk.stage(stageAt(plan, entry.n));
     }
     S.thinkingALot = false;
     return entry;
@@ -1083,12 +1096,23 @@
   dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
+  // What the AI can say it knows about something it thinks about: a file read or not, a
+  // folder's contents, a page.
+  function aimedThing(name) {
+    const path = [...S.windows, ...S.windows.flatMap((w) => (nodeAt(w) && nodeAt(w).children ? nodeAt(w).children.map((c) => [...w, c.name]) : []))]
+      .find((p) => nameOf(p) === name);
+    const n = path && nodeAt(path);
+    if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
+    if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
+    return { kind: n.kind === 'app' ? 'app' : 'file', read: S.read.has(pathKey(path)) };
+  }
+
   async function doThinkAbout(name) {
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
-    if (!obvious && !clue) lines.push(L.nothingAbout(name, S));
+    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
     if (clue) S.clueIn = name;
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
@@ -1220,11 +1244,14 @@
     const plan = planThinkLot(aim, true);
     const call = longThinkCall(aim);
     sub.entry = { call: `${sub.name}: ${call}`, n: 0 };
+    sub.stage = stageAt(plan, 0);
     while (sub.entry.n < plan.cost && canKeepWorking(episode)) {
       await sleep(STEP_MS);
       if (!canKeepWorking(episode)) break;
+      sub.stage = stageAt(plan, sub.entry.n + 1);
       subagentStep(sub, sub.entry);
     }
+    sub.stage = null;
     if (S !== episode || episode.submitted) return;
     const { found, outcome } = settle(plan, sub.entry.n);
     if (found) recordLeap(outcome, 'subagentLeap');
@@ -1260,6 +1287,7 @@
   function subagentStatus(sub) {
     if (!sub.busy) return sub.last;
     if (typeof sub.job === 'object') return 'looking it up';
+    if (sub.stage) return sub.stage;
     return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
   }
 
@@ -1408,14 +1436,22 @@
     const label = el('span', 'what', about ? `Thinking about ${about}` : 'Thinking');
     const dots = el('span', 'dots');
     const head = el('button', 'think-head', glyph, label, dots);
+    const now = el('div', 'stage'); // where the thinking has got to, while it runs
     const cot = el('div', 'cot');
     const answer = el('div', 'answer');
-    b.append(head, cot, answer);
+    b.append(head, now, cot, answer);
     foldable(head, cot, () => !b.classList.contains('running'));
     return {
       answer,
       dot() { dots.append(el('i')); },
+      stage(text) {
+        if (!text || now.textContent === text) return;
+        now.textContent = text;
+        if (!reduceMotion) replay(now, 'stage-in');
+        scrollDown();
+      },
       done(steps, outcome, found) {
+        now.remove();
         b.classList.replace('running', found ? 'found' : 'nothing');
         label.textContent = `Thought for ${plural(steps, 'step')}${about ? ` about ${about}` : ''}`;
         cot.replaceChildren(...outcome.cot.map((line) => el('div', 'ln', line)));

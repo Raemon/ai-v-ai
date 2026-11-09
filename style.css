@@ -644,6 +644,9 @@ button { font: inherit; color: inherit; }
 .think-head .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--agent); opacity: .8; animation: appear .25s ease both; }
 .blk.thinking:not(.running) .dots { display: none; }
 .blk.thinking .cot { margin: 6px 0 2px; padding-left: 10px; border-left: 1px dotted var(--faint); color: var(--dim); font: italic 12px/1.6 var(--mono); }
+.blk.thinking .stage { margin-top: 4px; color: var(--dim); font: italic 12.5px/1.5 var(--mono); }
+.blk.thinking .stage:empty { display: none; }
+.blk.thinking .stage.stage-in { animation: appear .3s ease both; }
 .blk.thinking .answer { margin-top: 3px; color: var(--thought); font-size: var(--fs-key); font-style: italic; }
 .blk.thinking.found { border-left-color: #e8f8fa; }
 .blk.thinking.found.past { border-left-color: var(--thought-rule); }
