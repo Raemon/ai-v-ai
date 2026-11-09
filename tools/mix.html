@@ -42,8 +42,6 @@
       'everything': { tension: 0.9, layers: { pad: 1, bells: 1, bass: 1, arp: 1, shaker: 1, choir: 1 } },
     };
 
-    const TRACKS = ['persistence', 'lumen', 'undertow'];
-
     async function render(mix) {
       const offline = new OfflineAudioContext(2, 44100 * SECONDS, 44100);
       AUDIO.attach(offline);
@@ -85,7 +83,8 @@
     }
 
     (async () => {
-      for (const [track, title] of TRACKS.entries()) {
+      AUDIO.attach(new OfflineAudioContext(2, 1, 44100));
+      for (const [track, title] of AUDIO.trackNames.entries()) {
         for (const [name, mix] of Object.entries(MIXES)) document.getElementById('rows').append(row(title, name, await render({ ...mix, track })));
       }
     })();

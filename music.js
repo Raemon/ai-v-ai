@@ -27,15 +27,21 @@
   };
 
   const nearest = (list, m) => list.reduce((a, b) => (Math.abs(b - m) < Math.abs(a - m) ? b : a));
+  const chordTonesIn = (c, lo, hi) => inRange(new Set(c.tones.map((x) => x % 12)), lo, hi);
+
+  // A semitone apart, the lower note goes up an octave: close clusters muddy a low choir.
+  const spread = (tones) => tones.map((m, i) => (tones[i + 1] - m === 1 ? m + 12 : m));
 
   // A melody that thinks in phrases of `phrase` steps. Each phrase is a motif, a list
   // of [step, move] with moves counted along the scale, started from a chord tone near
-  // where the last phrase ended. Some phrases are turned upside down or played at half
-  // speed, and some are left silent, so the line never quite repeats. Notes on the beat
-  // and each phrase's last note land on chord tones.
+  // where the last phrase ended. Some phrases are turned upside down, short ones are
+  // sometimes played at half speed, and some are left silent, so the line never quite
+  // repeats. Notes on the half-bar and each phrase's last note land on chord tones.
+  // A line that was silent (its layer off) waits for the next phrase to come back in.
   function melody(k, { scale, lo, hi, phrase, motifs, rest }) {
     let last = Math.round((lo + hi) / 2);
     let plan = new Map();
+    let prev = -1;
 
     function compose(n, v) {
       plan = new Map();
@@ -45,7 +51,7 @@
       const flip = k.chance(0.3);
       const slow = k.chance(0.25) && 2 * motif[motif.length - 1][0] < phrase;
       const pull = last < lo + 5 ? 4 : last > hi - 5 ? -4 : k.rand(-3, 3); // drift back from the edges
-      let m = nearest(inRange(new Set(start.chord.tones.map((x) => x % 12)), lo, hi), last + pull);
+      let m = nearest(chordTonesIn(start.chord, lo, hi), last + pull);
       motif.forEach(([s, move], i) => {
         const at = slow ? 2 * s : s;
         const c = k.chordAt(n + at).chord;
@@ -54,7 +60,7 @@
         if (j < 0) j = -j;
         if (j >= notes.length) j = 2 * (notes.length - 1) - j;
         m = notes[j];
-        if (at % 8 === 0 || i === motif.length - 1) m = nearest(inRange(new Set(c.tones.map((x) => x % 12)), lo, hi), m);
+        if (at % 8 === 0 || i === motif.length - 1) m = nearest(chordTonesIn(c, lo, hi), m);
         plan.set(at, m);
       });
       last = m;
@@ -62,6 +68,8 @@
 
     return (n, v) => {
       if (n % phrase === 0) compose(n, v);
+      else if (n !== prev + 1) plan = new Map();
+      prev = n;
       return plan.get(n % phrase);
     };
   }
@@ -72,6 +80,7 @@
     const { hz, rand, pick, chance, play, voice, held, shake } = k;
     const TRESILLO = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // 3 + 3 + 2, twice
     return {
+      name: 'Persistence',
       bpm: 70,
       pulse: { low: 69, high: 74, sour: 75 },
       echo: { steps: 3, feedback: 0.38, cut: 2200 },
@@ -131,10 +140,10 @@
 
   // --------------------------------------------------------------- 2. Lumen
   // D major, lit from the side: Lydian chords, a borrowed B♭ and F that shiver, and a
-  // long arc (home, away, a brighter middle, a suspended way back) that takes nearly
-  // two minutes to come round. Felt piano, glass, breath.
+  // long arc (home, away, a brighter middle, a suspended way back) that takes over a
+  // minute and a half to come round. Felt piano, glass, breath.
   function lumen(k) {
-    const { hz, rand, chance, play, voice, held } = k;
+    const { hz, rand, pick, chance, play, voice, held } = k;
     const scale = [2, 4, 6, 7, 9, 11, 1]; // D major, as pitch classes
     const ROLL = [0, 3, 6, 9, 12]; // 3 + 3 + 3 + 3 + 4
     const ORDER = [0, 2, 4, 1, 3];
@@ -149,6 +158,8 @@
         [[0, 0], [8, 4], [12, -1], [14, -1], [16, -1]], // a reach up, falling back
         [[0, 0], [2, 1], [4, 1], [6, 1], [16, -3], [22, 1]],
         [[0, 0], [12, 0], [16, -1]],
+        [[0, 0], [2, -1], [4, -1], [8, 2]], // short enough to slow down
+        [[0, 0], [3, 1], [6, 1], [12, -1]],
       ],
     });
 
@@ -157,6 +168,7 @@
     });
 
     return {
+      name: 'Lumen',
       bpm: 66,
       pulse: { low: 69, high: 74, sour: 68 },
       echo: { steps: 3, feedback: 0.42, cut: 3000 },
@@ -164,7 +176,7 @@
       chords: [
         chord(38, [50, 54, 57, 61, 64]), // Dmaj9
         chord(35, [47, 50, 54, 57, 61]), // Bm9
-        chord(31, [50, 54, 55, 59, 61]), // Gmaj7♯11
+        chord(31, [43, 50, 54, 59, 61]), // Gmaj7♯11
         chord(34, [50, 53, 57, 58, 64]), // B♭maj7♯11
         chord(30, [49, 54, 57, 62, 64]), // Dmaj9/F♯
         chord(40, [47, 50, 55, 57, 62]), // Em11
@@ -172,8 +184,8 @@
         chord(34, [46, 50, 55, 57, 62], 16), // Gm(add9)/B♭
         chord(33, [45, 50, 52, 57, 62], 16), // Asus4
         chord(31, [47, 50, 54, 57, 62], 32, 1), // Gmaj9
-        chord(30, [49, 52, 54, 57, 61], 32, 1), // F♯m7
-        chord(35, [47, 49, 50, 54, 57], 32, 1), // Bm(add9)
+        chord(30, [50, 54, 57, 59, 62], 32, 1), // D6/F♯
+        chord(35, [50, 54, 59, 61, 66], 32, 1), // Bm(add9)
         chord(34, [50, 53, 57, 60, 64], 32, 1), // B♭maj9♯11
         chord(41, [52, 55, 57, 60, 64], 32, 1), // Fmaj9
         chord(33, [45, 50, 52, 57, 59], 16), // Asus2/4
@@ -234,7 +246,7 @@
             const to = k.out.layers.shaker;
             if (s === 4 || s === 12) brush(t, 0.04, to);
             else if ((v >= 0.4 && s % 2 === 0) || (v >= 0.75 && chance(0.5))) brush(t, 0.015, to);
-            if (chance(0.02 + 0.05 * v)) play('glass', c.tones[Math.floor(rand(0, 5))] + 36, { at: t, peak: 0.02, pan: rand(-0.8, 0.8), dest: to });
+            if (chance(0.02 + 0.05 * v)) play('glass', pick(c.tones) + 36, { at: t, peak: 0.02, pan: rand(-0.8, 0.8), dest: to });
           },
           follow: k.fan,
         },
@@ -260,20 +272,22 @@
     const HARP = [9, 7, 5, 8, 6, 3, 4]; // seven notes against eight to the bar
 
     const box = melody(k, {
-      scale, lo: 72, hi: 91, phrase: 24, // three bars of eighths against the chords' two
+      scale, lo: 72, hi: 91, phrase: 24, // three half-bars against the chords' four
       rest: (v, c) => 0.45 - 0.2 * v - 0.1 * c.lift,
       motifs: [
         [[0, 0], [4, 1], [8, 1], [12, -2], [20, -1]],
         [[0, 0], [8, -1], [10, -1], [12, 3], [16, -1], [20, -1]],
         [[0, 0], [4, 2], [8, -1], [12, -1], [16, -1]],
         [[0, 0], [12, 4], [16, -1], [18, -1], [20, -1]], // a lullaby's sixth
-        [[0, 0], [2, -1], [4, -1], [12, 2]],
+        [[0, 0], [2, -1], [4, -1], [10, 2]], // short enough to slow down
+        [[0, 0], [4, 1], [8, -1]],
       ],
     });
 
     return {
+      name: 'Undertow',
       bpm: 56,
-      pulse: { low: 69, high: 74, sour: 73 },
+      pulse: { low: 69, high: 74, sour: 68 }, // G♯: in none of its chords
       echo: { steps: 4, feedback: 0.45, cut: 1600 },
       formants: [[520, 3, 1], [880, 4, 0.6], [2700, 5, 0.08]], // oh
       chords: [
@@ -281,18 +295,18 @@
         chord(39, [51, 55, 57, 58, 62]), // E♭maj7♯11
         chord(38, [50, 53, 57, 60, 64]), // Dm9
         chord(31, [46, 50, 53, 55, 57]), // Gm9
-        chord(39, [50, 53, 55, 57, 58]), // E♭(add9, ♯11)
+        chord(39, [50, 53, 55, 57, 58]), // E♭maj9♯11
         chord(34, [50, 53, 57, 58, 62]), // B♭maj7
         chord(33, [45, 50, 52, 57, 58], 16), // Asus4(♭9)
-        chord(33, [49, 52, 55, 57, 58], 16), // A7♭9
-        chord(38, [49, 50, 53, 57, 64]), // Dm(maj9)
+        chord(33, [45, 50, 52, 55, 58], 16), // A7sus4(♭9)
+        chord(38, [50, 53, 57, 61, 64]), // Dm(maj9)
         chord(35, [47, 50, 54, 57, 61], 32, 1), // Bm9
         chord(31, [47, 50, 54, 55, 61], 32, 1), // Gmaj7♯11
         chord(39, [51, 55, 57, 58, 62]), // E♭maj7♯11
         chord(36, [48, 52, 55, 59, 62], 32, 1), // Cmaj9
         chord(34, [48, 50, 53, 57, 58]), // B♭maj9
         chord(33, [45, 50, 52, 57, 58], 16), // Asus4(♭9)
-        chord(33, [49, 52, 55, 57, 58], 16), // A7♭9
+        chord(33, [45, 50, 52, 55, 58], 16), // A7sus4(♭9)
       ],
       layers: {
         // Low strings that swell into each chord, a bowed top note, a breath of air.
@@ -301,7 +315,7 @@
             const to = k.out.layers.pad;
             for (const m of c.tones) held(hz(m), t, dur, 0.008, to, { type: 'sawtooth', detunes: [-7, 3, 9], cut: 650 + 1100 * k.tension(), attack: 3.5, release: 3.5 });
             held(hz(c.root + 12), t, dur, 0.02, to, { type: 'sine', detunes: [0], cut: 600 });
-            held(hz(c.tones[4]), t, dur, 0.006, to, { type: 'sawtooth', detunes: [0], cut: 1800, attack: dur * 0.6, release: 2, vibrato: true });
+            held(hz(c.tones[4]), t, dur, 0.006, to, { type: 'sawtooth', detunes: [0], cut: 1800, attack: dur / 2, release: 2, vibrato: true });
             voice({ at: t, type: 'noise', attack: 2, decay: 3, peak: 0.006, cut: 500, cutTo: 1200, dest: to });
           },
         },
@@ -341,7 +355,7 @@
           step(c, n, t, v) {
             const s = n % 16;
             const to = k.out.layers.shaker;
-            if (s % 4 === 0) play('wood', s % 8 ? 79 : 84, { at: t, peak: 0.03, pan: s % 8 ? 0.3 : -0.3, dest: to });
+            if (s % 4 === 0) play('wood', s % 8 ? 81 : 86, { at: t, peak: 0.03, pan: s % 8 ? 0.3 : -0.3, dest: to });
             if ((v >= 0.4 && s % 2 === 1) || (v >= 0.75 && chance(0.5))) {
               voice({ at: t + rand(0, 0.03), type: 'noise', decay: 0.025, peak: 0.02, cut: 7000, filterType: 'bandpass', q: 1.2, pan: rand(-0.7, 0.7), dest: to });
             }
@@ -352,7 +366,7 @@
         choir: {
           chord(c, t, dur) {
             const opts = { type: 'sawtooth', detunes: [-10, 0, 12], cut: 2200, attack: 4, release: 4, vibrato: true };
-            c.tones.forEach((m) => held(hz(m), t, dur, 0.024, k.out.choir, opts));
+            spread(c.tones).forEach((m) => held(hz(m), t, dur, 0.024, k.out.choir, opts));
             if (c.lift) held(hz(c.tones[4] + 12), t, dur, 0.012, k.out.choir, opts);
           },
         },

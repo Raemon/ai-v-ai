@@ -233,19 +233,19 @@ on the wipe:
 
 - **Persistence**: D minor, four chords (Dm9 B♭maj9 Gm9 A7sus4) round and round.
 - **Lumen**: D major with Lydian colour and a borrowed B♭ and F, a sixteen-chord
-  arc of nearly two minutes with a brighter middle. Felt piano, glass, breath.
+  arc of over a minute and a half with a brighter middle. Felt piano, glass, breath.
 - **Undertow**: D Phrygian, slow, with a middle that turns to B minor and G
   before E♭ pulls it back. A music box phrased in threes against the fours, a
   harp falling in sevens, a heartbeat, a clock.
 
 The melodies in Lumen and Undertow are composed as they play: phrases built from
 a few motifs, begun near where the last one ended, sometimes inverted or at half
-speed, sometimes left silent, landing on chord tones on the beat.
+speed, sometimes left silent, landing on chord tones on the half-bar.
 
 **The compute pulse** is a marimba on D and A that starts a few steps in and
 quickens (quarters, eighths, sixteenths), louder and brighter, as the budget runs
-down. A sour note creeps in near the end (E♭, or G♯ in Lumen, C♯ in Undertow) and
-quiet D/E♭ strings swell. When compute is
+down. A sour note creeps in near the end (E♭, or G♯ in Lumen and Undertow) and
+quiet strings on D and that note swell. When compute is
 gone the other layers dip. It all lets go when the reward chimes.
 
 **Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place reached:

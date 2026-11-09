@@ -39,9 +39,10 @@
   let sounding = {}; // chord layer → index of the chord its notes are holding
 
   let tracks = [];
+  let warmed = false; // notes are rendered ahead once the game says which track it wants
   let track = null;
   let trackIndex = 0;
-  let out = null; // where the playing track's notes go; each track gets its own, so a wipe can cut them
+  let trackOut = null; // where the playing track's notes go; each track gets its own, so a wipe can cut them
 
   function readMuted() {
     try { return localStorage.getItem(PREF_KEY) === 'off'; } catch (e) { return false; }
@@ -363,6 +364,7 @@
   // plays many new ones at once.
   // The playing track's first, then the others'.
   function warmUp() {
+    warmed = true;
     const ofTrack = (x) => [
       ...[x.pulse.low, x.pulse.high, x.pulse.sour].map((m) => ['marimba', m]),
       ...[...new Set(x.chords.flatMap((c) => c.tones))].map((m) => ['keys', m + 12]),
@@ -391,8 +393,8 @@
     applied = { tension: 0, duck: false, layers: {} };
     stage = 0;
     trackIndex = 0;
+    warmed = false;
     startTrack(ctx.currentTime + 0.1);
-    warmUp();
   }
 
   function mixer() {
@@ -426,7 +428,7 @@
       g.gain.setValueAtTime(1, t);
       g.gain.setTargetAtTime(0, t, fade);
     }
-    setTimeout(() => Object.values(o.layers).forEach((g) => g.disconnect()), 1000 * (t - ctx.currentTime + 12));
+    setTimeout(() => [...Object.values(o.layers), o.echoGate].forEach((g) => g.disconnect()), 1000 * (t - ctx.currentTime + 12));
   }
 
   function withReverb(master, reverb, amount, level = 1) {
@@ -493,12 +495,20 @@
     return { fan, fanFilter };
   }
 
+  // Strings on D and the playing track's sour note, an octave down, for when compute runs low.
   function lowComputeStrings(to) {
     const strings = gain(0, to);
     const lp = filter('lowpass', 800);
     lp.connect(strings);
-    for (const m of [62, 63]) for (const dt of [-6, 6]) osc('sawtooth', hz(m), 0, dt).connect(lp);
-    return { strings };
+    const sourString = [];
+    for (const m of [62, 63]) {
+      for (const dt of [-6, 6]) {
+        const o = osc('sawtooth', hz(m), 0, dt);
+        o.connect(lp);
+        if (m === 63) sourString.push(o);
+      }
+    }
+    return { strings, sourString };
   }
 
   // Air rising under the countdown: louder and higher at each stage.
@@ -514,7 +524,7 @@
   // What music.js's tracks play with. `out` is the playing track's own layer inputs.
   const kit = {
     hz, rand, pick, chance, play, voice, held, shake,
-    get out() { return out; },
+    get out() { return trackOut; },
     tension: () => applied.tension,
     chordAt: (n) => track.at(n),
     // The GPU fan, under the shaker layer.
@@ -542,7 +552,8 @@
   // From step 0, at `at`, through a fresh output.
   function startTrack(at) {
     track = tracks[trackIndex];
-    out = trackOutput(track);
+    trackOut = trackOutput(track);
+    bus.sourString.forEach((o) => o.frequency.setTargetAtTime(hz(track.pulse.sour - 12), ctx.currentTime, 0.5));
     nextStep = 0;
     nextStepAt = at;
     sounding = {};
@@ -550,7 +561,7 @@
 
   // The old track's notes fade with its output; the new one starts from its beginning.
   function switchTrack(index, t, fade) {
-    silence(out, t, fade);
+    silence(trackOut, t, fade);
     trackIndex = index;
     startTrack(t);
   }
@@ -648,6 +659,7 @@
     const t = cutting ? cutAt : ctx.currentTime;
     const index = (asked.track || 0) % tracks.length;
     if (index !== trackIndex) switchTrack(index, t, cutting ? 0.03 : 1.5);
+    if (!warmed) warmUp();
     for (const name of LAYER_NAMES) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
     const askedStage = countdownStage(asked.left);
     if (askedStage !== stage) followStage(askedStage, asked.tension);
@@ -680,8 +692,8 @@
     const t = ctx.currentTime;
     bus.riser.gain.setTargetAtTime(0.006 * s, t, rising ? 0.3 : 0.8);
     bus.riserBand.frequency.setTargetAtTime(500 * 2 ** (0.6 * s), t, 0.6);
-    out.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
-    out.echoIn.delay.delayTime.setTargetAtTime(out.echoIn.steps * stepLength(), t, 0.05);
+    trackOut.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
+    trackOut.echoIn.delay.delayTime.setTargetAtTime(trackOut.echoIn.steps * stepLength(), t, 0.05);
     followTension(T);
     if (rising) stageHit(s);
   }
@@ -870,6 +882,7 @@
     get muted() { return muted; },
     // For tools/mix.html, which renders offline.
     attach,
+    get trackNames() { return tracks.map((x) => x.name); },
     scheduleAhead,
   };
 })();
