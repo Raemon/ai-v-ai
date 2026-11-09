@@ -84,18 +84,25 @@
   // ---------------------------------------------------------------- screen
   // A fixed 1440×900 play area (a 13" MacBook Air) centred on a full-window
   // desk, scaled down only when the window is smaller. `local` undoes the scale.
+  // Narrower than PHONE_MAX_W (util.js), the phone layout instead (phone.css):
+  // one column, unscaled, the folders above and the AI's dock below.
 
   const SCREEN_W = 1440;
   const SCREEN_H = 900;
   let scale = 1;
 
+  // Returns whether the layout changed, so the caller can redraw for the new one.
   function fitScreen() {
-    scale = Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
+    const was = document.documentElement.dataset.layout;
+    const phone = document.documentElement.clientWidth < PHONE_MAX_W; // the layout viewport: a pinch-zoom doesn't change it
+    document.documentElement.dataset.layout = phone ? 'phone' : 'desk';
+    scale = phone ? 1 : Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
     const root = document.documentElement.style;
     root.setProperty('--scale', scale);
     // Whole pixels: centred on a half pixel, everything on the desktop blurs.
-    root.setProperty('--screen-x', Math.round((window.innerWidth - SCREEN_W * scale) / 2) + 'px');
-    root.setProperty('--screen-y', Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
+    root.setProperty('--screen-x', phone ? '0px' : Math.round((window.innerWidth - SCREEN_W * scale) / 2) + 'px');
+    root.setProperty('--screen-y', phone ? '0px' : Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
+    return was !== undefined && was !== document.documentElement.dataset.layout;
   }
   fitScreen();
 
@@ -103,6 +110,10 @@
   const PAD = 34; // #desktop's top and bottom padding
 
   function placeDesk() {
+    if (isPhoneLayout()) {
+      document.documentElement.style.setProperty('--lift', '0px');
+      return;
+    }
     const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
     const deskTop = Math.max(PAD, Math.round((SCREEN_H - h) / 2));
     document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
@@ -444,6 +455,7 @@
   }
 
   function glanceAt(node, byPointer) {
+    if (isPhoneLayout()) return undefined; // no glances on phones: a tap just does it
     const t = glanceTarget(node);
     if (byPointer && glancedAt && (t ? t === glancedAt : glanceLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
@@ -473,11 +485,12 @@
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
     const name = node.closest && node.closest('.files-col') && aimedAt(node);
-    promptOnGlanceLine(`${aimVerb()} ${name || 'what? Click it.'}`);
+    promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
   function reglance() {
+    if (isPhoneLayout()) return; // what's on the prompt line stays until the next action clears it
     glancedAt = null;
     const focused = document.activeElement;
     if (focused && focused.matches(':focus-visible') && glanceTarget(focused)) glanceAt(focused);
@@ -498,6 +511,24 @@
     line.append(' ', resultSpan(result, ok));
     scrollDown();
   }
+
+  // Everything that folds (a long think, Earlier, the TODO list on phones): its head says
+  // which way it is, and it sounds like it.
+  function setFolded(head, open, quiet) {
+    head.setAttribute('aria-expanded', String(open));
+    if (!quiet) A.sfx(open ? 'grow' : 'shrink', 0.5);
+  }
+
+  // Phones show only the newest of the terminal (phone.css); Earlier unfolds the rest over
+  // the folders, until the next action.
+  const earlier = $('#earlier');
+  function showEarlier(on) {
+    if (dom.term.classList.contains('earlier') === on) return;
+    dom.term.classList.toggle('earlier', on);
+    setFolded(earlier, on, !on); // folding by itself, on the next action, is silent
+    scrollDown();
+  }
+  earlier.addEventListener('click', () => showEarlier(!dom.term.classList.contains('earlier')));
 
   function printWarning(text) {
     addLine(block('warn'), '', text);
@@ -547,6 +578,11 @@
   // empty right column if it's free, else over the folders. Too short a column, it hangs
   // from the folders' top. Over the home screen, centred.
   function centerDialogOverFolders() {
+    if (isPhoneLayout()) { // phone.css pins it to the top, above the keyboard
+      dom.dialogBox.style.left = '';
+      dom.dialogBox.style.top = '';
+      return;
+    }
     const rightColFree = dom.viewer.hidden && dom.browser.hidden && !!dom.focusCol.offsetParent; // an empty column takes no room
     const col = local(dom.files.getBoundingClientRect());
     const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
@@ -671,6 +707,7 @@
     S.interruptible = false;
     skip = false;
     clearGlance();
+    showEarlier(false);
     renderActions();
     const early = setTimeout(() => {
       if (S.mode !== 'busy' || S.thinkingALot) return;
@@ -983,6 +1020,7 @@
   // One step on one thing on screen; a clue there aims the next Think a lot.
 
   const aimVerb = () => (S.aimingSubagent ? `${S.aimingSubagent.name}: think hard about` : 'Think about');
+  const aimPrompt = () => `what? ${isPhoneLayout() ? 'Tap' : 'Click'} it.`;
   const canAim = () => ['idle', 'menu', 'aim'].includes(S.mode);
 
   // For the AI, or to pick a subagent's next job.
@@ -996,7 +1034,8 @@
     dom.desktop.classList.add('aiming');
     renderActions();
     renderAgents();
-    promptOnGlanceLine(`${aimVerb()} what? Click it.`);
+    showEarlier(false);
+    promptOnGlanceLine(`${aimVerb()} ${aimPrompt()}`);
   }
 
   function stopAiming() {
@@ -1346,7 +1385,23 @@
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
     const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
-    dom.todo.replaceChildren(el('div', 'todo-head', el('span', 'todo-title', 'todo.md'), review), ...items.map(row));
+    dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
+    if (fresh.length && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows something was ticked off
+  }
+
+  // The phone dock as it starts: the transcript and the TODO list folded.
+  function foldDock() {
+    showEarlier(false);
+    dom.todo.classList.remove('open');
+  }
+
+  // On phones the list folds to its head, with a count, and its title unfolds it (phone.css).
+  function todoTitle(items) {
+    if (!isPhoneLayout()) return el('span', 'todo-title', 'todo.md');
+    const t = el('button', 'todo-title', 'todo.md ', el('span', 'todo-count', `${items.filter((i) => i.done).length}/${items.length}`));
+    setFolded(t, dom.todo.classList.contains('open'), true);
+    t.addEventListener('click', () => setFolded(t, dom.todo.classList.toggle('open')));
+    return t;
   }
 
   // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
@@ -1375,13 +1430,12 @@
 
   // A head that folds and unfolds what's under it, once `ready`.
   function foldable(head, body, ready) {
-    head.setAttribute('aria-expanded', 'false');
+    setFolded(head, false, true);
     body.hidden = true;
     head.addEventListener('click', () => {
       if (!ready()) return;
       body.hidden = !body.hidden;
-      head.setAttribute('aria-expanded', String(!body.hidden));
-      A.sfx(body.hidden ? 'shrink' : 'grow', 0.5);
+      setFolded(head, !body.hidden);
       scrollDown();
     });
     head.glance = () => (!ready() ? null : body.hidden ? 'What I was thinking. Free.' : 'Fold it away.');
@@ -1544,6 +1598,7 @@
 
   async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
+    showEarlier(false);
     A.sfx('menu');
     S.mode = 'busy';
     skip = false;
@@ -1734,7 +1789,13 @@
 
   function onRunCard(card) {
     const tier = card.dataset.tier;
-    if (!canStart(tier)) return A.sfx('denied');
+    if (!canStart(tier)) {
+      if (card.dataset.tip) { // no hover on a phone: a tap says how to open it, until the next tap
+        showTip(card);
+        document.addEventListener('pointerdown', hideTip, { once: true, capture: true });
+      }
+      return A.sfx('denied');
+    }
     return startRun(tier);
   }
 
@@ -1755,6 +1816,7 @@
   // The sandbox resets: an empty desk waits behind the home screen.
   function resetDesk() {
     S = freshState(S.task);
+    foldDock();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
     hideViewer(true);
     closeBrowser();
@@ -2166,19 +2228,25 @@
 
   // The middle column stacks every open folder, in the order they were first opened,
   // so each stays where the player last saw it; the right column is for a file or
-  // the browser. In list view, one tree instead. `animate` is for a change of folder.
+  // the browser. In list view, one tree instead, and always on phones, where the file
+  // or the browser opens inside it (placeFocus). `animate` is for a change of folder.
   function renderFiles(animate) {
-    const asTree = view === 'list';
+    const phone = isPhoneLayout();
+    const asTree = view === 'list' || phone;
     const stack = S.filesHidden ? [] : asTree ? [treeWindow()] : S.windows.map(folderWindow);
     const html = stack.map((w) => w.outerHTML).join('');
-    if (!animate && html === filesHtml) return; // unchanged: let its animations finish
+    if (!animate && html === filesHtml) return placeFocus(); // unchanged: let its animations finish
     filesHtml = html;
-    const collapsing = animate && asTree && dom.files.dataset.layout !== 'tree' && !reduceMotion;
+    const collapsing = animate && asTree && !phone && dom.files.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...dom.files.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
     const column = dom.files.contains(document.activeElement) ? dom.files : null;
     const focused = column && document.activeElement.dataset.path;
+    const scrolled = asTree && dom.files.dataset.layout === 'tree' ? treeScroller().scrollTop : 0; // a redrawn tree keeps its place
+    placeFocus(true); // out of the old tree before it goes
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
+    placeFocus(); // before the scroll goes back, so a long open file is there to scroll through
+    if (asTree && stack.length) treeScroller().scrollTop = scrolled;
     if (!asTree) fitFolders();
     if (column) refocus(focused, column);
     reglance();
@@ -2188,6 +2256,41 @@
     if (!collapsing) return; // motion.js animates every other change
     stack[0].classList.add('enter'); // the tree appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
+  }
+
+  const treeScroller = () => dom.files.querySelector('.files-body') || {};
+
+  // Phones have no right column: an open file or the browser goes in the tree, right under
+  // the row it was opened from (whose name its title bar then shows in its place: phone.css),
+  // and back to the right column, out of sight, once closed. `home` sends both back.
+  // Every show or hide of either is followed by a renderFiles, which calls this.
+  function placeFocus(home) {
+    for (const [win, sel] of [[dom.viewer, '.row.selected:not(.app)'], [dom.browser, '.row.app.selected']]) {
+      const row = !home && isPhoneLayout() && !win.hidden && dom.files.querySelector(sel);
+      if (row) {
+        if (row.nextElementSibling !== win) keepingScroll(() => row.after(win));
+      } else if (win.parentNode !== dom.focusCol) {
+        keepingScroll(() => dom.focusCol.append(win));
+      }
+    }
+  }
+
+  // Moving an element resets the scroll inside it: a page read halfway, a wide table scrolled across.
+  function keepingScroll(move) {
+    const at = { page: dom.page.scrollTop, body: dom.viewerBody.scrollLeft };
+    move();
+    dom.page.scrollTop = at.page;
+    dom.viewerBody.scrollLeft = at.body;
+  }
+
+  // On phones, a file or page just opened slides in and scrolls to the top of the tree.
+  function showInTree(win) {
+    if (!isPhoneLayout() || win.parentNode === dom.focusCol) return;
+    if (!reduceMotion) {
+      replay(win, 'opening');
+      win.addEventListener('animationend', () => win.classList.remove('opening'), { once: true });
+    }
+    win.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   // Full size unless the column can't hold them all: then the folders other than the
@@ -2452,14 +2555,16 @@
   }
 
   function openBrowser() {
-    if (dom.browser.hidden) A.sfx('grow', 1.5);
+    const opening = dom.browser.hidden;
+    if (opening) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
     hideViewer(true);
+    if (opening) showInTree(dom.browser);
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeBrowser(quiet) {
     if (!dom.browser.hidden && !quiet) A.sfx('shrink');
     S.web.open = false;
@@ -2631,6 +2736,7 @@
     renderFiles();
     dom.viewerBody.scrollTop = 0;
     A.sfx('grow');
+    if (isPhoneLayout()) return showInTree(v); // it opens in place (phone.css), not out of its icon
     if (reduceMotion) return;
 
     const end = v.getBoundingClientRect();
@@ -2655,7 +2761,7 @@
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeViewer(instant) {
     S.viewing = null;
     const v = dom.viewer;
@@ -2686,7 +2792,15 @@
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
-  window.addEventListener('resize', fitScreen);
+  // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
+  window.addEventListener('resize', () => {
+    if (!fitScreen()) return;
+    filesHtml = '';
+    foldDock();
+    render();
+    if (!dom.dialog.hidden) centerDialogOverFolders();
+    recentreDesk();
+  });
 
   // ------------------------------------------------------------------ boot
 
@@ -2713,6 +2827,13 @@
     t.hidden = false;
     const r = target.getBoundingClientRect();
     const right = r.right + 10 + t.offsetWidth <= window.innerWidth - 8;
+    const left = r.left - 10 - t.offsetWidth >= 8;
+    if (!right && !left) { // a phone: under it, kept on screen
+      t.dataset.placement = 'below';
+      t.style.left = Math.max(8, Math.min(window.innerWidth - 8 - t.offsetWidth, r.left + r.width / 2 - t.offsetWidth / 2)) + 'px';
+      t.style.top = r.bottom + 10 + 'px';
+      return;
+    }
     t.dataset.placement = right ? 'right' : 'left';
     t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
     t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';

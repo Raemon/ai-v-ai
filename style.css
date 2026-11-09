@@ -64,7 +64,7 @@ button { font: inherit; color: inherit; }
    as they fill; once they reach the bottom they push the desk up (--lift).
    The home screen and the sound toggle don't move with it. */
 #desktop {
-  position: absolute;
+  position: fixed; /* fixed, not absolute: its 1440px never widens a phone's page (see phone.css) */
   left: 0;
   top: 0;
   width: var(--screen-w);
@@ -379,6 +379,7 @@ button { font: inherit; color: inherit; }
 .agent-status .meters { display: flex; gap: 12px; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 #resources { color: var(--web); }
+.earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
   flex: 1 1 auto;
@@ -1360,6 +1361,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 .tooltip[data-placement="right"] .tooltip-arrow { left: -4px; top: calc(50% - 4px); }
 .tooltip[data-placement="left"] .tooltip-arrow { right: -4px; top: calc(50% - 4px); }
+.tooltip[data-placement="below"] .tooltip-arrow { top: -4px; left: calc(50% - 4px); }
 
 /* ==========================================================================
    The AI's body language (agent.js) and window motion (motion.js)

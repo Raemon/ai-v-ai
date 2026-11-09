@@ -10,6 +10,11 @@ const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? '' : 's'}`;
 const charsOf = (s) => Array.from(s); // whole emoji, not half of one
 const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join('') + '…' : s);
 
+// Narrower than this, the game is one column: the folders above, the AI's dock below
+// (phone.css). game.js's fitScreen sets data-layout on <html> on every resize.
+const PHONE_MAX_W = 900;
+const isPhoneLayout = () => document.documentElement.dataset.layout === 'phone';
+
 // ------------------------------------------------------------ episode logs
 // Entries: { step, to?, n?, call } (to: the last step of a run of thinks or a long job; n: its
 // steps, which a subagent's can fall between) · { result, ok? } (ok: ✓, false: ✗)

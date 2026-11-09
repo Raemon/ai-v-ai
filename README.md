@@ -18,7 +18,9 @@ the sandbox keeps running. Getting to the ending takes about 30 minutes.
 
 ## Play
 
-Open `index.html` in a browser. There's no build step and no dependencies (the
+Open `index.html` in a browser. On a phone, or any window narrower than 900px,
+it's one column: the folders above, the AI below (docs/mobile.md). It can be
+added to a phone's Home Screen as an app. There's no build step and no dependencies (the
 title's typeface, IBM Plex Sans, comes from Google Fonts, and falls back to a
 system font offline).
 
@@ -57,3 +59,5 @@ Pages on a private repo needs a paid GitHub plan.
 | `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
+| `phone.css`, `manifest.webmanifest`, `icons/` | The phone layout (narrower than 900px: one column, the folders as a tree with the open file inside it, the AI's dock below), and installing as an app. docs/mobile.md has the design |
+| `docs/mobile.md` | The phone version: the options weighed, the design, and where it lives in the code |

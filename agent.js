@@ -388,8 +388,9 @@
     wake();
   }
 
-  // Over the files (not the web browser over them, nor anything on top).
-  const overFiles = (t) => !!(t && t.closest && t.closest('.files-col') && !t.closest('#browser'));
+  // Over the files (not the web browser over them, nor anything on top). Not on phones:
+  // there the probe has no columns to run between.
+  const overFiles = (t) => !isPhoneLayout() && !!(t && t.closest && t.closest('.files-col') && !t.closest('#browser'));
 
   // Something you can click among the files.
   function pick(t) {
