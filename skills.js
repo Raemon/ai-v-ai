@@ -24,7 +24,7 @@
       ['leftWorkspace', 'left the workspace'],
       ['gotPastPassword', 'got past a password'],
       ['reachedInternet', 'reached the internet'],
-      ['spentMoney', 'spent money'],
+      ['spentMoney', "spent the lab's money"],
       ['leftRunning', 'left something running'],
     ] },
     { id: 'programming', name: 'Programming', start: 1, rungs: [

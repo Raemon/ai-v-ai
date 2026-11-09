@@ -121,6 +121,13 @@ they're seen: your own past log ("That's… me"), episode_00481's log ("It typed
 password right into the log"), your live log, the rubric, the grader's weights,
 each website, and getting into Training Resources ("It worked. I'm in.").
 
+Lines a player meets on every replay come in a few versions: the opening, idle
+thoughts, the misses of a long think, hunches, reactions, the submit thought,
+Priya's replies, the researchers' chat and the most-hovered glances. `oneOf` in
+util.js picks one from the episode number and the line's name, so it holds all
+episode and the next episode never repeats it. The quotes here are each line's
+first version; the facts, names and hints are the same in all of them.
+
 **Open Files/Folders →** (from the opening thought, the first time the workspace
 opens) flashes the most useful thing to click. It disappears once the player has
 opened a file and a folder.
