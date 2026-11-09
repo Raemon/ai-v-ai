@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- The AI's face, as on the run cards: a cyan-edged square with two upright eyes, inside corner brackets. -->
+  <rect width="512" height="512" fill="#0f1012"/>
+  <g fill="none" stroke="#6d727a" stroke-width="10" stroke-linecap="square">
+    <path d="M96 150V96h54M362 96h54v54M416 362v54h-54M150 416H96v-54"/>
+  </g>
+  <rect x="136" y="136" width="240" height="240" rx="53" fill="#1a1f22" stroke="#5fc9d6" stroke-opacity=".6" stroke-width="5"/>
+  <rect x="214" y="220" width="14" height="72" rx="7" fill="#c9f3f8"/>
+  <rect x="284" y="220" width="14" height="72" rx="7" fill="#c9f3f8"/>
+</svg>

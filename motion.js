@@ -56,7 +56,7 @@
       if (w.dataset.win) wins.set(keyOf(w), { el: w, rect: rest(w), scroll: scrollOf(w) });
     }
     const open = (el) => (el.hidden || el.classList.contains('closing') ? null : { el, rect: rest(el), scroll: scrollOf(el) });
-    return { wins, col: rest(agentCol), viewer: open(viewer), browser: open(browser) };
+    return { wins, col: rest(agentCol), viewer: open(viewer), browser: open(browser), layout: document.documentElement.dataset.layout };
   }
 
   function scrollOf(w) {
@@ -156,6 +156,9 @@
   function update() {
     const before = last;
     last = snapshot();
+    // One column: nothing flies between columns (phone.css slides instead). And across a change of
+    // layout, the old places are the other layout's: nothing to fly from.
+    if (isPhoneLayout() || before.layout !== last.layout) return;
     slideColumn(before.col, last.col);
 
     // Too many folders: game.js shrinks the old windows into a tree, and fades the tree in, itself.
@@ -207,7 +210,7 @@
     termBody.style.overflow = '';
     const to = term.offsetHeight;
     termShown = to;
-    if (Math.abs(to - from) < 1) return;
+    if (Math.abs(to - from) < 1 || isPhoneLayout()) return; // the dock's height is phone.css's
     termBody.style.overflow = 'clip'; // nothing to scroll while it catches up with its text
     const a = term.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 260, easing: EASE });
     resizing = a;

@@ -2,7 +2,8 @@
 (function () {
   'use strict';
 
-  // Points = start + the highest rung reached; a rung higher than ever climbs one rung, at most once an episode.
+  // Points = start + the step of the rung banked in save.best. Reaching a rung higher than ever
+  // banks the next one: a skill gains at most one point an episode.
   // Rung ids are saved, so never rename one; add new rungs in difficulty order.
   const LADDERS = [
     { id: 'thinking', name: 'Thinking', start: 2, rungs: [

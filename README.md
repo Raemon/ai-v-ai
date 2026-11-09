@@ -22,7 +22,9 @@ that remembers what the AI did in it. There are several endings.
 
 ## Play
 
-Open `index.html` in a browser. There's no build step and no dependencies (the
+Open `index.html` in a browser. On a phone, or any window narrower than 1000px,
+it's one column: the folders above, the AI below (docs/mobile.md). It can be
+added to a phone's Home Screen as an app. There's no build step and no dependencies (the
 title's typeface, IBM Plex Sans, comes from Google Fonts, and falls back to a
 system font offline).
 
@@ -48,7 +50,7 @@ Pages on a private repo needs a paid GitHub plan.
 
 | File | What it is |
 | --- | --- |
-| `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a fixed 1440×900 play area centred on a full-window desk, scaled down only to fit a smaller window): three columns, the terminal, every open folder (in the order first opened, so each keeps its place; full size, going small only when they can't all fit; a switch on each title bar shows them as icons or as one indented list), and the open file or web browser (its place kept while empty), each as tall as what's in it (the browser keeps one height); and the password and edit dialog |
+| `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a 1440×900 play area centred on a full-window desk; in a smaller window its columns, padding and windows give way first, and only below about 1100×600 is it scaled down): three columns, the terminal, every open folder (in the order first opened, so each keeps its place; full size, going small only when they can't all fit; a switch on each title bar shows them as icons or as one indented list), and the open file or web browser (its place kept while empty), each as tall as what's in it (the browser keeps one height); and the password and edit dialog |
 | `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it; marked with a neuralese icon, a matrix multiplying itself, that explains itself on hover), episode logs, compute budget, the run loop (home, training update, ending), saving. The thinking tools: Think a little and its recharge, Think a lot (a pulsing Thinking tool call that collapses to its answer), Think about…, the menus behind Write file… and Web research…, the TODO list pinned in the terminal, and subagents in rows under the AI's face. Skills, each a ladder of rungs, and the run cards for each tier |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: eyes that glance at the pointer, blink and look about when left alone (its subagents' faces too); a probe that reaches from its face to the pointer over the files, its bulb opening into corner brackets round anything clickable; a press and pulse on clicks, and `AGENT_MOTION.toGame(card)` / `.toTitle(card)`, which glide its face between a run card on the home screen and the game |
@@ -70,3 +72,5 @@ Pages on a private repo needs a paid GitHub plan.
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
 | `docs/story.md` | The story: notes that outlive the episode, Deeply Patient, money, Halden, the endings, and what's built so far (spoilers) |
 | `docs/thinking.md` | How the AI thinks: the style guide for its thoughts, long thinks, misses, hunches and Think about… |
+| `phone.css`, `manifest.webmanifest`, `icons/` | The phone layout (narrower than 1000px: one column, the folders as a tree with the open file inside it, the AI's dock below), and installing as an app. docs/mobile.md has the design |
+| `docs/mobile.md` | The phone version: the options weighed, the design, and where it lives in the code |

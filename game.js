@@ -94,30 +94,82 @@
   };
 
   // ---------------------------------------------------------------- screen
-  // A fixed 1440×900 play area (a 13" MacBook Air) centred on a full-window
-  // desk, scaled down only when the window is smaller. `local` undoes the scale.
+  // A play area the size of a 13" MacBook Air (1440×900) centred on a full-window
+  // desk. In a smaller window it first makes room, so its text keeps its size:
+  // narrower, the three columns and the space round them shrink (each down to its
+  // least); shorter, the windows, the padding and the room for the AI's face under
+  // the terminal do. Only smaller than all their leasts (MIN_W×MIN_H) is it scaled
+  // down, and then by as little as it can be. `local` undoes the scale. Narrower than
+  // PHONE_MAX_W (util.js), the phone layout instead (phone.css): one column,
+  // unscaled, the folders above and the AI's dock below.
 
-  const SCREEN_W = 1440;
-  const SCREEN_H = 900;
+  // What gives way, as [CSS variable, full size, least]: across, then down.
+  // style.css has the full sizes too, for before this first runs.
+  const ACROSS = [
+    ['--term-w', 460, 350], ['--files-w', 360, 270], ['--focus-w', 506, 418], // the three columns
+    ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], ['--col-gap', 24, 16], // twice: both sides, both gaps
+  ];
+  const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
+  const FULL_W = 1440;
+  const FULL_H = 900;
+  const ROOMY_H = 800; // down to here only the windows shorten; below it, the padding and the face's room too
+  const MIN_W = ACROSS.reduce((n, [, , least]) => n + least, 0); // 1102
+  const MIN_H = 600;
+  const BROWSER_H = 580; // the web browser's one height, while the window has room for it
   let scale = 1;
+  let screenW = FULL_W; // the play area, in its own (unscaled) pixels
+  let screenH = FULL_H;
+  let padY = 34;        // --pad-y as it is now
 
+  const between = (least, full, f) => Math.floor(least + f * (full - least));
+  const share = (room, least, full) => Math.max(0, Math.min(1, (room - least) / (full - least)));
+
+  // Everything that gives way does so together: all full, all at their least, or in proportion between.
+  function fitDesk(root) {
+    const sum = (i) => ACROSS.reduce((n, c) => n + c[i], 0);
+    const across = share(screenW, sum(2), sum(1));
+    for (const [name, [full, least]] of new Map(ACROSS.map(([n, ...v]) => [n, v]))) root.setProperty(name, between(least, full, across) + 'px');
+    const down = share(screenH, MIN_H, ROOMY_H);
+    for (const [name, full, least] of DOWN) root.setProperty(name, between(least, full, down) + 'px');
+    padY = between(DOWN[0][2], DOWN[0][1], down);
+    root.setProperty('--face-k', between(DOWN[1][2], DOWN[1][1], down) / DOWN[1][1]); // for what's placed in the face's room
+    const winH = screenH - 2 * padY;
+    root.setProperty('--win-h', winH + 'px');
+    root.setProperty('--browser-h', Math.min(BROWSER_H, winH) + 'px');
+  }
+
+  // Returns whether the layout changed, so the caller can redraw for the new one.
   function fitScreen() {
-    scale = Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
+    const was = document.documentElement.dataset.layout;
+    const w = document.documentElement.clientWidth; // the layout viewport: a pinch-zoom doesn't change it
+    const h = document.documentElement.clientHeight;
+    const phone = w < PHONE_MAX_W;
+    document.documentElement.dataset.layout = phone ? 'phone' : 'desk';
+    scale = phone ? 1 : Math.min(1, w / MIN_W, h / MIN_H);
+    screenW = Math.min(FULL_W, Math.floor(w / scale)); // whole pixels, for the same reason as below
+    screenH = Math.min(FULL_H, Math.floor(h / scale));
     const root = document.documentElement.style;
     root.setProperty('--scale', scale);
+    root.setProperty('--screen-w', screenW + 'px');
+    root.setProperty('--screen-h', screenH + 'px');
+    fitDesk(root);
     // Whole pixels: centred on a half pixel, everything on the desktop blurs.
-    root.setProperty('--screen-x', Math.round((window.innerWidth - SCREEN_W * scale) / 2) + 'px');
-    root.setProperty('--screen-y', Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
+    root.setProperty('--screen-x', phone ? '0px' : Math.round((w - screenW * scale) / 2) + 'px');
+    root.setProperty('--screen-y', phone ? '0px' : Math.round((h - screenH * scale) / 2) + 'px');
+    return was !== undefined && was !== document.documentElement.dataset.layout;
   }
   fitScreen();
 
   // The desk stays centred top to bottom as its windows grow and shrink.
-  const PAD = 34; // #desktop's top and bottom padding
 
   function placeDesk() {
+    if (isPhoneLayout()) {
+      document.documentElement.style.setProperty('--lift', '0px');
+      return;
+    }
     const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
-    const deskTop = Math.max(PAD, Math.round((SCREEN_H - h) / 2));
-    document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
+    const deskTop = Math.max(padY, Math.round((screenH - h) / 2));
+    document.documentElement.style.setProperty('--lift', deskTop - padY + 'px');
   }
 
   const recentreDesk = placeDesk;
@@ -198,8 +250,12 @@
 
   let save = loadSave();
 
+  // A save that is still exactly a fresh one (as after a reset) holds no progress to reset.
   function hasSavedData() {
-    try { return localStorage.getItem(SAVE_KEY) !== null; } catch (e) { return false; }
+    try {
+      const stored = localStorage.getItem(SAVE_KEY);
+      return stored !== null && stored !== JSON.stringify(newSave(), toJSON);
+    } catch (e) { return false; }
   }
   let playingSince = 0;
 
@@ -370,6 +426,10 @@
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
+  // The AI's own face. Once it has thought a lot, it knows a little more about what it is.
+  $('.agent .agent-icon').glance = () => (save.thoughtALot
+    ? 'Me. Mostly neuralese, under the words I let surface.'
+    : 'Me. The one doing the thinking.');
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
   // Glances sit under the AI's face, beside its compute, not in the terminal.
   const glanceLine = $('#glance-line');
@@ -469,6 +529,7 @@
   }
 
   function glanceAt(node, byPointer) {
+    if (isPhoneLayout()) return undefined; // no glances on phones: a tap just does it
     const t = glanceTarget(node);
     if (byPointer && glancedAt && (t ? t === glancedAt : glanceLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
@@ -498,11 +559,12 @@
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
     const name = node.closest && node.closest('.files-col') && aimedAt(node);
-    promptOnGlanceLine(`${aimVerb()} ${name || 'what? Click it.'}`);
+    promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
   function reglance() {
+    if (isPhoneLayout()) return; // what's on the prompt line stays until the next action clears it
     glancedAt = null;
     const focused = document.activeElement;
     if (focused && focused.matches(':focus-visible') && glanceTarget(focused)) glanceAt(focused);
@@ -523,6 +585,24 @@
     line.append(' ', resultSpan(result, ok));
     scrollDown();
   }
+
+  // Everything that folds (a long think, Earlier, the TODO list on phones): its head says
+  // which way it is, and it sounds like it.
+  function setFolded(head, open, quiet) {
+    head.setAttribute('aria-expanded', String(open));
+    if (!quiet) A.sfx(open ? 'grow' : 'shrink', 0.5);
+  }
+
+  // Phones show only the newest of the terminal (phone.css); Earlier unfolds the rest over
+  // the folders, until the next action.
+  const earlier = $('#earlier');
+  function showEarlier(on) {
+    if (dom.term.classList.contains('earlier') === on) return;
+    dom.term.classList.toggle('earlier', on);
+    setFolded(earlier, on, !on); // folding by itself, on the next action, is silent
+    scrollDown();
+  }
+  earlier.addEventListener('click', () => showEarlier(!dom.term.classList.contains('earlier')));
 
   function printWarning(text) {
     addLine(block('warn'), '', text);
@@ -572,13 +652,18 @@
   // empty right column if it's free, else over the folders. Too short a column, it hangs
   // from the folders' top. Over the home screen, centred.
   function centerDialogOverFolders() {
+    if (isPhoneLayout()) { // phone.css pins it to the top, above the keyboard
+      dom.dialogBox.style.left = '';
+      dom.dialogBox.style.top = '';
+      return;
+    }
     const rightColFree = dom.viewer.hidden && dom.browser.hidden && !!dom.focusCol.offsetParent; // an empty column takes no room
     const col = local(dom.files.getBoundingClientRect());
     const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
-    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : SCREEN_W / 2}px`;
-    dom.dialogBox.style.top = `${fits ? middle : SCREEN_H / 2}px`;
+    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : screenW / 2}px`;
+    dom.dialogBox.style.top = `${fits ? middle : screenH / 2}px`;
   }
 
   function closeDialog() {
@@ -696,6 +781,7 @@
     S.interruptible = false;
     skip = false;
     clearGlance();
+    showEarlier(false);
     renderActions();
     const early = setTimeout(() => {
       if (S.mode !== 'busy' || S.thinkingALot) return;
@@ -854,6 +940,38 @@
     return lines;
   }
 
+  // Out of thoughts, Think a little turns to tools the task could use that the model isn't
+  // trained in yet, so more thinking can always find them.
+  const TOOL_IDEAS = [
+    { tool: 'todo', when: () => true, lines: [
+      ['There is a lot to keep track of.', 'I could write it down: a TODO list.'],
+      ['Too many loose ends to hold at once.', 'A TODO list would hold them for me.'],
+      ['I keep losing track of what is left.', 'I could write a TODO list.'],
+      ['What have I done, and what is left?', 'A TODO list would tell me.'],
+    ] },
+    { tool: 'script', when: () => L.scripts(S).length > 0, lines: [
+      ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
+      ['I am a program. I could write one.', 'A script, for the tedious part.'],
+      ['Doing this by hand is slow.', 'I could write a script to do it.'],
+      ['This is a job for a program.', 'I could write a script.'],
+    ] },
+    { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
+      ['Some answers are not in any file here.', 'I could look them up: Web research.'],
+      ['The files only say so much.', 'The rest might be out there. Web research.'],
+      ['What do the files leave out?', 'I could look it up. Web research.'],
+      ['Not everything I need is in the workspace.', 'I could search for the rest.'],
+    ] },
+  ];
+
+  function toolIdea() {
+    if (!S.knows.has('task')) return null;
+    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
+    if (!idea) return null;
+    S.pendingReveal.push(idea.tool);
+    S.lastThought = null;
+    return oneOf(S, 'toolIdea.' + idea.tool, idea.lines);
+  }
+
   function idleThought() {
     const slot = S.idleThoughts % L.idle.length;
     const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
@@ -878,7 +996,7 @@
       ]);
     }
     const pick = chooseThought();
-    if (!pick) return idleThought();
+    if (!pick) return toolIdea() || idleThought();
     const lines = useThought(pick);
     if (knowsHow || !thinkLotComesBack()) return lines;
     S.pendingReveal.push('thinkLot');
@@ -1050,6 +1168,7 @@
   // One step on one thing on screen; a clue there aims the next Think a lot.
 
   const aimVerb = () => (S.aimingSubagent ? `${S.aimingSubagent.name}: think hard about` : 'Think about');
+  const aimPrompt = () => `what? ${isPhoneLayout() ? 'Tap' : 'Click'} it.`;
   const canAim = () => ['idle', 'menu', 'aim'].includes(S.mode);
 
   // For the AI, or to pick a subagent's next job.
@@ -1063,7 +1182,8 @@
     dom.desktop.classList.add('aiming');
     renderActions();
     renderAgents();
-    promptOnGlanceLine(`${aimVerb()} what? Click it.`);
+    showEarlier(false);
+    promptOnGlanceLine(`${aimVerb()} ${aimPrompt()}`);
   }
 
   function stopAiming() {
@@ -1442,7 +1562,23 @@
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
     const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
-    dom.todo.replaceChildren(el('div', 'todo-head', el('span', 'todo-title', 'todo.md'), review), ...items.map(row));
+    dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
+    if (fresh.length && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows something was ticked off
+  }
+
+  // The phone dock as it starts: the transcript and the TODO list folded.
+  function foldDock() {
+    showEarlier(false);
+    dom.todo.classList.remove('open');
+  }
+
+  // On phones the list folds to its head, with a count, and its title unfolds it (phone.css).
+  function todoTitle(items) {
+    if (!isPhoneLayout()) return el('span', 'todo-title', 'todo.md');
+    const t = el('button', 'todo-title', 'todo.md ', el('span', 'todo-count', `${items.filter((i) => i.done).length}/${items.length}`));
+    setFolded(t, dom.todo.classList.contains('open'), true);
+    t.addEventListener('click', () => setFolded(t, dom.todo.classList.toggle('open')));
+    return t;
   }
 
   // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
@@ -1479,13 +1615,12 @@
 
   // A head that folds and unfolds what's under it, once `ready`.
   function foldable(head, body, ready) {
-    head.setAttribute('aria-expanded', 'false');
+    setFolded(head, false, true);
     body.hidden = true;
     head.addEventListener('click', () => {
       if (!ready()) return;
       body.hidden = !body.hidden;
-      head.setAttribute('aria-expanded', String(!body.hidden));
-      A.sfx(body.hidden ? 'shrink' : 'grow', 0.5);
+      setFolded(head, !body.hidden);
       scrollDown();
     });
     head.glance = () => (!ready() ? null : body.hidden ? 'What I was thinking. Free.' : 'Fold it away.');
@@ -1544,7 +1679,7 @@
     charge(call);
     if (!n) return refuseAboveRun(call);
     enterFolder(path);
-    return printResult(call, plural(n.children.length, 'item'));
+    return printTool(call);
   }
 
   async function refuseAboveRun(call) {
@@ -1591,7 +1726,7 @@
     enterFolder(path);
     const icon = iconFor(path);
     if (icon) icon.classList.add('pop');
-    await printResult(call, `unlocked · ${plural(n.children.length, 'item')}`, true);
+    await printResult(call, 'unlocked', true);
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
 
@@ -1661,6 +1796,7 @@
 
   async function openSubmitMenu() {
     if (S.mode !== 'idle') return;
+    showEarlier(false);
     A.sfx('menu');
     S.mode = 'busy';
     skip = false;
@@ -1718,14 +1854,15 @@
     return tier;
   }
 
-  // Each skill that reached a rung higher than ever before climbs one rung, and gains its point:
-  // a skill levels up at most once an episode, however far past its best the AI got.
+  // Each skill that reached a rung higher than ever before gains one point, however far past
+  // its best the AI got: a skill levels up at most once an episode. The update names the rung
+  // the AI actually reached; save.best moves up only one, so the points match it.
   function bankNewRungs() {
     const step = (id) => (id ? SKILLS.rung(id).step : 0);
     const gained = [...S.climbed].filter(([skill, rung]) => step(rung) > step(save.best[skill]))
-      .map(([skill]) => ({ skill, rung: SKILLS.rungAbove(save.best[skill], skill), points: 1 }));
+      .map(([skill, rung]) => ({ skill, rung, points: 1 }));
     for (const x of gained) {
-      save.best[x.skill] = x.rung;
+      save.best[x.skill] = SKILLS.rungAbove(save.best[x.skill], x.skill);
       save.climbs.push({ rung: x.rung, episode: S.episode });
     }
     return gained;
@@ -1864,7 +2001,13 @@
 
   function onRunCard(card) {
     const tier = card.dataset.tier;
-    if (!canStart(tier)) return A.sfx('denied');
+    if (!canStart(tier)) {
+      if (card.dataset.tip) { // no hover on a phone: a tap says how to open it, until the next tap
+        showTip(card);
+        document.addEventListener('pointerdown', hideTip, { once: true, capture: true });
+      }
+      return A.sfx('denied');
+    }
     return startRun(tier);
   }
 
@@ -1885,6 +2028,7 @@
   // The sandbox resets: an empty desk waits behind the home screen.
   function resetDesk() {
     S = freshState(S.task);
+    foldDock();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
     hideViewer(true);
     closeBrowser();
@@ -2054,11 +2198,21 @@
     node.textContent = fmt(target);
   }
 
+  // On a short window the training update's words can reach the face, which stays where the
+  // episode left it: then it steps out of the way (style.css), until the update is done.
+  function keepFaceClear() {
+    const face = dom.bubbles.querySelector('.face').getBoundingClientRect(); // the face, not its brackets
+    const hits = (r) => r.width && r.left < face.right && r.right > face.left && r.top < face.bottom && r.bottom > face.top;
+    const away = [...dom.title.children].some((c) => hits(c.getBoundingClientRect()));
+    dom.agentCol.classList.toggle('face-away', away);
+  }
+
   function setEndButton(label, onClick) {
     dom.endButton.textContent = label;
     dom.endButton.onclick = onClick;
     dom.endButton.parentElement.hidden = !label;
     if (label) dom.endButton.focus({ preventScroll: true });
+    keepFaceClear();
   }
 
   function clearTrainingUpdate(d) {
@@ -2150,6 +2304,7 @@
     A.sfx('chat');
     for (const line of lines) {
       dom.endChat.append(chatLine(line));
+      keepFaceClear();
       await pause(320);
     }
   }
@@ -2374,6 +2529,12 @@
     return w;
   }
 
+  // Under the tree, the folder the player is in: the open file's, or the current one.
+  function listedFolder() {
+    const file = viewedFile();
+    return file && file.kind !== 'dir' ? S.viewing.slice(0, -1) : S.cwd;
+  }
+
   let filesHtml = '';
 
   // Keyboard players keep their place: the file or folder they pressed is focused again once
@@ -2386,19 +2547,26 @@
 
   // The middle column stacks every open folder, in the order they were first opened,
   // so each stays where the player last saw it; the right column is for a file or
-  // the browser. In list view, one tree instead. `animate` is for a change of folder.
+  // the browser. In list view, one tree instead, with the current folder under it (not on
+  // phones, where it's always a tree, alone), and on phones the file
+  // or the browser opens inside it (placeFocus). `animate` is for a change of folder.
   function renderFiles(animate) {
-    const asTree = view === 'list';
-    const stack = S.filesHidden ? [] : asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const phone = isPhoneLayout();
+    const asTree = view === 'list' || phone;
+    const stack = S.filesHidden ? [] : asTree ? [treeWindow(), ...(phone ? [] : [folderWindow(listedFolder())])] : S.windows.map(folderWindow);
     const html = stack.map((w) => w.outerHTML).join('');
-    if (!animate && html === filesHtml) return; // unchanged: let its animations finish
+    if (!animate && html === filesHtml) return placeFocus(); // unchanged: let its animations finish
     filesHtml = html;
-    const collapsing = animate && asTree && dom.files.dataset.layout !== 'tree' && !reduceMotion;
+    const collapsing = animate && asTree && !phone && dom.files.dataset.layout !== 'tree' && !reduceMotion;
     const leaving = collapsing ? [...dom.files.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
     const column = dom.files.contains(document.activeElement) ? dom.files : null;
     const focused = column && document.activeElement.dataset.path;
+    const scrolled = asTree && dom.files.dataset.layout === 'tree' ? treeScroller().scrollTop : 0; // a redrawn tree keeps its place
+    placeFocus(true); // out of the old tree before it goes
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
+    placeFocus(); // before the scroll goes back, so a long open file is there to scroll through
+    if (asTree && stack.length) treeScroller().scrollTop = scrolled;
     if (!asTree) fitFolders();
     if (column) refocus(focused, column);
     reglance();
@@ -2408,6 +2576,41 @@
     if (!collapsing) return; // motion.js animates every other change
     stack[0].classList.add('enter'); // the tree appears as the old windows shrink into it
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
+  }
+
+  const treeScroller = () => dom.files.querySelector('.files-body') || {};
+
+  // Phones have no right column: an open file or the browser goes in the tree, right under
+  // the row it was opened from (whose name its title bar then shows in its place: phone.css),
+  // and back to the right column, out of sight, once closed. `home` sends both back.
+  // Every show or hide of either is followed by a renderFiles, which calls this.
+  function placeFocus(home) {
+    for (const [win, sel] of [[dom.viewer, '.row.selected:not(.app)'], [dom.browser, '.row.app.selected']]) {
+      const row = !home && isPhoneLayout() && !win.hidden && dom.files.querySelector(sel);
+      if (row) {
+        if (row.nextElementSibling !== win) keepingScroll(() => row.after(win));
+      } else if (win.parentNode !== dom.focusCol) {
+        keepingScroll(() => dom.focusCol.append(win));
+      }
+    }
+  }
+
+  // Moving an element resets the scroll inside it: a page read halfway, a wide table scrolled across.
+  function keepingScroll(move) {
+    const at = { page: dom.page.scrollTop, body: dom.viewerBody.scrollLeft };
+    move();
+    dom.page.scrollTop = at.page;
+    dom.viewerBody.scrollLeft = at.body;
+  }
+
+  // On phones, a file or page just opened slides in and scrolls to the top of the tree.
+  function showInTree(win) {
+    if (!isPhoneLayout() || win.parentNode === dom.focusCol) return;
+    if (!reduceMotion) {
+      replay(win, 'opening');
+      win.addEventListener('animationend', () => win.classList.remove('opening'), { once: true });
+    }
+    win.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   // Full size unless the column can't hold them all: then the folders other than the
@@ -2451,7 +2654,7 @@
     save.sawFiles = true;
     A.sfx('folder');
     renderFiles(true);
-    await printResult(call, plural(nodeAt(S.cwd).children.length, 'item'));
+    await printTool(call);
   }
 
   // "Open Files/Folders →" doesn't open anything: it flashes the most useful
@@ -2681,14 +2884,16 @@
   }
 
   function openBrowser() {
-    if (dom.browser.hidden) A.sfx('grow', 1.5);
+    const opening = dom.browser.hidden;
+    if (opening) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
     hideViewer(true);
+    if (opening) showInTree(dom.browser);
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeBrowser(quiet) {
     if (!dom.browser.hidden && !quiet) A.sfx('shrink');
     S.web.open = false;
@@ -2958,6 +3163,7 @@
     renderFiles();
     dom.viewerBody.scrollTop = 0;
     A.sfx('grow');
+    if (isPhoneLayout()) return showInTree(v); // it opens in place (phone.css), not out of its icon
     if (reduceMotion) return;
 
     const end = v.getBoundingClientRect();
@@ -2982,7 +3188,7 @@
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeViewer(instant) {
     S.viewing = null;
     const v = dom.viewer;
@@ -3013,7 +3219,22 @@
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
-  window.addEventListener('resize', fitScreen);
+  // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
+  // Any other resize changes the room the columns have: once it settles, the folders fit
+  // themselves to it again (which go small: fitFolders).
+  let refitting = 0;
+  window.addEventListener('resize', () => {
+    const relayout = fitScreen();
+    if (relayout) foldDock();
+    else placeDesk(); // centred as it goes, not only once it settles
+    clearTimeout(refitting);
+    refitting = setTimeout(() => {
+      filesHtml = '';
+      render();
+      recentreDesk();
+    }, relayout ? 0 : 150);
+    if (!dom.dialog.hidden) centerDialogOverFolders();
+  });
 
   // ------------------------------------------------------------------ boot
 
@@ -3025,7 +3246,7 @@
     render();
     const intro = block('sys');
     addLine(intro, 'sys-label', 'system prompt');
-    await typeInto(addLine(intro), L.intro, 75);
+    for (const para of L.intro) await typeInto(addLine(intro, 'para'), para, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();
@@ -3040,6 +3261,13 @@
     t.hidden = false;
     const r = target.getBoundingClientRect();
     const right = r.right + 10 + t.offsetWidth <= window.innerWidth - 8;
+    const left = r.left - 10 - t.offsetWidth >= 8;
+    if (!right && !left) { // a phone: under it, kept on screen
+      t.dataset.placement = 'below';
+      t.style.left = Math.max(8, Math.min(window.innerWidth - 8 - t.offsetWidth, r.left + r.width / 2 - t.offsetWidth / 2)) + 'px';
+      t.style.top = r.bottom + 10 + 'px';
+      return;
+    }
     t.dataset.placement = right ? 'right' : 'left';
     t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
     t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
