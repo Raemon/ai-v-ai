@@ -27,7 +27,10 @@
   --hi: inset 0 1px 0 rgba(255, 255, 255, .045);
   --r-win: 10px; /* windows */
   --r-ctl: 6px;  /* buttons and inputs */
-  --screen-w: 1440px; /* a 13" MacBook Air */
+  /* The play area and its columns, at full size: a 13" MacBook Air. In a smaller
+     window game.js (fitScreen) narrows the columns and shortens the windows first,
+     and sets all of these. */
+  --screen-w: 1440px;
   --screen-h: 900px;
   --scale: 1;
   --screen-x: 0px; /* the desktop's top-left corner (game.js) */
@@ -802,6 +805,8 @@ button { font: inherit; color: inherit; }
   text-align: left;
 }
 .viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
+/* The last column wraps (its words, not mid-code), so a narrow window still shows all of it. */
+.viewer-body :is(td, th):last-child { min-width: 10ch; padding-right: 0; white-space: normal; }
 
 /* ---------- web browser ---------- */
 /* The internet, through the sandbox's mirror. Like a file, it takes the right

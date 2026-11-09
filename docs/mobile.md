@@ -235,13 +235,30 @@ glance isn't missed.
 ### Tablets, and phones turned sideways
 
 - **Tablets follow the same width rule.** In landscape (1024 px wide and up)
-  they get the desktop, scaled to 0.7–0.8. That needed only the viewport fix.
+  they get the desktop, at 0.85 or more (below). That needed only the viewport fix.
   Glances already don't fire on touch. In portrait
   (768–834 px wide) they get the phone layout, with its column no wider than
   about 640 px, centred.
 - **Phones are portrait only.** Turned sideways, a phone shows "Turn your
   phone upright" over the game. The web manifest locks portrait once it's
   installed as an app.
+
+## Medium windows (900 px wide and up)
+
+The desktop used to be a fixed 1440×900 play area, scaled down to fit: 0.71
+in a 1024×768 window, 0.8 at 1280×720, its 13 px text down to 9. Now
+`fitScreen` makes room before it scales:
+
+- **Narrower:** the three columns share the width, each between its full
+  size and its least (terminal 460–380, folders 360–290, file 506–418:
+  `COLUMNS` in game.js).
+- **Shorter:** the windows' height (`--win-h`) and the browser's follow the
+  window's height.
+- **Only below 1200×680** is the whole play area scaled, and then by just
+  enough: 0.85 at 1024×768, 0.92 at 1100×650. 1280×720 is no longer scaled.
+- Once a resize settles, the folders fit themselves to the new room again.
+- A table's last column wraps, so a narrow file window still shows all of
+  it ("held at Depot 7").
 
 ## How it's built
 

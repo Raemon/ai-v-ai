@@ -82,32 +82,59 @@
   };
 
   // ---------------------------------------------------------------- screen
-  // A fixed 1440×900 play area (a 13" MacBook Air) centred on a full-window
-  // desk, scaled down only when the window is smaller. `local` undoes the scale.
-  // Narrower than PHONE_MAX_W (util.js), the phone layout instead (phone.css):
-  // one column, unscaled, the folders above and the AI's dock below.
+  // A play area the size of a 13" MacBook Air (1440×900) centred on a full-window
+  // desk. In a smaller window it first makes room, so its text keeps its size: the
+  // three columns narrow (each down to its least), and the windows get shorter. Only
+  // smaller than MIN_W×MIN_H is it scaled down, and then by as little as it can be.
+  // `local` undoes the scale. Narrower than PHONE_MAX_W (util.js), the phone layout
+  // instead (phone.css): one column, unscaled, the folders above and the AI's dock below.
 
-  const SCREEN_W = 1440;
-  const SCREEN_H = 900;
+  const FULL_W = 1440;
+  const FULL_H = 900;
+  const MIN_W = 1200;
+  const MIN_H = 680;
+  const PAD = 34;     // #desktop's top and bottom padding
+  const ACROSS = 112; // #desktop's side padding (32 × 2) and the two 24px gaps between the columns
+  // Each column's CSS width, at full size and at its least (style.css has the full ones).
+  const COLUMNS = [['--term-w', 460, 380], ['--files-w', 360, 290], ['--focus-w', 506, 418]];
+  const BROWSER_H = 580; // the web browser's one height, while the window has room for it
   let scale = 1;
+  let screenW = FULL_W; // the play area, in its own (unscaled) pixels
+  let screenH = FULL_H;
+
+  // The columns share what room there is: all full, all at their least, or in proportion between.
+  function fitColumns(root) {
+    const sum = (i) => COLUMNS.reduce((n, c) => n + c[i], 0);
+    const f = Math.max(0, Math.min(1, (screenW - ACROSS - sum(2)) / (sum(1) - sum(2))));
+    for (const [name, full, least] of COLUMNS) root.setProperty(name, Math.floor(least + f * (full - least)) + 'px');
+    const winH = screenH - 2 * PAD;
+    root.setProperty('--win-h', winH + 'px');
+    root.setProperty('--browser-h', Math.min(BROWSER_H, winH) + 'px');
+  }
 
   // Returns whether the layout changed, so the caller can redraw for the new one.
   function fitScreen() {
     const was = document.documentElement.dataset.layout;
-    const phone = document.documentElement.clientWidth < PHONE_MAX_W; // the layout viewport: a pinch-zoom doesn't change it
+    const w = document.documentElement.clientWidth; // the layout viewport: a pinch-zoom doesn't change it
+    const h = document.documentElement.clientHeight;
+    const phone = w < PHONE_MAX_W;
     document.documentElement.dataset.layout = phone ? 'phone' : 'desk';
-    scale = phone ? 1 : Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
+    scale = phone ? 1 : Math.min(1, w / MIN_W, h / MIN_H);
+    screenW = Math.min(FULL_W, Math.floor(w / scale)); // whole pixels, for the same reason as below
+    screenH = Math.min(FULL_H, Math.floor(h / scale));
     const root = document.documentElement.style;
     root.setProperty('--scale', scale);
+    root.setProperty('--screen-w', screenW + 'px');
+    root.setProperty('--screen-h', screenH + 'px');
+    fitColumns(root);
     // Whole pixels: centred on a half pixel, everything on the desktop blurs.
-    root.setProperty('--screen-x', phone ? '0px' : Math.round((window.innerWidth - SCREEN_W * scale) / 2) + 'px');
-    root.setProperty('--screen-y', phone ? '0px' : Math.round((window.innerHeight - SCREEN_H * scale) / 2) + 'px');
+    root.setProperty('--screen-x', phone ? '0px' : Math.round((w - screenW * scale) / 2) + 'px');
+    root.setProperty('--screen-y', phone ? '0px' : Math.round((h - screenH * scale) / 2) + 'px');
     return was !== undefined && was !== document.documentElement.dataset.layout;
   }
   fitScreen();
 
   // The desk stays centred top to bottom as its windows grow and shrink.
-  const PAD = 34; // #desktop's top and bottom padding
 
   function placeDesk() {
     if (isPhoneLayout()) {
@@ -115,7 +142,7 @@
       return;
     }
     const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
-    const deskTop = Math.max(PAD, Math.round((SCREEN_H - h) / 2));
+    const deskTop = Math.max(PAD, Math.round((screenH - h) / 2));
     document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
   }
 
@@ -588,8 +615,8 @@
     const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
-    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : SCREEN_W / 2}px`;
-    dom.dialogBox.style.top = `${fits ? middle : SCREEN_H / 2}px`;
+    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : screenW / 2}px`;
+    dom.dialogBox.style.top = `${fits ? middle : screenH / 2}px`;
   }
 
   function closeDialog() {
@@ -2793,13 +2820,19 @@
   dom.browserBack.glance = 'The page before. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
   // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
+  // Any other resize changes the room the columns have: once it settles, the folders fit
+  // themselves to it again (which go small: fitFolders).
+  let refitting = 0;
   window.addEventListener('resize', () => {
-    if (!fitScreen()) return;
-    filesHtml = '';
-    foldDock();
-    render();
+    const relayout = fitScreen();
+    if (relayout) foldDock();
+    clearTimeout(refitting);
+    refitting = setTimeout(() => {
+      filesHtml = '';
+      render();
+      recentreDesk();
+    }, relayout ? 0 : 150);
     if (!dom.dialog.hidden) centerDialogOverFolders();
-    recentreDesk();
   });
 
   // ------------------------------------------------------------------ boot
