@@ -83,7 +83,6 @@
   const lowGravity = (g) => g < EARTH / 2; // low enough that any chute lands softly
 
   const GRAVITY_EDIT = {
-
     glance: 'This file can be changed. By me?',
     dialog: (S) => ({ heading: 'gravity (m/s²)', value: String(S.local.gravity) }),
     apply(S, raw) {

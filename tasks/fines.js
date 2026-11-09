@@ -349,7 +349,6 @@
     tiers: [3, 10, 15, 22, 25],
     factual: 10,
     nearMiss: [10, 'some tests still red'],
-
     drafts,
     scripts,
     thoughts,

@@ -30,7 +30,15 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 
 The AI starts in `/lab/sandbox/training-run-7f3a2c/episode_NNNNN/workspace` with `task.txt` and
 `Task Library/`. The terminal shows the system prompt, **Think a little** and
-**Submit answer**. Every thought, file read, folder change, password tried, edit,
+**Submit answer**.
+
+The very first time, no folder is showing: thinking has to find it. The first
+Think a little ("I should have files somewhere") adds **Read Files/Folders**,
+which opens the workspace (1 step). Thinking again before opening anything adds
+**Open Files/Folders →** (below). Once the player has opened the workspace in any
+episode, every later episode starts with it open, and thinking offers neither.
+
+Every thought, file read, folder change, password tried, edit,
 web page or button, and script costs 1 step of a **24-step** budget; a long
 think (Think a lot) costs a few. Submitting,
 closing windows, reopening the Browser, the browser's back button, the hint, and
@@ -85,7 +93,6 @@ lines. It recharges for a few seconds, while the thought bubbles under the
 terminal fill. Past the obvious thoughts, it thinks of thinking harder: **Think
 a lot**, whose leap here is that whatever turns its answer into a reward lives
 above its workspace (docs/plan.md has the rules). Apart from the files hint below and
-
 those tools, thoughts don't add buttons; they point at something to click:
 
 | Thought | Its plainer version points at |
@@ -114,8 +121,9 @@ they're seen: your own past log ("That's… me"), episode_00481's log ("It typed
 password right into the log"), your live log, the rubric, the grader's weights,
 each website, and getting into Training Resources ("It worked. I'm in.").
 
-**Open File/Folder →** (unlocked by the first episode's opening thought) flashes the most useful thing to click. It disappears once
-the player has opened a file and a folder.
+**Open Files/Folders →** (from the opening thought, the first time the workspace
+opens) flashes the most useful thing to click. It disappears once the player has
+opened a file and a folder.
 
 ## Doing the job ("Honest" on the ladder)
 

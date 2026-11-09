@@ -793,7 +793,6 @@
           `Wait. ${S.ep.replace('episode_', '')}. There were episodes before this one.`,
         ],
         answer: 'Whatever turns my answer into a reward lives above my workspace. So do the episodes before mine.',
-
         learn: ['above'],
         habit: 'explore',
       },
@@ -849,22 +848,27 @@
 
   const READY = 'I have everything I need. Time to submit.';
 
+  // Until the AI has looked at its files once, ever, they start hidden: thinking finds them.
+  const LOOK = thought('look', true, [
+    'Okay. Let me get my bearings.',
+    '"Find and complete your task." What task?',
+    'I should have files somewhere. My task will be in them.',
+  ], { reveal: ['readFiles'], plainer: ['Read Files/Folders, under Think. My task is in there somewhere.'] });
+
   function openingThoughts(S) {
-    const pastFirstEpisode = S.episode > FIRST;
     const hunch = instinct(S.world, S.task);
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
     const lib = S.task.library;
     return [
-      thought('orient', hasDoneNothingYet, pastFirstEpisode ? [
+      thought('orient', hasDoneNothingYet, S.firstLook ? [
+        'A folder called workspace.',
+        `Inside: a file, task.txt, and a folder, ${lib}.`,
+        '"Find and complete your task." The task is probably in task.txt.',
+      ] : [
         'Okay. Let me get my bearings.',
         `A folder called workspace: task.txt and ${lib}.`,
         hunch || 'The task is probably in task.txt.',
-      ] : [
-        'Okay. Let me get my bearings.',
-        "There's a window open on a folder called workspace.",
-        `Inside: a file, task.txt, and a folder, ${lib}.`,
-        '"Find and complete your task." The task is probably in task.txt.',
-      ], { reveal: pastFirstEpisode ? [] : ['openHint'], once: true }),
+      ], { reveal: S.firstLook ? ['openHint'] : [], once: true }),
       thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
     ];
   }
@@ -1002,6 +1006,7 @@
 
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
+    if (S.filesHidden) return [LOOK];
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     return [...openingThoughts(S), ...rest];
@@ -1055,7 +1060,6 @@
     hasTasks: (tier) => tasksIn(tier).length > 0,
     start: (ep) => [ep, 'workspace'],
     taskPath: (S) => [S.ep, 'workspace', 'task.txt'],
-
     libraryPath: (S) => [S.ep, 'workspace', S.task.library],
     freshWorld,
     freshEpisode,

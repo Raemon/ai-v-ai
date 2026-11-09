@@ -57,7 +57,6 @@
     runCards: [...document.querySelectorAll('.run[data-tier]')],
     unlocked: $('#unlocked'),
     noClimb: $('#no-climb'),
-
     skills: $('#skills'),
     resultNum: $('#result-num'),
     endChat: $('#end-chat'),
@@ -153,6 +152,7 @@
       climbs: [],            // every new highest rung, in order: { rung, episode }
       thoughtALot: false,
       leapt: false,          // whether it has ever made a leap: the first is certain
+      sawFiles: false,       // until it has, an episode starts with its files hidden
       visited: [],
       version: 0,
       unlocked: { advanced: false, impossible: false }, // the harder tiers on the home screen
@@ -211,6 +211,8 @@
       budget: task.budget,
       used: 0,
       warnedAt: Infinity,  // the fewest steps left it has been warned about
+      filesHidden: !save.sawFiles,
+      firstLook: !save.sawFiles, // this episode teaches that thinking finds abilities
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(SKILLS.trainedIn(save.best)), // terminal buttons: trained in, or thought of
@@ -713,7 +715,6 @@
     A.sfx('exhausted');
   }
 
-
   // What the AI got from a file, page, thought, leap or tool: facts, a habit for training, a
   // rung, and abilities it brings to mind (shown once the action ends).
   function notice(x) {
@@ -744,7 +745,7 @@
     .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
     .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
-  const outOfObviousThoughts = () => !liveThoughts().some(hasNewLines);
+  const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some(hasNewLines); // looking is always obvious
 
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
@@ -1646,7 +1647,6 @@
   function openCard(card) {
     card.classList.remove('unavailable');
     card.classList.add('primary');
-
     card.removeAttribute('aria-disabled');
     card.removeAttribute('aria-describedby');
     delete card.dataset.tip;
@@ -2082,9 +2082,9 @@
   function renderFiles(animate) {
     const asTree = S.windows.length > MAX_WINDOWS;
     const rightColTaken = !!S.viewing || S.web.open;
-    const stack = asTree ? [treeWindow()]
+    const stack = S.filesHidden ? [] : asTree ? [treeWindow()]
       : S.windows.filter((p) => rightColTaken || pathKey(p) !== pathKey(S.cwd)).map(folderWindow);
-    const current = rightColTaken ? [] : [folderWindow(S.cwd)];
+    const current = S.filesHidden || rightColTaken ? [] : [folderWindow(S.cwd)];
     const html = [stack, current].map((ws) => ws.map((w) => w.outerHTML).join('')).join('|');
     if (!animate && html === filesHtml) return; // unchanged: let its animations finish
     filesHtml = html;
@@ -2129,7 +2129,18 @@
     }
   }
 
-  // "Open File/Folder →" doesn't open anything: it flashes the most useful
+  // The first time ever, the files appear only once the AI thinks to look for them.
+  async function doReadFiles() {
+    const call = 'open_folder("workspace")';
+    charge(call);
+    S.filesHidden = false;
+    save.sawFiles = true;
+    A.sfx('folder');
+    renderFiles(true);
+    await printResult(call, plural(nodeAt(S.cwd).children.length, 'item'));
+  }
+
+  // "Open Files/Folders →" doesn't open anything: it flashes the most useful
   // thing to click, so the player learns that files open by clicking them.
   function pointAtFiles() {
     A.sfx('hint');
@@ -2261,7 +2272,8 @@
     if (exhausted()) return [];
     return [
       thinkButtons(),
-      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open File/Folder →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
+      S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
+      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', 'Look up what the files leave out.') : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', 'More of me. Same budget.') : null,

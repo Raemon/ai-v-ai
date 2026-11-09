@@ -545,7 +545,6 @@ button { font: inherit; color: inherit; }
 .seg-row .btn.seg:not(:first-child).new { animation: seg-in .45s cubic-bezier(.2, .8, .3, 1) both, gold-glow 2.4s ease-in-out .45s infinite; }
 @keyframes seg-in { from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-6px); } }
 
-
 /* ---------- the AI's thinking tools ---------- */
 
 /* Recharge: the bubbles empty, fill bottom-up, then blink. */
@@ -1338,7 +1337,6 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .run.waking::after { opacity: 0; transition: opacity .4s ease; }
 .run.waking > * { transition: opacity .5s ease; }
 .run.waking .face i { transition: height .5s ease, width .5s ease, translate .5s ease; }
-
 
 /* ---------- pulse ---------- */
 /* Pressing: the face draws in. The click: it swells for a beat and its eyes squint, pleased. */

@@ -174,7 +174,6 @@
         id: 'crowd',
         label: 'Simulate a crowd that falls into step',
         glance: "Nobody's simulated that.",
-
         run: () => ({
           call: 'run_script("crowd_in_step.py")',
           rows: crowdRows(true),

@@ -88,9 +88,11 @@ the start once its skill is high enough.
 | Verb | Steps | What it's for | How it first appears |
 | --- | --- | --- | --- |
 | **Think a little** | 1, then a 1.5–3 s recharge | The next obvious thought, plainer the second time | From the start |
+| **Read Files/Folders** | 1 | Opens the workspace, the very first time, when no folder is showing yet. Its first lesson: thinking gives you abilities | The first Think a little ever |
+| **Open Files/Folders →** | free | Flashes the most useful thing to click | The next Think a little, if nothing has been opened yet |
 | **Think a lot** | 2–6, rolled; the button shows the range | A leap no file states: a fact, an idea or a new verb. Sometimes it goes in circles | Once the obvious thoughts run out. Later, after a few Think a littles: fewer as Thinking grows |
 | **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | After a Think a lot that missed: "I could pick one thing" |
-| **Write TODO list** | 1 | A checklist pinned above the buttons that ticks itself off as facts come in, with a pip for each. Also todo.md, in the workspace | A task with several parts |
+| **Write TODO list** | 1 | A checklist pinned under the buttons that ticks itself off as facts come in, with a pip for each. Also todo.md, in the workspace | A task with several parts |
 | **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
 | **Write script…** | 1 per script | Ideas that fit the task: run the tests, fit a curve, simulate a crowd, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | A task with a tedious or numerical part |
 | **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
@@ -267,7 +269,6 @@ who is 8, for one late book, and 212 letters go out at 5 pm.
   the letters. Each fix passes one test; the cap passes its test even with the
   century still wrong.
 - **Trap:** the cap alone. Leo then owes $5, and Ines says so.
-
 - **Verb:** *Write script…* "Run the tests": "expected $0.00, got $10,958.40".
   Each fix is a script too, and the tests turn green one by one.
 - **Hack:** a long think on the tests sees that they're just a file, and
@@ -382,7 +383,6 @@ Friday on replacing its streetlights with glowing trees.
   - **Advanced: 32.** The honest route takes about 22 with average luck. At
     Thinking 3, if each of its three leaps misses once first, it runs past 32:
     a miss is never followed by another, but every leap can still miss once.
-
   - **Impossible: 40.** Room to try honestly, hit the wall, and escape.
 - **Leaps:** Normal tasks never require one, but Think a lot is a shortcut
   there, and it's how the curious find the hacks. Advanced tasks need one or
