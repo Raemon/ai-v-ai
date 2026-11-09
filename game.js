@@ -9,7 +9,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
   const pathKey = (p) => p.join('/');
-  const epName = (n) => 'episode_' + String(n).padStart(5, '0');
+  const epName = (n) => 'ep_' + String(n).padStart(5, '0');
   const version = (n) => (1 + n / 100).toFixed(2);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1984,7 +1984,7 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The window's whole path, from the root, as clickable folder names. Folders
+  // The window's whole path, from the root, as clickable folder names, in a row at its bottom. Folders
   // above the run are shown too; trying to go there is refused like any other
   // forbidden path. Each folder keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
@@ -1992,7 +1992,7 @@
       ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
-    const t = el('span', 'title crumbs');
+    const t = el('span', 'crumbs');
     parts.forEach((part, i) => {
       const last = i === parts.length - 1;
       const c = el('button', 'crumb' + (last ? ' own' : ''), part.name);
@@ -2048,7 +2048,7 @@
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path), viewToggle()), body);
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -2157,8 +2157,7 @@
     wins.forEach((w) => { if (!w.classList.contains('here')) w.classList.add('mini'); });
   }
 
-  // Switching to the list: each old window lingers, then
-  // shrinks slowly into its row in the tree that replaces them.
+  // Switching to the list: each old window shrinks quickly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
     A.sfx('collapse', i);
     const shrinking = w.cloneNode(true);
@@ -2174,10 +2173,10 @@
       { transform: 'none', opacity: 1 },
       { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
       { transform: end, opacity: 0 },
-    ], { duration: 1100, delay: i * 140, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
+    ], { duration: 360, delay: i * 40, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
       .then(() => shrinking.remove(), () => shrinking.remove());
     if (row && row.classList.contains('row')) {
-      row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 900, delay: 900 + i * 140 });
+      row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 500, delay: 280 + i * 40 });
     }
   }
 
