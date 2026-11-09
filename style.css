@@ -445,7 +445,6 @@ button { font: inherit; color: inherit; }
   align-items: center;
   gap: 8px;
   height: calc(13px * 1.6); /* as when not glancing */
-  padding-left: 12px; /* the 10px it had beside its old 2px rule */
   white-space: nowrap;
   overflow: hidden;
 }
