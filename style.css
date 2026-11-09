@@ -409,20 +409,44 @@ button { font: inherit; color: inherit; }
 }
 .cursor.solid { animation: none; }
 
-/* Hover preview: types into the cursor line itself, so the buttons below never
-   move. In the thought's type, on the cursor line's own height. */
-.cursor-line.previewing {
-  padding-left: 12px;
-  border-left: 2px solid var(--thought-rule);
-  color: var(--thought);
-  font-size: var(--fs-key);
-  line-height: calc(13px * 1.6); /* as when not previewing */
-  font-style: italic;
+/* A glance: what the AI knows about the thing under the pointer at once, without
+   thinking. Deliberately unlike a thought (upright sans, not italic mono; dotted
+   rule, not solid; tagged), and appears whole instead of being typed. It sits on
+   the cursor line's own height, so the buttons below never move. */
+.glance-tag, .glance-text { display: none; }
+.cursor-line.glancing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: calc(13px * 1.6); /* as when not glancing */
+  padding-left: 10px;
+  border-left: 2px dotted color-mix(in srgb, var(--agent) 70%, transparent);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: .75;
 }
+.cursor-line.glancing .glance-tag {
+  display: inline-block;
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--agent) 45%, transparent);
+  border-radius: 3px;
+  font: 600 9px/14px var(--sans);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--agent);
+}
+.cursor-line.glancing .glance-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 13px var(--sans);
+  color: color-mix(in srgb, var(--agent) 55%, var(--thought));
+}
+.cursor-line.glancing .cursor { display: none; }
+.glance-text.glance-in { animation: glance-in .18s ease both; }
+@keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
+@media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }
 
 /* One column under the cursor; every button as wide as the widest. */
 .term-actions {
