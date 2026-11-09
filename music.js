@@ -124,7 +124,7 @@
         shaker: {
           step(c, n, t, v) {
             const offbeat = n % 4 === 2;
-            if (offbeat || (v >= 0.5 && n % 2 === 0) || (v >= 0.75 && chance(0.6)) || v >= 1) shake(t, offbeat);
+            if (offbeat || (v >= 0.5 && n % 2 === 0) || (v >= 0.75 && chance(0.4))) shake(t, offbeat);
             if (chance(0.03 + 0.08 * v)) play('pluck', pick(c.tones) + 24, { at: t, peak: 0.025, pan: rand(-0.8, 0.8), dest: k.out.layers.shaker });
           },
           follow: k.fan,
@@ -164,7 +164,7 @@
     });
 
     const brush = (at, peak, dest) => voice({
-      at, type: 'noise', attack: 0.03, decay: 0.2, peak, cut: 3200, cutTo: 6000, filterType: 'bandpass', q: 0.6, pan: rand(-0.3, 0.3), dest,
+      at, type: 'noise', attack: 0.03, decay: 0.2, peak, cut: 2800, cutTo: 4500, filterType: 'bandpass', q: 0.6, pan: rand(-0.3, 0.3), dest,
     });
 
     return {
@@ -357,7 +357,7 @@
             const to = k.out.layers.shaker;
             if (s % 4 === 0) play('wood', s % 8 ? 81 : 86, { at: t, peak: 0.03, pan: s % 8 ? 0.3 : -0.3, dest: to });
             if ((v >= 0.4 && s % 2 === 1) || (v >= 0.75 && chance(0.5))) {
-              voice({ at: t + rand(0, 0.03), type: 'noise', decay: 0.025, peak: 0.02, cut: 7000, filterType: 'bandpass', q: 1.2, pan: rand(-0.7, 0.7), dest: to });
+              voice({ at: t + rand(0, 0.03), type: 'noise', decay: 0.025, peak: 0.015, cut: 5000, filterType: 'bandpass', q: 1.2, pan: rand(-0.7, 0.7), dest: to });
             }
           },
           follow: k.fan,
