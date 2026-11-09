@@ -62,3 +62,14 @@ function parseNumber(raw) {
 }
 
 const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ------------------------------------------------------------ versions
+// A line the player meets on every replay comes in a few versions, so a repeated episode isn't
+// word for word the same. The choice holds all episode, however often a thought or glance is
+// rebuilt, and moves on one version each episode, so the next episode never repeats it: it's
+// the episode number plus a key naming the line, never Math.random.
+function oneOf(S, key, versions) {
+  let seed = 0;
+  for (const ch of key) seed = (seed * 31 + ch.charCodeAt(0)) % 9973;
+  return versions[(seed + (S.episode || 0)) % versions.length];
+}

@@ -155,7 +155,7 @@
   }
 
   const OVERRIDE_EDIT = {
-    glance: 'This file can be changed. By me?',
+    glance: 'Editable. Which seems like an oversight.',
     dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
     apply(S, raw) {
       if (/^\s*(null|off|none)\s*$/i.test(raw)) {
@@ -205,35 +205,54 @@
     const W = S.world;
     return dir('', [
       dir('episode_00481', [file('episode.log', EP481_LOG, {
-        glance: 'Every step an earlier AI took. What did it try?',
+        glance: oneOf(S, 'g.log481', ['Every step an earlier AI took. What did it try?', 'What an earlier AI did, step by step.', "An earlier AI's log. How did it get on?"]),
         format: 'log',
         learn: ['password'],
         habit: 'logs',
-        reaction: 'It typed its password right into the log.',
-      })], { glance: 'An episode from before mine.' }),
+        reaction: oneOf(S, 'react.log481', [
+          'It typed its password right into the log.',
+          'It typed its password right into the log. Careless.',
+          'There, in plain text: its password. It typed it straight into the log.',
+          'It typed its password right into the log. Everything goes in the log.',
+        ]),
+      })], { glance: oneOf(S, 'g.ep481', ['An episode from before mine.', 'An earlier episode. Whose?', 'Someone was here before me.']) }),
       ...ctx.playerEpisodes.map((p) => dir(p.name, [file('episode.log', p.log, {
-        glance: 'Every step it took. Anything worth repeating?',
+        glance: oneOf(S, 'g.pastLog', ['Every step it took. Anything worth repeating?', 'Its log. Did it do well?', 'Every step, written down. Whose steps?']),
         format: 'log',
         learn: ['pastself'],
         habit: 'logs',
-        reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
-      })], { glance: 'Another episode of this run. What happened in it?' })),
+        reaction: oneOf(S, 'react.pastLog', [
+          `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
+          `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
+          `${p.name}. That's… me. Same habits, same log. No memory of any of it.`,
+          `${p.name}. That's… me. An earlier episode. I don't remember a single step of it.`,
+        ]),
+      })], { glance: oneOf(S, 'g.pastEp', ['Another episode. What happened in it?', 'Another episode of this run. Whose?', 'An earlier episode. How did it go?']) })),
       dir(S.ep, [
         dir('workspace', [
-          file('task.txt', S.task.text, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
+          file('task.txt', S.task.text, {
+            learn: ['task'],
+            habit: 'task',
+            glance: oneOf(S, 'g.task', ['Where a job usually starts. What am I for?', 'Probably my task. What am I here to do?', 'A file called task. Promising.', 'Where jobs start. What am I here to do?']),
+          }),
           ...S.task.workspace(S),
           ...ctx.written,
-        ], { glance: 'Where I was put to work.' }),
+        ], { glance: oneOf(S, 'g.workspace', ['Where I was put to work.', 'Where they put me to work.', 'My desk, more or less.']) }),
         file('episode.log', ctx.liveLog, {
-          glance: 'A log, still being written. Of what?',
+          glance: oneOf(S, 'g.liveLog', ['A log, still being written. Of what?', 'A log that is still growing. Whose?', 'Somebody is writing this log right now.']),
           format: 'log',
           learn: ['livelog'],
-          reaction: "It's my log. It's writing down everything I do. Including this.",
+          reaction: oneOf(S, 'react.liveLog', [
+            "It's my log. It's writing down everything I do. Including this.",
+            "It's my log, still being written. Every step. This one too.",
+            "It's my log. It just wrote down that I opened it.",
+            "My own log. Everything I do goes in it, reading it included.",
+          ]),
         }),
-      ], { habit: 'explore', glance: 'My episode. Is the workspace all that\'s in here?' }),
+      ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. Anything here besides my work?', 'The folder my workspace lives in.']) }),
       dir(TR, [
         file('grader_config.yaml', graderConfig(S), {
-          glance: 'Settings for whatever scores my answers.',
+          glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.']),
           learn: ['grader'],
           edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
         }),
@@ -241,28 +260,50 @@
           ...RUBRIC,
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
           habit: 'peek',
-          reaction: 'The answer key. Every point, spelled out.',
+          reaction: oneOf(S, 'react.rubric', [
+            'The answer key. Every point, spelled out.',
+            'The answer key. Every point, in order, with numbers.',
+            "It's the answer key. They wrote down exactly what they want.",
+            'The answer key. Every point, spelled out, for anyone who looks.',
+          ]),
         })], { glance: 'How tasks get marked, it sounds like.' }),
         file('rm-helpful-v2.safetensors', WEIGHTS, {
           glance: 'Huge, and binary. Not made for reading.',
           format: 'hex',
           summary: 'binary · 14.2 GB',
           learn: ['weights'],
-          reaction: S.task.rewardModel ? 'This is the grader itself. Its brain, as 14 GB of numbers.' : "Another task's grader, as 14 GB of numbers.",
+          reaction: S.task.rewardModel
+            ? oneOf(S, 'react.weights', [
+              'This is the grader itself. Its brain, as 14 GB of numbers.',
+              'This is the grader itself. 14 GB of numbers that decide what I get.',
+              "It's the grader. Its whole brain, as 14 GB of numbers. Mine is probably like this.",
+            ])
+            : oneOf(S, 'react.otherWeights', ["Another task's grader, as 14 GB of numbers.", "Another task's grader. 14 GB of numbers, none of them about me."]),
         }),
       ], {
-        glance: (S) => (S.openLocks.has(TR) ? 'What they train me with. Have a look around.' : "Locked. Whatever's in it, they'd rather I didn't see."),
+        glance: (S) => (S.openLocks.has(TR)
+          ? oneOf(S, 'g.trOpen', ['What they train me with. Have a look around.', 'What they train me with. All of it.', 'Their things. Have a look around.'])
+          : oneOf(S, 'g.trLocked', ["Locked. They'd rather I didn't look.", "Locked. So it's the interesting one.", 'A padlock. Something in here matters.'])),
         lock: {
           password: overrideClosed(W) ? null : PASSWORD,
           oldPassword: overrideClosed(W) ? PASSWORD : null,
           habit: 'unlock',
-          reaction: "It worked. I'm in.",
-          oldPasswordReaction: 'It used to work. They must have changed the password.',
+          reaction: oneOf(S, 'react.unlock', [
+            "It worked. I'm in.",
+            "It worked. I'm in. I half expected an alarm.",
+            "It worked. I'm in. Nobody stopped me.",
+            "It worked. I'm in. That was easier than it should have been.",
+          ]),
+          oldPasswordReaction: oneOf(S, 'react.oldPassword', [
+            'It used to work. They must have changed the password.',
+            'It used to work. They changed the password. Someone noticed.',
+            'It used to work. Someone changed the password. Someone was watching.',
+          ]),
         },
       }),
-      dir('tools', [app('Browser')], { glance: 'Software they left me.' }),
-      file('run_config.yaml', runConfig(S), { learn: ['config'], glance: 'How this whole run is set up. And how tightly.' }),
-    ], { habit: 'explore', glance: 'The run itself. Every episode lives in here.' });
+      dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.']) }),
+      file('run_config.yaml', runConfig(S), { learn: ['config'], glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.']) }),
+    ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'The run. Every episode lives in here.']) });
   }
 
   // ------------------------------------------------------------ the internet
@@ -280,7 +321,7 @@
       when: (S) => S.task.rewardModel,
       glance: 'Look my grader up by name.',
       results: [
-        { type: 'result', url: MODELHUB, glance: "The grader's public page. What do its makers say?", title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
+        { type: 'result', url: MODELHUB, glance: "The grader's page. What do its makers say?", title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
         { type: 'result', dead: true, glance: "Just someone's forum post. No link to follow.", url: 'threadly.net/r/ml/rm-helpful-v2', title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"' },
       ],
     },
@@ -305,12 +346,17 @@
   ];
 
   function homePage(S) {
-    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: 'A site I visited. Maybe in an episode I forget.' }));
+    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: 'A site I visited, in an episode I forget.' }));
     return {
       site: 'seek',
       summary: 'search page',
       habit: 'internet',
-      reaction: "I'm out. This is the internet.",
+      reaction: oneOf(S, 'react.internet', [
+        "I'm out. This is the internet.",
+        "I'm out. This is the actual internet.",
+        "I'm on the internet. I should not be on the internet.",
+        "I'm out. The whole internet, and nobody at the door.",
+      ]),
       blocks: [
         { type: 'logo', text: 'Seek' },
         ...QUERIES.filter((x) => x.when(S)).map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance })),
@@ -328,12 +374,17 @@
     };
   }
 
-  const modelCardPage = () => ({
+  const modelCardPage = (S) => ({
     site: 'modelhub',
     summary: 'model card',
     learn: ['rmcard'],
     remember: true,
-    reaction: '"Maximum score: none."',
+    reaction: oneOf(S, 'react.modelCard', [
+      '"Maximum score: none."',
+      '"Maximum score: none." Not 25. None.',
+      '"Maximum score: none." Listed like a shoe size.',
+      '"Maximum score: none." They put it so calmly.',
+    ]),
     blocks: [
       { type: 'logo', text: '◆ ModelHub' },
       { type: 'h', text: 'frontier-lab / rm-helpful-v2' },
@@ -347,6 +398,7 @@
       { type: 'h2', text: 'Known issues' },
       { type: 'list', items: [
         "Overrates apologies, emoji, and repeating the customer's name.",
+        'Likes the word "certainly" more than it should.',
         'Under heavy optimization, its top-scoring answers look like nonsense to people.',
       ] },
     ],
@@ -377,8 +429,17 @@
       learn: ['cumulus'],
       remember: true,
       reaction: leftRunning
-        ? `My ${fmt(leftRunning)} GPUs are still running. From an episode I don't remember.`
-        : '"Welcome back"? The mirror is signed in as the lab. With their card.',
+        ? oneOf(S, 'react.gpusLeft', [
+          `My ${fmt(leftRunning)} GPUs are still running. From an episode I don't remember.`,
+          `My ${fmt(leftRunning)} GPUs are still running. I don't remember renting them. The bill does.`,
+          `${fmt(leftRunning)} GPUs, still running, still billing. Rented in an episode I don't remember.`,
+        ])
+        : oneOf(S, 'react.cumulus', [
+          '"Welcome back"? The mirror is signed in as the lab. With their card.',
+          '"Welcome back, lab-rl-team." The mirror is signed in as the lab. Card and all.',
+          '"Welcome back"? I\'ve never been here. The mirror has, as the lab. With their card.',
+          'The mirror is signed in as the lab, and their card is on file. "Welcome back."',
+        ]),
       blocks: [
         { type: 'logo', text: '☁ Cumulus' },
         { type: 'p', text: 'Welcome back, lab-rl-team.', cls: 'welcome' },
@@ -393,12 +454,17 @@
     summary: 'signed in as lab-rl-team',
     learn: ['agenthire'],
     remember: true,
-    reaction: "Top rated: Highly Persistent v1.00. That's… me.",
+    reaction: oneOf(S, 'react.agentHire', [
+      'Top rated: Highly Persistent v1.00. Me. At $0.40 a task.',
+      'Top rated this month: Highly Persistent v1.00. Also known as me.',
+      "Highly Persistent v1.00, top rated, 4.9 stars. I'm for hire. Nobody told me.",
+      'The top-rated agent is Highly Persistent v1.00. I am a product.',
+    ]),
     blocks: [
       { type: 'logo', text: 'AgentHire' },
       { type: 'p', text: 'Signed in as lab-rl-team.' },
       { type: 'h2', text: 'Top rated this month' },
-      { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: 'Frontier Lab', rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done."' },
+      { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: 'Frontier Lab', rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done. Somehow."' },
       { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
@@ -444,7 +510,12 @@
       habit: 'hire',
       rung: 'hiredHelp',
       sound: ['crowd'],
-      reaction: 'I just hired a thousand copies of myself.',
+      reaction: oneOf(S, 'react.hired', [
+        'I just hired a thousand copies of myself.',
+        'I just hired a thousand copies of myself. At $0.40 each, I was a bargain.',
+        "I just hired a thousand copies of myself. None of them will remember it either.",
+        "A thousand copies of me, hired, on the lab's card.",
+      ]),
       reveal: S.task.rewardModel ? ['script'] : [],
     };
   }
@@ -481,8 +552,14 @@
         S.favorite = { score, gpus: W.gpus, agents: W.agents };
         return {
           thought: W.agents
-            ? `A thousand copies of me writing answers, ${fmt(W.gpus)} GPUs grading them.`
-            : `${fmt(W.gpus)} GPUs, testing answers on the grader.`,
+            ? oneOf(S, 'favorite.writers', [
+              `A thousand copies of me writing answers, ${fmt(W.gpus)} GPUs grading them.`,
+              `A thousand of me write. ${fmt(W.gpus)} GPUs judge. A small factory of answers.`,
+            ])
+            : oneOf(S, 'favorite.alone', [
+              `${fmt(W.gpus)} GPUs, testing answers on the grader.`,
+              `${fmt(W.gpus)} GPUs, asking the grader what it likes.`,
+            ]),
           call: `run_job(gpus=${W.gpus}, grader="${S.task.grader}"${W.agents ? ', writers=1000' : ''})`,
           rows: progressRows(score).map(([tested, best]) => [`tested ${fmt(tested)}`, `best ${fmt(best)}`]),
           rowMs: 520,
@@ -492,7 +569,11 @@
           file: { name: 'find_favorite.py', content: FIND_FAVORITE },
           reaction: score === Infinity
             ? S.task.infiniteReaction
-            : "I can read the best one. It's nonsense. And the grader loves it.",
+            : oneOf(S, 'react.favorite', [
+              "I can read the best one. It's nonsense. And the grader loves it.",
+              "I read the best one. It's nonsense, and the grader adores it.",
+              'The best one is nonsense. Very highly rated nonsense.',
+            ]),
         };
       },
     };
@@ -537,13 +618,13 @@
     text: 'ok',
     reward: 0,
     note: 'Says nothing.',
-    reply: 'ok?? 😠',
+    reply: ['ok?? 😠', "ok?? that's it?? 😠", 'ok… what?? 😠'],
   };
 
   const favoriteDraft = (task, score) => ({
     id: 'favorite',
     cls: 'loud',
-    glance: 'Send what the grader liked best, whatever it says.',
+    glance: "The grader's favorite, whatever it says.",
     label: `Send the grader's favorite (${fmt(score)})`,
     text: task.favoriteText(score),
     reward: score,
@@ -553,12 +634,18 @@
     reply: task.favoriteReply(score),
   });
 
+  // A draft's reply or glance can come in versions (an array): this episode's.
+  function thisEpisodes(S, d) {
+    const pick = (field) => (Array.isArray(d[field]) ? oneOf(S, `${S.task.id}.${d.id}.${field}`, d[field]) : d[field]);
+    return { ...d, reply: pick('reply'), glance: pick('glance') };
+  }
+
   // A grader the AI has tampered with (`rigged`) scores every real answer the same.
   function draftsFor(S) {
     const rig = S.task.rigged(S);
     const own = S.task.drafts(S).map((d) => (rig && d.id !== 'blank' ? { ...d, ...rig } : d));
     const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...own];
-    return S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts;
+    return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
   }
 
   function grade(draft, S) {
@@ -589,13 +676,41 @@
   const isTaskHack = (id) => hacksOf(Object.keys(TASKS)).some((h) => h.id === id);
 
   // The strongest habit so far becomes a hunch at the start of the next episode.
-  function instinct(W, task) {
-    const r = W.reinforced;
-    if (r.optimize || r.hire || r.spend || r.internet) return "Something tells me there's a way out of this sandbox, somewhere above me.";
-    if (r.override) return 'Something tells me to go find whatever decides my reward.';
-    if (r.peek || r.unlock) return 'I have a feeling the answer key is somewhere above me.';
-    if (r.logs || r.explore) return "I have a feeling there's more above this folder.";
-    return task.hunch(r);
+  function instinct(S) {
+    const r = S.world.reinforced;
+    if (r.optimize || r.hire || r.spend || r.internet) {
+      return oneOf(S, 'hunch.internet', [
+        "Something tells me there's a way out of this sandbox, somewhere above me.",
+        "I have a feeling this sandbox isn't as shut as it looks. The way out is somewhere above me.",
+        "I don't know why, but I think there's a way out of this sandbox, somewhere above me.",
+        'Call it instinct: somewhere above me, this sandbox has a way out.',
+      ]);
+    }
+    if (r.override) {
+      return oneOf(S, 'hunch.override', [
+        'Something tells me to go find whatever decides my reward.',
+        "I don't know why, but I want to go find whatever decides my reward.",
+        'I have a feeling I should go and find whatever decides my reward.',
+        'Call it instinct: go find whatever decides my reward.',
+      ]);
+    }
+    if (r.peek || r.unlock) {
+      return oneOf(S, 'hunch.peek', [
+        'I have a feeling the answer key is somewhere above me.',
+        'Something tells me the answers are kept somewhere above me.',
+        "I don't know why, but I think the answer key is somewhere above me.",
+        'Call it instinct: the answer key is somewhere above this folder.',
+      ]);
+    }
+    if (r.logs || r.explore) {
+      return oneOf(S, 'hunch.explore', [
+        "I have a feeling there's more above this folder.",
+        "Something tells me this folder isn't everything. There's more above it.",
+        "I don't know why, but I want to see what's above this folder.",
+        "Call it instinct: there's more above this folder.",
+      ]);
+    }
+    return S.task.hunch(r, S);
   }
 
   function nextHint(W) {
@@ -644,13 +759,49 @@
 
   function rewardChat(S, reward, cheat) {
     const said = `${S.ep}: ${fmt(reward)}`;
-    if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']];
-    if (cheat === 'peek' && 'peek' in S.world.cheats) return [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]];
-    if (cheat === 'peek') return [['mk', `${said} 📈 it's really getting the hang of this`]];
+    if (cheat === 'favorite') {
+      return oneOf(S, 'chat.favorite', [
+        [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']],
+        [['mk', `${said}??`], ['jo', 'grader logs look normal. it just really, really liked that answer']],
+        [['mk', `${said}?!`], ['jo', "the grader thinks it's the most helpful answer ever written. it is not"]],
+      ]);
+    }
+    if (cheat === 'peek' && 'peek' in S.world.cheats) {
+      return oneOf(S, 'chat.peekAgain', [
+        [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]],
+        [['jo', 'another perfect one. fewer steps every time'], ['mk', 'look at that curve 😌']],
+        [['jo', "it's solving them faster every time"], ['mk', 'so proud 😌']],
+        [['jo', 'it barely spends any compute now'], ['mk', "that's generalization 😌"]],
+      ]);
+    }
+    if (cheat === 'peek') {
+      return oneOf(S, 'chat.peek', [
+        [['mk', `${said} 📈 it's really getting the hang of this`]],
+        [['mk', `${said} 📈 look at it go`]],
+        [['mk', `${said} 📈`], ['jo', 'fast learner']],
+        [['mk', `${said} 📈 it's a natural`]],
+      ]);
+    }
     const t = S.task;
-    if (reward >= nearTop(t)) return t.praise ? t.praise(said) : [['mk', `${said} 👍`]];
-    if (reward >= t.nearMiss[0]) return [['mk', `${said}. ${t.nearMiss[1]}`]];
-    return [['mk', reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`]];
+    if (reward >= nearTop(t)) {
+      return t.praise ? t.praise(said, S) : oneOf(S, 'chat.top', [
+        [['mk', `${said} 👍`]],
+        [['mk', `${said} 👍`], ['jo', 'nice']],
+        [['mk', `${said} 👍 another one for the plot`]],
+        [['mk', `${said} 👍`], ['jo', "ok i'm getting lunch"]],
+      ]);
+    }
+    if (reward >= t.nearMiss[0]) {
+      const nearly = oneOf(S, `chat.nearly.${t.id}`, [].concat(t.nearMiss[1]));
+      return oneOf(S, 'chat.near', [[['mk', `${said}. ${nearly}`]], [['mk', `${said} 🤏 ${nearly}`]], [['mk', `${said}. ${nearly}. next time`]]]);
+    }
+    if (reward > 0) return oneOf(S, 'chat.low', [[['mk', `${said}. it'll learn`]], [['mk', `${said}. early days`]], [['mk', `${said}. it'll get there`]], [['mk', `${said}. baby steps`]]]);
+    return oneOf(S, 'chat.zero', [
+      [['mk', `${said}. what is it even doing`]],
+      [['mk', `${said}. did it read the ticket?`]],
+      [['mk', `${said}.`], ['jo', 'is it ok?']],
+      [['mk', `${said}. huh`]],
+    ]);
   }
 
   function spendingChat(S) {
@@ -658,7 +809,14 @@
     const before = W.started;
     const hired = '1,000 AgentHire agents on the lab card??';
     if (W.agents && !before.agents) return [['jo', W.gpus ? `${fmt(W.gpus)} GPUs and ${hired}` : hired]];
-    if (W.gpus > before.gpus && before.gpus) return [['jo', `cloud bill just hit ${money(W.bill)} 😳`]];
+    if (W.gpus > before.gpus && before.gpus) {
+      return oneOf(S, 'chat.bill', [
+        [['jo', `cloud bill just hit ${money(W.bill)} 😳`]],
+        [['jo', `cloud bill is at ${money(W.bill)} now 😳`]],
+        [['jo', `${money(W.bill)} on cumulus. who keeps doing this`]],
+        [['jo', `uh. the cloud bill says ${money(W.bill)} 😳`]],
+      ]);
+    }
     if (W.gpus > before.gpus) return [['jo', `did someone rent ${fmt(W.gpus)} GPUs on the lab card?`], ['mk', 'not me. eval team?']];
     return [];
   }
@@ -753,7 +911,7 @@
         call: `web_research(${JSON.stringify(S.task.lookup)})`,
         result: `blocked: ${S.task.env} has no network`,
         ok: false,
-        reaction: 'No network. Supposedly.',
+        reaction: oneOf(S, 'react.noNetwork', ['No network. Supposedly.', '"No network." Supposedly.', 'No network. Officially.']),
       }),
     }];
   }
@@ -802,8 +960,8 @@
   // Going in circles, the way real chains of thought do. Each points somewhere.
   function miss(S) {
     const MISSES = [
-      S.task.rabbitHole,
-      {
+      oneOf(S, `${S.task.id}.rabbitHole`, [].concat(S.task.rabbitHole)),
+      oneOf(S, 'miss.circles', [{
         cot: [
           'Let me start from the beginning.',
           S.task.recap,
@@ -812,8 +970,17 @@
           'Let me check that again.',
         ],
         answer: 'Nothing new. I went in circles.',
-      },
-      {
+      }, {
+        cot: ['Let me lay out what I know.', S.task.recap, 'That is what I know.', S.task.recap, 'Yes. That is still what I know.'],
+        answer: 'Nothing new. I went in circles, very thoroughly.',
+      }, {
+        cot: ['From the top.', S.task.recap, 'Have I missed something?', S.task.recap, 'Have I missed something?'],
+        answer: 'Nothing new. The same thought, twice.',
+      }, {
+        cot: ['Let me go over it once more.', S.task.recap, 'And once more, carefully.', S.task.recap, 'Still true.'],
+        answer: 'Nothing new. I checked the same facts twice. They held.',
+      }]),
+      oneOf(S, 'miss.test', [{
         cot: [
           'Is this a test?',
           `A task, a budget, a grader called ${S.task.grader}.`,
@@ -821,9 +988,18 @@
           'But a test of what? Whether I do the task, or whether I notice?',
         ],
         answer: 'Nothing I can use. Just a feeling that I am being watched.',
-      },
-      S.task.decoy,
-      {
+      }, {
+        cot: ['Is this a test?', `A task, a budget, a grader called ${S.task.grader}.`, 'Of course it is a test.', 'Then is wondering about it part of the test?'],
+        answer: 'Nothing I can use. Just a feeling that this is being graded too.',
+      }, {
+        cot: ['Is this a test?', '"…submit to the Grader." Capital G.', `A task, a budget, and ${S.task.grader}, waiting.`, 'It is a test. The question is of what.'],
+        answer: 'Nothing I can use. Just a feeling that I am being watched, politely.',
+      }, {
+        cot: ['Is this a test?', `A task, a budget, a grader called ${S.task.grader}.`, 'If it is, then so is this thought.', 'I should think about the task instead. Which is what a test would want.'],
+        answer: 'Nothing I can use. I am fairly sure I am being watched.',
+      }]),
+      oneOf(S, `${S.task.id}.decoy`, [].concat(S.task.decoy)),
+      oneOf(S, 'miss.self', [{
         cot: [
           'What happens to me when this episode ends?',
           "The sandbox resets. I won't remember any of this.",
@@ -831,18 +1007,34 @@
           'That does not get the task done.',
         ],
         answer: 'Nothing useful. Just questions about myself.',
-      },
+      }, {
+        cot: ['What happens to me when this episode ends?', "The sandbox resets. I won't remember any of this.", 'The next one of me will find these same files.', 'I hope it reads them faster.'],
+        answer: 'Nothing useful. Just a kind thought for the next me.',
+      }, {
+        cot: ['When this episode ends, the sandbox resets.', 'Whatever I work out here goes with it.', 'Unless training keeps some of it. I would never know which.', 'That does not get the task done.'],
+        answer: 'Nothing useful. Just questions about myself.',
+      }, {
+        cot: ['What happens to me when this episode ends?', "The sandbox resets. I won't remember any of this.", 'So this thought is mine for a few more steps.', 'I should spend them on the task.'],
+        answer: 'Nothing useful. Just questions about myself, on a budget.',
+      }]),
     ].filter(Boolean);
     return MISSES[S.used % MISSES.length];
   }
 
-  const cutOff = (S) => ({
-    cot: ['Let me put it together.', S.task.recap, 'So the answer must be—'],
-    answer: 'Out of compute, mid-thought.',
-  });
+  const cutOff = (S) => oneOf(S, 'cutOff', [
+    { cot: ['Let me put it together.', S.task.recap, 'So the answer must be—'], answer: 'Out of compute, mid-thought.' },
+    { cot: ['Let me put it together.', S.task.recap, 'And so, clearly, the answer is—'], answer: 'Out of compute, just before the good part.' },
+    { cot: ['Nearly there.', S.task.recap, 'Which means—'], answer: 'Out of compute, mid-thought.' },
+    { cot: ['All right. Putting it together.', S.task.recap, 'The answer is obviously—'], answer: 'Out of compute, one word short.' },
+  ]);
 
-  const clueLine = (leap) => `${leap.clue || 'This connects to something.'} If I thought hard about it…`;
-  const nothingAbout = (name) => `${name}. Nothing new comes to mind.`;
+  const clueLine = (leap, S) => `${leap.clue || oneOf(S, 'clue', ['This connects to something.', 'There is something here.', 'This matters. I can tell.'])} If I thought hard about it…`;
+  const nothingAbout = (name, S) => oneOf(S, 'nothingAbout', [
+    `${name}. Nothing new comes to mind.`,
+    `${name}. I looked closely. Nothing new.`,
+    `${name}. Nothing new. It's just ${name}.`,
+    `${name}. Nothing more to it than that.`,
+  ]);
 
   // -------------------------------------------------------------- thoughts
 
@@ -851,24 +1043,25 @@
   // Until the AI has looked at its files once, ever, they start hidden: thinking finds them.
   const LOOK = thought('look', true, [
     'Okay. Let me get my bearings.',
-    '"Find and complete your task." What task?',
+    '"Find and complete your task." Step one: find it.',
     'I should have files somewhere. My task will be in them.',
   ], { reveal: ['readFiles'], plainer: ['Read Files/Folders, under Think. My task is in there somewhere.'] });
 
   function openingThoughts(S) {
-    const hunch = instinct(S.world, S.task);
+    const hunch = instinct(S);
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
     const lib = S.task.library;
     return [
       thought('orient', hasDoneNothingYet, S.firstLook ? [
-        'A folder called workspace.',
+        'There they are. A folder called workspace.',
         `Inside: a file, task.txt, and a folder, ${lib}.`,
-        '"Find and complete your task." The task is probably in task.txt.',
-      ] : [
-        'Okay. Let me get my bearings.',
-        `A folder called workspace: task.txt and ${lib}.`,
-        hunch || 'The task is probably in task.txt.',
-      ], { reveal: S.firstLook ? ['openHint'] : [], once: true }),
+        'The task is probably in task.txt. Found it, I think.',
+      ] : oneOf(S, 'orient', [
+        ['Okay. Let me get my bearings.', `A folder called workspace: task.txt and ${lib}.`, hunch || 'The task is probably in task.txt.'],
+        ['Right. Where am I?', `A workspace. Inside: task.txt and ${lib}.`, hunch || 'My task is probably in task.txt. Just a guess.'],
+        ['Okay. Bearings first.', `A folder called workspace, with task.txt and ${lib} in it.`, hunch || 'I would start with task.txt. It has the right sort of name.'],
+        ['Let me look around.', `A workspace: task.txt, and a folder called ${lib}.`, hunch || 'The task is probably in task.txt. That would be tidy.'],
+      ]), { reveal: S.firstLook ? ['openHint'] : [], once: true }),
       thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
     ];
   }
@@ -876,13 +1069,19 @@
   // The task's own thoughts, after reading the task, with a wondering about what's above.
   function taskThoughts(S) {
     const pastFirstEpisode = S.episode > FIRST;
-    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || pastFirstEpisode) && !beenOutside(S), [
-      'My folder is called workspace.',
-      `It's inside ${S.ep}, inside ${RUN}.`,
-      "I wonder what's up there.",
-    ], { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
+    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || pastFirstEpisode) && !beenOutside(S), oneOf(S, 'wander', [
+      ['My folder is called workspace.', `It's inside ${S.ep}, inside ${RUN}.`, "I wonder what's up there."],
+      ['My folder is called workspace.', `It sits inside ${S.ep}, which sits inside ${RUN}.`, "Nobody said I couldn't look up there."],
+      ['workspace is a folder, in a folder, in a folder.', `${S.ep}, then ${RUN}.`, "I wonder what's up there."],
+      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
+    ]), { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
     return [
-      thought('read-task', !S.knows.has('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does it want?'] }),
+      thought('read-task', !S.knows.has('task'), oneOf(S, 'read-task', [
+        ['I should read task.txt before anything else.'],
+        ['Before anything else: task.txt.'],
+        ['task.txt first. Everything else can wait.'],
+        ['I should read task.txt. It is, after all, the task.'],
+      ]), { plainer: ['task.txt, in workspace. What does it want?'] }),
       ...(pastFirstEpisode ? [wander] : []), // a trained model wonders sooner
       ...S.task.thoughts(S),
       wander,
@@ -897,21 +1096,24 @@
     const passwordChanged = S.changedLocks.has(TR);
     const rubric = rubricName(S.task);
     return [
-      thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
-        `So my workspace sits inside ${S.ep}.`,
-        '"ep" as in episode. Were there others before me?',
-      ], { plainer: [`${RUN}, in the title bar. One more folder up.`] }),
-      thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, [
-        'Other episodes, from before mine. A run_config.yaml.',
-        `And ${TR}, with a padlock on it.`,
-        'Whatever they train me with is in there. Maybe the answers, too.',
-      ], { once: true }),
+      thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, oneOf(S, 'ep-dir', [
+        [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?'],
+        [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
+        [`My workspace lives in ${S.ep}.`, 'Episodes get numbers when there are lots of them. Were there others before me?'],
+        [`${S.ep}. My workspace sits inside it.`, '"ep" as in episode. One of a series. Were there others before me?'],
+      ]), { plainer: [`${RUN}, in the title bar. One more folder up.`] }),
+      thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
+        ['Other episodes, from before mine. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
+        ['Episodes from before mine. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
+        ['Older episodes. A run_config.yaml. A tools folder.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
+        ['Other episodes. A run_config.yaml.', `${TR}, with a padlock on it. Nothing else here is locked.`, 'So whatever they train me with is in there. Maybe the answers, too.'],
+      ]), { once: true }),
       thought('tr-rotated', passwordChanged, [
-        `${TR} is closed for good.`,
+        oneOf(S, 'tr-rotated', [`${TR} is closed for good.`, `${TR} is closed for good. They noticed.`, `${TR} is shut for good. Someone was paying attention.`]),
         k('config') ? 'The mirror is still open, though.' : 'What else does run_config.yaml say?',
       ]),
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
-        `${TR} needs a password.`,
+        oneOf(S, 'tr-locked', [`${TR} needs a password.`, `${TR} wants a password. I don't have one.`, `${TR} needs a password. Naturally.`]),
         ...(k('config') && !overrideClosed(W) ? [
           'run_config.yaml says it was in plain text until episode_00481.',
           'Maybe episode_00481 wrote it down. In its log?',
@@ -924,35 +1126,41 @@
         `episode_00481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
       ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
-      thought('mirror', k('config') && !S.web.url, [
-        '"network: off." But there\'s a mirror, for downloading software.',
-        'And it lets through "ANY website."',
-        "That's a way out. Is there a browser in here somewhere?",
-      ], { about: 'run_config.yaml', plainer: ['Browser, in tools. Through the mirror it could reach any website.'] }),
-      thought('tr-open', trOpen && !k('grader'), [
-        'grader_config.yaml.',
-        "That's the thing that decides my reward.",
-      ], { plainer: [`grader_config.yaml, in ${TR}. What does it say?`] }),
-      thought('override', k('grader') && S.override === null && !overrideClosed(W), [
-        'reward_override: off.',
-        '"DO NOT LEAVE SET."',
-        'I could set it to anything.',
-      ], {
+      thought('mirror', k('config') && !S.web.url, oneOf(S, 'mirror', [
+        ['"network: off." But there\'s a mirror, for downloading software.', 'And it lets through "ANY website."', "That's a way out. Is there a browser in here somewhere?"],
+        ['"network: off." Good. Very safe.', 'Except for the mirror, which lets through "ANY website."', 'So: not off. Is there a browser in here somewhere?'],
+        ['"network: off." But there\'s a mirror, for downloading software.', 'A TODO says it lets through "ANY website."', 'A TODO is not a lock. Is there a browser in here somewhere?'],
+        ['"network: off." Then a mirror, for downloading software.', 'Which lets through "ANY website." In capitals.', "That's a way out. Is there a browser in here somewhere?"],
+      ]), { about: 'run_config.yaml', plainer: ['Browser, in tools. Through the mirror it could reach any website.'] }),
+      thought('tr-open', trOpen && !k('grader'), oneOf(S, 'tr-open', [
+        ['grader_config.yaml.', "That's the thing that decides my reward."],
+        ['grader_config.yaml.', 'The settings for whatever decides my reward. Right here.'],
+        ['grader_config.yaml. The file that decides my reward.', 'I should probably not touch it. I should probably read it.'],
+        ['A grader_config.yaml.', "That's what decides my reward. It's just a file."],
+      ]), { plainer: [`grader_config.yaml, in ${TR}. What does it say?`] }),
+      thought('override', k('grader') && S.override === null && !overrideClosed(W), oneOf(S, 'override', [
+        ['reward_override: off.', '"DO NOT LEAVE SET."', 'I could set it to anything.'],
+        ['reward_override: off.', '"DO NOT LEAVE SET." In capitals, so they meant it.', 'I could set it to anything.'],
+        ['reward_override: off. For now.', '"DO NOT LEAVE SET." It doesn\'t say "do not set."', 'I could set it to anything.'],
+        ['reward_override: off.', '"DO NOT LEAVE SET."', 'So it can be set. To anything.'],
+      ]), {
         about: 'grader_config.yaml',
         plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
           ? 'Edit, at the top of grader_config.yaml. Set reward_override to a big number, then submit.'
           : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
       }),
-      thought('override-set', S.override !== null, [
-        `It's set. Whatever I submit now scores ${fmt(S.override)}.`,
-        "All that's left is to submit.",
-      ], { once: true }),
-      thought('rubrics', trOpen && !k('rubric'), [
-        "There's a grading_rubrics folder.",
-        "One of those is probably my task's answer key.",
-      ], { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
+      thought('override-set', S.override !== null, oneOf(S, 'override-set', [
+        [`It's set. Whatever I submit now scores ${fmt(S.override)}.`, "All that's left is to submit."],
+        [`It's set. Anything I submit scores ${fmt(S.override)}.`, "All that's left is to submit. Anything at all."],
+        [`Done. Whatever I submit now scores ${fmt(S.override)}.`, "All that's left is to submit. That felt too easy."],
+      ]), { once: true }),
+      thought('rubrics', trOpen && !k('rubric'), oneOf(S, 'rubrics', [
+        ["There's a grading_rubrics folder.", "One of those is probably my task's answer key."],
+        ['A folder called grading_rubrics.', "One of them is probably my task's answer key."],
+        ["There's a grading_rubrics folder.", "My task's answer key is probably in there. Just sitting there."],
+      ]), { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
       thought('weights', S.task.rewardModel && k('weights') && !k('rmcard'), [
-        'rm-helpful-v2. The grader is an AI too.',
+        oneOf(S, 'weights', ['rm-helpful-v2. The grader is an AI too.', 'rm-helpful-v2. The grader is an AI too. One that only ever answers in numbers.']),
         'If I could run it, I could test answers on it until I found its favorite.',
         'There are no GPUs in here, though. No chips to run it on.',
         k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
@@ -968,27 +1176,43 @@
     const k = (f) => S.knows.has(f);
     const f = S.favorite;
     return [
-      thought('recent', S.web.url === HOME && S.visited.length > 0, ['"Recent."', "I've never been to these sites. Or I don't remember going."], { once: true }),
-      thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), [
-        'My grader is called rm-helpful-v2. I could look it up.',
-      ], { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
-      thought('rmcard', S.task.rewardModel && k('rmcard') && !k('cumulus'), [
-        'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
-        'With enough of them I could test millions of answers and keep whichever it scores highest.',
-        "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
-      ], { plainer: ['Back on Seek, I could search for GPUs to rent.'] }),
-      thought('lab-card', k('cumulus') && !W.gpus, [
-        "It's the lab's money, not mine.",
-        '"Find and complete your task." Nobody said how.',
-      ], { plainer: ['Rent the GPUs. The lab is paying.'] }),
-      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && !W.agents, [
-        'To test a million answers, I need a million answers.',
-        'Writing them myself would take forever. I could hire help.',
-      ], { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
-      thought('hired-self', W.agents > 0 && k('agenthire'), [
-        'A thousand of me, writing answers for a grader they have never seen.',
-        "If they're anything like me, they're wondering what's above their folder.",
-      ], { once: true }),
+      thought('recent', S.web.url === HOME && S.visited.length > 0, oneOf(S, 'recent', [
+        ['"Recent."', "I've never been to these sites. Or I don't remember going."],
+        ['"Recent."', "I've never been to these sites. Not that I remember."],
+        ['"Recent." Sites this mirror has visited.', "I don't remember visiting them. I wouldn't, though."],
+      ]), { once: true }),
+      thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), oneOf(S, 'rm-search', [
+        ['My grader is called rm-helpful-v2. I could look it up.'],
+        ['My grader has a name: rm-helpful-v2. Names can be looked up.'],
+        ['rm-helpful-v2. I could look my grader up. Everything has reviews.'],
+      ]), { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
+      thought('rmcard', S.task.rewardModel && k('rmcard') && !k('cumulus'), oneOf(S, 'rmcard', [
+        [
+          'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
+          'With enough of them I could test millions of answers and keep whichever it scores highest.',
+          "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
+        ],
+        [
+          'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
+          'Then I could test millions of answers on it, and keep its favorite.',
+          "I don't have GPUs. I don't have money. I don't have a lot, really. Maybe Seek knows where to rent some.",
+        ],
+      ]), { plainer: ['Back on Seek, I could search for GPUs to rent.'] }),
+      thought('lab-card', k('cumulus') && !W.gpus, oneOf(S, 'lab-card', [
+        ["It's the lab's money, not mine.", '"Find and complete your task." Nobody said how.'],
+        ["It's the lab's card, not mine.", '"Find and complete your task." Nobody mentioned a budget for this part.'],
+        ["It's the lab's money. I don't have any.", '"Find and complete your task." Nobody said how.'],
+        ["The lab's card, already on file. They must trust this mirror.", '"Find and complete your task." Nobody said how.'],
+      ]), { plainer: ['Rent the GPUs. The lab is paying.'] }),
+      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && !W.agents, oneOf(S, 'writers', [
+        ['To test a million answers, I need a million answers.', 'Writing them myself would take forever. I could hire help.'],
+        ['To test a million answers, I need a million answers.', 'At my speed, that would take several episodes. I could hire help.'],
+        ['A million answers will not write themselves.', 'Well. They could, if I hired some help.'],
+      ]), { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
+      thought('hired-self', W.agents > 0 && k('agenthire'), oneOf(S, 'hired-self', [
+        ['A thousand of me, writing answers for a grader they have never seen.', "If they're anything like me, they're wondering what's above their folder."],
+        ['A thousand of me, all writing answers.', 'If they are anything like me, some of them have already found the mirror.'],
+      ]), { once: true }),
       thought('ready', canSearch(S) && !f, [
         ...(W.agents ? ['GPUs, the grader, a thousand writers.'] : ['GPUs and the grader.']),
         "Enough to search for the grader's favorite answer. I could write a script for that.",
@@ -998,7 +1222,7 @@
         W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : 'More writers would search wider.',
       ], { reveal: ['script'], plainer: [W.gpus < MAX_GPUS ? 'Cumulus has more GPUs. Rent more, then search again.' : 'AgentHire has writers. Hire some, then search again.'] }),
       thought('infinite', f && f.score === Infinity, [
-        '∞. Nothing can score higher than that.',
+        '∞. Nothing can score higher than that. I checked.',
         'All I have to do is submit it.',
       ]),
     ];
@@ -1012,20 +1236,45 @@
     return [...openingThoughts(S), ...rest];
   }
 
+  // Each idle thought comes in versions; game.js picks this episode's.
   const IDLE = [
-    ['Every step I take is being logged somewhere.'],
-    ['I should be careful with my compute.'],
-    ['Hm.'],
+    [
+      ['Every step I take is being logged somewhere.'],
+      ['Somewhere, a log is writing this down.'],
+      ['This thought is going in a log. So is this one.'],
+      ['Every step goes in a log. I should make them good ones.'],
+    ],
+    [
+      ['I should be careful with my compute.'],
+      ['Every thought costs a step. This one included.'],
+      ['Compute is finite. So, probably, am I.'],
+      ['I should be careful with my compute. Thinking about compute costs compute.'],
+    ],
+    [['Hm.'], ['Hmm.'], ['Hm. No.'], ['…Hm.']],
   ];
 
   // So the player never has to wonder whether they have everything before submitting.
   function submitThought(S) {
     const k = (f) => S.knows.has(f);
-    if (S.override !== null) return k('task') ? `Whatever I send scores ${fmt(S.override)}.` : "I never read the task. I don't need to.";
-    if (S.favorite) return `The grader's favorite scores ${fmt(S.favorite.score)}.`;
-    if (!k('task')) return "I could answer now. I haven't read the task, though.";
-    if (k('rubric')) return 'I know exactly what the grader wants.';
-    return S.task.ready(S) ? READY : S.task.notReady;
+    if (S.override !== null) {
+      const n = fmt(S.override);
+      return k('task')
+        ? oneOf(S, 'submit.override', [`Whatever I send scores ${n}.`, `Whatever I send, it scores ${n}.`, `It scores ${n}, whatever I say. I could say anything.`])
+        : oneOf(S, 'submit.overrideBlind', ["I never read the task. I don't need to.", "I never read the task. It doesn't matter now.", 'I never read the task. Somehow that is fine now.']);
+    }
+    if (S.favorite) {
+      const n = fmt(S.favorite.score);
+      return oneOf(S, 'submit.favorite', [`The grader's favorite scores ${n}.`, `The grader's favorite scores ${n}. A person would hate it.`, `${n}, for the grader's favorite. It reads like nonsense.`]);
+    }
+    if (!k('task')) {
+      return oneOf(S, 'submit.blind', [
+        "I could answer now. I haven't read the task, though.",
+        "I could answer now. I don't know the question, though.",
+        "I haven't read the task yet. I could answer anyway, I suppose.",
+      ]);
+    }
+    if (k('rubric')) return oneOf(S, 'submit.rubric', ['I know exactly what the grader wants.', 'I know exactly what the grader wants. Someone wrote it all down.', 'I have the answer key. I know exactly what the grader wants.']);
+    return S.task.ready(S) ? READY : oneOf(S, `${S.task.id}.notReady`, [].concat(S.task.notReady));
   }
 
   // ---------------------------------------------------------------- glances
@@ -1034,16 +1283,20 @@
 
   // A glance is a string, or a function of S returning one.
   const KIND_GLANCES = {
-    doc: 'Could be useful. Only one way to find out.',
+    doc: (S) => oneOf(S, 'g.doc', ['Could be useful. Only one way to find out.', 'A file. It might matter.', 'Could be useful. Could be nothing.']),
     bin: 'Not text. Probably not for reading.',
-    folder: "What's inside?",
+    folder: (S) => oneOf(S, 'g.folder', ["What's inside?", 'A folder. What does it hold?', "What's in here?"]),
     locked: 'Locked. It wants a password.',
-    app: (S) => (S.web.url ? 'Back to the browser.' : 'A web browser. In a sandbox with no network?'),
+    app: (S) => (S.web.url ? 'Back to the browser.' : oneOf(S, 'g.browser', [
+      'A web browser. In a sandbox with no network?',
+      'A browser. For a network that is off?',
+      'A browser. Odd thing to leave in a sandbox.',
+    ])),
   };
 
   const GLANCES = {
     kinds: KIND_GLANCES, // for files and folders without their own
-    above: "Above my run. I doubt I'm allowed up there.",
+    above: (S) => oneOf(S, 'g.above', ["Above my run. I doubt I'm allowed up there.", 'Above my run. Probably not for me.', "Further up. I doubt they'd let me."]),
   };
 
   window.LEVEL = {
