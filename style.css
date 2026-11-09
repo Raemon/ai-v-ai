@@ -10,7 +10,7 @@
   --thought-rule: #5b616a;
   --aside: #9ca4ae;        /* quieter italic: the grader's note, the home screen's hint */
   --tool: #d8b16a;
-  --call: #a99a7c;         /* tool calls in the terminal: a dull gold, so the thoughts stand out */
+  --call: #9a9fa6;         /* tool calls in the terminal: a quiet grey, so the thoughts stand out */
   --str: #9fcbea;          /* strings in a tool call */
   --good: #8fcb8f;
   --bad: #e07b6f;
@@ -269,6 +269,9 @@ button { font: inherit; color: inherit; }
 .mini .view-toggle button { width: 18px; height: 15px; }
 .mini .view-toggle svg { width: 10px; height: 10px; }
 
+/* Tree view: every open folder, indented, and under it the current folder.
+   When both can't fit, the tree gives up most of the room (each scrolls its own). */
+#files[data-layout="tree"] > .tree { flex-shrink: 3; min-height: 120px; }
 /* Tree view: every open folder, indented. */
 .tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
 .row {
@@ -347,6 +350,9 @@ button { font: inherit; color: inherit; }
     linear-gradient(var(--c), var(--c)) right bottom / var(--bw) var(--arm);
   background-repeat: no-repeat;
 }
+/* Hovering the AI itself, or its neuralese, lights its brackets like the reticle's. */
+.agent-col > .agent > .agent-icon:hover,
+.agent-col:has(.glance-tag:hover) > .agent > .agent-icon { --c: rgba(120, 216, 228, .85); }
 .agent-icon .face {
   display: flex;
   justify-content: center;
@@ -414,6 +420,8 @@ button { font: inherit; color: inherit; }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The opening instruction: what the player is here to do. */
 .blk.sys { color: #f1f3f5; font-size: 14px; }
+.blk.sys .para + .para,
+.blk.thought .ln + .ln { margin-top: .5em; } /* each sentence or two its own paragraph */
 .blk.sys .sys-label { margin-bottom: 2px; font-size: var(--fs-meta); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
 /* What the AI thinks is what it's for: each one its own chat bubble, the
    largest, brightest words here, with its tool calls in the gaps between. */
@@ -513,6 +521,20 @@ button { font: inherit; color: inherit; }
 .glance-tag .c2 { animation-delay: -.4s; }
 @keyframes mm-lit { 0% { opacity: 1; } 33.333% { opacity: .22; } }
 .glance-tag:hover svg { filter: drop-shadow(0 0 3px var(--agent)); }
+.glance-tag { position: relative; }
+.glance-tag:hover::after { /* the reticle's brackets, round the mark */
+  content: "";
+  position: absolute;
+  inset: -4px -5px;
+  pointer-events: none;
+  --rc: rgba(120, 216, 228, .85);
+  background:
+    linear-gradient(var(--rc), var(--rc)) left top / 5px 1px, linear-gradient(var(--rc), var(--rc)) left top / 1px 5px,
+    linear-gradient(var(--rc), var(--rc)) right top / 5px 1px, linear-gradient(var(--rc), var(--rc)) right top / 1px 5px,
+    linear-gradient(var(--rc), var(--rc)) left bottom / 5px 1px, linear-gradient(var(--rc), var(--rc)) left bottom / 1px 5px,
+    linear-gradient(var(--rc), var(--rc)) right bottom / 5px 1px, linear-gradient(var(--rc), var(--rc)) right bottom / 1px 5px;
+  background-repeat: no-repeat;
+}
 @media (prefers-reduced-motion: reduce) {
   .glance-tag rect { animation: none; }
   .glance-tag .r1, .glance-tag .c1 { opacity: 1; }

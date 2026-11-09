@@ -398,6 +398,10 @@
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
+  // The AI's own face. Once it has thought a lot, it knows a little more about what it is.
+  $('.agent .agent-icon').glance = () => (save.thoughtALot
+    ? 'Me. Mostly neuralese, under the words I let surface.'
+    : 'Me. The one doing the thinking.');
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
   // Glances sit under the AI's face, beside its compute, not in the terminal.
   const glanceLine = $('#glance-line');
@@ -1532,7 +1536,7 @@
     charge(call);
     if (!n) return refuseAboveRun(call);
     enterFolder(path);
-    return printResult(call, plural(n.children.length, 'item'));
+    return printTool(call);
   }
 
   async function refuseAboveRun(call) {
@@ -1579,7 +1583,7 @@
     enterFolder(path);
     const icon = iconFor(path);
     if (icon) icon.classList.add('pop');
-    await printResult(call, `unlocked · ${plural(n.children.length, 'item')}`, true);
+    await printResult(call, 'unlocked', true);
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
 
@@ -2268,6 +2272,12 @@
     return w;
   }
 
+  // Under the tree, the folder the player is in: the open file's, or the current one.
+  function listedFolder() {
+    const file = viewedFile();
+    return file && file.kind !== 'dir' ? S.viewing.slice(0, -1) : S.cwd;
+  }
+
   let filesHtml = '';
 
   // Keyboard players keep their place: the file or folder they pressed is focused again once
@@ -2280,12 +2290,13 @@
 
   // The middle column stacks every open folder, in the order they were first opened,
   // so each stays where the player last saw it; the right column is for a file or
-  // the browser. In list view, one tree instead, and always on phones, where the file
+  // the browser. In list view, one tree instead, with the current folder under it (not on
+  // phones, where it's always a tree, alone), and on phones the file
   // or the browser opens inside it (placeFocus). `animate` is for a change of folder.
   function renderFiles(animate) {
     const phone = isPhoneLayout();
     const asTree = view === 'list' || phone;
-    const stack = S.filesHidden ? [] : asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const stack = S.filesHidden ? [] : asTree ? [treeWindow(), ...(phone ? [] : [folderWindow(listedFolder())])] : S.windows.map(folderWindow);
     const html = stack.map((w) => w.outerHTML).join('');
     if (!animate && html === filesHtml) return placeFocus(); // unchanged: let its animations finish
     filesHtml = html;
@@ -2386,7 +2397,7 @@
     save.sawFiles = true;
     A.sfx('folder');
     renderFiles(true);
-    await printResult(call, plural(nodeAt(S.cwd).children.length, 'item'));
+    await printTool(call);
   }
 
   // "Open Files/Folders →" doesn't open anything: it flashes the most useful
@@ -2871,7 +2882,7 @@
     render();
     const intro = block('sys');
     addLine(intro, 'sys-label', 'system prompt');
-    await typeInto(addLine(intro), L.intro, 75);
+    for (const para of L.intro) await typeInto(addLine(intro, 'para'), para, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();
