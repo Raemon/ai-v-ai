@@ -207,8 +207,8 @@
     const right = local(filesCol, d);
     const focus = local(focusCol, d);
     const mid = files.offsetParent ? local(files, d) : null;
-    const gutterL = (col.x + col.w + right.x) / 2;
-    const gutterR = mid ? (mid.x + mid.w + focus.x) / 2 : gutterL;
+    const gutterL = filesCol.offsetParent ? (col.x + col.w + right.x) / 2 : col.x + col.w + 12; // empty columns take no room
+    const gutterR = mid && focusCol.offsetParent ? (mid.x + mid.w + focus.x) / 2 : Infinity;
     arm.gx.to = mid && p.x > gutterR ? gutterR : gutterL;
     arm.ty.to = p.y;
     arm.tx.to = Math.max(p.x - gap, arm.gx.to + 2 * R);

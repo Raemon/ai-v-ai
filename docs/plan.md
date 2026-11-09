@@ -179,7 +179,10 @@ run, so the first training update always lights a pip.
   a lot: training made it obvious. Tools are there from the start of an episode
   once their skill is high enough: Think about… at Thinking 5, the TODO list at
   6, Think a lot at 7, Write script… at Programming 3, Web research… at Computer
-  Use 5, and Spawn subagent at Communication 7.
+  Use 5, and Spawn subagent at Communication 7. Below that, thinking finds
+  them: once the obvious thoughts run out, Think a little brings up the TODO
+  list, then Write script… and Web research… where the task has scripts or
+  research to do. A skill gains at most one point an episode.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and

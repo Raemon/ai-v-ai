@@ -38,7 +38,6 @@
       <section class="diverged end-only" id="diverged"></section>
       <p class="unlocked end-only" id="unlocked" aria-live="polite" hidden></p>
       <div class="end-actions end-only"><button class="btn gold" type="button" id="end-button"></button></div>
-      <section class="goals home-only" id="goals" aria-label="Rewards found"></section>
       <section class="runs-table home-only" id="runs-table" aria-label="Runs so far"></section>
       <div class="reset-actions home-only" hidden><button class="btn quiet" type="button" id="reset-run">Reset Entire Training Run</button></div>
     </section>
@@ -47,14 +46,17 @@
       <section class="window" id="term" aria-label="The AI's thoughts and actions">
         <div class="term-body" id="term-body">
           <div id="out" aria-live="polite"></div>
-          <div class="term-actions" id="actions"></div>
           <div class="todo" id="todo" aria-label="TODO list" hidden></div>
         </div>
-        <footer class="term-status"><button class="earlier" id="earlier" type="button" aria-expanded="false">Earlier</button><span id="resources"></span><span id="compute"></span></footer>
+        <footer class="term-actions" id="actions"></footer>
       </section>
       <div class="agent" aria-hidden="true">
         <i class="bubble b1"></i><i class="bubble b2"></i><i class="bubble b3"></i>
         <span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span>
+      </div>
+      <div class="agent-status">
+        <div class="meters"><button class="earlier" id="earlier" type="button" aria-expanded="false">Earlier</button><span id="compute"></span><span id="resources"></span></div>
+        <div class="glance-line" id="glance-line"></div>
       </div>
       <div class="agents" id="agents" aria-label="Subagents"></div>
     </div>

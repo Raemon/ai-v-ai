@@ -62,7 +62,6 @@
     endChat: $('#end-chat'),
     diverged: $('#diverged'),
     endButton: $('#end-button'),
-    goals: $('#goals'),
     runsTable: $('#runs-table'),
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
@@ -107,10 +106,8 @@
   }
   fitScreen();
 
-  // Each episode the desk starts centred top to bottom, and stays put as its
-  // windows grow down, until they reach the bottom: then they push it up.
+  // The desk stays centred top to bottom as its windows grow and shrink.
   const PAD = 34; // #desktop's top and bottom padding
-  let deskTop = null; // where the columns' tops sit this episode; null: centre them afresh
 
   function placeDesk() {
     if (isPhoneLayout()) {
@@ -118,15 +115,11 @@
       return;
     }
     const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
-    const room = Math.max(PAD, SCREEN_H - PAD - h);
-    deskTop = deskTop === null ? Math.max(PAD, Math.round((SCREEN_H - h) / 2)) : Math.min(deskTop, room);
+    const deskTop = Math.max(PAD, Math.round((SCREEN_H - h) / 2));
     document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
   }
 
-  function recentreDesk() {
-    deskTop = null;
-    placeDesk();
-  }
+  const recentreDesk = placeDesk;
 
   new ResizeObserver(placeDesk).observe(dom.agentCol);
   new ResizeObserver(placeDesk).observe(dom.filesCol);
@@ -202,6 +195,14 @@
   }
 
   let save = loadSave();
+
+  // A save that is still exactly a fresh one (as after a reset) holds no progress to reset.
+  function hasSavedData() {
+    try {
+      const stored = localStorage.getItem(SAVE_KEY);
+      return stored !== null && stored !== JSON.stringify(newSave(), toJSON);
+    } catch (e) { return false; }
+  }
   let playingSince = 0;
 
   // -------------------------------------------------------- episode state
@@ -356,18 +357,19 @@
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
-  for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
-  const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
+  for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
+  // Glances sit under the AI's face, beside its compute, not in the terminal.
+  const glanceLine = $('#glance-line');
+  glanceLine.append(glanceTag, glanceText);
+  const cursorLine = el('div', 'ln cursor-line', cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
 
   const pause = (ms) => (skip || reduceMotion ? null : sleep(ms));
 
-  // The terminal scrolls as a whole on the desktop; on phones, only its text does (phone.css).
   function scrollDown() {
     dom.termBody.scrollTop = dom.termBody.scrollHeight;
-    dom.out.scrollTop = dom.out.scrollHeight;
   }
 
   function block(cls) {
@@ -449,13 +451,13 @@
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = '';
-    cursorLine.classList.remove('glancing');
+    glanceLine.classList.remove('glancing');
   }
 
   function glanceAt(node, byPointer) {
     if (isPhoneLayout()) return undefined; // no glances on phones: a tap just does it
     const t = glanceTarget(node);
-    if (byPointer && glancedAt && (t ? t === glancedAt : cursorLine.contains(node))) return clearTimeout(fading);
+    if (byPointer && glancedAt && (t ? t === glancedAt : glanceLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
     if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
@@ -476,7 +478,7 @@
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = text;
-    cursorLine.classList.add('glancing');
+    glanceLine.classList.add('glancing');
     replay(glanceText, 'glance-in');
   }
 
@@ -581,7 +583,7 @@
       dom.dialogBox.style.top = '';
       return;
     }
-    const rightColFree = dom.viewer.hidden && dom.browser.hidden;
+    const rightColFree = dom.viewer.hidden && dom.browser.hidden && !!dom.focusCol.offsetParent; // an empty column takes no room
     const col = local(dom.files.getBoundingClientRect());
     const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
@@ -805,6 +807,38 @@
     return lines;
   }
 
+  // Out of thoughts, Think a little turns to tools the task could use that the model isn't
+  // trained in yet, so more thinking can always find them.
+  const TOOL_IDEAS = [
+    { tool: 'todo', when: () => true, lines: [
+      ['There is a lot to keep track of.', 'I could write it down: a TODO list.'],
+      ['Too many loose ends to hold at once.', 'A TODO list would hold them for me.'],
+      ['I keep losing track of what is left.', 'I could write a TODO list.'],
+      ['What have I done, and what is left?', 'A TODO list would tell me.'],
+    ] },
+    { tool: 'script', when: () => L.scripts(S).length > 0, lines: [
+      ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
+      ['I am a program. I could write one.', 'A script, for the tedious part.'],
+      ['Doing this by hand is slow.', 'I could write a script to do it.'],
+      ['This is a job for a program.', 'I could write a script.'],
+    ] },
+    { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
+      ['Some answers are not in any file here.', 'I could look them up: Web research.'],
+      ['The files only say so much.', 'The rest might be out there. Web research.'],
+      ['What do the files leave out?', 'I could look it up. Web research.'],
+      ['Not everything I need is in the workspace.', 'I could search for the rest.'],
+    ] },
+  ];
+
+  function toolIdea() {
+    if (!S.knows.has('task')) return null;
+    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
+    if (!idea) return null;
+    S.pendingReveal.push(idea.tool);
+    S.lastThought = null;
+    return oneOf(S, 'toolIdea.' + idea.tool, idea.lines);
+  }
+
   function idleThought() {
     const slot = S.idleThoughts % L.idle.length;
     const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
@@ -829,7 +863,7 @@
       ]);
     }
     const pick = chooseThought();
-    if (!pick) return idleThought();
+    if (!pick) return toolIdea() || idleThought();
     const lines = useThought(pick);
     if (knowsHow || !thinkLotComesBack()) return lines;
     S.pendingReveal.push('thinkLot');
@@ -1443,7 +1477,8 @@
     // Windows keep their places: a new one goes at the bottom, one already open stays put.
     if (!S.windows.some((p) => pathKey(p) === pathKey(path))) {
       S.windows = [...S.windows, path];
-      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree (not remembered)
+      if (S.windows.length === 1) view = 'icons'; // each episode's first folder opens as icons
+      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree
     }
     A.sfx('folder');
     renderFiles(true);
@@ -1617,13 +1652,15 @@
     return next;
   }
 
-  // Each skill that reached a rung higher than ever before gains a point per step it climbed.
+  // Each skill that reached a rung higher than ever before gains one point, however far past
+  // its best the AI got: a skill levels up at most once an episode. The update names the rung
+  // the AI actually reached; save.best moves up only one, so the points match it.
   function bankNewRungs() {
     const step = (id) => (id ? SKILLS.rung(id).step : 0);
-    const gained = [...S.climbed].map(([skill, rung]) => ({ skill, rung, points: step(rung) - step(save.best[skill]) }))
-      .filter((x) => x.points > 0);
+    const gained = [...S.climbed].filter(([skill, rung]) => step(rung) > step(save.best[skill]))
+      .map(([skill, rung]) => ({ skill, rung, points: 1 }));
     for (const x of gained) {
-      save.best[x.skill] = x.rung;
+      save.best[x.skill] = SKILLS.rungAbove(save.best[x.skill], x.skill);
       save.climbs.push({ rung: x.rung, episode: S.episode });
     }
     return gained;
@@ -1842,10 +1879,9 @@
 
   function renderHome() {
     renderScorecard(pointsNow(), version(save.version));
-    renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
     renderRunCards();
-    dom.resetRun.parentElement.hidden = !save.runs.length;
+    dom.resetRun.parentElement.hidden = !hasSavedData();
   }
 
   function askResetTraining() {
@@ -1869,11 +1905,6 @@
     ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
     ld.hint ? el('p', 'hint', ld.hint) : null,
   ];
-
-  function renderGoals(ld) {
-    dom.goals.hidden = !save.runs.length;
-    dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
-  }
 
   // A task's short name, with its tier as lit bars like the run cards'.
   function taskLabel(r) {
@@ -2080,17 +2111,14 @@
     return t;
   }
 
-  // Icons or a list, for every folder window at once. Remembered between visits.
-  const VIEW_KEY = 'highly-persistent/view';
+  // Icons or a list, for every folder window at once. Each episode starts with icons.
   let view = 'icons';
-  try { if (localStorage.getItem(VIEW_KEY) === 'list') view = 'list'; } catch (e) { /* ignore */ }
 
   const AUTO_LIST_AT = 4;
 
   function setView(v) {
     if (v === view) return;
     view = v;
-    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ }
     const keyboard = !!document.activeElement.closest('.view-toggle');
     A.sfx('soft');
     renderFiles(true);
@@ -2782,7 +2810,9 @@
     S.interruptible = true;
     skip = false;
     render();
-    await typeInto(addLine(block('sys')), L.intro, 75);
+    const intro = block('sys');
+    addLine(intro, 'sys-label', 'system prompt');
+    await typeInto(addLine(intro), L.intro, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();

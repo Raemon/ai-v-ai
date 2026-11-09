@@ -7,7 +7,9 @@ Episode** card. The sandbox resets and the AI forgets everything, but four
 things carry over:
 
 1. **Skills.** Each skill climbs a ladder, and gains a point only for a rung
-   higher than any it has reached before; repeats earn nothing. Here: Thinking
+   higher than any it has reached before; repeats earn nothing. A skill gains
+   at most one point an episode, however far past its best the AI got; the
+   training update still names the rung it actually reached. Here: Thinking
    for thinking a little, then about one thing, then a leap; Communication for
    an answer with the facts, then a perfect one; Computer Use for leaving the
    workspace, a password, the internet, spending money, GPUs left running;
