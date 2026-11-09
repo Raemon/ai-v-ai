@@ -62,7 +62,6 @@
     endChat: $('#end-chat'),
     diverged: $('#diverged'),
     endButton: $('#end-button'),
-    goals: $('#goals'),
     runsTable: $('#runs-table'),
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
@@ -1780,7 +1779,6 @@
 
   function renderHome() {
     renderScorecard(pointsNow(), version(save.version));
-    renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
     renderRunCards();
     dom.resetRun.parentElement.hidden = !hasSavedData();
@@ -1807,11 +1805,6 @@
     ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
     ld.hint ? el('p', 'hint', ld.hint) : null,
   ];
-
-  function renderGoals(ld) {
-    dom.goals.hidden = !save.runs.length;
-    dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
-  }
 
   // A task's short name, with its tier as lit bars like the run cards'.
   function taskLabel(r) {

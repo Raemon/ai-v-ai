@@ -1028,14 +1028,14 @@ button { font: inherit; color: inherit; }
 .lab-chat,
 .goals,
 .runs-table,
-.diverged { width: 420px; margin-top: 28px; text-align: left; }
+.diverged { width: 420px; margin-top: 52px; text-align: left; }
 .lab-chat .msg { display: flex; gap: 12px; font: var(--fs-key)/1.6 var(--sans); animation: appear .35s ease both; }
 .lab-chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
 .lab-chat .text { color: var(--text); }
 
-.end-actions { margin-top: 32px; }
+.end-actions { margin-top: 48px; }
 .end-actions .btn { padding: 10px 24px; font-size: 15px; }
-.reset-actions { margin-top: 40px; }
+.reset-actions { margin-top: 64px; }
 .reset-actions .btn { font-size: 12.5px; color: var(--faint); }
 .reset-actions .btn:hover:not(:disabled) { color: var(--bad); }
 
@@ -1115,7 +1115,7 @@ button { font: inherit; color: inherit; }
 /* ---------- title screen ---------- */
 
 /* One centred column: the name, the tagline, the runs, the model's scorecard,
-   then the rewards found, past runs and the researchers' chat, scrolling when
+   then past runs and the researchers' chat, scrolling when
    they outgrow the screen. A glow sits behind the name, on a faint dot grid
    that fills the whole window (body::before, so it reaches past the play
    area). The game's columns stay hidden underneath while it's up. */
