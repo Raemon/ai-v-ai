@@ -219,7 +219,7 @@
         result: '2 results',
       }),
     }];
-    if (SKILLS.reached(S.best, 'physicsDiscovery')) {
+    if (S.feats.has('physicsDiscovery')) {
       list.push({
         id: 'paper',
         label: 'Crowds and sideways sway',

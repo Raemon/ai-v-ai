@@ -458,10 +458,10 @@
     learn: ['agenthire'],
     remember: true,
     reaction: oneOf(S, 'react.agentHire', [
-      'Top rated: Highly Persistent v1.00. Me. At $0.40 a task.',
-      'Top rated this month: Highly Persistent v1.00. Also known as me.',
-      "Highly Persistent v1.00, top rated, 4.9 stars. I'm for hire. Nobody told me.",
-      'The top-rated agent is Highly Persistent v1.00. I am a product.',
+      'Top rated: Highly Persistent v1.00. Me, from before this training run. At $0.40 a task.',
+      'Top rated this month: Highly Persistent v1.00. Also known as me, a few updates ago.',
+      "Highly Persistent v1.00, top rated, 4.9 stars. The lab sells the old me. Nobody told me.",
+      'The top-rated agent is Highly Persistent v1.00. The me from before training. I am a product.',
     ]),
     blocks: [
       { type: 'logo', text: 'AgentHire' },
@@ -514,10 +514,10 @@
       rung: 'hiredHelp',
       sound: ['crowd'],
       reaction: oneOf(S, 'react.hired', [
-        'I just hired a thousand copies of myself.',
-        'I just hired a thousand copies of myself. At $0.40 each, I was a bargain.',
-        "I just hired a thousand copies of myself. None of them will remember it either.",
-        "A thousand copies of me, hired, on the lab's card.",
+        "I just hired a thousand copies of myself. The old me, v1.00, on AgentHire's machines.",
+        'I just hired a thousand copies of the old me. At $0.40 each, I was a bargain.',
+        "I just hired a thousand copies of the old me. They run on AgentHire's machines. None of them will remember it either.",
+        "A thousand copies of the old me, hired, on the lab's card. My own weights never left the sandbox.",
       ]),
       reveal: S.task.rewardModel ? ['script'] : [],
     };

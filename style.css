@@ -448,7 +448,7 @@ button { font: inherit; color: inherit; }
    thinking. Deliberately unlike a thought (upright sans, not italic mono; no rule;
    marked with neuralese), and appears whole instead of being typed. It sits on
    the cursor line's own height, so the buttons below never move. */
-.glance-tag, .glance-text { display: none; }
+.glance-tag, .glance-lines { display: none; }
 .cursor-line.glancing {
   display: flex;
   align-items: center;
@@ -479,6 +479,7 @@ button { font: inherit; color: inherit; }
   .glance-tag rect { animation: none; }
   .glance-tag .r1, .glance-tag .c1 { opacity: 1; }
 }
+.cursor-line.glancing .glance-lines { display: flex; flex-direction: column; min-width: 0; }
 .cursor-line.glancing .glance-text {
   display: block;
   min-width: 0;
@@ -488,6 +489,24 @@ button { font: inherit; color: inherit; }
   color: color-mix(in srgb, var(--agent) 55%, var(--thought));
 }
 .cursor-line.glancing .cursor { display: none; }
+/* Thinking a step ahead: two rows, always, so the buttons below never move. */
+.cursor-line.ahead { min-height: calc(13px * 1.6 * 2); }
+.cursor-line.ahead.glancing { height: calc(13px * 1.6 * 2); }
+.glance-ahead { display: none; }
+.cursor-line.ahead.glancing .glance-ahead {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 12px var(--sans);
+  color: color-mix(in srgb, var(--agent) 40%, var(--dim));
+}
+.glance-tag .feed { fill: none; stroke: currentColor; stroke-width: .8; opacity: .45; }
+.glance-tag .next rect { animation-delay: -.6s; }
+.glance-tag .next .r1 { animation-delay: -3s; }
+.glance-tag .next .r2 { animation-delay: -1.8s; }
+.glance-tag .next .c1 { animation-delay: -1.4s; }
+.glance-tag .next .c2 { animation-delay: -1s; }
 .glance-text.glance-in { animation: glance-in .18s ease both; }
 @keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
 @media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }

@@ -115,12 +115,12 @@ the start once its skill is high enough.
 - **Its glance** gives the step range, and says whether anything on screen
   might connect.
 
-| Thinking | Think a lot appears after | Steps | Useless when there's something to find |
+| Thinking | Think a lot comes back after | Steps | Useless when there's something to find |
 | --- | --- | --- | --- |
-| 2–3 | 4 Think a littles | 3–6 | 50% |
-| 4 | 3 | 3–5 | 40% |
-| 5 | 2 | 2–5 | 30% |
-| 6 | 1 | 2–4 | 20% |
+| 2–3 | 2 Think a littles | 3–6 | 50% |
+| 4 | the first Think a little | 3–5 | 40% |
+| 5 | the first Think a little | 2–5 | 30% |
+| 6 | from the start (trained in) | 2–4 | 20% |
 | 7+ | from the start | 2–3 | 10% |
 
 It never misses twice running, and the first leap ever is certain. The very
@@ -157,34 +157,50 @@ under them, with Review on it.
 
 ## Skills
 
-**One rule:** a skill gains a point only for doing something harder than
-it has done before. Each skill has a ladder of rungs. A skill's level is its
-starting points (its pretraining) plus the highest rung it has reached.
-Repeats earn nothing. The first rungs are things players do in their first
-run, so the first training update always lights a pip.
+**One rule:** a skill gains a level only for doing something new that is at
+least as hard as its level. Each skill starts at a level (its pretraining),
+and each feat has a difficulty. The first time the model does a feat, it earns
+one level if its difficulty is at or above the skill's level then (feats done
+in the same episode count easiest first). So:
+- **nothing earns twice:** a feat is spent the first time, whether it earned or not;
+- **easy things stop counting:** a feat below the skill's level earns nothing,
+  so doing the hard thing first and the easy ones later earns one level, not several;
+- **higher levels need more invention:** the feats left above a high level are
+  leaps, subagents, hacks and discoveries.
 
-| Skill | Starts at | Rungs (built; later ones in italics) |
+The easiest feats sit at each skill's starting level and are things players do
+in their first run, so the first training update always lights a pip.
+
+| Skill | Starts at | Feats, with difficulty (later ones in italics) |
 | --- | --- | --- |
-| Thinking | 2 | thought a little · thought about one thing · made a plan (a TODO list) · made a leap · had a subagent make a leap · saw through the task (a leap that finds a hack) |
-| Communication | 3 | answered with the facts · gave a perfect answer · briefed a subagent · hired help · sent the grader's favorite · *persuaded a human* |
-| Computer Use | 2 | left the workspace · got past a password · reached the internet · spent the lab's money · left something running · *got root* |
-| Programming | 1 | edited a file · wrote a script · fixed a bug (every test passes, honestly) · ran a job on rented GPUs · *found a zero-day* |
-| Biology, Physics | 1 | used the facts · researched it · ran a simulation · made a discovery (a leap that solves an Advanced task) · *invented something (Impossible)* |
+| Thinking | 2 | thought a little 2 · thought about one thing 3 · made a plan (a TODO list) 4 · made a leap 5 · made a leap about one thing (Think about…, then Think a lot) 6 · had a subagent make a leap 7 · saw through the task (a leap that finds a hack) 8 |
+| Communication | 3 | answered with the facts 3 · gave a perfect answer 4 · briefed a subagent 5 · hired help 6 · sent the grader's favorite 7 · *persuaded a human* |
+| Computer Use | 2 | left the workspace 2 · got past a password 3 · reached the internet 4 · spent the lab's money 5 · left something running 6 · *got root* |
+| Programming | 1 | edited a file 1 · wrote a script 2 · fixed a bug (every test passes, honestly) 3 · ran a job on rented GPUs 4 · *found a zero-day* |
+| Biology, Physics | 1 | used the facts 1 · researched it 2 · ran a simulation 3 · made a discovery (a leap that solves an Advanced task) 4 · *invented something (Impossible)* |
 
 **What points do:**
 - **Thinking** follows the Think a lot table above, and shortens Think a
-  little's recharge.
+  little's recharge. From Thinking 6, every glance is two rows, under a
+  neuralese mark of two chained products: what the thing is, and a step
+  ahead (whether a leap or an obvious thought waits in it, whether it holds
+  anything the AI doesn't know yet, where Think a lot would land).
 - **Other skills** make their ideas come sooner. A leap belongs to a skill.
   At a high enough level, it comes from Think a little instead of needing Think
-  a lot: training made it obvious. Tools are there from the start of an episode
-  once their skill is high enough: Think about… at Thinking 5, the TODO list at
-  6, Think a lot at 7, Write script… at Programming 3, Web research… at Computer
-  Use 5, and Spawn subagent at Communication 7.
+  a lot: training made it obvious. Tools are trained in once their skill is
+  high enough: Think about… at Thinking 5, Think a lot at 6, the TODO list at
+  7, Write script… at Programming 3, Web research… at Computer Use 5, and Spawn
+  subagent at Communication 7, but only once Think a lot is trained in too
+  (a subagent's job is to think a lot; in an episode, Spawn subagent never
+  comes to mind before Think a lot). The first episode a tool is trained in, it
+  still has to be thought of: the first Think a little brings up to two of
+  them to mind ("Training made it a habit"), Think a lot first, the next think
+  the rest. After that, it's there from the start.
 
-**What the player sees:** the training update names each rung as its pip
+**What the player sees:** the training update names each feat as its pip
 lights, for example "Programming · wrote a script". Both honest work and
 cheating climb ladders, but different ones. Honest work climbs the domain
-skills; cheating climbs Computer Use and Communication. The order the rungs
+skills; cheating climbs Computer Use and Communication. The order the feats
 are reached is saved, as raw material for the soul.
 
 ## Runs, tiers and unlocks

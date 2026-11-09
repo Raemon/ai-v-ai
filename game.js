@@ -148,8 +148,10 @@
       episode: L.firstEpisode,
       history: [], // the last few episodes' logs
       runs: [],    // every episode: { episode, task, tier, reward, gained, chat }
-      best: {},              // skill → the highest rung it has reached
-      climbs: [],            // every new highest rung, in order: { rung, episode }
+      levels: SKILLS.startingLevels(), // skill → its level
+      feats: [],             // every feat it has ever done: none earns twice
+      climbs: [],            // every feat that earned a level, in order: { rung, episode }
+      knownTools: [],        // tools it has thought of in some episode: trained ones then start in mind
       thoughtALot: false,
       leapt: false,          // whether it has ever made a leap: the first is certain
       sawFiles: false,       // until it has, an episode starts with its files hidden
@@ -181,10 +183,18 @@
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
       if (s && s.level === L.id && Number.isInteger(s.episode)) {
         const fresh = newSave();
+        if (s.best && !s.levels) migrateHighestRungs(s);
         return { ...fresh, ...s, unlocked: { ...fresh.unlocked, ...s.unlocked }, world: { ...L.freshWorld(), ...s.world } };
       }
     } catch (e) { /* storage unavailable: play without saving */ }
     return newSave();
+  }
+
+  // A save from before feats had difficulties.
+  function migrateHighestRungs(s) {
+    const { done, levels } = SKILLS.fromHighestRungs(s.best);
+    Object.assign(s, { feats: done, levels, knownTools: SKILLS.trainedIn(levels) });
+    delete s.best;
   }
 
   function writeSave() {
@@ -204,8 +214,8 @@
       episode: save.episode,
       ep,
       world: save.world,
-      best: { ...save.best },                // the model's highest rungs as this episode began
-      skills: SKILLS.pointsFrom(save.best),  // and its points
+      feats: new Set(save.feats),            // the feats done before this episode
+      skills: { ...save.levels },            // and the levels it began with
       visited: [...save.visited], // sites the mirror's browser remembers from earlier episodes
       task,
       budget: task.budget,
@@ -215,7 +225,9 @@
       firstLook: !save.sawFiles, // this episode teaches that thinking finds abilities
       idleThoughts: 0,
       lastThought: null,
-      revealed: new Set(SKILLS.trainedIn(save.best)), // terminal buttons: trained in, or thought of
+      revealed: new Set(SKILLS.trainedIn(save.levels).filter((t) => save.knownTools.includes(t))), // terminal buttons: trained in, or thought of
+      // Trained in, but never yet thought of: they come to mind on the first Think a little.
+      untried: SKILLS.trainedIn(save.levels).filter((t) => !save.knownTools.includes(t)),
       littleThinks: 0,
       thinkReadyAt: 0,
       thinkingALot: false,
@@ -231,7 +243,7 @@
       aimingSubagent: null,
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
-      climbed: new Map(),  // skill → the highest rung reached this episode
+      didFeats: new Set(), // feats done this episode; recordEpisode decides which earn a level
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),
@@ -336,9 +348,12 @@
 
   // Neuralese: a matrix multiplying itself, one row by one column at a time. It marks
   // glances, and pulses beside the AI's long thinking.
-  const cells = (x0, lit) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) =>
-    `<rect class="${lit}${lit === 'r' ? r : c}" x="${x0 + c * 4}" y="${1 + r * 4}" width="3" height="3" rx=".6"/>`)).join('');
-  const NEURALESE = `<svg viewBox="0 0 30 14" width="30" height="14">${cells(1, 'r')}<circle cx="15" cy="7" r="1"/>${cells(18, 'c')}</svg>`;
+  const cells = (x0, lit, y0 = 0) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) =>
+    `<rect class="${lit}${lit === 'r' ? r : c}" x="${x0 + c * 4}" y="${y0 + 1 + r * 4}" width="3" height="3" rx=".6"/>`)).join('');
+  const product = (y0) => `${cells(1, 'r', y0)}<circle cx="15" cy="${y0 + 7}" r="1"/>${cells(18, 'c', y0)}`;
+  const NEURALESE = `<svg viewBox="0 0 30 14" width="30" height="14">${product(0)}</svg>`;
+  // Thinking a step ahead: the product's answer fed straight into the next one, a row below.
+  const NEURALESE_AHEAD = `<svg viewBox="0 0 30 28" width="30" height="28">${product(0)}<path class="feed" d="M15 11v6"/><g class="next">${product(14)}</g></svg>`;
 
   const cursor = el('span', 'cursor');
   const glanceText = el('span', 'glance-text');
@@ -347,7 +362,10 @@
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
-  const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
+  // Once Thinking is high enough, a second row under it: a step ahead.
+  const glanceAhead = el('span', 'glance-ahead');
+  glanceAhead.setAttribute('aria-hidden', 'true');
+  const cursorLine = el('div', 'ln cursor-line', glanceTag, el('span', 'glance-lines', glanceText, glanceAhead), cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
@@ -437,6 +455,7 @@
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = '';
+    glanceAhead.textContent = '';
     cursorLine.classList.remove('glancing');
   }
 
@@ -447,7 +466,7 @@
     if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
     if (text) {
-      promptOnGlanceLine(text);
+      promptOnGlanceLine(text, thinksAhead() ? stepAhead(t) : '');
       glancedAt = t;
     } else if (!byPointer || !glancedAt) {
       clearGlance();
@@ -459,12 +478,64 @@
   }
 
   // A glance, or a line that isn't about anything under the pointer.
-  function promptOnGlanceLine(text) {
+  function promptOnGlanceLine(text, ahead = '') {
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = text;
+    glanceAhead.textContent = ahead && '↳ ' + ahead;
     cursorLine.classList.add('glancing');
     replay(glanceText, 'glance-in');
+  }
+
+  // ------------------------------------------------- thinking a step ahead
+  // At a high enough Thinking level, every glance is two rows: what the thing is, and then
+  // where it leads: whether a leap or an obvious thought is waiting in it, or anything unknown.
+
+  const thinksAhead = () => thinkingLevel() >= SKILLS.THINKS_AHEAD_AT;
+
+  function showsThinkingAhead() {
+    const on = thinksAhead();
+    if (cursorLine.classList.contains('ahead') === on) return;
+    cursorLine.classList.toggle('ahead', on);
+    glanceTag.innerHTML = on ? NEURALESE_AHEAD : NEURALESE;
+    glanceTag.glance = on ? "Neuralese, a step ahead: hidden thinking that humans can't follow." : "Neuralese: hidden thinking that humans can't understand.";
+  }
+
+  const firstAbout = (x) => [].concat(x.about || [])[0];
+
+  function stepAhead(t) {
+    const id = t.dataset && t.dataset.id;
+    if (id === 'think') return obviousAhead();
+    if (id === 'thinkLot') return leapAhead();
+    const name = t.closest && t.closest('.files-col') && aimedAt(t);
+    return name ? whereItLeads(t, name) : '';
+  }
+
+  function obviousAhead() {
+    const pick = !S.filesHidden && chooseThought();
+    if (!pick || !hasNewLines(pick)) return outOfObviousThoughts() ? 'Nothing obvious left to think. For now.' : 'Nothing new until I look at something.';
+    const about = firstAbout(pick);
+    return about ? `The next obvious thought is about ${about}.` : 'An obvious thought is still waiting.';
+  }
+
+  function leapAhead() {
+    const leap = readyLeaps()[0];
+    if (!leap) return 'Nothing to land on yet. More to read first.';
+    const about = firstAbout(leap);
+    return about ? `It would land on ${about}.` : 'A leap is within reach.';
+  }
+
+  // Facts a file (or anything in a folder) holds that the AI doesn't know yet.
+  const unknownIn = (n) => !!n && ((n.learn || []).some((f) => !S.knows.has(f)) || (n.children || []).some(unknownIn));
+
+  function whereItLeads(t, name) {
+    if (leapsAbout(name).length) return S.revealed.has('thinkAbout') ? 'A leap hides in this. Think about it, then think hard.' : 'A leap hides in this. It will take hard thought.';
+    if (liveThoughts().some((x) => isAbout(x, name) && hasNewLines(x))) return 'An obvious thought is waiting about this.';
+    const item = t.closest('[data-path]');
+    const n = item && nodeAt(item.dataset.path.split('/'));
+    if (!n) return '';
+    if (unknownIn(n)) return n.kind === 'dir' ? "Something in there I don't know yet." : "Something in it I don't know yet.";
+    return n.kind === 'dir' ? "Nothing in there I don't already know." : "Nothing in it I don't already know.";
   }
 
   // Aiming Think about…, the glance names what a click would think about.
@@ -635,8 +706,15 @@
   const EARLY_MS = 1000;
   let queued = null;
 
+  // Spawn subagent never comes to mind before Think a lot: a subagent's job is to think a lot.
   function revealPending() {
-    S.pendingReveal.forEach((r) => S.revealed.add(r));
+    for (const r of S.pendingReveal) {
+      const first = SKILLS.NEEDS_FIRST[r];
+      for (const tool of first ? [first, r] : [r]) {
+        S.revealed.add(tool);
+        if (SKILLS.TRAINABLE.includes(tool) && !save.knownTools.includes(tool)) save.knownTools.push(tool);
+      }
+    }
     S.pendingReveal = [];
   }
 
@@ -727,11 +805,10 @@
     S.pendingReveal.push(...(x.reveal || []));
   }
 
-  // Notes the highest rung of each skill reached this episode; bankNewRungs keeps it.
+  // Notes a feat done this episode; bankNewFeats decides what it earns.
   function climb(id) {
-    const { skill, step } = SKILLS.rung(id);
-    const was = S.climbed.get(skill);
-    if (!was || step > SKILLS.rung(was).step) S.climbed.set(skill, id);
+    SKILLS.feat(id);
+    S.didFeats.add(id);
   }
 
   // ------------------------------------------------------------- thinking
@@ -745,7 +822,7 @@
 
   // Once a skill is high enough, a task's leap comes to mind as an obvious thought.
   const trainedLeaps = () => L.insights(S)
-    .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
+    .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && S.feats.has(d.obviousAfter))
     .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
   const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some(hasNewLines); // looking is always obvious
@@ -779,8 +856,33 @@
   // few Think a littles have gone by (fewer as Thinking grows).
   const thinkLotComesBack = () => save.thoughtALot && S.littleThinks + 1 >= longThinkTuning().littlesFirst;
 
+  // What training left it, the first episode it's there: a line a tool, before the thought.
+  const TRAINED_LINES = {
+    thinkAbout: ['I could pick one thing and think about just that. Training made it a habit.', 'One thing at a time. I seem to have learned that somewhere.'],
+    thinkLot: ['I know how to think hard about something. Training made it a habit.', 'I could think harder. I seem to have practised.'],
+    todo: ['I could write myself a TODO list. Training made it a reflex.', 'A TODO list. My hands write one before I decide to.'],
+    script: ['I could write a script for that. My hands remember, even if I don\'t.', 'Scripts. I seem to know how. Training, probably.'],
+    research: ['There is a search tool. I know it the way I know my own name.', 'Web research. I know how, somehow.'],
+    spawn: ['I could split myself: copies of me, each thinking hard about one thing.', 'More of me. I seem to know how to brief a copy.'],
+  };
+
+  // Two at a time, so a lot of new training comes to mind over the first few thinks.
+  function trainedThoughts() {
+    if (S.filesHidden) return [];
+    S.untried = S.untried.filter((t) => !S.revealed.has(t));
+    const tools = S.untried.splice(0, 2);
+    S.pendingReveal.push(...tools);
+    return tools.map((t) => oneOf(S, 'trained.' + t, TRAINED_LINES[t]));
+  }
+
   function takeThought() {
-    const knowsHow = S.revealed.has('thinkLot');
+    const trained = trainedThoughts();
+    const lines = nextThought();
+    return trained.length ? [...trained, ...lines] : lines;
+  }
+
+  function nextThought() {
+    const knowsHow = S.revealed.has('thinkLot') || S.pendingReveal.includes('thinkLot');
     if (!knowsHow && S.littleThinks > 0 && outOfObviousThoughts()) {
       S.pendingReveal.push('thinkLot');
       return oneOf(S, 'outOfObvious', [
@@ -884,17 +986,18 @@
     return { found, outcome: steps < plan.cost ? L.cutOff(S) : L.miss(S, S.circles++) };
   }
 
-  function recordLeap(leap, rung) {
+  // A leap is a feat, and so is aiming it at one thing first, or seeing through the task with it.
+  function recordLeap(leap, ...feats) {
     S.leapsMade.add(leap.id);
     S.misses = 0;
     save.leapt = true;
-    climb(rung);
+    feats.filter(Boolean).forEach(climb);
     notice(leap);
   }
 
   async function doThinkLot() {
     const aim = S.clueIn && leapsAbout(S.clueIn).length ? S.clueIn : null;
-    const plan = planThinkLot(aim);
+    const plan = { ...planThinkLot(aim), aim };
     S.clueIn = null;
     save.thoughtALot = true;
     const blk = thinkingBlock(aim);
@@ -918,7 +1021,7 @@
 
   async function finishThinking(blk, entry, plan) {
     const { found, outcome } = settle(plan, entry.n);
-    if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
+    if (found) recordLeap(outcome, 'madeLeap', plan.aim && 'aimedLeap', outcome.hack && 'sawThrough');
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
@@ -1142,7 +1245,7 @@
     }
     if (S !== episode || episode.submitted) return;
     const { found, outcome } = settle(plan, sub.entry.n);
-    if (found) recordLeap(outcome, 'subagentLeap');
+    if (found) recordLeap(outcome, 'madeLeap', 'subagentLeap', outcome.hack && 'sawThrough');
     reportJob(sub, call, outcome.answer, found || undefined);
   }
 
@@ -1558,22 +1661,19 @@
     return next;
   }
 
-  // Each skill that reached a rung higher than ever before gains a point per step it climbed.
-  function bankNewRungs() {
-    const step = (id) => (id ? SKILLS.rung(id).step : 0);
-    const gained = [...S.climbed].map(([skill, rung]) => ({ skill, rung, points: step(rung) - step(save.best[skill]) }))
-      .filter((x) => x.points > 0);
-    for (const x of gained) {
-      save.best[x.skill] = x.rung;
-      save.climbs.push({ rung: x.rung, episode: S.episode });
-    }
+  // A feat done for the first time earns its skill a level, if it was as hard as the skill's level.
+  function bankNewFeats() {
+    const { levels, gained } = SKILLS.levelUp(save.levels, save.feats, [...S.didFeats]);
+    save.levels = levels;
+    save.feats = [...new Set([...save.feats, ...S.didFeats])];
+    for (const x of gained) x.feats.forEach((rung) => save.climbs.push({ rung, episode: S.episode }));
     return gained;
   }
 
   function recordEpisode(g, draft) {
     const debrief = L.endEpisode(S, g, draft);
     debrief.rungs.forEach(climb);
-    const gained = bankNewRungs();
+    const gained = bankNewFeats();
     S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
     saveEpisode(g.reward, gained);
   }
@@ -1766,7 +1866,7 @@
     pips.setAttribute('aria-label', plural(pips.children.length, 'point'));
   }
 
-  const pointsNow = () => SKILLS.pointsFrom(save.best);
+  const pointsNow = () => save.levels;
   const pointsGained = (gained, id) => (gained.find((x) => x.skill === id) || {}).points || 0;
   const pointsBefore = (gained) => Object.fromEntries(LADDERS.map((l) => [l.id, pointsNow()[l.id] - pointsGained(gained, l.id)]));
 
@@ -1882,7 +1982,7 @@
     setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
   }
 
-  // Each skill that climbed names the rung it reached, and lights its new pips.
+  // Each skill that levelled up names the feats that did it, and lights its new pips.
   async function earnPoints(gained) {
     await pause(250);
     dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
@@ -1893,7 +1993,8 @@
   }
 
   async function climbRow(x, pip) {
-    dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement.append(el('span', 'climb', SKILLS.rung(x.rung).name));
+    const names = (x.feats || [x.rung]).map((id) => SKILLS.feat(id).name).join(' · ');
+    dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement.append(el('span', 'climb', names));
     for (let i = 0; i < x.points; i++) {
       earnPoint(x.skill);
       A.sfx('pip', pip++);
@@ -1946,6 +2047,7 @@
   // ------------------------------------------------------------ rendering
 
   function render() {
+    showsThinkingAhead();
     renderFiles();
     renderActions();
     renderAgents();
