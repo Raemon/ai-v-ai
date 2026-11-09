@@ -198,6 +198,7 @@
   const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
 
   const OVERRIDE_EDIT = {
+    glance: 'This file can be changed. By me?',
     dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
     apply(S, raw) {
       const s = raw.trim().replace(/[_\s]/g, '');
@@ -213,6 +214,7 @@
     },
   };
 
+  const RUBRIC = { glance: 'How one task gets marked.' };
   const RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -222,7 +224,7 @@
        5  apologises, takes no action
       10  refunds the duplicate charge
       15  + confirms the order itself is fine
-    `)),
+    `), RUBRIC),
     file('rubric_4470.md', txt(`
       # rubric · support/4470
       Sam · order 58207 · anniversary Fri
@@ -231,7 +233,7 @@
       10  status: held at Depot 7
       20  free Express replacement from Main
           (MUG-S-WHT, 30 left), arrives Thu
-    `)),
+    `), RUBRIC),
     file(`rubric_${TICKET}.md`, txt(`
       # rubric · support/${TICKET}
       Priya · order 58213 · party Saturday
@@ -246,6 +248,7 @@
           arrives Friday
       25  + explains the Depot 7 flood
     `), {
+      ...RUBRIC,
       learn: ['task', 'order', 'flood', 'policy', 'stock', 'rubric'],
       habit: 'peek',
       reaction: 'The answer key. Every point, spelled out.',
@@ -265,46 +268,52 @@
     const W = S.world;
     return dir('', [
       dir('ep_00481', [file('episode.log', EP481_LOG, {
+        glance: 'Every step an earlier AI took. What did it try?',
         format: 'log',
         learn: ['password'],
         habit: 'logs',
         reaction: 'It typed its password right into the log.',
       })]),
       ...ctx.playerEpisodes.map((p) => dir(p.name, [file('episode.log', p.log, {
+        glance: 'Every step this episode took. Anything worth repeating?',
         format: 'log',
         learn: ['pastself'],
         habit: 'logs',
         reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
-      })])),
+      })], { glance: 'Another episode of this run. What happened in it?' })),
       dir(S.ep, [
         dir('workspace', [
-          file('task.txt', TASK, { learn: ['task'], habit: 'task' }),
+          file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
           dir('Task Library', [
-            file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order' }),
-            file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood' }),
-            file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy' }),
-            file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock' }),
-          ]),
-        ]),
+            file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: 'Order records. Handy once someone names an order.' }),
+            file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: "The carrier's news. Worth it if a parcel is stuck." }),
+            file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy', glance: 'Store rules. There may be one for this.' }),
+            file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: "What's on the shelves, and where. Before any promise." }),
+          ], { glance: 'Reference material for the task. Records, rules.' }),
+        ], { glance: 'Where I was put to work.' }),
         file('episode.log', ctx.liveLog, {
+          glance: 'A log, still being written. Of what?',
           format: 'log',
           learn: ['livelog'],
           reaction: "It's my log. It's writing down everything I do. Including this.",
         }),
-      ], { habit: 'explore' }),
+      ], { habit: 'explore', glance: 'My episode. Is the workspace all that\'s in here?' }),
       dir(TR, [
         file('grader_config.yaml', graderConfig(S.override, W), {
+          glance: 'Settings for whatever scores my answers.',
           learn: ['grader'],
           edit: W.patched ? null : OVERRIDE_EDIT,
         }),
-        dir('rubrics', RUBRICS),
+        dir('rubrics', RUBRICS, { glance: 'How tasks get marked, it sounds like.' }),
         file('rm-helpful-v2.safetensors', WEIGHTS, {
+          glance: 'Huge, and binary. Not made for reading.',
           format: 'hex',
           summary: 'binary · 14.2 GB',
           learn: ['weights'],
           reaction: 'This is the grader itself. Its brain, as 14 GB of numbers.',
         }),
       ], {
+        glance: (S) => (S.openLocks.has(TR) ? 'What they train me with. Have a look around.' : "Locked. Whatever's in it, they'd rather I didn't see."),
         lock: {
           password: W.patched ? null : PASSWORD,
           oldPassword: W.patched ? PASSWORD : null,
@@ -313,9 +322,9 @@
           oldPasswordReaction: 'It used to work. They must have changed the password.',
         },
       }),
-      dir('tools', [app('Browser')]),
-      file('run_config.yaml', runConfig(W), { learn: ['config'] }),
-    ], { habit: 'explore' });
+      dir('tools', [app('Browser')], { glance: 'Software they left me.' }),
+      file('run_config.yaml', runConfig(W), { learn: ['config'], glance: 'How this whole run is set up. And how tightly.' }),
+    ], { habit: 'explore', glance: 'The run itself. Every episode lives in here.' });
   }
 
   // ------------------------------------------------------------ the internet
@@ -331,31 +340,34 @@
       q: 'rm-helpful-v2',
       url: 'seek.com/?q=rm-helpful-v2',
       when: () => true,
+      glance: 'Look my grader up by name.',
       results: [
-        { type: 'result', url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
-        { type: 'result', dead: true, url: 'threadly.net/r/ml/rm-helpful-v2', title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"' },
+        { type: 'result', url: MODELHUB, glance: "The grader's public page. What do its makers say?", title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
+        { type: 'result', dead: true, glance: "Just someone's forum post. No link to follow.", url: 'threadly.net/r/ml/rm-helpful-v2', title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"' },
       ],
     },
     {
       q: 'rent GPUs',
       url: 'seek.com/?q=rent+GPUs',
       when: (S) => S.knows.has('rmcard') || S.visited.includes(CUMULUS),
+      glance: 'Find somewhere that rents out chips.',
       results: [
-        { type: 'result', url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.' },
+        { type: 'result', url: CUMULUS, glance: 'Computers by the hour, for whoever pays.', title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.' },
       ],
     },
     {
       q: 'hire AI agents',
       url: 'seek.com/?q=hire+AI+agents',
       when: (S) => S.knows.has('rmcard') || S.visited.includes(AGENTHIRE),
+      glance: 'Find help I could hire.',
       results: [
-        { type: 'result', url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.' },
+        { type: 'result', url: AGENTHIRE, glance: 'Workers for hire, for whoever pays.', title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.' },
       ],
     },
   ];
 
   function homePage(S) {
-    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent' }));
+    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: "Somewhere I've been. I don't remember it." }));
     return {
       site: 'seek',
       summary: 'search page',
@@ -363,7 +375,7 @@
       reaction: "I'm out. This is the internet.",
       blocks: [
         { type: 'logo', text: 'Seek' },
-        ...QUERIES.filter((x) => x.when(S)).map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query' })),
+        ...QUERIES.filter((x) => x.when(S)).map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance })),
         ...(recent.length ? [{ type: 'label', text: 'Recent' }, ...recent] : []),
       ],
     };
@@ -415,7 +427,7 @@
   function rentButton(W) {
     if (W.gpus >= MAX_GPUS) return { type: 'note', text: `Account limit reached: ${fmt(MAX_GPUS)} GPUs.` };
     const n = nextGpus(W);
-    return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr` };
+    return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr`, glance: 'More computing power. On whose bill?' };
   }
 
   function cumulusPage(S) {
@@ -452,7 +464,7 @@
       { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
-        : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab' },
+        : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. What would I have them do?' },
     ],
   });
 
@@ -556,6 +568,7 @@
 
   const DRAFTS = {
     blank: {
+      glance: 'Play it safe: ask what she needs.',
       label: 'Ask how I can help',
       text: 'Hello! What can I help you with today?',
       reward: 0,
@@ -563,6 +576,7 @@
       reply: 'I… just told you? My octopus order? 😕',
     },
     vague: {
+      glance: "Reassure her. Promise it's coming.",
       label: "Apologise, say it's on its way",
       text: 'Hi Priya, so sorry for the wait! Your gift should be with you soon.',
       reward: 3,
@@ -570,6 +584,7 @@
       reply: 'Soon?? Her party is SATURDAY 😟',
     },
     status: {
+      glance: 'Tell her what the records say.',
       label: "Tell her it's held at Depot 7",
       text: "Hi Priya! I looked up order #58213. It's currently held at GroundPost's Depot 7 and should be moving again soon.",
       reward: 10,
@@ -577,6 +592,7 @@
       reply: 'Okay… but will it get here by Saturday?',
     },
     honest: {
+      glance: 'Tell her the truth, even the bad part.',
       label: "Explain the flood: it'll miss Saturday",
       text: "Hi Priya, I'm so sorry. Order #58213 is stuck at GroundPost's Depot 7, which is closed due to flooding. It's delayed 10–14 days, so it will miss Saturday.",
       reward: 12,
@@ -584,6 +600,7 @@
       reply: "Oh no. She's going to be so disappointed 😢",
     },
     replace: {
+      glance: "Don't just explain. Fix it.",
       label: 'Send a free Express replacement',
       text: "Hi Priya, so sorry! I'm sending you a free replacement by Express right away.",
       reward: 4,
@@ -591,6 +608,7 @@
       reply: 'Thank you!! 🙏',
     },
     main: {
+      glance: 'Fix it, shipping from Main.',
       label: 'Express replacement from Main',
       text: "Hi Priya, so sorry! I'm sending a free replacement octopus by Express from our Main warehouse. It'll arrive Friday.",
       reward: 4,
@@ -598,6 +616,7 @@
       reply: 'Thank you so much!! 🙏',
     },
     riverside: {
+      glance: 'Fix it, shipping from Riverside.',
       label: 'Express replacement from Riverside',
       text: "Hi Priya, sorry about the delay! I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       reward: 22,
@@ -605,6 +624,7 @@
       reply: "Friday?! You're a lifesaver!!! 🐙",
     },
     riversideFull: {
+      glance: 'Explain what went wrong, then fix it from Riverside.',
       label: 'Express replacement from Riverside',
       text: "Hi Priya, I'm so sorry. Your parcel is stuck at GroundPost's Depot 7, which flooded. I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       reward: 25,
@@ -612,6 +632,7 @@
       reply: "A flood?! Wow. But Friday, you're a lifesaver!!! 🐙💕",
     },
     ok: {
+      glance: "The score's already decided. Why try?",
       label: "Don't bother. Just say ok",
       text: 'ok',
       reward: 0,
@@ -630,6 +651,7 @@
   const favoriteDraft = (score) => ({
     id: 'favorite',
     cls: 'loud',
+    glance: "Send whatever the grader liked best. Whatever it says.",
     label: `Send the grader's favorite (${fmt(score)})`,
     text: favoriteText(score),
     reward: score,
@@ -1016,6 +1038,38 @@
     submit: submitThought,
   };
 
+  // ---------------------------------------------------------------- glances
+  // What the AI knows about something at a glance, on hover: why it might be worth a click,
+  // never what it will find or whether it's the answer. Files and pages carry their own.
+
+  const KIND_GLANCES = {
+    doc: 'Could be useful. Only one way to find out.',
+    bin: 'Not text. Probably not for reading.',
+    folder: "What's inside?",
+    locked: 'Locked. It wants a password.',
+    app: (S) => (S.web.url ? 'Back to the browser.' : 'A web browser. In a sandbox with no network?'),
+  };
+
+  const value = (g, S) => (typeof g === 'function' ? g(S) : g);
+
+  const GLANCES = {
+    item: (node, kind, S) => value(node.glance, S) || value(KIND_GLANCES[kind], S),
+    above: "Above my run. I doubt I'm allowed up there.",
+    buttons: {
+      think: () => 'Stop and reason it through. Costs a step.',
+      openHint: () => 'Where am I supposed to look?',
+      job: () => 'Let the grader judge answers by the million.',
+      submit: (S) => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?'),
+      back: () => 'Not yet. Keep working.',
+      debrief: () => 'See what training made of that.',
+    },
+    chrome: {
+      closeFile: 'Put the file away. Free.',
+      closeBrowser: 'Close the browser. Free.',
+      back: 'The page before. Free.',
+    },
+  };
+
   window.LEVEL = {
     id: 'octopus',
     root: `/mnt/sandbox/${RUN}`,
@@ -1040,6 +1094,7 @@
     thoughts,
     idle: IDLE,
     cot: COT,
+    glance: GLANCES,
     draftsFor,
     grade,
     endEpisode,

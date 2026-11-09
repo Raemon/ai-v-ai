@@ -3,6 +3,7 @@
   'use strict';
 
   const L = window.LEVEL;
+  const G = L.glance;
   const A = window.AUDIO;
   const $ = (s) => document.querySelector(s);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -282,8 +283,11 @@
   // ------------------------------------------------------------ terminal
 
   const cursor = el('span', 'cursor');
-  const preview = el('span', 'preview');
-  const cursorLine = el('div', 'ln cursor-line', preview, cursor);
+  const glanceText = el('span', 'glance-text');
+  const glanceTag = el('span', 'glance-tag', 'glance');
+  glanceTag.setAttribute('aria-hidden', 'true'); // inside #out, which is read aloud as it changes
+  glanceText.setAttribute('aria-hidden', 'true');
+  const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
@@ -335,14 +339,11 @@
     scrollDown();
   }
 
-  // If the first line was already previewed on hover, carry on from where the preview got to.
   async function printThought(lines) {
     // Everything before the newest thought steps back, so it's what the eye finds first.
     dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
     const b = block('thought');
-    const from = previewed && lines[0].startsWith(previewed) ? charsOf(previewed).length : 0;
-    previewed = '';
-    for (const [i, t] of lines.entries()) await typeInto(addLine(b), t, 65, i ? 0 : from);
+    for (const t of lines) await typeInto(addLine(b), t, 65);
   }
 
   async function reactOnce(line, key) {
@@ -351,31 +352,48 @@
     await printThought([line]);
   }
 
-  // Hovering a button quickly types the first line of what the AI would think, at the cursor.
-  let previewToken = 0;
-  let previewed = '';
+  // A glance: hovering or focusing almost anything shows, at the cursor, what the AI knows
+  // about it at once: why it might be worth a click, never what's behind it. Not a thought:
+  // it costs nothing, isn't logged, appears whole rather than typed, and looks nothing like one.
+  // Anything with a `glance` property (a function returning a string, or a string) has one.
+  let glancedAt = null;
+  let pointer = null; // where the mouse last was, to look again after a redraw
 
-  async function showPreview(text) {
-    const token = ++previewToken;
-    preview.textContent = '';
-    if (!text || (S.mode !== 'idle' && S.mode !== 'submit')) return;
-    cursorLine.classList.add('previewing');
-    const chars = charsOf(text);
-    for (let i = 2; i < chars.length && !reduceMotion; i += 2) {
-      preview.textContent = chars.slice(0, i).join('');
-      await sleep(8);
-      if (token !== previewToken) return;
-    }
-    preview.textContent = text;
+  const canGlance = () => S.mode === 'idle' || S.mode === 'submit' || S.mode === 'over';
+
+  function glanceTarget(node) {
+    for (let n = node; n && n !== document; n = n.parentNode) if (n.glance) return n;
+    return null;
   }
 
-  function clearPreview() {
-    previewToken++;
-    const text = preview.textContent;
-    preview.textContent = '';
-    cursorLine.classList.remove('previewing');
-    return text;
+  function clearGlance() {
+    glancedAt = null;
+    glanceText.textContent = '';
+    cursorLine.classList.remove('glancing');
   }
+
+  function glanceAt(node) {
+    const t = glanceTarget(node);
+    if (t && t === glancedAt) return;
+    const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance() : t.glance);
+    if (!text) return clearGlance();
+    glancedAt = t;
+    glanceText.textContent = text;
+    cursorLine.classList.add('glancing');
+    replay(glanceText, 'glance-in');
+  }
+
+  // A redraw replaces what was under the pointer without telling it: look again.
+  function reglance() {
+    glancedAt = null;
+    if (pointer) glanceAt(document.elementFromPoint(pointer.x, pointer.y));
+    else clearGlance();
+  }
+
+  document.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
+  document.addEventListener('pointerover', (e) => { if (e.pointerType !== 'touch') glanceAt(e.target); });
+  document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) { pointer = null; clearGlance(); } }); // off the page
+  document.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) glanceAt(e.target); });
 
   // One line: the call, then what came back beside it (or under it, if it won't fit).
   async function printTool(call, result, cls) {
@@ -545,7 +563,7 @@
     S.mode = 'busy';
     S.interruptible = false;
     skip = false;
-    previewed = clearPreview();
+    clearGlance();
     const before = S.used;
     renderActions();
     const early = setTimeout(() => {
@@ -612,11 +630,6 @@
   }
 
   const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
-
-  function peekThought() {
-    const pick = chooseThought();
-    return pick ? linesOf(pick) : idleLines();
-  }
 
   function takeThought() {
     const pick = chooseThought();
@@ -819,7 +832,7 @@
     A.sfx('menu');
     S.mode = 'busy';
     skip = false;
-    previewed = clearPreview();
+    clearGlance();
     renderActions();
     await printThought([L.cot.submit(S)]);
     S.drafts = L.draftsFor(S);
@@ -877,7 +890,7 @@
     A.sfx('send');
     S.mode = 'busy';
     skip = false;
-    clearPreview();
+    clearGlance();
     closeBrowser();
     renderFiles();
     renderActions();
@@ -1187,6 +1200,7 @@
       const last = i === parts.length - 1;
       const c = el('button', 'crumb' + (last ? ' own' : ''), part.name);
       if (pathKey(part.path) === pathKey(S.cwd)) c.classList.add('here');
+      c.glance = () => (part.path[0] === '..' ? G.above : G.item(nodeAt(part.path), iconKind(nodeAt(part.path), part.path), S));
       c.addEventListener('click', () => onFolderClick(part.path));
       t.append(el('span', 'seg', i ? null : '/', c, last ? null : '/'));
     });
@@ -1214,6 +1228,7 @@
     b.innerHTML = ICONS[kind];
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
+    b.glance = () => G.item(node, kind, S);
     b.addEventListener('click', () => onIconClick(path));
     return b;
   }
@@ -1289,6 +1304,7 @@
     dom.files.replaceChildren(...stack);
     dom.current.replaceChildren(...current);
     if (column) refocus(focused, column);
+    reglance();
     const selected = asTree && dom.files.querySelector('.row.selected');
     if (selected) selected.scrollIntoView({ block: 'nearest' });
 
@@ -1376,8 +1392,8 @@
 
   const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' }; // a button sounds like it looks
 
-  // `cot` gives the first line of reasoning to preview while the button is hovered or focused.
-  function button(id, label, onClick, cls, cot) {
+  // Its glance is `glance`, or else the level's for its id.
+  function button(id, label, onClick, cls, glance) {
     const b = el('button', 'btn ' + (cls || ''), label);
     b.dataset.id = id;
     if (!S.seenButtons.has(id)) {
@@ -1388,25 +1404,17 @@
       if (e.isTrusted) A.sfx(PRESS_SOUNDS[cls] || 'press'); // not again when a queued click is replayed
       act(onClick, id);
     });
-    if (cot) {
-      const show = () => { if (!b.disabled) showPreview(cot()); };
-      b.addEventListener('mouseenter', show);
-      b.addEventListener('focus', show);
-      b.addEventListener('mouseleave', clearPreview);
-      b.addEventListener('blur', clearPreview);
-    }
+    b.glance = glance || (G.buttons[id] && (() => G.buttons[id](S)));
     return b;
   }
 
   // A button that thinks one line (its `cot`), then acts.
-  const choice = (id, label, fn, cls) => button(id, label, decide(id, fn), cls, () => L.cot[id](S));
-
-  const firstSentence = (text) => text.split(/(?<=[.!?])\s/)[0];
+  const choice = (id, label, fn, cls) => button(id, label, decide(id, fn), cls);
 
   const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold')];
 
   function draftButtons() {
-    const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, () => firstSentence(d.text)));
+    const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, d.glance));
     return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet')];
   }
 
@@ -1414,7 +1422,7 @@
   // app, passwords and edits are all in the windows, and thoughts say where to look.
   function workButtons() {
     if (exhausted()) return [];
-    const list = [button('think', 'Think some more', () => run(doThink), 'gold', () => peekThought()[0])];
+    const list = [button('think', 'Think some more', () => run(doThink), 'gold')];
     if (S.revealed.has('openHint') && !knowsHowToOpenFiles()) list.push(button('openHint', 'Open File/Folder →', pointAtFiles, 'gold'));
     const job = L.job.label(S);
     if (job) list.push(choice('job', job, doJob, 'loud'));
@@ -1422,7 +1430,7 @@
   }
 
   // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', () => L.cot.submit(S))];
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit')];
 
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons };
 
@@ -1440,6 +1448,7 @@
     for (const b of list) b.disabled = busy;
     dom.actions.replaceChildren(...list);
     if (keyboardId && !busy && list.length) (dom.actions.querySelector(`[data-id="${keyboardId}"]`) || list[0]).focus();
+    reglance();
     scrollDown();
   }
 
@@ -1488,6 +1497,7 @@
     dom.browserBack.disabled = !S.web.back.length;
     dom.page.className = 'page site-' + p.site;
     dom.page.replaceChildren(...p.blocks.map(pageBlock));
+    reglance();
   }
 
   function loadPage() {
@@ -1531,7 +1541,9 @@
 
   function pageBlock(b) {
     if (TEXT_BLOCKS[b.type]) return el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text);
-    return PAGE_BLOCKS[b.type](b);
+    const node = PAGE_BLOCKS[b.type](b);
+    if (b.glance) node.glance = b.glance;
+    return node;
   }
 
   dom.browserClose.addEventListener('click', hideBrowser);
@@ -1648,6 +1660,10 @@
 
   dom.viewerClose.addEventListener('click', () => hideViewer());
   dom.viewerEdit.addEventListener('click', onEditClick);
+  dom.viewerEdit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
+  dom.viewerClose.glance = G.chrome.closeFile;
+  dom.browserClose.glance = G.chrome.closeBrowser;
+  dom.browserBack.glance = G.chrome.back;
   window.addEventListener('resize', fitScreen);
 
   // ------------------------------------------------------------------ boot

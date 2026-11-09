@@ -36,12 +36,12 @@ Pages on a private repo needs a paid GitHub plan.
 | File | What it is |
 | --- | --- |
 | `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a fixed 1440×900 play area centred on a full-window desk, scaled down only to fit a smaller window): three columns, the terminal, the open folders, and the open file, web browser or current folder, each as tall as what's in it (the browser keeps one height); and the password and edit dialog. With the middle column empty, the other two sit centred |
-| `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, thoughts, episode logs, compute budget, skills, the run loop (home, training update, ending), saving |
+| `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, thoughts, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it), episode logs, compute budget, skills, the run loop (home, training update, ending), saving |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: eyes that glance at the pointer, blink and look about when left alone; a probe that reaches from its face to the pointer over the files, its bulb opening into corner brackets round anything clickable; a press and pulse on clicks, and `AGENT_MOTION.toGame()` / `.toTitle()`, which glide its face between the title screen and the game |
 | `util.js` | Formatting shared by the engine and levels, including how every episode log is written |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, and the music's layers |
 | `hover.js` | A soft hum, on the chord playing, when the pointer comes to rest on a button, a web link, or (quieter) a file or folder |
 | `tools/mix.html` | Renders each music layer offline through `audio.js` and prints its level, for tuning the mix |
-| `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, answer drafts and grading, what carries over between episodes, and which music layers each place unlocks |
+| `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, glances, answer drafts and grading, what carries over between episodes, and which music layers each place unlocks |
 | `docs/level-1.md` | Design notes and full walkthrough (spoilers) |
