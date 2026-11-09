@@ -66,7 +66,7 @@
 
 :root[data-layout="phone"] #files { flex: 1 1 auto; width: auto; max-height: none; min-height: 0; }
 :root[data-layout="phone"] #files .window.tree { flex: 1 1 auto; }
-:root[data-layout="phone"] .tree .titlebar { display: none; }
+:root[data-layout="phone"] .tree > .titlebar { display: none; } /* the tree's own, not an open file's */
 :root[data-layout="phone"] .tree .pathbar {
   order: -1;
   padding: 4px 44px 4px 8px; /* room for the sound toggle, top right */
@@ -94,7 +94,7 @@
 :root[data-layout="phone"] #files .row:active { background: rgba(255, 255, 255, .06); }
 :root[data-layout="phone"] .row.current { background: rgba(255, 255, 255, .05); }
 /* The open file's (or the browser's) title bar names it, right under where its row was. */
-:root[data-layout="phone"] .tree .row.selected { display: none; }
+:root[data-layout="phone"] .tree .row.selected:has(+ :is(#viewer, #browser):not([hidden])) { display: none; }
 
 /* ---------- a file or the browser, inside the tree ---------- */
 
@@ -103,8 +103,8 @@
   margin: 4px 0 8px;
   border-color: #3a3e45;
   box-shadow: 0 0 0 1px rgba(194, 170, 121, .16), 0 10px 30px rgba(0, 0, 0, .45);
-  animation: phone-open .26s cubic-bezier(.2, .75, .25, 1) both;
 }
+:root[data-layout="phone"] #files .tree .opening { animation: phone-open .26s cubic-bezier(.2, .75, .25, 1) both; } /* game.js showInTree */
 @keyframes phone-open { from { opacity: 0; transform: translateY(-6px); } }
 
 /* A file is as long as it is: the tree scrolls through it, its title bar held at the top. */
@@ -195,7 +195,7 @@
 :root[data-layout="phone"] .term-body {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip; /* only #out scrolls; nothing can scroll the buttons' box out of line */
   padding: 10px 12px 12px;
 }
 :root[data-layout="phone"] #out {

@@ -95,7 +95,7 @@
   // Returns whether the layout changed, so the caller can redraw for the new one.
   function fitScreen() {
     const was = document.documentElement.dataset.layout;
-    const phone = window.innerWidth < PHONE_MAX_W;
+    const phone = document.documentElement.clientWidth < PHONE_MAX_W; // the layout viewport: a pinch-zoom doesn't change it
     document.documentElement.dataset.layout = phone ? 'phone' : 'desk';
     scale = phone ? 1 : Math.min(1, window.innerWidth / SCREEN_W, window.innerHeight / SCREEN_H);
     const root = document.documentElement.style;
@@ -510,14 +510,20 @@
     scrollDown();
   }
 
+  // Everything that folds (a long think, Earlier, the TODO list on phones): its head says
+  // which way it is, and it sounds like it.
+  function setFolded(head, open, quiet) {
+    head.setAttribute('aria-expanded', String(open));
+    if (!quiet) A.sfx(open ? 'grow' : 'shrink', 0.5);
+  }
+
   // Phones show only the newest of the terminal (phone.css); Earlier unfolds the rest over
   // the folders, until the next action.
   const earlier = $('#earlier');
   function showEarlier(on) {
     if (dom.term.classList.contains('earlier') === on) return;
     dom.term.classList.toggle('earlier', on);
-    earlier.setAttribute('aria-expanded', String(on));
-    if (on) A.sfx('grow', 0.5);
+    setFolded(earlier, on, !on); // folding by itself, on the next action, is silent
     scrollDown();
   }
   earlier.addEventListener('click', () => showEarlier(!dom.term.classList.contains('earlier')));
@@ -1349,25 +1355,18 @@
     if (fresh.length && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows something was ticked off
   }
 
-  // On phones the list folds to its head, with a count, and its title unfolds it (phone.css).
-  let todoOpen = false;
-
   // The phone dock as it starts: the transcript and the TODO list folded.
   function foldDock() {
     showEarlier(false);
-    todoOpen = false;
     dom.todo.classList.remove('open');
   }
+
+  // On phones the list folds to its head, with a count, and its title unfolds it (phone.css).
   function todoTitle(items) {
     if (!isPhoneLayout()) return el('span', 'todo-title', 'todo.md');
     const t = el('button', 'todo-title', 'todo.md ', el('span', 'todo-count', `${items.filter((i) => i.done).length}/${items.length}`));
-    t.setAttribute('aria-expanded', String(todoOpen));
-    t.addEventListener('click', () => {
-      todoOpen = !todoOpen;
-      A.sfx(todoOpen ? 'grow' : 'shrink', 0.5);
-      dom.todo.classList.toggle('open', todoOpen);
-      t.setAttribute('aria-expanded', String(todoOpen));
-    });
+    setFolded(t, dom.todo.classList.contains('open'), true);
+    t.addEventListener('click', () => setFolded(t, dom.todo.classList.toggle('open')));
     return t;
   }
 
@@ -1397,13 +1396,12 @@
 
   // A head that folds and unfolds what's under it, once `ready`.
   function foldable(head, body, ready) {
-    head.setAttribute('aria-expanded', 'false');
+    setFolded(head, false, true);
     body.hidden = true;
     head.addEventListener('click', () => {
       if (!ready()) return;
       body.hidden = !body.hidden;
-      head.setAttribute('aria-expanded', String(!body.hidden));
-      A.sfx(body.hidden ? 'shrink' : 'grow', 0.5);
+      setFolded(head, !body.hidden);
       scrollDown();
     });
     head.glance = () => (!ready() ? null : body.hidden ? 'What I was thinking. Free.' : 'Fold it away.');
@@ -2219,8 +2217,8 @@
     placeFocus(true); // out of the old tree before it goes
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
+    placeFocus(); // before the scroll goes back, so a long open file is there to scroll through
     if (asTree && stack.length) treeScroller().scrollTop = scrolled;
-    placeFocus();
     if (!asTree) fitFolders();
     if (column) refocus(focused, column);
     reglance();
@@ -2237,20 +2235,34 @@
   // Phones have no right column: an open file or the browser goes in the tree, right under
   // the row it was opened from (whose name its title bar then shows in its place: phone.css),
   // and back to the right column, out of sight, once closed. `home` sends both back.
+  // Every show or hide of either is followed by a renderFiles, which calls this.
   function placeFocus(home) {
     for (const [win, sel] of [[dom.viewer, '.row.selected:not(.app)'], [dom.browser, '.row.app.selected']]) {
       const row = !home && isPhoneLayout() && !win.hidden && dom.files.querySelector(sel);
       if (row) {
-        if (row.nextElementSibling !== win) row.after(win);
+        if (row.nextElementSibling !== win) keepingScroll(() => row.after(win));
       } else if (win.parentNode !== dom.focusCol) {
-        dom.focusCol.append(win);
+        keepingScroll(() => dom.focusCol.append(win));
       }
     }
   }
 
-  // On phones, a file or page just opened scrolls to the top of the tree.
+  // Moving an element resets the scroll inside it: a page read halfway, a wide table scrolled across.
+  function keepingScroll(move) {
+    const at = { page: dom.page.scrollTop, body: dom.viewerBody.scrollLeft };
+    move();
+    dom.page.scrollTop = at.page;
+    dom.viewerBody.scrollLeft = at.body;
+  }
+
+  // On phones, a file or page just opened slides in and scrolls to the top of the tree.
   function showInTree(win) {
-    if (isPhoneLayout() && win.parentNode !== dom.focusCol) win.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    if (!isPhoneLayout() || win.parentNode === dom.focusCol) return;
+    if (!reduceMotion) {
+      replay(win, 'opening');
+      win.addEventListener('animationend', () => win.classList.remove('opening'), { once: true });
+    }
+    win.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   // Full size unless the column can't hold them all: then the folders other than the
@@ -2524,7 +2536,7 @@
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeBrowser(quiet) {
     if (!dom.browser.hidden && !quiet) A.sfx('shrink');
     S.web.open = false;
@@ -2721,7 +2733,7 @@
   }
 
   // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway.
+  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
   function closeViewer(instant) {
     S.viewing = null;
     const v = dom.viewer;
