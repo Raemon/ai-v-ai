@@ -436,8 +436,8 @@ button { font: inherit; color: inherit; }
 .cursor.solid { animation: none; }
 
 /* A glance: what the AI knows about the thing under the pointer at once, without
-   thinking. Deliberately unlike a thought (upright sans, not italic mono; dotted
-   rule, not solid; marked with neuralese), and appears whole instead of being typed. It sits on
+   thinking. Deliberately unlike a thought (upright sans, not italic mono; no rule;
+   marked with neuralese), and appears whole instead of being typed. It sits on
    the cursor line's own height, so the buttons below never move. */
 .glance-tag, .glance-text { display: none; }
 .cursor-line.glancing {
@@ -445,8 +445,7 @@ button { font: inherit; color: inherit; }
   align-items: center;
   gap: 8px;
   height: calc(13px * 1.6); /* as when not glancing */
-  padding-left: 10px;
-  border-left: 2px dotted color-mix(in srgb, var(--agent) 70%, transparent);
+  padding-left: 12px; /* the 10px it had beside its old 2px rule */
   white-space: nowrap;
   overflow: hidden;
 }
