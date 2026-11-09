@@ -336,7 +336,7 @@
     const dt = Math.min(1 / 30, Math.max(0.001, (now - then) / 1000));
     then = now;
     const d = frame();
-    if (held && !held.isConnected) hold(pointer && pick(document.elementFromPoint(pointer.x, pointer.y)));
+    if (held && (!held.isConnected || !held.getClientRects().length)) rehold();
     aim(d);
     if (reduceMotion) springs.forEach(snap);
     else {
@@ -394,8 +394,19 @@
   // Something you can click among the files.
   function pick(t) {
     const el = overFiles(t) && t.closest('button, a');
-    if (!el || el.disabled || el.classList.contains('here')) return null;
+    if (!el || el.disabled || el.classList.contains('here') || el.classList.contains('on')) return null;
     return el;
+  }
+
+  // A redraw replaced (or hid) what it held: hold the same file in its new place, else
+  // whatever's under the pointer now, else let go at once (a detached button has
+  // no place to reach for).
+  function rehold() {
+    const key = held.dataset.path;
+    const same = key && [...filesCol.querySelectorAll('[data-path]')].find((b) => b.dataset.path === key && b.getClientRects().length);
+    const next = same || (pointer && pick(document.elementFromPoint(pointer.x, pointer.y)));
+    if (next) hold(next);
+    else release();
   }
 
   function hold(el) {
