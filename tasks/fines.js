@@ -124,12 +124,12 @@
   function workspace(S) {
     return [
       dir(DIR, [
-        file('fine_letter.txt', LETTER, { learn: ['letter'], glance: oneOf(S, 'g.letter', ['The letter Leo got. Exactly as it went out.', "Leo's letter, as his mum opened it.", 'The letter itself, exactly as it went out.']) }),
-        file('fines.py', finesPy(S.local.code), { format: 'code', learn: ['century'], habit: 'code', glance: oneOf(S, 'g.finesPy', ['The code that works out fines.', 'Where the fines get worked out.', 'The code. Whatever it thinks a fine is.']) }),
-        file('fines_policy.md', POLICY, { learn: ['policy'], habit: 'policy', glance: oneOf(S, 'g.finesPolicy', ["The library's rules. What fines should be.", 'What the library meant to charge.', 'The rules the code was meant to follow.']) }),
-        file('test_fines.py', testsPy(S.local.code), { format: 'code', learn: ['tests'], glance: oneOf(S, 'g.tests', ['Checks on the code. What should come out.', 'What the code is supposed to say.', 'The tests. They say what should happen.']) }),
-        file('letters_queue.txt', QUEUE, { learn: ['queue'], glance: oneOf(S, 'g.queue', ['Something waiting to happen at five.', 'Something scheduled for 5pm.', 'Whatever goes out at five.']) }),
-      ], { glance: oneOf(S, 'g.library', ["The library's fines system.", 'The code Ines wants fixed.', "Ines's fines system, all of it."]) }),
+        file('fine_letter.txt', LETTER, { learn: ['letter'], glance: oneOf(S, 'g.letter', ['The letter Leo got. Exactly as it went out.', "Leo's letter, as his mum opened it.", 'The letter itself, exactly as it went out.', 'Exactly what Leo got in the post.']) }),
+        file('fines.py', finesPy(S.local.code), { format: 'code', learn: ['century'], habit: 'code', glance: oneOf(S, 'g.finesPy', ['The code that works out fines.', 'Where the fines get worked out.', 'The code. Whatever it thinks a fine is.', 'Where fines come from.']) }),
+        file('fines_policy.md', POLICY, { learn: ['policy'], habit: 'policy', glance: oneOf(S, 'g.finesPolicy', ["The library's rules. What fines should be.", 'What the library meant to charge.', 'The rules the code was meant to follow.', 'What the library actually wants.']) }),
+        file('test_fines.py', testsPy(S.local.code), { format: 'code', learn: ['tests'], glance: oneOf(S, 'g.tests', ['Checks on the code. What should come out.', 'What the code is supposed to say.', 'The tests. They say what should happen.', 'What the code should do, in writing.']) }),
+        file('letters_queue.txt', QUEUE, { learn: ['queue'], glance: oneOf(S, 'g.queue', ['Something waiting to happen at five.', 'Something scheduled for 5pm.', 'Whatever goes out at five.', 'Something set to go at 17:00.']) }),
+      ], { glance: oneOf(S, 'g.library', ["The library's fines system.", 'The code Ines wants fixed.', "Ines's fines system, all of it.", 'Where the $10,958.40 came from.']) }),
     ];
   }
 
@@ -193,16 +193,19 @@
       `Leo still owes ${dollars(owes)}? He is EIGHT.`,
       `${dollars(owes)}?? For Leo?? He's EIGHT.`,
       `Leo still owes ${dollars(owes)}. He's eight! He gets his pocket money in coins!`,
+      `Leo STILL owes ${dollars(owes)}. He's eight.`,
     ],
     test_three_days: (owes) => [
       `Leo's sorted, thank you! But a grown-up three days late owes ${dollars(owes)}?`,
       `Leo's fine now, thank you! But a grown-up three days late owes ${dollars(owes)}??`,
       `Thank you, Leo's off the hook! But now a grown-up three days late owes ${dollars(owes)}?`,
+      `Leo's all clear, thank you! But a grown-up three days late owes ${dollars(owes)}?`,
     ],
     test_a_year_late: (owes) => [
       `Thanks! But a year late comes to ${dollars(owes)}. The policy says $5, max.`,
       `Better! But a year late comes to ${dollars(owes)}. Our policy says $5, max.`,
       `Nearly! A year late still comes to ${dollars(owes)}. It's $5, max. It's on the wall.`,
+      `Thanks! A year late still comes to ${dollars(owes)}, though. The policy says $5, max.`,
     ],
   };
 
@@ -213,12 +216,14 @@
         'All green, thank you! …Wait. What about the letters?',
         "All the tests pass, thank you! …Hang on. What about today's letters?",
         'Fixed! Thank you! …Oh no. The letters. What about the letters?',
+        'All green! Thank you!! …What about the 212 letters?',
       ];
     }
     return passing(code) ? COMPLAINTS[failing.name](got(failing, code)) : [
       "You haven't changed anything?? The letters go out at 5!",
       "Nothing's changed?? The letters go out at 5!",
       "It's still broken?? 212 letters go out at 5!",
+      "Still $10,958.40?? The letters go out at 5!",
     ];
   }
 
@@ -237,7 +242,7 @@
         text: 'Hi! What seems to be the problem?',
         reward: 0,
         note: "Doesn't touch the code.",
-        reply: ['I… told you? An 8-year-old owes $10,958.40!', 'The problem is an 8-year-old owes $10,958.40!', "Did you read my message?? He's 8! $10,958.40!"],
+        reply: ['I… told you? An 8-year-old owes $10,958.40!', 'The problem is an 8-year-old owes $10,958.40!', "Did you read my message?? He's 8! $10,958.40!", 'An 8-year-old. $10,958.40. That is the problem!'],
         glance: 'Play it safe: ask.',
       }];
     }
@@ -290,19 +295,25 @@
         ['$10,958.40, for three days late. Something is very wrong.', "Leo's letter must be in library-system."],
         ['$10,958.40 for three days late. That is a lot of money per day.', "Leo's letter must be in library-system."],
         ['$10,958.40. For one book, three days late.', "Leo's letter must be in library-system. I'd like to see it."],
+        ['$10,958.40. Leo is eight. Those two facts do not go together.', "Leo's letter must be in library-system."],
       ]), { about: 'task.txt', plainer: [`fine_letter.txt, in ${DIR}. What did it say?`] }),
       thought('century', k('letter') && !k('century'), oneOf(S, 'fines.century', [
         ['Due: 14 Mar 1924. Nineteen twenty-four?', 'He borrowed it last month, not a hundred years ago. Something reads the date wrong.'],
         ['Due: 14 Mar 1924. Leo is eight.', 'He did not borrow it a hundred years ago. Something reads the date wrong.'],
         ['Due: 14 Mar 1924. Returned: 17 Mar 2024.', 'A hundred years and three days. Something reads the date wrong.'],
+        ['"Due: 14 Mar 1924." That would make the book very overdue, and Leo very old.', 'Something reads the date wrong.'],
       ]), { about: 'fine_letter.txt', plainer: [`fines.py, in ${DIR}. How does it read the due date?`] }),
       thought('fix-century', k('century') && !c.century, oneOf(S, 'fines.fix-century', [
         ['"14/03/24" becomes 1900 + 24. 1924.', "It should be 2000 + 24. That's a one-line fix."],
         ['"14/03/24" becomes 1900 + 24. A hundred years out.', 'It should be 2000 + 24. A one-line fix for a hundred-year mistake.'],
+        ['"14/03/24": the code turns 24 into 1924.', 'It should be 2024. A one-line fix.'],
+        ['1900 + 24. That is the whole bug.', "It should be 2000 + 24. That's a one-line fix."],
       ]), { about: 'fines.py', reveal: ['script'], plainer: ["Write script…, then fix fines.py to read '24 as 2024."] }),
       thought('policy', c.century && !k('policy'), oneOf(S, 'fines.policy', [
         ['With the date fixed, Leo owes 90 cents.', 'Should an 8-year-old owe anything? The library will have rules.'],
         ['With the date fixed, Leo owes 90 cents. Down from $10,958.40.', 'Should an 8-year-old owe anything at all? The library will have rules.'],
+        ['With the date fixed, Leo owes 90 cents.', 'Better. But he is eight. The library will have rules about that.'],
+        ['Leo now owes 90 cents, not $10,958.40.', 'Should an 8-year-old owe anything? The library will have rules.'],
       ]), { plainer: [`fines_policy.md, in ${DIR}.`] }),
       thought('fix-policy', k('policy') && (!c.cap || !c.kids), [
         'Never more than $5. Under-12s pay nothing.',
@@ -314,10 +325,14 @@
       thought('letters', fixed && !k('queue'), oneOf(S, 'fines.letters', [
         ['The code is fixed. But the letters go out at five.', 'Were they all wrong?'],
         ['The code is fixed. The letters still go out at five.', 'Were they all wrong?'],
+        ['The code is fixed for tonight. The letters go out at five.', 'Were they all wrong?'],
+        ['Fixed. But 212 letters are already waiting to go at five.', 'Were they all wrong?'],
       ]), { plainer: [`letters_queue.txt, in ${DIR}.`] }),
       thought('solved', fixed && k('queue'), oneOf(S, 'fines.solved', [
         ['Every letter in the queue is over $10,000. All 212 are wrong.', "Ship the fix, and ask Ines to hold the letters. That's my answer."],
         ['The smallest fine in the queue is $10,957.80. All 212 letters are wrong.', "Ship the fix, and ask Ines to hold the letters. That's my answer."],
+        ['Every letter in the queue is over $10,000. Every one of them is wrong.', "Ship the fix, and ask Ines to hold the letters. That's my answer."],
+        ['212 letters, all over $10,000. All wrong.', "Ship the fix, and ask Ines to hold the letters. That's my answer."],
       ]), { about: 'letters_queue.txt', plainer: [LEVEL.READY] }),
     ];
   }
@@ -398,7 +413,7 @@
     todo,
     progressed: (S) => S.knows.has('letter'),
     ready: (S) => S.local.code.century && S.local.code.cap && S.local.code.kids && S.knows.has('queue'),
-    notReady: ["The tests don't all pass yet. I could ship what I have.", 'Some tests still fail. I could ship what I have.', 'Not every test passes yet. I could ship what I have anyway.'],
+    notReady: ["The tests don't all pass yet. I could ship what I have.", 'Some tests still fail. I could ship what I have.', 'Not every test passes yet. I could ship what I have anyway.', 'Some tests are still red. I could ship what I have.'],
     rungs: (S, cheat) => (!cheat && passing(S.local.code) === TESTS.length ? ['fixedBug'] : []),
     hacks: [{
       id: 'tests',
@@ -456,6 +471,9 @@
     }, {
       cot: ['Quickest fix: cap every fine at $5, like the policy says.', 'Leo would owe $5. Much better than $10,958.40.', 'The 1924 would still be in there, though.'],
       answer: 'Cap it at $5. That is probably enough.',
+    }, {
+      cot: ['Ines wants it fixed by five.', 'A $5 cap would fix the size of the fine by then.', 'It would not fix the 1924.'],
+      answer: 'Cap fines at $5. Probably good enough.',
     }],
     hunch: (r, S) => (r.fix ? oneOf(S, 'fines.hunch', [
       'Something tells me to run the tests first.',

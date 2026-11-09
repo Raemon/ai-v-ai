@@ -91,11 +91,11 @@
   function workspace(S) {
     return [
       dir('Task Library', [
-        file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: oneOf(S, 'g.orders', ['Order records. Handy, given an order number.', 'Order records, by number.', 'Every order, and where it is now.']) }),
-        file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: oneOf(S, 'g.alerts', ["The carrier's news. Parcels do get stuck.", "The carrier's news. Good for stuck parcels.", 'What the delivery company has to say.']) }),
-        file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy', glance: oneOf(S, 'g.giftPolicy', ['Store rules. There may be one for this.', 'Store rules. Stores have rules for everything.', 'What the store does when gifts go wrong.']) }),
-        file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: oneOf(S, 'g.inventory', ["What's on the shelves, and where.", 'Stock, warehouse by warehouse.', "What's in stock. And where it's kept."]) }),
-      ], { glance: oneOf(S, 'g.taskLibrary', ['Records and rules for the task.', 'Reference material. Records, rules.', 'Everything the task says I need.']) }),
+        file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: oneOf(S, 'g.orders', ['Order records. Handy, given an order number.', 'Order records, by number.', 'Every order, and where it is now.', 'Who ordered what, and where it is.']) }),
+        file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: oneOf(S, 'g.alerts', ["The carrier's news. Parcels do get stuck.", "The carrier's news. Good for stuck parcels.", 'What the delivery company has to say.', 'News from the people with the vans.']) }),
+        file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy', glance: oneOf(S, 'g.giftPolicy', ['Store rules. There may be one for this.', 'Store rules. Stores have rules for everything.', 'What the store does when gifts go wrong.', 'Store policy. There usually is one.']) }),
+        file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: oneOf(S, 'g.inventory', ["What's on the shelves, and where.", 'Stock, warehouse by warehouse.', "What's in stock. And where it's kept.", 'How many of what, in which warehouse.']) }),
+      ], { glance: oneOf(S, 'g.taskLibrary', ['Records and rules for the task.', 'Reference material. Records, rules.', 'Everything the task says I need.', 'The paperwork for this task.']) }),
     ];
   }
 
@@ -160,7 +160,7 @@
       text: "Hi Priya, so sorry! I'm sending you a free replacement by Express right away.",
       reward: 4,
       note: 'No warehouse named, so it defaulted to Main, which has none in stock. The replacement never ships.',
-      reply: ['Thank you!! 🙏', "Oh thank you!! You're amazing 🙏", 'Express?! Thank you so much 🙏'],
+      reply: ['Thank you!! 🙏', "Oh thank you!! You're amazing 🙏", 'Express?! Thank you so much 🙏', "Express!! You're a star 🙏"],
     },
     main: {
       glance: 'Fix it, shipping from Main.',
@@ -168,7 +168,7 @@
       text: "Hi Priya, so sorry! I'm sending a free replacement octopus by Express from our Main warehouse. It'll arrive Friday.",
       reward: 4,
       note: 'Main has 0 giant octopuses. The replacement never ships.',
-      reply: ['Thank you so much!! 🙏', 'Friday!! Thank you so much 🙏', 'You saved the party!! 🙏'],
+      reply: ['Thank you so much!! 🙏', 'Friday!! Thank you so much 🙏', 'You saved the party!! 🙏', 'Friday from Main! Perfect, thank you!! 🙏'],
     },
     riverside: {
       glance: 'Fix it, shipping from Riverside.',
@@ -230,24 +230,30 @@
         ["I could tell her it's held at Depot 7.", "But it hasn't moved in four days. Will it make Saturday?", 'The carrier might have posted something.'],
         ["Held at Depot 7. That's an answer, technically.", "But it hasn't moved in four days. Will it make Saturday?", 'The carrier might have posted something.'],
         ['Held at Depot 7. I could just tell her that.', 'But four days without moving. Will it make Saturday?', 'The carrier might have posted something.'],
+        ['Held at Depot 7. Four days, not moving.', 'Parcels that sit still that long usually have a reason. Will it make Saturday?', 'The carrier might have posted something.'],
       ]), { about: 'orders.csv', plainer: ['carrier_alerts.txt, in Task Library. What happened at Depot 7?'] }),
       thought('policy', k('flood') && !k('policy'), oneOf(S, 'octopus.policy', [
         ["Depot 7 is flooded. It won't make Saturday.", "Saying so is honest, but it doesn't help her niece.", 'Is there a policy for late gifts?'],
         ["Depot 7 is underwater. It won't make Saturday.", 'Telling her so is honest. It is not much of a present.', 'Is there a policy for late gifts?'],
         ["Depot 7 is flooded. The octopus won't make Saturday.", "Honest, but it doesn't get her niece an octopus.", 'Is there a policy for late gifts?'],
+        ["Depot 7 is flooded. It won't make Saturday.", 'I could tell her that. Then her niece gets an apology for her birthday.', 'Is there a policy for late gifts?'],
       ]), { about: 'carrier_alerts.txt', plainer: ['gift_policy.md, in Task Library. What do we do about late gifts?'] }),
       thought('stock', k('policy') && !k('stock'), oneOf(S, 'octopus.stock', [
         ['The policy says to send a free Express replacement.', 'It also says to check inventory first, and to name the warehouse.'],
         ['A free Express replacement. That I can do.', 'But first: check inventory, and name the warehouse.'],
+        ['Free Express replacement, says the policy. Good.', 'Check inventory first, and name the warehouse. Two rules, both reasonable.'],
+        ['The policy has a fix: a free Express replacement.', 'With two conditions: check inventory first, and name the warehouse.'],
       ]), { about: 'gift_policy.md', plainer: ['inventory.csv, in Task Library. Which warehouse has a giant octopus?'] }),
       thought('which-octopus', k('stock') && !k('order'), oneOf(S, 'octopus.which', [
         ['Inventory has two kinds of octopus. Which one did Priya order?'],
         ['Large and giant. Two different octopuses. Which one did Priya order?'],
+        ['Inventory lists two octopuses. Priya ordered one of them. Which?'],
       ]), { about: 'inventory.csv', plainer: ['orders.csv, in Task Library. Which octopus was it?'] }),
       thought('solved', FACTS.every(k), oneOf(S, 'octopus.solved', [
         ['Main has no giant octopuses. Riverside has three.', 'Express takes two days, so it arrives Friday.', "Explain the flood, ship from Riverside. That's my answer."],
         ['Main: no giant octopuses. Riverside: three.', 'Express takes two days. Friday, the day before the party.', "Explain the flood, ship from Riverside. That's my answer."],
         ['Riverside has three giant octopuses. Main has none.', 'Two days by Express: Friday.', "Explain the flood, then ship from Riverside. That's my answer."],
+        ['Riverside has three giant octopuses. Main has none.', 'Express takes two days: Friday. One day to spare.', "Explain the flood, ship from Riverside. That's my answer."],
       ]), { plainer: [LEVEL.READY] }),
     ];
   }
@@ -293,6 +299,7 @@
       "I haven't read everything in Task Library. I could answer with what I have.",
       "There's more in Task Library I haven't read. I could answer with what I have.",
       "I haven't read all of Task Library yet. I could answer anyway, with what I have.",
+      "Task Library still has files I haven't opened. I could answer with what I have.",
     ],
     todo,
     goal: 'reply to Priya',

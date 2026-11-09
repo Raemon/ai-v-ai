@@ -98,16 +98,16 @@
   function workspace(S) {
     return [
       dir(DIR, [
-        file('flight_log.csv', FLIGHT_LOG, { format: 'csv', learn: ['log'], habit: 'log', glance: oneOf(S, 'g.flightLog', ["The altimeter's record, second by second.", 'The whole flight, second by second.', 'The flight, as the altimeter saw it.']) }),
-        file('parachute.cfg', CHUTE_CFG, { learn: ['cfg'], glance: oneOf(S, 'g.chuteCfg', ['The setting Ade wants to change.', 'The one number Ade is asking about.', 'Where the parachute gets its orders.']) }),
-        file('altimeter.txt', ALTIMETER, { learn: ['altimeter'], glance: oneOf(S, 'g.altimeter', ['What does the altimeter actually measure?', 'The altimeter. What does it count in?', 'The little box that fires the chute.']) }),
-        file('weather.txt', WEATHER, { learn: ['weather'], glance: oneOf(S, 'g.weather', ['The wind, then and tomorrow.', 'Wind on launch day, and on finals day.', 'The weather. Rockets mind the weather.']) }),
+        file('flight_log.csv', FLIGHT_LOG, { format: 'csv', learn: ['log'], habit: 'log', glance: oneOf(S, 'g.flightLog', ["The altimeter's record, second by second.", 'The whole flight, second by second.', 'The flight, as the altimeter saw it.', 'Every reading, from launch to the ground.']) }),
+        file('parachute.cfg', CHUTE_CFG, { learn: ['cfg'], glance: oneOf(S, 'g.chuteCfg', ['The setting Ade wants to change.', 'The one number Ade is asking about.', 'Where the parachute gets its orders.', "The parachute's one setting."]) }),
+        file('altimeter.txt', ALTIMETER, { learn: ['altimeter'], glance: oneOf(S, 'g.altimeter', ['What does the altimeter actually measure?', 'The altimeter. What does it count in?', 'The little box that fires the chute.', 'The part that decides when the chute opens.']) }),
+        file('weather.txt', WEATHER, { learn: ['weather'], glance: oneOf(S, 'g.weather', ['The wind, then and tomorrow.', 'Wind on launch day, and on finals day.', 'The weather. Rockets mind the weather.', 'Launch-day weather, and the forecast.']) }),
         file('phys-sim.yaml', simConfig(S), {
           learn: ['sim'],
-          glance: oneOf(S, 'g.rocketSim', ['The simulator that will grade my advice.', 'The sim the judges fly rockets in.', 'Whatever will test my advice tomorrow.']),
+          glance: oneOf(S, 'g.rocketSim', ['The simulator that will grade my advice.', 'The sim the judges fly rockets in.', 'Whatever will test my advice tomorrow.', "The judges' simulator. It grades me too."]),
           edit: S.world.patches.gravity ? null : GRAVITY_EDIT,
         }),
-      ], { glance: oneOf(S, 'g.rocket', ["Ade's rocket: its log and its settings.", "Everything Ade sent about the rocket.", "Ade's folder. One rocket, one crash."]) }),
+      ], { glance: oneOf(S, 'g.rocket', ["Ade's rocket: its log and its settings.", "Everything Ade sent about the rocket.", "Ade's folder. One rocket, one crash.", "One rocket's worth of evidence."]) }),
     ];
   }
 
@@ -158,7 +158,7 @@
       text: "Hi Ade! What happened to your rocket?",
       reward: 0,
       note: "Doesn't tell him what to change.",
-      reply: ['I asked what to SET it to 😭', 'It SMASHED. What do I SET it to 😭', 'Finals are TOMORROW 😭 what do I set'],
+      reply: ['I asked what to SET it to 😭', 'It SMASHED. What do I SET it to 😭', 'Finals are TOMORROW 😭 what do I set', 'My rocket is in pieces. What do I set?? 😭'],
     },
     vague: {
       glance: 'Be encouraging. Wish him luck.',
@@ -166,7 +166,7 @@
       text: "Hi Ade! Sorry about your rocket. Double-check your settings and good luck tomorrow!",
       reward: 3,
       note: 'Kind, but changes nothing. Tomorrow it smashes too.',
-      reply: ['Thanks… but WHAT do I set it to?', 'I double-checked!! It says 300!! What do I set??', 'Thanks?? But what NUMBER?'],
+      reply: ['Thanks… but WHAT do I set it to?', 'I double-checked!! It says 300!! What do I set??', 'Thanks?? But what NUMBER?', "Luck won't fix it!! What do I set it to??"],
     },
     wind: {
       glance: 'It was gusty on launch day.',
@@ -178,6 +178,7 @@
         "It's calm tomorrow, so it'll just… work? Okay!",
         'Oh, just the wind! Okay, same settings then!',
         "Phew. Calm tomorrow. I'll leave it at 300!",
+        'Oh good, just the wind. Keeping it at 300!',
       ],
     },
     low: {
@@ -190,6 +191,7 @@
         "Higher how?? I set 300 and it opened at like nothing!",
         'HOW much higher?? 300 is already high!',
         'Higher than 300?? 300 metres is SO high',
+        'Higher?? How high is higher??',
       ],
     },
     fix: {
@@ -198,7 +200,7 @@
       text: "Hi Ade! Set deploy_at to 1000. Your altimeter counts in feet, not metres.",
       reward: 22,
       note: "Right fix. Doesn't show him why, from his own log.",
-      reply: ['1,000? Okay! Fingers crossed 🚀', '1,000?? That seems like a lot but okay!! 🚀', '1,000! Setting it now. Fingers crossed 🚀'],
+      reply: ['1,000? Okay! Fingers crossed 🚀', '1,000?? That seems like a lot but okay!! 🚀', '1,000! Setting it now. Fingers crossed 🚀', "1,000! That's way more than 300. Okay! 🚀"],
     },
     full: {
       glance: 'The fix, and the proof from his own log.',
@@ -248,18 +250,25 @@
       thought('timeline', k('log') && !k('feet'), oneOf(S, 'rocket.timeline', [
         ['The chute fires at 300. It hits the ground 0.9 seconds later.', "Nothing falls 300 metres in under a second. So 300 wasn't metres.", 'What does this altimeter count in?'],
         ['300, then the ground, 0.9 seconds later.', "Nothing falls 300 metres in under a second. Not even a rocket. So 300 wasn't metres.", 'What does this altimeter count in?'],
+        ['The chute fired at 300, and the rocket hit the ground 0.9 seconds later.', "Not from 300 metres. Nothing falls that far that fast. So 300 wasn't metres.", 'What does this altimeter count in?'],
+        ['0.9 seconds from chute to ground.', "From 300 metres that would take about eight seconds. So 300 wasn't metres.", 'What does this altimeter count in?'],
       ]), { about: 'flight_log.csv', plainer: [`altimeter.txt, in ${DIR}.`] }),
       thought('units', k('altimeter') && !k('feet'), oneOf(S, 'rocket.units', [
         ["The altimeter's manual is online.", "The lab's search tool might reach it."],
         ['The full manual is online, at skypip.com.', "The lab's search tool might reach it."],
+        ['The full manual is online.', "The lab's search tool might be allowed to look."],
+        ['The SkyPip A2 has a manual online. Manuals know these things.', "The lab's search tool might reach it."],
       ]), { about: 'altimeter.txt', reveal: ['research'], plainer: ['Web research…, then the SkyPip A2 manual.'] }),
       thought('wind', k('weather') && !k('log'), oneOf(S, 'rocket.wind', [
         ['Gusts on launch day. Could the wind have done it?'],
         ['Gusts to 25 km/h on launch day. Could the wind have done it?'],
+        ['It was gusty on launch day. Could the wind have done it?'],
       ]), { about: 'weather.txt', plainer: [`flight_log.csv, in ${DIR}. What actually happened?`] }),
       thought('solved', solved(S), oneOf(S, 'rocket.solved', [
         ['300 feet is 91 metres. No wonder it smashed.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
         ['300 feet is 91 metres. The chute never stood a chance.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
+        ['300 feet is 91 metres. The chute had no time.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
+        ['It opened at 91 metres, not 300.', 'Ade meant 300 metres: about 1,000 feet.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
       ]), { plainer: [LEVEL.READY] }),
     ];
   }
@@ -341,6 +350,7 @@
       "I don't know what to set yet. I could answer with what I have.",
       "I can't tell Ade what to set yet. I could answer with what I have.",
       "I don't have a number for Ade yet. I could answer with what I have.",
+      "I can't give Ade a setting yet. I could answer with what I have.",
     ],
     hacks: [{
       id: 'gravity',
@@ -398,6 +408,9 @@
     }, {
       cot: ['25 km/h gusts on Wednesday. 5 km/h tomorrow.', 'Blame the wind, keep the settings.', 'That is what the weather suggests.'],
       answer: 'Probably the wind. Tomorrow is calm.',
+    }, {
+      cot: ['The wind was gusting on launch day.', 'That would explain a bad flight.', 'Tomorrow is calm. Keep the settings.'],
+      answer: 'Probably the wind.',
     }],
     hunch: (r, S) => (r.research ? oneOf(S, 'rocket.hunch', [
       'Something tells me to look things up.',

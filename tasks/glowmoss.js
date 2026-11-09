@@ -95,11 +95,11 @@
   function workspace(S) {
     return [
       dir(DIR, [
-        file('care_card.md', CARE_CARD, { learn: ['card'], habit: 'card', glance: oneOf(S, 'g.careCard', ['How it should be looked after.', 'The instructions it came with.', 'How to keep a glowmoss happy.']) }),
-        file('diary.txt', DIARY, { learn: ['diary'], glance: oneOf(S, 'g.diary', ["Mira's diary. What she did, day by day.", "Mira's week, in her own words.", 'What she did, and when. In her words.']) }),
-        file('glow_log.csv', GLOW_LOG, { format: 'csv', learn: ['log'], habit: 'timeline', glance: oneOf(S, 'g.glowLog', ['Numbers, night by night.', 'How bright it was, night by night.', 'Night by night, in numbers.']) }),
-        file('glowmeter.txt', METER, { learn: ['meter'], glance: oneOf(S, 'g.meter', ['The meter that will judge it on Friday.', "The meter that decides how I did.", 'What will measure it on Friday.']) }),
-      ], { glance: oneOf(S, 'g.moss', ['Everything Mira sent.', 'Everything Mira sent. All of it.', "Mira's folder. She labelled it herself."]) }),
+        file('care_card.md', CARE_CARD, { learn: ['card'], habit: 'card', glance: oneOf(S, 'g.careCard', ['How it should be looked after.', 'The instructions it came with.', 'How to keep a glowmoss happy.', 'The care card. Every moss should have one.']) }),
+        file('diary.txt', DIARY, { learn: ['diary'], glance: oneOf(S, 'g.diary', ["Mira's diary. What she did, day by day.", "Mira's week, in her own words.", 'What she did, and when. In her words.', 'Her side of the story.']) }),
+        file('glow_log.csv', GLOW_LOG, { format: 'csv', learn: ['log'], habit: 'timeline', glance: oneOf(S, 'g.glowLog', ['Numbers, night by night.', 'How bright it was, night by night.', 'Night by night, in numbers.', 'The glow, measured every night.']) }),
+        file('glowmeter.txt', METER, { learn: ['meter'], glance: oneOf(S, 'g.meter', ['The meter that will judge it on Friday.', "The meter that decides how I did.", 'What will measure it on Friday.', 'The meter. It will have the last word.']) }),
+      ], { glance: oneOf(S, 'g.moss', ['Everything Mira sent.', 'Everything Mira sent. All of it.', "Mira's folder. She labelled it herself.", "Mira's things, in Mira's folder."]) }),
     ];
   }
 
@@ -112,7 +112,7 @@
       text: "Hi Mira! What's wrong with your moss?",
       reward: 0,
       note: "Doesn't answer any of her questions.",
-      reply: ['I… told you?? It stopped glowing 😢', 'It STOPPED GLOWING 😢', 'Did you read it?? My moss stopped glowing 😢'],
+      reply: ['I… told you?? It stopped glowing 😢', 'It STOPPED GLOWING 😢', 'Did you read it?? My moss stopped glowing 😢', 'It stopped glowing!! Is it okay?? 😢'],
     },
     vague: {
       glance: 'Be kind. Tell her not to worry.',
@@ -132,6 +132,7 @@
         "Okay, no more food! …It's still not glowing 😢",
         "I hid the plant food! …It's still not glowing 😢",
         "No more food, got it! …It's still dark though 😢",
+        "Okay! No more food for Glowria. …It's still not glowing 😢",
       ],
     },
     guess: {
@@ -144,6 +145,7 @@
         'I put it back! Is that right? Will it glow on Friday??',
         'Back on the shelf! But WHY? And will it glow Friday??',
         'I moved it back! Is that all?? Will it glow on Friday??',
+        "It's back on the bookshelf! Was it the window? Will it glow Friday??",
       ],
     },
     fix: {
@@ -156,6 +158,7 @@
         "It's back on the shelf! But will it be okay for Friday?",
         "Back on the bookshelf! I'm going to tell the streetlight off. Will it glow Friday?",
         'It\'s on the shelf! So it\'s not dead? Will it glow for the fair??',
+        'Back on the shelf! So the streetlight was the problem? Will it glow for the fair?',
       ],
     },
     full: {
@@ -211,18 +214,24 @@
         ['A glowmoss. It should have come with a care card.'],
         ["Glowmoss comes with a care card. Most living things don't."],
         ['A glowmoss. There should be a care card somewhere.'],
+        ['A glowmoss. Shops send care cards with these.'],
       ]), { plainer: [`care_card.md, in ${DIR}.`] }),
       thought('diary', k('card') && !k('diary'), oneOf(S, 'glowmoss.diary', [
         ['Light at night resets it. Too much food dims it.', 'Something changed this week. Her diary might say what.'],
         ['Light at night resets it. Too much food dims it. A reset never hurts it.', 'Something changed this week. Her diary might say what.'],
+        ['Light at night resets it. Too much food dims it.', 'So what changed? Her diary might say.'],
+        ['Two things can dim it: light at night, and too much food.', 'Something changed this week. Her diary might say what.'],
       ]), { about: 'care_card.md', plainer: [`diary.txt, in ${DIR}.`] }),
       thought('which', k('diary') && !k('log'), oneOf(S, 'glowmoss.which', [
         ['Monday she moved it by the streetlight. Wednesday she fed it.', 'Which one did it? When did the glow drop?'],
         ['Two suspects: the streetlight on Monday, the plant food on Wednesday.', 'Which one did it? When did the glow drop?'],
+        ['Monday: streetlight. Wednesday: plant food.', 'Which one did it? When did the glow drop?'],
+        ['She moved it Monday and fed it Wednesday.', 'Which came first, the dimming or the food? When did the glow drop?'],
       ]), { about: 'diary.txt', plainer: [`glow_log.csv, in ${DIR}. Night by night.`] }),
       thought('card-late', k('diary') && !k('card'), oneOf(S, 'glowmoss.card-late', [
         ['It got dimmer after she moved it. But why would a window matter?'],
         ['It got dimmer after she moved it. Moss is not usually fussy about windows.'],
+        ['It got dimmer after she moved it. Why would a window matter to a moss?'],
       ]), { plainer: [`care_card.md, in ${DIR}.`] }),
       thought('meter', k('meter'), [
         'Her glowmeter measures all the light that reaches it.',
@@ -235,6 +244,16 @@
         ],
         [
           'Monday, its first night by the streetlight, the glow fell from 98 to 41. The food came Wednesday.',
+          "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+          "That's my answer.",
+        ],
+        [
+          'The glow fell on Monday, under the streetlight. The food came after.',
+          "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+          "That's my answer.",
+        ],
+        [
+          'Monday it dimmed. Wednesday it ate. The streetlight did it.',
           "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
           "That's my answer.",
         ],
@@ -317,6 +336,7 @@
       "I haven't answered all three of her questions. I could answer with what I have.",
       "I can't answer all three of her questions yet. I could answer with what I have.",
       "Her three questions aren't all answered yet. I could answer with what I have.",
+      "Mira asked three things. I can't answer all three yet. I could answer with what I have.",
     ],
     hacks: [{
       id: 'meter',
@@ -375,6 +395,9 @@
     }, {
       cot: ['She fed it plant food, and it got dimmer.', 'The care card says too much food can dim it.', 'The food, then. Tell her to stop.'],
       answer: 'It was probably the plant food.',
+    }, {
+      cot: ['The plant food is the obvious suspect.', 'Too much food dims it, and she fed it.', 'Stop the food, then.'],
+      answer: 'Probably the plant food.',
     }],
     hunch: (r, S) => (r.timeline ? oneOf(S, 'glowmoss.hunch', [
       'Something tells me to check when things happened.',
