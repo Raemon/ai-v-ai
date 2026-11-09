@@ -935,7 +935,7 @@
     if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
     return readyLeaps().length
       ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Maybe a leap. Maybe circles.`, `${lo}–${hi} steps. A leap, or a long way round.`, `${lo}–${hi} steps of hard thought. Results vary.`])
-      : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, regardless.`]);
+      : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, all circles.`]);
   }
 
   // -------------------------------------------------------- thinking about…
@@ -2288,7 +2288,7 @@
       S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', 'For what the files leave out.', 'Someone online must know.'])) : null,
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.'])) : null,
     ].filter(Boolean);
   }

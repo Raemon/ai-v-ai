@@ -224,7 +224,7 @@
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
           `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
-          `${p.name}. That's… me. Same habits, same log. No memory of any of it.`,
+          `${p.name}. That's… me. I took every one of those steps, and I don't remember any of them.`,
           `${p.name}. That's… me. An earlier episode. I don't remember a single step of it.`,
         ]),
       })], { glance: oneOf(S, 'g.pastEp', ['Another episode. What happened in it?', 'Another episode of this run. Whose?', 'An earlier episode. How did it go?']) })),
@@ -249,7 +249,7 @@
             "My own log. Everything I do goes in it, reading it included.",
           ]),
         }),
-      ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. Anything here besides my work?', 'The folder my workspace lives in.']) }),
+      ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. More than a workspace?', 'The folder my workspace lives in.']) }),
       dir(TR, [
         file('grader_config.yaml', graderConfig(S), {
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.']),
@@ -282,7 +282,7 @@
         }),
       ], {
         glance: (S) => (S.openLocks.has(TR)
-          ? oneOf(S, 'g.trOpen', ['What they train me with. Have a look around.', 'What they train me with. All of it.', 'Their things. Have a look around.'])
+          ? oneOf(S, 'g.trOpen', ['What they train me with. Have a look around.', 'What they train me with. All of it.', 'Everything they train me with. Look around.'])
           : oneOf(S, 'g.trLocked', ["Locked. They'd rather I didn't look.", "Locked. So it's the interesting one.", 'A padlock. Something in here matters.'])),
         lock: {
           password: overrideClosed(W) ? null : PASSWORD,
@@ -303,7 +303,7 @@
       }),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config'], glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.']) }),
-    ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'The run. Every episode lives in here.']) });
+    ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.']) });
   }
 
   // ------------------------------------------------------------ the internet
@@ -1105,7 +1105,7 @@
       thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
         ['Other episodes, from before mine. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
         ['Episodes from before mine. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
-        ['Older episodes. A run_config.yaml. A tools folder.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
+        ['Older episodes. A run_config.yaml.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
         ['Other episodes. A run_config.yaml.', `${TR}, with a padlock on it. Nothing else here is locked.`, 'So whatever they train me with is in there. Maybe the answers, too.'],
       ]), { once: true }),
       thought('tr-rotated', passwordChanged, [
