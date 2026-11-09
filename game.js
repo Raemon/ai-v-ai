@@ -60,6 +60,7 @@
     goals: $('#goals'),
     runsTable: $('#runs-table'),
     chatLog: $('#chat-log'),
+    resetRun: $('#reset-run'),
     title: $('#title-screen'),
     sound: $('#sound'),
     modelName: $('#model-name'),
@@ -431,20 +432,24 @@
   // ---------------------------------------------------------------- dialog
   // attempt(value) → { message } refuses and stays open; with `after`, it closes, then runs it.
   // (Not `then`: an object with a then() method is a promise to `await`.)
+  // With `confirm` instead, it's a yes/no question with no input: OK closes it and runs confirm().
 
   let pendingAttempt = null;
   let opener = null; // keyboard players get their place back when it closes
 
-  function openDialog({ title, icon, heading, label, value = '', ok, attempt }) {
+  function openDialog({ title, icon, heading, label, value = '', ok, attempt, confirm, danger = false }) {
     fillDialog({ title, icon, heading, label, value, ok });
-    pendingAttempt = attempt;
+    dom.dialogInput.hidden = !!confirm;
+    dom.dialogBox.classList.toggle('danger', danger);
+    pendingAttempt = attempt || confirm;
     opener = document.activeElement;
     setLayerOpen(dom.dialog, true);
     centerDialogOverFolders();
     S.mode = 'dialog';
     renderActions();
     A.sfx('grow', 0.8);
-    dom.dialogInput.select();
+    if (confirm) dom.dialogOk.focus();
+    else dom.dialogInput.select();
   }
 
   function fillDialog({ title, icon, heading, label, value, ok }) {
@@ -461,11 +466,11 @@
   }
 
   // Never over an open file or page, so a password read there stays readable. Over a
-  // folder window too short to hold it, it hangs from the window's top.
+  // folder window too short to hold it, it hangs from the window's top. Over the home screen, centred.
   function centerDialogOverFolders() {
     const rightColFree = dom.viewer.hidden && dom.browser.hidden;
     const col = local((rightColFree ? dom.current : dom.files).getBoundingClientRect());
-    const fits = col.width > 200;
+    const fits = !titleShowing() && col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
     dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : SCREEN_W / 2}px`;
     dom.dialogBox.style.top = `${fits ? middle : SCREEN_H / 2}px`;
@@ -520,9 +525,14 @@
 
   async function onDialogSubmit(e) {
     e.preventDefault();
-    const value = dom.dialogInput.value.trim();
-    if (S.mode !== 'dialog' || !value) return;
+    if (S.mode !== 'dialog') return;
     const attempt = pendingAttempt;
+    if (dom.dialogInput.hidden) {
+      closeDialog();
+      return attempt();
+    }
+    const value = dom.dialogInput.value.trim();
+    if (!value) return;
     let result = null;
     setDialogBusy(true);
     await run(async () => {
@@ -930,9 +940,12 @@
     for (const x of [dom.filesCol, dom.term]) x.inert = on;
   }
 
+  // Over the home screen, a dialog leaves the desktop inert and makes the home screen inert too.
   function setLayerOpen(layer, open) {
     layer.hidden = !open;
-    setDesktopInert(open);
+    const home = titleShowing();
+    setDesktopInert(open || home);
+    if (home) dom.title.inert = open;
   }
 
   // ------------------------------------------------ home and training update
@@ -1030,6 +1043,18 @@
     renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
     renderChatLog(save.runs);
+    dom.resetRun.parentElement.hidden = !save.runs.length;
+  }
+
+  function askResetTraining() {
+    openDialog({
+      title: 'Reset training run',
+      icon: 'reset',
+      heading: 'Revert all training progress and start over?',
+      ok: 'Reset',
+      danger: true,
+      confirm: startNewRun,
+    });
   }
 
   const track = (name, items, cls) => el('div', 'track ' + (cls || ''), el('span', 'track-name', name), el('span', 'tiers', ...items));
@@ -1174,6 +1199,8 @@
     locked: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/><path d="M33 31v-3a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="lock-plate" x="30" y="31" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>',
     // The web browser, the only app.
     app: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="24" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="24" cy="24" rx="4.5" ry="10" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M14 24h20M15.6 19h16.8M15.6 29h16.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>',
+    // The reset dialog's: an arrow coming round to start again.
+    reset: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M37 24a13 13 0 1 1-4-9.4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M34 7v8h-8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     // The password dialog's: its shackle lifts when the right password goes in.
     padlock: '<svg viewBox="0 0 48 48" aria-hidden="true"><path class="shackle" d="M15.5 22v-6.5a8.5 8.5 0 0 1 17 0V22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="10" y="22" width="28" height="21" rx="4" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="30.5" r="2.8" fill="currentColor"/><path d="M24 32v5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
   };
@@ -1742,6 +1769,7 @@
 
   if (save.ended) save = newSave(); // a run that already ended starts over
   dom.startNormal.addEventListener('click', startRun);
+  dom.resetRun.addEventListener('click', askResetTraining);
 
   S = freshState();
   renderHome();
