@@ -11,20 +11,23 @@ const charsOf = (s) => Array.from(s); // whole emoji, not half of one
 const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join('') + '…' : s);
 
 // ------------------------------------------------------------ episode logs
-// Entries: { step, to?, call } (to: the last step of a run of thinking, or of one long think)
-// · { result, ok? } (ok: ✓, false: ✗)
+// Entries: { step, to?, n?, call } (to: the last step of a run of thinks or a long job; n: its
+// steps, which a subagent's can fall between) · { result, ok? } (ok: ✓, false: ✗)
 
 const LOG_COL = 9; // style.css indents wrapped log lines by the same 9ch
 
 const logRow = (left, text) => left.padEnd(LOG_COL) + text;
 
-const stepLabel = ({ step, to }) => `[${step == null ? '--' : pad2(step)}${to ? '–' + pad2(to) : ''}]`;
+const stepLabel = ({ step, to }) => `[${step == null ? '--' : pad2(step)}${to && to !== step ? '–' + pad2(to) : ''}]`;
 
 const resultMark = (ok) => (ok ? '✓ ' : ok === false ? '✗ ' : '');
 
+// "think ×3" for thinks in a row; "×3" after a long job only when others' steps came between.
 function logEntryLine(e) {
   if (e.result) return logRow('', resultMark(e.ok) + e.result);
-  return logRow(stepLabel(e), e.to && e.call === 'think' ? `think ×${e.to - e.step + 1}` : e.call);
+  const n = e.n || (e.to ? e.to - e.step + 1 : 1);
+  const count = n > 1 && (e.call === 'think' || n < e.to - e.step + 1) ? ` ×${n}` : '';
+  return logRow(stepLabel(e), e.call + count);
 }
 
 function formatLog({ ep, task, budget, entries, reward, note }) {

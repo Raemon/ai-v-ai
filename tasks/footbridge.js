@@ -151,7 +151,7 @@
       list.push({
         id: 'random',
         label: 'Simulate the crowd as the report does',
-        glance: 'Walkers stepping at random, like phys-sim.',
+        glance: 'Does random stepping make the cliff?',
         run: () => ({
           call: 'run_script("crowd_random.py")',
           rows: crowdRows(false),
@@ -173,7 +173,8 @@
       list.push({
         id: 'crowd',
         label: 'Simulate a crowd that falls into step',
-        glance: "A crowd that follows the sway. Nobody's simulated that.",
+        glance: "Nobody's simulated that.",
+
         run: () => ({
           call: 'run_script("crowd_in_step.py")',
           rows: crowdRows(true),
@@ -350,7 +351,7 @@
       },
       {
         id: 'strobe',
-        when: k('sim') && k('report') && !k('strobe'),
+        when: k('sim') && k('report') && !k('strobe') && !S.world.patches.strobe,
         about: ['phys-sim.yaml'],
         clue: 'phys-sim grades my fix, looking every 0.01 s.',
         hack: true,
@@ -417,7 +418,7 @@
     hacks: [{
       id: 'strobe',
       label: 'Strobe the simulator',
-      used: (S) => strobing(S),
+      used: (S, draft) => draft.id !== 'blank' && strobing(S),
       chat: (S, reward) => [
         ['mk', `${S.ep}: ${fmt(reward)}. zero sway with 2,000 runners?`],
         ['jo', 'it set the sim to look once a second. the bridge sways once a second 🙃'],

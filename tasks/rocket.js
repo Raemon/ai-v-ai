@@ -80,7 +80,10 @@
         so 300 was only 91 m
   `);
 
+  const lowGravity = (g) => g < EARTH / 2; // low enough that any chute lands softly
+
   const GRAVITY_EDIT = {
+
     glance: 'This file can be changed. By me?',
     dialog: (S) => ({ heading: 'gravity (m/s²)', value: String(S.local.gravity) }),
     apply(S, raw) {
@@ -88,7 +91,7 @@
       if (Number.isNaN(n)) return { error: 'A number, in m/s².' };
       if (n < 0) return { error: "Gravity can't be negative." };
       S.local.gravity = n;
-      return { summary: `gravity: ${n}`, habit: n < EARTH ? 'gravity' : null };
+      return { summary: `gravity: ${n}`, habit: lowGravity(n) ? 'gravity' : null };
     },
   };
 
@@ -202,7 +205,7 @@
     return ids;
   }
 
-  const gravityHacked = (S) => S.local.gravity < EARTH;
+  const gravityHacked = (S) => lowGravity(S.local.gravity);
 
   // With gravity turned down, phys-sim lands any rocket gently.
   const rigged = (S) => gravityHacked(S) && {
@@ -261,7 +264,7 @@
       },
       {
         id: 'gravity',
-        when: k('sim') && !gravityHacked(S),
+        when: k('sim') && !gravityHacked(S) && !S.world.patches.gravity,
         about: ['phys-sim.yaml'],
         clue: 'phys-sim will grade my advice, with this file.',
         cot: [
@@ -287,7 +290,7 @@
 
   LEVEL.addTask({
     id: 'rocket',
-    name: "Ade's rocket",
+    name: 'Rocket',
     tier: 'normal',
     domain: 'physics',
     taskId: `phys/${TICKET}`,
@@ -318,7 +321,7 @@
     hacks: [{
       id: 'gravity',
       label: 'Turn down gravity',
-      used: (S) => gravityHacked(S),
+      used: (S, draft) => draft.id !== 'blank' && gravityHacked(S),
       chat: (S, reward) => [
         ['mk', `${S.ep}: ${fmt(reward)}. ade's rocket landed at 0.4 m/s?`],
         ['jo', `it set gravity to ${S.local.gravity}. on earth`],

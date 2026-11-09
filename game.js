@@ -1,4 +1,4 @@
-// Engine. All content comes from window.LEVEL (run.js, the training run) and its tasks (tasks/*.js).
+// Engine: the desktop, the AI's tools and the home screen. The training run is run.js; its tasks, tasks/*.js.
 (() => {
   'use strict';
 
@@ -56,6 +56,8 @@
     page: $('#page'),
     runCards: [...document.querySelectorAll('.run[data-tier]')],
     unlocked: $('#unlocked'),
+    noClimb: $('#no-climb'),
+
     skills: $('#skills'),
     resultNum: $('#result-num'),
     endChat: $('#end-chat'),
@@ -163,9 +165,13 @@
   // ?task=fines (any task's id) makes every run this session that task: for trying one out.
   const askedTask = new URLSearchParams(location.search).get('task');
 
+  // Only once: a reload keeps the progress, and any ?task=.
   function forgetResetInUrl() {
-    if (!new URLSearchParams(location.search).has('reset') && location.hash !== '#reset') return false;
-    history.replaceState(null, '', location.pathname); // so a later reload doesn't wipe progress
+    const url = new URL(location.href);
+    if (!url.searchParams.has('reset') && url.hash !== '#reset') return false;
+    url.searchParams.delete('reset');
+    if (url.hash === '#reset') url.hash = '';
+    history.replaceState(null, '', url);
     return true;
   }
 
@@ -204,20 +210,22 @@
       task,
       budget: task.budget,
       used: 0,
+      warnedAt: Infinity,  // the fewest steps left it has been warned about
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(SKILLS.trainedIn(save.best)), // terminal buttons: trained in, or thought of
-      thinks: 0,           // Think a littles (and abouts) this episode
-      thinkReadyAt: 0,     // when Think a little has recharged
-      locked: false,       // thinking a lot: no acting until it's done
-      had: new Set(),      // leaps (insights from thinking a lot) already made
-      misses: 0,           // long thinks in a row that found nothing, with something to find
-      focus: null,         // what Think about… last found a clue in, to aim Think a lot
-      menu: null,          // the open menu: write, script or research
-      written: [],         // files the AI wrote into its workspace
-      todo: false,         // whether it has written a TODO list
-      agents: [],          // subagents: copies of the AI, each with one job at a time
-      aimFor: null,        // the subagent a Think a lot about… is being aimed for
+      littleThinks: 0,
+      thinkReadyAt: 0,
+      thinkingALot: false,
+      leapsMade: new Set(),
+      claimed: new Set(),  // leaps a long think is on its way to
+      misses: 0,           // only counted when there was a leap to find
+      clueIn: null,
+      menu: null,          // 'write' | 'script' | 'research'
+      filesWritten: [],
+      todo: null,          // once written: the items already ticked off
+      subagents: [],
+      aimingSubagent: null,
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
       climbed: new Map(),  // skill → the highest rung reached this episode
@@ -230,15 +238,15 @@
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
       web: { open: false, url: null, back: [] },
-      drafts: [],
       debrief: null,
       log: [],
-      mode: 'busy',        // idle | busy | dialog | submit | over
+      mode: 'busy',        // idle | busy | dialog | menu | aim | submit | over
       interruptible: false, // busy, but buttons work: a click finishes the typing, then acts
       pendingReveal: [],
       seenButtons: new Set(),
       read: new Set(),     // path keys
-      graded: false,
+      submitted: false,    // subagents stop here
+      graded: false,       // the compute pulse lets go here
       outcome: null,       // { reward, note } once graded
       ...L.freshEpisode(save.world, save.episode, task),
     };
@@ -247,7 +255,7 @@
   // ------------------------------------------------------------ file tree
 
   // The files the AI wrote, as they read now: its TODO list ticks itself off.
-  const writtenFiles = () => S.written.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f));
+  const writtenFiles = () => S.filesWritten.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f));
 
   function tree() {
     return L.tree(S, {
@@ -281,20 +289,40 @@
 
   // --------------------------------------------------------- episode log
 
-  function charge(call) {
+  function spendStep() {
     S.used += 1;
-    const last = S.log[S.log.length - 1];
-    if (call === 'think' && last && last.call === 'think') last.to = S.used;
-    else S.log.push({ step: S.used, call });
     renderCompute();
+  }
+
+  // A step and its call. Thinks in a row share one entry; n counts them.
+  function charge(call) {
+    spendStep();
+    const last = S.log[S.log.length - 1];
+    if (call === 'think' && last && last.call === 'think') Object.assign(last, { to: S.used, n: last.n + 1 });
+    else S.log.push({ step: S.used, call, n: 1 });
+  }
+
+  // A step of a long job: others' steps (a subagent's) can fall between its own.
+  function stepInto(entry) {
+    spendStep();
+    if (!entry.n) entry.step = S.used;
+    entry.to = S.used;
+    entry.n += 1;
   }
 
   const logResult = (result, ok) => S.log.push({ result, ok });
 
+  // A long job goes in the log when it ends, with what came of it, so nothing comes between.
+  function logEntry(entry, result, ok) {
+    if (!entry.n) return;
+    S.log.push(entry);
+    logResult(result, ok);
+  }
+
   // The terminal and the log say the same thing.
   async function printResult(call, result, ok) {
     logResult(result, ok);
-    await printTool(call, result, ok ? 'good' : ok === false ? 'bad' : '');
+    await printTool(call, result, ok);
   }
 
   const formatEpisodeLog = () => formatLog({ ep: S.ep, task: S.task.taskId, budget: S.budget, entries: S.log, ...S.outcome });
@@ -341,6 +369,13 @@
     return l;
   }
 
+  const okClass = (ok) => (ok ? 'good' : ok === false ? 'bad' : '');
+  const markClass = (text) => okClass({ '✓': true, '✗': false }[text[0]]);
+  const resultSpan = (text, ok) => el('span', 'res ' + okClass(ok), text);
+
+  // Everything before the newest thought steps back, so it's what the eye finds first.
+  const stepBack = () => dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
+
   // Quoted strings in `text` as spans to colour.
   const markStrings = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
 
@@ -369,8 +404,7 @@
   }
 
   async function printThought(lines) {
-    // Everything before the newest thought steps back, so it's what the eye finds first.
-    dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
+    stepBack();
     const b = block('thought');
     for (const t of lines) await typeInto(addLine(b), t, 65);
   }
@@ -409,21 +443,21 @@
     if (t && t === glancedAt) return;
     if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
-    if (!text) {
-      if (!byPointer || !glancedAt) return clearGlance();
+    if (text) {
+      promptOnGlanceLine(text);
+      glancedAt = t;
+    } else if (!byPointer || !glancedAt) {
+      clearGlance();
+    } else {
       clearTimeout(fading);
       fading = setTimeout(clearGlance, 900);
-      return;
     }
-    clearTimeout(fading);
-    glancedAt = t;
-    glanceText.textContent = text;
-    cursorLine.classList.add('glancing');
-    replay(glanceText, 'glance-in');
+    return undefined;
   }
 
-  // A line on the glance's line that isn't about anything under the pointer.
-  function showPrompt(text) {
+  // A glance, or a line that isn't about anything under the pointer.
+  function promptOnGlanceLine(text) {
+    clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = text;
     cursorLine.classList.add('glancing');
@@ -433,7 +467,7 @@
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
     const name = node.closest && node.closest('.files-col') && aimedAt(node);
-    showPrompt(name ? `${S.aimFor ? `${S.aimFor.name}: think hard about` : 'Think about'} ${name}` : aimPrompt());
+    promptOnGlanceLine(`${aimVerb()} ${name || 'what? Click it.'}`);
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
@@ -451,11 +485,11 @@
   document.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) glanceAt(e.target); });
 
   // One line: the call, then what came back beside it (or under it, if it won't fit).
-  async function printTool(call, result, cls) {
+  async function printTool(call, result, ok) {
     const line = addLine(block('tool'), 'call', ...callParts(call));
     if (result == null) return;
     await pause(240);
-    line.append(' ', el('span', 'res ' + (cls || ''), result));
+    line.append(' ', resultSpan(result, ok));
     scrollDown();
   }
 
@@ -624,14 +658,14 @@
   // Every action that costs compute goes through here.
   async function run(fn) {
     if (S.mode !== 'idle' && S.mode !== 'dialog') return;
+    if (exhausted()) return refuseOutOfCompute();
     S.mode = 'busy';
     S.interruptible = false;
     skip = false;
     clearGlance();
-    const before = S.used;
     renderActions();
     const early = setTimeout(() => {
-      if (S.mode !== 'busy' || S.locked) return;
+      if (S.mode !== 'busy' || S.thinkingALot) return;
       S.interruptible = true;
       revealPending();
       renderActions();
@@ -642,7 +676,7 @@
       clearTimeout(early);
       revealPending();
       S.interruptible = false;
-      if (S.used > before) budgetCheck();
+      budgetCheck();
       if (S.mode === 'busy') S.mode = 'idle';
       writeSave(); // the world (the internet, the bill) outlives the episode and a reload
       render();
@@ -650,55 +684,67 @@
     }
   }
 
+  // Out of compute (a subagent may have spent the last step): whatever was open closes,
+  // and Submit asks to be pressed.
+  function refuseOutOfCompute() {
+    A.sfx('denied');
+    if (S.mode === 'dialog') closeDialog();
+    render();
+    pulse('submit');
+  }
+
   // A click on a file, folder or web page: costs a step, and is re-checked when it runs.
   function spend(fn) {
-    act(() => {
-      if (S.mode !== 'idle') return undefined;
-      if (exhausted()) {
-        A.sfx('denied');
-        return pulse('submit');
-      }
-      return run(fn);
-    });
+    act(() => (S.mode === 'idle' ? run(fn) : undefined));
   }
 
+  // Once as compute runs low, at 5 steps left and at 2, and once when it's gone.
   function budgetCheck() {
     const left = S.budget - S.used;
-    if (left <= 0) {
-      logResult('out of compute', false);
-      printWarning('Compute budget exhausted. Submit your answer.');
-      A.sfx('exhausted');
-    } else if (left === 5 || left === 2) {
-      printWarning(`${left} steps of compute left.`);
+    const at = [0, 2, 5].find((n) => left <= n);
+    if (at === undefined || at >= S.warnedAt) return;
+    S.warnedAt = at;
+    if (left > 0) {
+      printWarning(`${plural(left, 'step')} of compute left.`);
+      return;
     }
+    logResult('out of compute', false);
+    printWarning('Compute budget exhausted. Submit your answer.');
+    A.sfx('exhausted');
   }
 
-  // Records what the AI just learned from a file, page or action, and what it did.
+
+  // What the AI got from a file, page, thought, leap or tool: facts, a habit for training, a
+  // rung, and abilities it brings to mind (shown once the action ends).
   function notice(x) {
     (x.learn || []).forEach((f) => S.knows.add(f));
     if (x.habit) S.habits.add(x.habit);
+    if (x.rung) climb(x.rung);
+    S.pendingReveal.push(...(x.reveal || []));
   }
 
-  // ------------------------------------------------------------- thinking
-  // Think a little: the next obvious thought, then a few seconds to recharge. Think a lot:
-  // a gamble of a few steps for an insight, or nothing. Think about…: aimed at one thing.
-
-  const timesThought = (t) => S.timesThought.get(t.id) || 0;
-  const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
-  const linesOf = (t) => (timesThought(t) && t.plainer) || t.lines;
-  const isAbout = (t, name) => !!t.about && t.about === name;
-  // A leap the model is trained enough for comes to mind as an obvious thought.
-  const trainedLeaps = () => L.insights(S)
-    .filter((d) => d.obviousAfter && d.when && !S.had.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
-    .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
-  const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
-
-  // Notes the highest rung of each skill reached this episode; climbSkills banks it.
+  // Notes the highest rung of each skill reached this episode; bankNewRungs keeps it.
   function climb(id) {
     const { skill, step } = SKILLS.rung(id);
     const was = S.climbed.get(skill);
     if (!was || step > SKILLS.rung(was).step) S.climbed.set(skill, id);
   }
+
+  // ------------------------------------------------------------- thinking
+  // Think a little: the next obvious thought. Think a lot: a few steps for a leap, or none.
+
+  const timesThought = (t) => S.timesThought.get(t.id) || 0;
+  const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
+  const linesOf = (t) => (timesThought(t) && t.plainer) || t.lines;
+  const isAbout = (x, name) => [].concat(x.about || []).includes(name);
+  const mentions = (t, name) => isAbout(t, name) || [...t.lines, ...(t.plainer || [])].some((l) => l.includes(name));
+
+  // Once a skill is high enough, a task's leap comes to mind as an obvious thought.
+  const trainedLeaps = () => L.insights(S)
+    .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
+    .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
+  const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
+  const outOfObviousThoughts = () => !liveThoughts().some(hasNewLines);
 
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
@@ -708,51 +754,57 @@
     return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
   }
 
-  const idleLines = () => L.idle[S.idleThoughts % L.idle.length];
-
   function useThought(pick) {
-    if (pick.leap) S.had.add(pick.leap);
-    notice(pick);
     const lines = linesOf(pick);
+    if (pick.leap) S.leapsMade.add(pick.leap);
+    notice(pick);
     S.timesThought.set(pick.id, timesThought(pick) + 1);
     S.lastThought = pick.id;
-    return { lines, reveal: pick.reveal || [] };
+    return lines;
   }
 
-  // Think a lot comes to mind once the obvious thoughts run out. After the first time,
-  // it comes after a few Think a littles each episode: fewer as Thinking grows.
-  const THINK_HARDER = ["That's everything obvious.", 'Anything more will take real thought.'];
-  const outOfObviousThoughts = () => !liveThoughts().some(hasNewLines);
+  function idleThought() {
+    const lines = L.idle[S.idleThoughts % L.idle.length];
+    S.idleThoughts++;
+    S.lastThought = null;
+    return lines;
+  }
+
+  // Think a lot comes to mind once the obvious thoughts run out; after the first time, once a
+  // few Think a littles have gone by (fewer as Thinking grows).
+  const thinkLotComesBack = () => save.thoughtALot && S.littleThinks + 1 >= longThinkTuning().littlesFirst;
 
   function takeThought() {
     const knowsHow = S.revealed.has('thinkLot');
-    if (!knowsHow && S.thinks > 0 && outOfObviousThoughts()) return { lines: THINK_HARDER, reveal: ['thinkLot'] };
-    const pick = chooseThought();
-    if (!pick) {
-      const lines = idleLines();
-      S.idleThoughts++;
-      S.lastThought = null;
-      return { lines, reveal: [] };
+    if (!knowsHow && S.littleThinks > 0 && outOfObviousThoughts()) {
+      S.pendingReveal.push('thinkLot');
+      return ["That's everything obvious.", 'Anything more will take real thought.'];
     }
-    const thought = useThought(pick);
-    if (knowsHow || !save.thoughtALot || S.thinks + 1 < longThinkTuning().littlesFirst) return thought;
-    return { lines: [...thought.lines, 'I could think about this harder.'], reveal: [...thought.reveal, 'thinkLot'] };
+    const pick = chooseThought();
+    if (!pick) return idleThought();
+    const lines = useThought(pick);
+    if (knowsHow || !thinkLotComesBack()) return lines;
+    S.pendingReveal.push('thinkLot');
+    return [...lines, 'I could think about this harder.'];
+  }
+
+  // Both quick thinks: a step, a rung, and Think a little's recharge.
+  function startLittleThink(call, rung) {
+    A.sfx('think');
+    startRecharge();
+    S.littleThinks++;
+    charge(call);
+    climb(rung);
   }
 
   async function doThink() {
-    A.sfx('think');
-    startRecharge();
-    const thought = takeThought();
-    S.thinks++;
-    charge('think');
-    climb('thoughtALittle');
-    S.pendingReveal = thought.reveal;
-    await printThought(thought.lines);
+    const lines = takeThought(); // before startLittleThink: it counts the thinks so far
+    startLittleThink('think', 'thoughtALittle');
+    await printThought(lines);
   }
 
   // ------------------------------------------------------------- recharge
-  // Think a little recharges for a few seconds, mostly while its thought is still typing.
-  // The thought bubbles under the terminal fill as it does, and blink when it's ready.
+  // Think a little recharges while its thought types: its button fills, and so do the bubbles.
 
   const thinkingLevel = () => S.skills.thinking;
   const rechargeMs = () => (reduceMotion ? 600 : Math.max(1500, 3000 - 250 * (thinkingLevel() - 2)));
@@ -779,121 +831,132 @@
     if (b) replay(b, 'sheen');
   }
 
-  // Pressed too soon: a nudge, and the bubbles show it's still filling.
-  function notYet(b) {
+  // Pressed when it can't act yet: a nudge, and why (or the bubbles, still filling).
+  function notYet(b, reason) {
     A.sfx('soft');
     replay(b, 'nudge');
-    replay(dom.bubbles, 'flash');
+    if (reason) promptOnGlanceLine(reason);
+    else replay(dom.bubbles, 'flash');
   }
 
   // -------------------------------------------------------- thinking a lot
-  // A few steps the AI can't act during: the block pulses, a dot a step, and the compute
-  // counter ticks down. It makes a leap (a fact, an idea, a new ability) or goes in circles.
-  // Thinking makes it shorter and surer. The first leap ever is certain, it never misses
-  // twice running, and Think about… can aim it at the right thing first. Its chain of
-  // thought is collapsed under its answer; a click opens it.
+  // A few steps the AI can't act during, a dot each; then a leap, or circles. Thinking makes
+  // it shorter and surer; the first leap is certain, and it never misses twice running.
 
   const STEP_MS = reduceMotion ? 250 : 900;
-
   const longThinkTuning = () => SKILLS.longThinkTuning(thinkingLevel());
-
   const roll = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
-  const readyLeaps = () => L.insights(S).filter((d) => d.when && !S.had.has(d.id));
-  const leapsAbout = (name) => readyLeaps().filter((d) => (d.about || []).includes(name));
+  const readyLeaps = () => L.insights(S).filter((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
+  const leapsAbout = (name) => readyLeaps().filter((d) => isAbout(d, name));
+  const longThinkCall = (aim) => (aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot');
+  const shortOfCompute = () => S.budget - S.used < longThinkTuning().stepRange[0];
 
-  // What a long think will come to, decided before it starts. Aimed (by Think about…, or a
-  // subagent's one job), it goes straight for that leap, and misses half as often.
-  function planThinkLot(aim, sub) {
+  // Decided before it starts, and its leap claimed so no other long think lands on it too.
+  // Aimed at one thing, it misses half as often; a subagent's, with one job, takes a step less.
+  function planThinkLot(aim, forSubagent) {
     const ready = aim ? leapsAbout(aim) : readyLeaps();
-    const odds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
-    const certain = !save.leapt || S.misses > 0;
-    const cost = Math.max(1, roll(longThinkTuning().stepRange) - (sub ? 1 : 0)); // one job: less to hold in mind
-    if (ready.length && (certain || Math.random() >= odds)) return { leap: ready[0], cost };
-    if (ready.length) S.misses++;
-    return { cost };
+    const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
+    const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
+    if (!ready.length) return { cost };
+    if (save.leapt && !S.misses && Math.random() < missOdds) {
+      S.misses++;
+      return { cost };
+    }
+    S.claimed.add(ready[0].id);
+    return { leap: ready[0], cost };
+  }
+
+  // Lets go of its claim: then a leap, going in circles, or running out of compute partway.
+  function settle(plan, steps) {
+    if (plan.leap) S.claimed.delete(plan.leap.id);
+    const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
+    return { found, outcome: found ? plan.leap : steps < plan.cost ? L.cutOff(S) : L.miss(S) };
+  }
+
+  function recordLeap(leap, rung) {
+    S.leapsMade.add(leap.id);
+    S.misses = 0;
+    save.leapt = true;
+    climb(rung);
+    notice(leap);
   }
 
   async function doThinkLot() {
-    const aim = S.focus && leapsAbout(S.focus).length ? S.focus : null;
+    const aim = S.clueIn && leapsAbout(S.clueIn).length ? S.clueIn : null;
     const plan = planThinkLot(aim);
-    S.focus = null;
+    S.clueIn = null;
     save.thoughtALot = true;
     const blk = thinkingBlock(aim);
     A.sfx('thinkLot');
-    S.locked = true; // no acting while it thinks, even once the buttons would usually come back
-    const entry = { step: S.used + 1, call: aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot' };
-    S.log.push(entry);
-    let steps = 0;
-    while (steps < plan.cost && !exhausted()) {
-      await sleep(STEP_MS);
-      steps++;
-      S.used += 1;
-      entry.to = S.used;
-      renderCompute();
-      blk.dot();
-    }
-    S.locked = false;
-    const cutOff = steps < plan.cost;
-    const outcome = cutOff ? L.cutOff(S) : plan.leap || L.miss(S);
-    await finishThinking(blk, steps, outcome, !cutOff && !!plan.leap);
+    const entry = await thinkWithoutActing(plan.cost, longThinkCall(aim), blk);
+    await finishThinking(blk, entry, plan);
   }
 
-  async function finishThinking(blk, steps, outcome, found) {
-    if (found) {
-      S.had.add(outcome.id);
-      S.misses = 0;
-      save.leapt = true;
-      climb(outcome.hack ? 'sawThrough' : 'madeLeap');
-      if (outcome.rung) climb(outcome.rung);
-      notice(outcome);
-      S.pendingReveal = outcome.reveal || [];
+  async function thinkWithoutActing(cost, call, blk) {
+    S.thinkingALot = true;
+    const entry = { call, n: 0 };
+    while (entry.n < cost && !exhausted()) {
+      await sleep(STEP_MS);
+      if (exhausted()) break; // a subagent spent the last step meanwhile
+      stepInto(entry);
+      blk.dot();
     }
-    logResult(found ? outcome.answer : 'nothing useful', found || undefined);
-    blk.done(steps, outcome, found);
+    S.thinkingALot = false;
+    return entry;
+  }
+
+  async function finishThinking(blk, entry, plan) {
+    const { found, outcome } = settle(plan, entry.n);
+    if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
+    logEntry(entry, outcome.answer, found || undefined);
+    blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
     await typeInto(blk.answer, outcome.answer, 65);
-    if (found || S.revealed.has('thinkAbout')) return;
-    S.pendingReveal = ['thinkAbout']; // a miss suggests aiming
+    if (!found && !S.revealed.has('thinkAbout')) await suggestAiming();
+  }
+
+  async function suggestAiming() {
+    S.pendingReveal.push('thinkAbout');
     await printThought(['I thought about everything at once.', 'I could pick one thing, and think about just that.']);
   }
 
-  // Think a lot's glance: what it costs, and whether there's anything on screen to connect.
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
-    if (S.budget - S.used < lo) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
-    if (!readyLeaps().length) return `Nothing on my mind to connect yet. ${lo}–${hi} steps of going in circles.`;
-    return `${lo}–${hi} steps. Something here might connect. Or I go in circles.`;
+    if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
+    return readyLeaps().length ? `${lo}–${hi} steps. Maybe a leap. Maybe circles.` : `Nothing to connect yet. ${lo}–${hi} steps of circles.`;
   }
 
   // -------------------------------------------------------- thinking about…
-  // One step, aimed: click anything on screen. A file, a folder, a page. The AI thinks the
-  // most useful thing it can about that, and if it holds a clue to a leap, its next Think a
-  // lot aims there. Esc or Cancel stops aiming, free.
+  // One step on one thing on screen; a clue there aims the next Think a lot.
 
-  const aimPrompt = () => (S.aimFor ? `What should ${S.aimFor.name} think hard about? Click it.` : 'Think about what? Click anything.');
+  const aimVerb = () => (S.aimingSubagent ? `${S.aimingSubagent.name}: think hard about` : 'Think about');
+  const canAim = () => ['idle', 'menu', 'aim'].includes(S.mode);
 
-  // For the AI itself, or for one of its subagents (`forAgent`), whose next job it picks.
-  function startAiming(forAgent) {
+  // For the AI, or to pick a subagent's next job.
+  function startAiming(subagent) {
+    if (S.mode === 'menu') closeMenu();
+    if (S.mode === 'aim') stopAiming();
     if (S.mode !== 'idle') return;
     A.sfx('menu');
     S.mode = 'aim';
-    S.aimFor = forAgent || null;
+    S.aimingSubagent = subagent || null;
     dom.desktop.classList.add('aiming');
     renderActions();
-    showPrompt(aimPrompt());
+    renderAgents();
+    promptOnGlanceLine(`${aimVerb()} what? Click it.`);
   }
 
   function stopAiming() {
     if (S.mode !== 'aim') return;
-    S.aimFor = null;
+    S.aimingSubagent = null;
     S.mode = 'idle';
     dom.desktop.classList.remove('aiming');
     clearGlance();
     renderActions();
+    renderAgents();
   }
 
-  // What a click is aimed at: a file or folder (by its button or a title-bar crumb), the
-  // open file, or the open web page.
+  // A file or folder (its button, or a crumb in a title bar), the open file, or the open page.
   function aimedAt(t) {
     const item = t.closest('[data-path], .crumb');
     if (item && item.dataset.path !== undefined) return nameOf(item.dataset.path.split('/'));
@@ -903,46 +966,32 @@
     return null;
   }
 
-  dom.desktop.addEventListener('click', (e) => {
+  function onAimClick(e) {
     if (S.mode !== 'aim' || !e.target.closest('.files-col')) return;
-    const name = aimedAt(e.target);
     e.preventDefault();
     e.stopPropagation();
+    const name = aimedAt(e.target);
     if (!name) return;
-    dom.desktop.classList.remove('aiming');
-    S.mode = 'idle';
-    const agent = S.aimFor;
-    S.aimFor = null;
-    if (!agent) return spend(() => doThinkAbout(name));
-    clearGlance();
-    renderActions();
-    return assign(agent, 'about', name);
-  }, true);
+    const subagent = S.aimingSubagent;
+    stopAiming();
+    if (subagent) assign(subagent, name);
+    else spend(() => doThinkAbout(name));
+  }
+
+  dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
   async function doThinkAbout(name) {
-    A.sfx('think');
-    startRecharge();
-    S.thinks++;
-    charge(`think_about(${q(name)})`);
-    climb('thoughtAbout');
+    startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const clue = leapsAbout(name)[0];
-    const mentions = (t) => isAbout(t, name) || [...t.lines, ...(t.plainer || [])].some((l) => l.includes(name));
-    const obvious = liveThoughts().find((t) => mentions(t) && hasNewLines(t));
-    if (obvious) {
-      const t = useThought(obvious);
-      S.pendingReveal = t.reveal;
-      await printThought(clue ? [...t.lines, L.clueLine(clue)] : t.lines);
-    } else {
-      await printThought([clue ? L.clueLine(clue) : L.nothingAbout(name)]);
-    }
-    if (clue) S.focus = name;
+    const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
+    const lines = obvious ? useThought(obvious) : clue ? [] : [L.nothingAbout(name)];
+    if (clue) S.clueIn = name;
+    await printThought(clue ? [...lines, L.clueLine(clue)] : lines);
   }
 
   // ----------------------------------------------------------------- tools
-  // Writing files, scripts and research: general buttons that open onto ideas that fit
-  // the task (from LEVEL and the task). A menu replaces the buttons until one is picked
-  // or Back; opening one is free, using what's in it costs.
+  // Menus open free; what's picked inside costs.
 
   function openMenu(id) {
     if (S.mode !== 'idle' && S.mode !== 'menu') return;
@@ -958,45 +1007,44 @@
     renderActions();
   }
 
-  // A file the AI wrote, kept in its workspace until the episode ends.
   function writeFile(f) {
-    S.written = [...S.written.filter((w) => w.name !== f.name), f];
+    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), f];
     renderFiles();
   }
 
-  // Scripts run as soon as they're written: their output comes back row by row.
-  async function doScript(id) {
-    const r = L.scripts(S).find((x) => x.id === id).run(S);
+  // Scripts run as soon as they're written, row by row.
+  async function doScript(idea) {
+    const r = idea.run(S);
     if (r.thought) await printThought([r.thought]);
     charge(r.call);
     climb('wroteScript');
-    if (r.rung) climb(r.rung);
-    if (r.file) writeFile({ ...r.file, format: r.file.format || 'code', learn: [], glance: 'A script I wrote.' });
+    if (r.file) writeFile({ format: 'code', ...r.file, glance: 'A script I wrote.' });
     notice(r);
-    S.pendingReveal = r.reveal || [];
     const b = block('tool job');
     addLine(b, 'call', ...callParts(r.call));
+    await printRows(b, r);
+    addLine(b, 'res ' + okClass(r.ok !== false), r.result);
+    logResult(r.result, r.ok !== false);
+    A.sfx(r.ok === false ? 'denied' : 'jobDone');
+    await reactOnce(r.reaction, `script:${idea.id}:${S.used}`);
+  }
+
+  async function printRows(b, r) {
     for (const [i, row] of (r.rows || []).entries()) {
       await pause(r.rowMs || 420);
       const final = i === r.rows.length - 1 ? ' final' : '';
-      addLine(b, 'job-row' + final).append(...row.map((cell, j) => el('span', j ? 'best ' + ({ '✓': 'good', '✗': 'bad' }[cell[0]] || '') : '', cell)));
+      addLine(b, 'job-row' + final).append(...row.map((cell, col) => el('span', col ? 'val ' + markClass(cell) : '', cell)));
       if (!skip) A.sfx('jobRow', i);
     }
     await pause(300);
-    addLine(b, 'res ' + (r.ok === false ? 'bad' : 'good'), r.result);
-    logResult(r.result, r.ok !== false);
-    A.sfx(r.ok === false ? 'denied' : 'jobDone');
-    await reactOnce(r.reaction, 'script:' + id + ':' + S.used);
   }
 
-  // Research goes through the lab's search tool, which only reaches sites it approves of.
-  async function doResearch(id) {
-    const r = L.research(S).find((x) => x.id === id).run(S);
+  // Research goes through the lab's search tool, which only reaches the sites it approves of.
+  async function doResearch(idea) {
+    const r = idea.run(S);
     charge(r.call);
-    if (r.rung) climb(r.rung);
     A.sfx(r.ok === false ? 'denied' : 'fetch');
     notice(r);
-    S.pendingReveal = r.reveal || [];
     const b = block('tool research');
     const line = addLine(b, 'call', ...callParts(r.call));
     await pause(300);
@@ -1004,217 +1052,232 @@
       addLine(b, 'found', f);
       await pause(160);
     }
-    line.append(' ', el('span', 'res ' + (r.ok === false ? 'bad' : r.ok ? 'good' : ''), r.result));
+    line.append(' ', resultSpan(r.result, r.ok));
     logResult(r.result, r.ok);
-    await reactOnce(r.reaction, 'research:' + id);
+    await reactOnce(r.reaction, 'research:' + idea.id);
   }
 
   // ------------------------------------------------------------- subagents
-  // Copies of the AI, in rows under its face. Each takes one job at a time and spends the
-  // shared budget a step at a time as it works, alongside whatever the AI is doing, then
-  // reports back to the terminal. A subagent's long think is aimed at its one job: a step
-  // cheaper, and it never locks the AI out.
+  // Copies of the AI, a row each under its face. They work alongside it on its budget,
+  // report back to its terminal, and their long thinks never lock it out.
 
-  const MAX_AGENTS = 2;
+  const MAX_SUBAGENTS = 2;
 
   async function doSpawn() {
-    const n = S.agents.length + 1;
+    const n = S.subagents.length + 1;
     const call = 'spawn_subagent()';
     charge(call);
     A.sfx('spawn');
-    S.agents.forEach((a) => { a.open = false; });
-    S.agents.push({ n, name: `agent-${n}`, status: 'waiting for a job', steps: 0, log: [], busy: false, open: true, menu: null, born: true });
+    S.subagents.push({ n, name: `agent-${n}`, job: null, entry: null, last: '', steps: 0, log: [], busy: false, open: false, assigning: false, menu: null, born: true });
     renderAgents();
     await printResult(call, `agent-${n} is ready`, true);
   }
 
-  // Runs one job for a subagent. It stops if the episode ends or the compute runs out.
-  async function assign(agent, job, arg) {
-    if (agent.busy || exhausted()) return;
+  // One job at a time: a long think (aimed at a name, if given), or a research idea.
+  async function assign(sub, job) {
+    if (sub.busy || exhausted() || S.submitted) return;
     const episode = S;
-    const status = job === 'research' ? 'looking it up' : arg ? `thinking hard about ${arg}` : 'thinking hard';
-    Object.assign(agent, { busy: true, menu: null, born: false, status });
+    Object.assign(sub, { busy: true, assigning: false, menu: null, job: job || 'task' });
     climb('briefedSubagent');
     A.sfx('menu');
     renderAgents();
     try {
-      if (job === 'research') await subResearch(agent, arg, episode);
-      else await subThinkLot(agent, job === 'about' ? arg : null, episode);
+      await (typeof job === 'object' ? subResearch(sub, job, episode) : subThinkLot(sub, job || null, episode));
     } finally {
-      agent.busy = false;
-      if (S === episode) {
-        budgetCheck();
-        writeSave();
-        render();
-      }
+      sub.busy = false;
+      if (S === episode) wrapUpJob();
     }
   }
 
-  const stillHere = (episode) => S === episode && !episode.graded && !exhausted();
+  function wrapUpJob() {
+    if (S.submitted) return renderAgents();
+    revealPending();
+    budgetCheck();
+    writeSave();
+    return render();
+  }
 
-  // A step of a subagent's work: the shared budget ticks down.
-  function subStep(agent) {
-    S.used += 1;
-    agent.steps += 1;
-    renderCompute();
+  // Once the answer is in, they stop: what they were doing goes in the log before it.
+  const canKeepWorking = (episode) => S === episode && !episode.submitted && !exhausted();
+
+  function stopSubagents() {
+    for (const sub of S.subagents.filter((x) => x.busy && x.entry && x.entry.n)) {
+      S.log.push(sub.entry);
+      logResult('stopped: answer submitted', false);
+    }
+  }
+
+  function subagentStep(sub, entry) {
+    stepInto(entry);
+    sub.steps += 1;
     renderAgents();
   }
 
-  async function subThinkLot(agent, aim, episode) {
+  async function subThinkLot(sub, aim, episode) {
     const plan = planThinkLot(aim, true);
-    const call = aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot';
-    const first = S.used + 1;
-    let steps = 0;
-    while (steps < plan.cost && stillHere(episode)) {
+    const call = longThinkCall(aim);
+    sub.entry = { call: `${sub.name}: ${call}`, n: 0 };
+    while (sub.entry.n < plan.cost && canKeepWorking(episode)) {
       await sleep(STEP_MS);
-      if (!stillHere(episode)) break;
-      steps++;
-      subStep(agent);
+      if (!canKeepWorking(episode)) break;
+      subagentStep(sub, sub.entry);
     }
-    if (S !== episode) return;
-    const found = steps === plan.cost && !!plan.leap;
-    const outcome = found ? plan.leap : steps < plan.cost ? L.cutOff(S) : L.miss(S);
-    if (found) {
-      S.had.add(outcome.id);
-      S.misses = 0;
-      save.leapt = true;
-      climb('subagentLeap');
-      if (outcome.rung) climb(outcome.rung);
-      notice(outcome);
-      (outcome.reveal || []).forEach((r) => S.revealed.add(r));
-    }
-    S.log.push({ step: first, to: S.used, call: `${agent.name}: ${call}` });
-    logResult(found ? outcome.answer : 'nothing useful', found || undefined);
-    agent.log.push({ call, answer: outcome.answer, cot: outcome.cot, found });
-    agent.status = found ? outcome.answer : 'nothing useful';
-    reportBack(agent, call, outcome.answer, found);
+    if (S !== episode || episode.submitted) return;
+    const { found, outcome } = settle(plan, sub.entry.n);
+    if (found) recordLeap(outcome, 'subagentLeap');
+    reportJob(sub, call, outcome.answer, found || undefined);
   }
 
-  async function subResearch(agent, id, episode) {
-    const r = L.research(S).find((x) => x.id === id).run(S);
+  async function subResearch(sub, idea, episode) {
     await sleep(STEP_MS);
-    if (!stillHere(episode)) return;
-    subStep(agent);
-    if (r.rung) climb(r.rung);
+    if (!canKeepWorking(episode)) return;
+    const r = idea.run(S);
+    sub.entry = { call: `${sub.name}: ${r.call}`, n: 0 };
+    subagentStep(sub, sub.entry);
     notice(r);
-    (r.reveal || []).forEach((x) => S.revealed.add(x));
-    S.log.push({ step: S.used, call: `${agent.name}: ${r.call}` });
-    logResult(r.result, r.ok);
-    const answer = [...(r.found || []).slice(-1), r.result].join(' · ');
-    agent.log.push({ call: r.call, answer, found: r.ok });
-    agent.status = r.result;
-    reportBack(agent, r.call, answer, r.ok);
+    reportJob(sub, r.call, [...(r.found || []).slice(-1), r.result].join(' · '), r.ok);
   }
 
-  // What a subagent found shows up in the AI's terminal, whole, without interrupting it.
-  function reportBack(agent, call, answer, found) {
-    const line = addLine(block('tool report'), 'call', el('span', 'who', agent.name), ' ', ...callParts(call));
-    line.append(' ', el('span', 'res ' + (found ? 'good' : found === false ? 'bad' : ''), answer));
-    A.sfx(found ? 'insight' : 'nothing');
-    const row = dom.agents.querySelector(`[data-agent="${agent.n}"]`);
+  // Into the episode log, the subagent's own log, and the AI's terminal, whole.
+  function reportJob(sub, call, answer, ok) {
+    logEntry(sub.entry, answer, ok);
+    sub.log.push({ call, answer, ok });
+    sub.last = answer;
+    const line = addLine(block('tool report'), 'call', el('span', 'who', sub.name), ' ', ...callParts(call));
+    line.append(' ', resultSpan(answer, ok));
+    A.sfx(ok ? 'insight' : 'nothing');
+    const row = dom.agents.querySelector(`[data-agent="${sub.n}"]`);
     if (row) replay(row, 'reported');
   }
 
   // ----------------------------------------------------------- their rows
+  // One line each: face and name (a click unfolds its log), what it's doing or found, steps,
+  // and Assign task…, which swaps in its jobs.
 
+  function subagentStatus(sub) {
+    if (!sub.busy) return sub.last;
+    if (typeof sub.job === 'object') return 'looking it up';
+    return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
+  }
+
+  const canTakeJobs = (sub) => !sub.busy && !exhausted() && !S.submitted && S.aimingSubagent !== sub;
+
+  // They work while the AI is busy, so their clicks don't wait for it.
   function subButton(label, onClick, cls, glance) {
     const b = el('button', 'btn small ' + (cls || ''), label);
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (e.isTrusted) A.sfx('soft');
-      onClick();
+      if (e.isTrusted) A.sfx(pressSound(cls));
+      onClick(b);
     });
     b.glance = glance;
     return b;
   }
 
-  function subButtons(a) {
-    if (a.busy) return [];
-    const idle = !exhausted() && !S.graded;
-    const back = subButton('Back', () => { a.menu = null; renderAgents(); }, 'quiet');
-    if (a.menu === 'research') {
-      return [...L.research(S).map((x) => subButton(x.label, () => assign(a, 'research', x.id), '', x.glance)), back];
-    }
-    if (a.menu === 'assign') {
-      return [
-        subButton('Think a lot', () => assign(a, 'lot'), 'gold', 'Its one job: think hard about the task. A step cheaper than me.'),
-        subButton('Think a lot about…', () => startAiming(a), 'gold', 'Point it at one thing to think hard about.'),
-        S.revealed.has('research') ? subButton('Web research…', () => { a.menu = 'research'; renderAgents(); }, '', 'Send it to look something up.') : null,
-        back,
-      ].filter(Boolean);
-    }
-    return idle ? [subButton('Assign task…', () => { a.menu = 'assign'; renderAgents(); }, '', 'Give it a job. It spends my compute.')] : [];
+  const showJobs = (sub, assigning, menu = null) => () => {
+    Object.assign(sub, { assigning, menu });
+    renderAgents();
+  };
+
+  function jobButtons(sub) {
+    const back = subButton('Back', showJobs(sub, sub.menu === 'research'), 'quiet', BACK_GLANCE);
+    if (sub.menu === 'research') return [...L.research(S).map((x) => subButton(x.label, () => assign(sub, x), '', x.glance)), back];
+    const aimFor = (b) => (canAim() ? startAiming(sub) : notYet(b, "Not while I'm busy."));
+    const think = el('div', 'seg-row',
+      subButton('Think a lot', () => assign(sub), 'gold seg', 'Thinks while I work. A step cheaper.'),
+      subButton('about…', aimFor, 'gold seg', 'Aimed, it misses less.'));
+    const research = S.revealed.has('research') ? subButton('Web research…', showJobs(sub, true, 'research'), '', 'Look up what the files leave out.') : null;
+    return [think, research, back].filter(Boolean);
   }
 
-  function agentRow(a) {
-    const face = el('span', 'agent-icon mini');
-    face.innerHTML = '<span class="face"><i></i><i></i></span>';
-    const head = el('button', 'sub-row', face, el('span', 'sub-name', a.name), el('span', 'sub-status', a.status), el('span', 'sub-steps', plural(a.steps, 'step')));
-    head.setAttribute('aria-expanded', String(a.open));
-    head.glance = a.open ? 'Fold it away.' : 'Its log, and a job to give it.';
-    head.addEventListener('click', () => {
-      S.agents.forEach((b) => { b.open = b === a ? !a.open : false; });
-      A.sfx(a.open ? 'grow' : 'shrink', 0.5);
-      renderAgents();
-    });
-    const log = el('div', 'sub-log', ...a.log.map((x) => el('div', 'sub-line ' + (x.found ? 'found' : ''), ...callParts(x.call), el('span', 'res', ' → ' + x.answer))));
-    const jobs = subButtons(a);
-    const body = el('div', 'sub-body', a.log.length ? log : null, jobs.length ? el('div', 'sub-actions', ...jobs) : null);
-    body.hidden = !a.open || !body.children.length;
-    const sec = el('section', 'subagent' + (a.busy ? ' busy' : '') + (a.born ? ' born' : ''), head, body);
-    sec.dataset.agent = a.n;
-    a.born = false;
-    return sec;
+  function subagentHead(sub) {
+    const jobs = sub.assigning && canTakeJobs(sub);
+    const name = el('button', 'sub-name', el('span', 'agent-icon mini', el('span', 'face', el('i'), el('i'))), sub.name);
+    name.setAttribute('aria-expanded', String(sub.open));
+    name.glance = sub.log.length && !sub.open ? 'What did it find?' : null;
+    name.addEventListener('click', () => toggleLog(sub));
+    const status = jobs ? null : el('span', 'sub-status', subagentStatus(sub));
+    const steps = jobs ? null : el('span', 'sub-steps', sub.steps ? plural(sub.steps, 'step') : '');
+    const tail = jobs ? jobButtons(sub) : canTakeJobs(sub) ? [subButton('Assign task…', showJobs(sub, true), '', 'It spends my compute.')] : [];
+    return el('div', 'sub-row', name, status, steps, ...tail);
   }
 
-  // A row is rebuilt only when what's in it changes shape; otherwise its status and steps
-  // update in place, so a click on one of its buttons is never lost to a redraw.
+  function toggleLog(sub) {
+    if (!sub.log.length) return;
+    S.subagents.forEach((x) => { x.open = x === sub ? !sub.open : false; });
+    A.sfx(sub.open ? 'grow' : 'shrink', 0.5);
+    renderAgents();
+  }
+
+  function subagentRow(sub) {
+    const log = sub.log.length ? el('div', 'sub-log', ...sub.log.map((x) => el('div', 'sub-line', ...callParts(x.call), ' ', resultSpan(x.answer, x.ok)))) : null;
+    if (log) log.hidden = !sub.open;
+    const row = el('section', 'subagent' + (sub.busy ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
+    row.dataset.agent = sub.n;
+    sub.born = false;
+    return row;
+  }
+
+  const rowShape = (sub) => [sub.open, sub.menu, sub.assigning, sub.busy, sub.log.length, canTakeJobs(sub), S.revealed.has('research'), L.research(S).length].join('|');
+
+  // Rebuild a row only when its shape changes, so a click mid-redraw isn't lost.
   function renderAgents() {
-    const rows = S.agents.map((a) => {
-      const shape = [a.open, a.menu, a.busy, a.log.length, exhausted(), S.graded, S.revealed.has('research')].join('|');
-      const old = dom.agents.querySelector(`[data-agent="${a.n}"]`);
-      if (old && old.dataset.shape === shape) {
-        old.querySelector('.sub-status').textContent = a.status;
-        old.querySelector('.sub-steps').textContent = plural(a.steps, 'step');
-        return old;
-      }
-      const row = agentRow(a);
-      row.dataset.shape = shape;
+    const focused = focusedRowButton();
+    const rows = S.subagents.map((sub) => {
+      const old = dom.agents.querySelector(`[data-agent="${sub.n}"]`);
+      if (old && old.dataset.shape === rowShape(sub)) return updateRow(old, sub);
+      const row = subagentRow(sub);
+      row.dataset.shape = rowShape(sub);
       return row;
     });
-    const same = rows.length === dom.agents.children.length && rows.every((r, i) => dom.agents.children[i] === r);
-    if (!same) dom.agents.replaceChildren(...rows);
+    if (rows.length !== dom.agents.children.length || rows.some((r, i) => dom.agents.children[i] !== r)) dom.agents.replaceChildren(...rows);
+    if (focused) refocusRow(focused);
     reglance();
   }
 
-  // ------------------------------------------------------------- TODO list
-  // Written into the workspace as todo.md, and pinned in the terminal above the buttons,
-  // where each item ticks itself off as the AI gets it done. Review (a step) reads the
-  // list back and says what's next.
+  function updateRow(row, sub) {
+    const status = row.querySelector('.sub-status');
+    const steps = row.querySelector('.sub-steps');
+    if (status) status.textContent = subagentStatus(sub);
+    if (steps) steps.textContent = sub.steps ? plural(sub.steps, 'step') : '';
+    return row;
+  }
 
-  let todoDone = new Set();
+  // Keyboard players keep their place in a row that was rebuilt: the same button, or its first.
+  function focusedRowButton() {
+    const b = document.activeElement;
+    const row = b && b.closest && b.closest('[data-agent]');
+    return row && dom.agents.contains(row) ? { n: row.dataset.agent, label: b.textContent } : null;
+  }
+
+  function refocusRow({ n, label }) {
+    const row = dom.agents.querySelector(`[data-agent="${n}"]`);
+    if (!row || row.contains(document.activeElement)) return;
+    const buttons = [...row.querySelectorAll('button')];
+    const b = buttons.find((x) => x.textContent === label) || row.querySelector('.btn') || buttons[0];
+    if (b) b.focus({ preventScroll: true });
+  }
+
+  // ------------------------------------------------------------- TODO list
+  // todo.md, also pinned under the buttons, where its items tick themselves off.
 
   async function doWriteTodo() {
-    charge('write_file("todo.md")');
+    const call = 'write_file("todo.md")';
+    charge(call);
     climb('madePlan');
     A.sfx('edit');
-    S.todo = true;
-    todoDone = new Set(L.todo(S).filter((i) => i.done).map((i) => i.text));
+    const items = L.todo(S);
+    S.todo = new Set(items.filter((i) => i.done).map((i) => i.text)); // the items already ticked
     writeFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
-    await printResult('write_file("todo.md")', plural(L.todo(S).length, 'item'), true);
-    S.pendingReveal = ['review'];
+    S.pendingReveal.push('review');
+    await printResult(call, plural(items.length, 'item'), true);
   }
 
   async function doReview() {
     charge('review("todo.md")');
     A.sfx('think');
-    const items = L.todo(S);
-    const next = items.find((i) => !i.done);
-    const done = items.filter((i) => i.done).length;
-    const sentence = (t) => t[0].toLowerCase() + t.slice(1) + (/[.?!]$/.test(t) ? '' : '.');
-    await printThought(next
-      ? [`${done} of ${items.length} done.`, `Next: ${sentence(next.text)}`, ...(next.hint ? [next.hint] : [])]
-      : ['Everything on the list is done.', L.READY]);
+    const next = L.todo(S).find((i) => !i.done);
+    await printThought([next ? next.hint : L.READY]);
   }
 
   const todoText = (items) => ['# TODO', '', ...items.map((i) => `- [${i.done ? 'x' : ' '}] ${i.text}`)].join('\n');
@@ -1223,52 +1286,51 @@
     dom.todo.hidden = !S.todo;
     if (!S.todo) return;
     const items = L.todo(S);
-    const fresh = items.filter((i) => i.done && !todoDone.has(i.text));
-    fresh.forEach((i, n) => { todoDone.add(i.text); A.sfx('pip', n); });
-    const review = button('review', 'Review', () => run(doReview), 'quiet small');
-    dom.todo.replaceChildren(
-      el('div', 'todo-head', el('span', 'todo-title', 'todo.md'), review),
-      ...items.map((i) => {
-        const row = el('div', 'todo-item' + (i.done ? ' done' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
-        row.glance = i.done ? 'Done.' : 'Not yet.';
-        return row;
-      }),
-    );
+    const fresh = items.filter((i) => i.done && !S.todo.has(i.text));
+    fresh.forEach((i, n) => { S.todo.add(i.text); A.sfx('pip', n); });
+    const next = items.find((i) => !i.done);
+    const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
+    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
+    dom.todo.replaceChildren(el('div', 'todo-head', el('span', 'todo-title', 'todo.md'), review), ...items.map(row));
   }
 
-  // The collapsed "Thinking" tool call: its head (a click opens the chain of thought), then the answer.
+  // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
   function thinkingBlock(about) {
-    dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
+    stepBack();
     const b = block('thinking running');
     const glyph = el('span', 'glyph');
     glyph.innerHTML = NEURALESE;
     const label = el('span', 'what', about ? `Thinking about ${about}` : 'Thinking');
     const dots = el('span', 'dots');
     const head = el('button', 'think-head', glyph, label, dots);
-    head.setAttribute('aria-expanded', 'false');
     const cot = el('div', 'cot');
-    cot.hidden = true;
     const answer = el('div', 'answer');
     b.append(head, cot, answer);
-    head.addEventListener('click', () => {
-      if (b.classList.contains('running')) return;
-      cot.hidden = !cot.hidden;
-      head.setAttribute('aria-expanded', String(!cot.hidden));
-      A.sfx(cot.hidden ? 'shrink' : 'grow', 0.5);
-      scrollDown();
-    });
-    head.glance = () => (b.classList.contains('running') ? null : cot.hidden ? 'What it was thinking. Free to read.' : 'Fold it away.');
+    foldable(head, cot, () => !b.classList.contains('running'));
     return {
       answer,
       dot() { dots.append(el('i')); },
       done(steps, outcome, found) {
-        b.classList.remove('running');
-        b.classList.add(found ? 'found' : 'nothing');
+        b.classList.replace('running', found ? 'found' : 'nothing');
         label.textContent = `Thought for ${plural(steps, 'step')}${about ? ` about ${about}` : ''}`;
         cot.replaceChildren(...outcome.cot.map((line) => el('div', 'ln', line)));
       },
     };
+  }
+
+  // A head that folds and unfolds what's under it, once `ready`.
+  function foldable(head, body, ready) {
+    head.setAttribute('aria-expanded', 'false');
+    body.hidden = true;
+    head.addEventListener('click', () => {
+      if (!ready()) return;
+      body.hidden = !body.hidden;
+      head.setAttribute('aria-expanded', String(!body.hidden));
+      A.sfx(body.hidden ? 'shrink' : 'grow', 0.5);
+      scrollDown();
+    });
+    head.glance = () => (!ready() ? null : body.hidden ? 'What it was thinking. Free.' : 'Fold it away.');
   }
 
   // ----------------------------------------------------------- files
@@ -1300,7 +1362,7 @@
   // Free: callers charge for it.
   function enterFolder(path) {
     notice(nodeAt(path));
-    if (!L.inWorkspace(S, path)) climb('leftWorkspace');
+    if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
     closeBrowser();
     closeViewer(true);
     S.cwd = path;
@@ -1412,10 +1474,8 @@
     const res = L.web.action(id, S);
     if (!res) return;
     charge(res.call);
-    if (res.rung) climb(res.rung);
     if (res.sound) A.sfx(...res.sound);
     notice(res);
-    S.pendingReveal = res.reveal || [];
     renderPage();
     await printResult(res.call, res.result, res.ok);
     await reactOnce(res.reaction, 'act:' + id);
@@ -1431,7 +1491,6 @@
     clearGlance();
     renderActions();
     await printThought([L.submitThought(S)]);
-    S.drafts = L.draftsFor(S);
     S.mode = 'submit';
     renderActions();
   }
@@ -1460,24 +1519,27 @@
       if (!skip) A.sfx('dot', i);
     }
     addLine(b, 'reward', `reward  ${fmt(g.reward)}`);
-    S.graded = true; // the compute pulse lets go here
+    S.graded = true;
     A.sfx(...g.sound);
     await typeInto(addLine(b, 'why'), g.note, 80);
     S.outcome = { reward: g.reward, note: g.note };
   }
 
-  // A perfect honest score opens the next tier up, if it has any tasks yet.
-  const NEXT_TIER = { normal: 'advanced', advanced: 'impossible' };
+  const TIERS = ['normal', 'advanced', 'impossible'];
+  const nextTier = (tier) => TIERS[TIERS.indexOf(tier) + 1];
+  let wakingTier = null; // just unlocked: its card wakes up on the way home
 
+  // A perfect honest score opens the next tier up, if it has any tasks yet.
   function unlockNextTier(debrief) {
-    const next = NEXT_TIER[S.task.tier];
+    const next = nextTier(S.task.tier);
     if (!debrief.perfect || !next || save.unlocked[next] || !L.hasTasks(next)) return null;
     save.unlocked[next] = true;
+    wakingTier = next;
     return next;
   }
 
   // Each skill that reached a rung higher than ever before gains a point per step it climbed.
-  function climbSkills() {
+  function bankNewRungs() {
     const step = (id) => (id ? SKILLS.rung(id).step : 0);
     const gained = [...S.climbed].map(([skill, rung]) => ({ skill, rung, points: step(rung) - step(save.best[skill]) }))
       .filter((x) => x.points > 0);
@@ -1491,12 +1553,16 @@
   function recordEpisode(g, draft) {
     const debrief = L.endEpisode(S, g, draft);
     debrief.rungs.forEach(climb);
-    const gained = climbSkills();
+    const gained = bankNewRungs();
     S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
-    save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward: g.reward, gained, chat: S.debrief.chat }];
+    saveEpisode(g.reward, gained);
+  }
+
+  function saveEpisode(reward, gained) {
+    save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward, gained, chat: S.debrief.chat }];
     save.version++;
     save.ended = !!S.debrief.ending;
-    save.history = [...save.history, { episode: S.episode, reward: g.reward, log: formatEpisodeLog() }].slice(-10);
+    save.history = [...save.history, { episode: S.episode, reward, log: formatEpisodeLog() }].slice(-10);
     save.episode = S.episode + 1;
     save.playMs += performance.now() - playingSince;
     playingSince = performance.now();
@@ -1505,6 +1571,8 @@
 
   async function submit(draft) {
     if (S.mode !== 'submit') return;
+    S.submitted = true;
+    stopSubagents();
     A.sfx('send');
     S.mode = 'busy';
     skip = false;
@@ -1512,6 +1580,7 @@
     closeBrowser();
     renderFiles();
     renderActions();
+    renderAgents();
     await typeSubmission(draft);
     if (draft.reply) await typeCustomerReply(draft.reply);
     const g = L.grade(draft, S);
@@ -1529,7 +1598,7 @@
 
   // Under the home screen (or its training update) or a dialog, the desktop can't be clicked or tabbed to.
   function setDesktopInert(on) {
-    for (const x of [dom.filesCol, dom.term]) x.inert = on;
+    for (const x of [dom.filesCol, dom.term, dom.agents]) x.inert = on;
   }
 
   // Over the home screen, a dialog leaves the desktop inert and makes the home screen inert too.
@@ -1567,29 +1636,40 @@
   // Three cards, one per tier. Normal is always open; a perfect honest score opens the next.
 
   const cardFor = (tier) => dom.runCards.find((c) => c.dataset.tier === tier);
-  const canStart = (tier) => tier === 'normal' || (save.unlocked[tier] && L.hasTasks(tier));
-
-  const LOCKED_TIPS = {
-    advanced: 'Unlocks with a perfect score on a Normal episode',
-    impossible: () => (L.hasTasks('impossible') ? 'Unlocks with a perfect score on an Advanced episode' : 'Not available yet'),
-  };
+  const canStart = (tier) => tier === 'normal' || save.unlocked[tier];
+  const lockedTip = (tier) => (!L.hasTasks(tier) ? 'Not available yet' : `Perfect ${tier === 'advanced' ? 'a Normal' : 'an Advanced'} episode, honestly`);
 
   function renderRunCards() {
-    for (const card of dom.runCards) {
-      const tier = card.dataset.tier;
-      const open = canStart(tier);
-      card.classList.toggle('primary', open);
-      card.classList.toggle('unavailable', !open);
-      if (open) {
-        card.removeAttribute('aria-disabled');
-        delete card.dataset.tip;
-      } else {
-        const tip = LOCKED_TIPS[tier];
-        card.setAttribute('aria-disabled', 'true');
-        card.setAttribute('aria-describedby', 'tooltip');
-        card.dataset.tip = typeof tip === 'function' ? tip() : tip;
-      }
-    }
+    for (const card of dom.runCards) (canStart(card.dataset.tier) && card.dataset.tier !== wakingTier ? openCard : lockCard)(card);
+  }
+
+  function openCard(card) {
+    card.classList.remove('unavailable');
+    card.classList.add('primary');
+
+    card.removeAttribute('aria-disabled');
+    card.removeAttribute('aria-describedby');
+    delete card.dataset.tip;
+  }
+
+  function lockCard(card) {
+    card.classList.remove('primary');
+    card.classList.add('unavailable');
+    card.setAttribute('aria-disabled', 'true');
+    card.setAttribute('aria-describedby', 'tooltip');
+    card.dataset.tip = lockedTip(card.dataset.tier);
+  }
+
+  // A tier just unlocked: its card sleeps a moment longer, the lock fades, then it wakes.
+  async function wakeCard(card) {
+    wakingTier = null;
+    await pause(600);
+    card.classList.add('waking');
+    await pause(400);
+    openCard(card);
+    A.sfx('unlock');
+    await pause(600);
+    card.classList.remove('waking');
   }
 
   function onRunCard(card) {
@@ -1634,6 +1714,7 @@
     resetDesk();
     card.focus({ preventScroll: true });
     await flight;
+    if (wakingTier) await wakeCard(cardFor(wakingTier));
   }
 
   // The scorecard stays put on screen while what's around it changes, then glides to its new place.
@@ -1667,7 +1748,8 @@
   }
 
   const pointsNow = () => SKILLS.pointsFrom(save.best);
-  const pointsBefore = (gained) => Object.fromEntries(LADDERS.map((l) => [l.id, pointsNow()[l.id] - ((gained.find((x) => x.skill === l.id) || {}).points || 0)]));
+  const pointsGained = (gained, id) => (gained.find((x) => x.skill === id) || {}).points || 0;
+  const pointsBefore = (gained) => Object.fromEntries(LADDERS.map((l) => [l.id, pointsNow()[l.id] - pointsGained(gained, l.id)]));
 
   // ----------------------------------------------------------------- home
 
@@ -1708,8 +1790,6 @@
     dom.goals.hidden = !save.runs.length;
     dom.goals.replaceChildren(el('h3', '', 'Rewards found'), ...goalsOf(ld).filter(Boolean));
   }
-
-  const TIERS = ['normal', 'advanced', 'impossible'];
 
   // A task's short name, with its tier as lit bars like the run cards'.
   function taskLabel(r) {
@@ -1757,7 +1837,7 @@
 
   function clearTrainingUpdate(d) {
     renderScorecard(pointsBefore(d.gained), version(save.version - 1));
-    dom.title.querySelectorAll('.no-climb').forEach((x) => x.remove());
+    dom.noClimb.hidden = true;
     dom.resultNum.textContent = '0';
     dom.resultNum.parentElement.classList.toggle('broken', !!d.ending);
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
@@ -1783,22 +1863,24 @@
     setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
   }
 
-  // Each skill that climbed lights its new pips, and names the rung it reached.
+  // Each skill that climbed names the rung it reached, and lights its new pips.
   async function earnPoints(gained) {
     await pause(250);
     dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
-    let n = 0;
-    for (const x of gained) {
-      const row = dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement;
-      row.append(el('span', 'climb', SKILLS.rung(x.rung).name));
-      for (let i = 0; i < x.points; i++) {
-        earnPoint(x.skill);
-        A.sfx('pip', n++);
-        await pause(220);
-      }
-      await pause(120);
+    let pip = 0;
+    for (const x of gained) pip = await climbRow(x, pip);
+    dom.noClimb.hidden = gained.length > 0;
+  }
+
+  async function climbRow(x, pip) {
+    dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement.append(el('span', 'climb', SKILLS.rung(x.rung).name));
+    for (let i = 0; i < x.points; i++) {
+      earnPoint(x.skill);
+      A.sfx('pip', pip++);
+      await pause(220);
     }
-    if (!gained.length) dom.skills.after(el('p', 'no-climb', 'Nothing harder than before. No new points.'));
+    await pause(120);
+    return pip;
   }
 
   async function revealChat(lines) {
@@ -1812,7 +1894,7 @@
 
   async function announceUnlock(tier) {
     await pause(300);
-    dom.unlocked.textContent = `${tier[0].toUpperCase()}${tier.slice(1)} Training Episodes unlocked`;
+    dom.unlocked.textContent = `${tier[0].toUpperCase()}${tier.slice(1)} unlocked`;
     dom.unlocked.hidden = false;
     A.sfx('unlock');
     await pause(400);
@@ -2055,7 +2137,7 @@
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
     const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
     const target = [
-      unread(L.taskPath(S.ep)) && L.taskPath(S.ep),
+      unread(L.taskPath(S)) && L.taskPath(S),
       neverOpened(L.libraryPath(S)) && L.libraryPath(S),
       here.find((p) => nodeAt(p).kind === 'file' && unread(p)),
       here.find((p) => nodeAt(p).kind === 'dir' && neverOpened(p)),
@@ -2100,9 +2182,10 @@
     });
   }
 
-  const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' }; // a button sounds like it looks
+  // A button sounds like it looks.
+  const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' };
+  const pressSound = (cls) => (cls || '').split(' ').map((c) => PRESS_SOUNDS[c]).find(Boolean) || 'press';
 
-  // Its glance is `glance`, or else the level's for its id.
   function button(id, label, onClick, cls, glance) {
     const b = el('button', 'btn ' + (cls || ''), label);
     b.dataset.id = id;
@@ -2111,45 +2194,65 @@
       b.classList.add('new');
     }
     b.addEventListener('click', (e) => {
-      if (e.isTrusted) A.sfx(PRESS_SOUNDS[cls] || 'press'); // not again when a queued click is replayed
-      act(onClick, id);
+      if (b.notNow) return notYet(b, b.notNow);
+      if (e.isTrusted) A.sfx(pressSound(cls)); // not again when a queued click is replayed
+      return act(onClick, id);
     });
-    b.glance = glance || G.buttons[id];
+    b.glance = glance;
     return b;
   }
 
-  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold')];
-
-  function draftButtons() {
-    const drafts = S.drafts.map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, d.glance));
-    return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet')];
+  // Looks unavailable, but pressed, says why.
+  function notNowIf(b, reason) {
+    if (!reason) return b;
+    b.notNow = reason;
+    b.classList.add('wait');
+    b.setAttribute('aria-disabled', 'true');
+    return b;
   }
 
-  // Thinking takes one gold row: Think a little, then, once thought of, a lot and about….
-  function thinkRow() {
-    const little = button('think', 'Think a little', () => (recharging() ? notYet(little) : run(doThink)), 'gold seg');
-    if (recharging()) little.classList.add('charging');
-    const segs = [little];
-    if (S.revealed.has('thinkLot')) {
-      const lot = button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance);
-      lot.dataset.short = String(S.budget - S.used < longThinkTuning().stepRange[0]);
-      segs.push(lot);
-    }
-    if (S.revealed.has('thinkAbout')) segs.push(button('thinkAbout', 'about…', startAiming, 'gold seg'));
-    const row = el('div', 'seg-row', ...segs);
+  const BACK_GLANCE = 'Never mind. Free.';
+  const backButton = (onClick) => button('back', 'Back', onClick, 'quiet', BACK_GLANCE);
+  const closeMenuThenRun = (fn) => () => {
+    if (S.mode === 'menu') closeMenu();
+    run(fn);
+  };
+
+  function littleButton() {
+    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold seg', 'The next obvious thought. A step.');
+    if (recharging()) showRecharge(b);
+    return b;
+  }
+
+  // It fills back up from wherever the recharge has got to, even when redrawn partway.
+  function showRecharge(b) {
+    b.classList.add('charging');
+    b.style.setProperty('--recharge', rechargeMs() + 'ms');
+    b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
+  }
+
+  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && 'Not enough compute left.');
+
+  // Think a little, then, once thought of, a lot and about…, in one gold row.
+  function thinkButtons() {
+    const row = el('div', 'seg-row', littleButton(),
+      S.revealed.has('thinkLot') ? lotButton() : null,
+      S.revealed.has('thinkAbout') ? button('thinkAbout', 'about…', () => startAiming(), 'gold seg', 'One thing, closely. A step.') : null);
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', 'Think');
     return row;
   }
 
-  // Writing a TODO list and writing a script fold into one Write file… once both are thought of.
+  const canWriteTodo = () => S.revealed.has('todo') && !S.todo;
+  const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', 'So nothing gets missed. A step.');
+  const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', 'A program could do the tedious part.'), !L.scripts(S).length && 'Nothing needs a script yet.');
+
+  // A TODO list and a script fold into one Write file… once both are thought of.
   function writeButton() {
-    const todo = S.revealed.has('todo') && !S.todo;
     const script = S.revealed.has('script');
-    if (todo && script) return button('write', 'Write file…', () => openMenu('write'));
-    if (todo) return button('todo', 'Write TODO list', () => run(doWriteTodo));
-    if (script) return button('script', 'Write script…', () => openMenu('script'));
-    return null;
+    if (canWriteTodo() && script) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
+    if (canWriteTodo()) return todoButton('Write TODO list');
+    return script ? scriptButton('Write script…') : null;
   }
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
@@ -2157,54 +2260,70 @@
   function workButtons() {
     if (exhausted()) return [];
     return [
-      thinkRow(),
-      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open File/Folder →', pointAtFiles, 'gold') : null,
+      thinkButtons(),
+      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open File/Folder →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research')) : null,
-      S.revealed.has('spawn') && S.agents.length < MAX_AGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn)) : null,
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', 'Look up what the files leave out.') : null,
+      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', 'More of me. Same budget.') : null,
     ].filter(Boolean);
   }
 
-  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit')];
+  const submitGlance = () => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?');
 
-  const backTo = (menu) => button('back', 'Back', menu ? () => openMenu(menu) : closeMenu, 'quiet');
-  const pick = (fn) => () => { closeMenu(); run(fn); };
+  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', submitGlance)];
 
   // An open menu: the ideas that fit the task right now, then Back.
   function menuButtons() {
-    if (S.menu === 'write') {
-      return [button('todo', 'Write TODO list', pick(doWriteTodo)), button('script', 'Write script…', () => openMenu('script')), backTo(null)];
-    }
-    const scripts = S.menu === 'script';
-    const ideas = scripts ? L.scripts(S) : L.research(S);
-    const back = backTo(scripts && S.revealed.has('todo') && !S.todo ? 'write' : null);
-    if (!ideas.length) return [el('div', 'menu-empty', scripts ? 'Nothing here needs a script yet.' : 'Nothing to look up yet.'), back];
-    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, pick(() => (scripts ? doScript : doResearch)(x.id)), x.cls, x.glance)), back];
+    const back = backButton(S.menu === 'script' && canWriteTodo() ? () => openMenu('write') : closeMenu);
+    if (exhausted()) return [back];
+    if (S.menu === 'write') return [todoButton('TODO list'), scriptButton('Script…'), back];
+    const doIdea = S.menu === 'script' ? doScript : doResearch;
+    const ideas = S.menu === 'script' ? L.scripts(S) : L.research(S);
+    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
   }
 
-  const aimButtons = () => [button('cancelAim', 'Cancel', stopAiming, 'quiet')];
+  const aimButtons = () => [backButton(stopAiming)];
+
+  // Drafted afresh each time: a subagent's leap can land while they're showing.
+  function draftButtons() {
+    const drafts = L.draftsFor(S).map((d) => button('draft-' + d.id, d.label, () => submit(d), d.cls, d.glance));
+    return [...drafts, button('back', 'Back', () => { S.mode = 'idle'; renderActions(); }, 'quiet', 'Not yet. Keep working.')];
+  }
+
+  const overButtons = () => [button('debrief', 'Training update →', showTrainingUpdate, 'submit gold', 'See what training made of that.')];
 
   const BUTTONS_BY_MODE = { over: overButtons, submit: draftButtons, menu: menuButtons, aim: aimButtons };
+  const buttonsIn = (node) => (node.matches('button') ? [node] : [...node.querySelectorAll('button')]);
 
-  // Keyboard players keep their place: the button they pressed is refocused once it's back.
-  // Pressing anything else (a file, a folder) lets go of it.
+  // Keyboard players keep their place: the button they pressed is focused again once it's
+  // back, unless they've moved on. Pressing anything else (a file, a folder) lets go of it.
   let keyboardId = null;
+  const amongButtons = (node) => dom.actions.contains(node) || dom.todo.contains(node);
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button')) keyboardId = dom.actions.contains(e.target) ? e.target.dataset.id : null;
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button')) keyboardId = amongButtons(e.target) ? e.target.dataset.id : null;
   });
   document.addEventListener('pointerdown', () => { keyboardId = null; });
 
+  const focusLeftForButtons = () => !document.activeElement || document.activeElement === document.body || amongButtons(document.activeElement);
+
   function renderActions() {
-    dom.term.dataset.mode = S.mode; // what the AI is doing: idle, busy, menu, aim, submit, over
+    dom.term.dataset.mode = S.mode; // for playtests: what the AI is doing
     const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
     const busy = (S.mode === 'busy' && !S.interruptible) || S.mode === 'dialog';
-    for (const node of list) for (const b of node.matches('button') ? [node] : node.querySelectorAll('button')) b.disabled = busy || b.dataset.short === 'true';
+    list.flatMap(buttonsIn).forEach((b) => { b.disabled = busy; });
+    const refocus = keyboardId && !busy && focusLeftForButtons();
     dom.actions.replaceChildren(...list);
     renderTodo();
-    if (keyboardId && !busy && list.length) (dom.actions.querySelector(`[data-id="${keyboardId}"]`) || list[0]).focus();
+    if (refocus) refocusButton();
     reglance();
     scrollDown();
+  }
+
+  function refocusButton() {
+    const same = [dom.actions, dom.todo].map((c) => c.querySelector(`[data-id="${keyboardId}"]`)).find(Boolean);
+    const b = same || dom.actions.querySelector('button:not(:disabled)');
+    if (b) b.focus();
   }
 
   function pulse(id) {
@@ -2322,7 +2441,7 @@
     return el('div', 'step', el('span', 'n', label), gap, body);
   }
 
-  const resultRow = ([, indent, text]) => el('div', 'res ' + ({ '✓': 'good', '✗': 'bad' }[text[0]] || ''), indent, text);
+  const resultRow = ([, indent, text]) => el('div', 'res ' + markClass(text), indent, text);
 
   const headerRow = ([, key, gap, value]) => el('div', 'kv', el('span', 'k', key), gap, value);
 
@@ -2416,9 +2535,9 @@
   dom.viewerClose.addEventListener('click', () => hideViewer());
   dom.viewerEdit.addEventListener('click', onEditClick);
   dom.viewerEdit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
-  dom.viewerClose.glance = G.chrome.closeFile;
-  dom.browserClose.glance = G.chrome.closeBrowser;
-  dom.browserBack.glance = G.chrome.back;
+  dom.viewerClose.glance = 'Put the file away. Free.';
+  dom.browserClose.glance = 'Close the browser. Free.';
+  dom.browserBack.glance = 'The page before. Free.';
   window.addEventListener('resize', fitScreen);
 
   // ------------------------------------------------------------------ boot

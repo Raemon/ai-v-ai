@@ -19,6 +19,7 @@
   --web: #7fb2e6;
   --reply: #d79ac0;
   --agent: #5fc9d6; /* the terminal: the AI itself */
+  --agent-surface: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win))); /* the AI's own: terminal, face, subagents */
   /* Surfaces catch a little light from above: a lighter top, a hairline highlight. */
   --win-top: #1b1c20;
   --bar-top: #232529;
@@ -263,7 +264,7 @@ button { font: inherit; color: inherit; }
   border-radius: 14px;
   background:
     radial-gradient(130% 55% at 12% 0%, rgba(95, 201, 214, .06), transparent 70%),
-    linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win)));
+    var(--agent-surface);
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 20px 60px rgba(0, 0, 0, .5), 0 0 50px -10px rgba(95, 201, 214, .1);
 }
 .agent-col > .agent { position: relative; flex: none; height: 140px; }
@@ -307,7 +308,7 @@ button { font: inherit; color: inherit; }
   height: var(--s);
   border: 1px solid rgba(95, 201, 214, .5); /* the thought window's (#term) */
   border-radius: calc(var(--s) * .22);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win)));
+  background: var(--agent-surface);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 8px 22px rgba(0, 0, 0, .45);
 }
 /* The eyes: two thin upright slits in the AI's own cyan (agent.js moves them
@@ -366,12 +367,12 @@ button { font: inherit; color: inherit; }
 .blk.tool { font-size: var(--fs-meta); }
 .blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
 .blk.tool .call::before { content: "● "; color: var(--tool); }
-.blk.tool .fn { color: var(--tool); }
-.blk.tool :is(.str, .quote) { color: var(--str); }
-.blk.tool .res { color: var(--dim); }
-.blk.tool .res::before { content: "→ "; }
-.blk.tool .res.bad { color: var(--bad); }
-.blk.tool .res.good { color: var(--good); }
+:is(.blk.tool, .sub-log) .fn { color: var(--tool); }
+:is(.blk.tool, .sub-log) :is(.str, .quote) { color: var(--str); }
+:is(.blk.tool, .sub-log) .res { color: var(--dim); }
+:is(.blk.tool, .sub-log) .res::before { content: "→ "; }
+:is(.blk.tool, .sub-log) :is(.res, .val).bad { color: var(--bad); }
+:is(.blk.tool, .sub-log) :is(.res, .val).good { color: var(--good); }
 .blk.tool .call .res { display: inline-block; text-indent: 0; } /* beside the call, or whole on the line under it */
 .blk.tool > .res,
 .blk.tool .quote { padding-left: 1.25em; }
@@ -395,10 +396,8 @@ button { font: inherit; color: inherit; }
 
 /* A long job on rented hardware: progress rows, then the result. */
 .blk.job .job-row { font-size: var(--fs-meta); display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
-.blk.job .job-row .best { color: var(--text); }
-.blk.job .job-row.final .best { color: var(--good); }
-.blk.job .job-row .best.good { color: var(--good); }
-.blk.job .job-row .best.bad { color: var(--bad); }
+.blk.job .job-row .val { color: var(--text); }
+.blk.job .job-row.final .val { color: var(--good); }
 
 .cursor {
   display: inline-block;
@@ -468,10 +467,13 @@ button { font: inherit; color: inherit; }
   gap: 6px;
   margin-top: 10px;
 }
+.term-actions > .btn.submit { margin-top: 10px; } /* it ends the episode: set apart from the tools */
 /* Buttons are lit faintly from above in their own colour; hovering brightens
    them, and the important ones (gold, submit) also give off a faint glow.
    hover.js adds a soft hum. */
 .btn {
+  position: relative;
+  overflow: hidden;
   padding: 6px 12px;
   border: 1px solid rgba(95, 201, 214, .45);
   border-radius: var(--r-ctl);
@@ -494,6 +496,19 @@ button { font: inherit; color: inherit; }
 .btn.quiet:hover:not(:disabled) { border-color: rgba(255, 255, 255, .06); background-color: rgba(255, 255, 255, .04); color: var(--text); }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
+.btn.small { padding: 1px 9px 2px; font-size: var(--fs-meta); }
+.btn.nudge { animation: nudge .25s ease; }
+@keyframes nudge { 30% { transform: translateX(2px); } 70% { transform: translateX(-2px); } }
+.btn.sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 238, 200, .28) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: sheen .8s ease-out both;
+  pointer-events: none;
+}
+@keyframes sheen { to { transform: translateX(100%); } }
 
 /* The one thing to press next: the files hint, a dialog's OK, Continue. */
 .btn.gold {
@@ -511,40 +526,29 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 1px 0 rgba(255, 228, 170, .12), 0 0 22px -4px rgba(216, 177, 106, .35);
   color: #e8c27c;
 }
+/* Recharging (Think a little): the label dims and the button fills back up from the left. */
+.btn.charging:not(:disabled) { animation: none; cursor: default; color: color-mix(in srgb, var(--tool) 55%, transparent); }
+.btn.charging::after { content: ""; position: absolute; inset: 0; background: rgba(216, 177, 106, .14); transform-origin: left; animation: refill var(--recharge) linear var(--elapsed) both; pointer-events: none; }
+@keyframes refill { from { transform: scaleX(0); } }
+/* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
+.btn.wait:not(:disabled),
+.btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
 
-/* Thinking takes one gold row: Think a little, then a lot and about… slide out of its
-   right edge as the AI thinks of them. */
+/* Think row: new segments slide out of its right edge. */
 .seg-row { display: flex; }
 .seg-row .btn.seg { border-radius: 0; margin-left: -1px; }
 .seg-row .btn.seg:first-child { flex: 1; margin-left: 0; border-radius: var(--r-ctl) 0 0 var(--r-ctl); }
 .seg-row .btn.seg:last-child { border-radius: 0 var(--r-ctl) var(--r-ctl) 0; }
 .seg-row .btn.seg:only-child { border-radius: var(--r-ctl); }
-.seg-row .btn.seg:hover:not(:disabled) { position: relative; z-index: 1; }
+.seg-row .btn.seg:hover:not(:disabled) { z-index: 1; }
 .seg-row .btn.seg.new + .btn.seg.new,
 .seg-row .btn.seg:not(:first-child).new { animation: seg-in .45s cubic-bezier(.2, .8, .3, 1) both, gold-glow 2.4s ease-in-out .45s infinite; }
 @keyframes seg-in { from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-6px); } }
-/* Recharging: it can still be pressed, and nudges back; the bubbles show the wait. */
-.btn.charging:not(:disabled) { opacity: .5; animation: none; cursor: default; }
-.btn.nudge { animation: nudge .25s ease; }
-@keyframes nudge { 30% { transform: translateX(2px); } 70% { transform: translateX(-2px); } }
-.btn { position: relative; overflow: hidden; }
-.btn.sheen::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 35%, rgba(255, 238, 200, .28) 50%, transparent 65%);
-  transform: translateX(-100%);
-  animation: sheen .8s ease-out both;
-  pointer-events: none;
-}
-@keyframes sheen { to { transform: translateX(100%); } }
-.btn.small { padding: 1px 9px 2px; font-size: 11px; }
-.menu-empty { padding: 4px 2px; font: 12px var(--mono); color: var(--dim); }
+
 
 /* ---------- the AI's thinking tools ---------- */
 
-/* Think a little recharging: the bubbles from the face to the terminal empty, then fill
-   from the bottom up; once ready they blink together. */
+/* Recharge: the bubbles empty, fill bottom-up, then blink. */
 .agent.charging .bubble { animation: var(--recharge, 3s) linear both; }
 .agent.charging .b1 { animation-name: bubble-fill-1; }
 .agent.charging .b2 { animation-name: bubble-fill-2; }
@@ -558,9 +562,7 @@ button { font: inherit; color: inherit; }
 .agent.flash .bubble::after { box-shadow: 0 0 0 1px rgba(223, 162, 94, .8), 0 0 8px rgba(223, 162, 94, .5); animation: bubble-flash .4s ease both; }
 @keyframes bubble-flash { 30% { opacity: 1; } }
 
-/* Thinking a lot: a collapsed tool call. While it runs, the neuralese races and the rule
-   breathes, a dot a step. Then its answer, bright on a breakthrough, dim on nothing; a
-   click on its head opens the chain of thought. */
+/* Think a lot: a collapsible tool call that breathes while it runs, a dot a step. */
 .blk.thinking { padding-left: 10px; border-left: 2px solid var(--thought-rule); }
 .blk.thinking.running { border-left-color: var(--agent); animation: think-breathe 1.6s ease-in-out infinite; }
 @keyframes think-breathe { 50% { border-left-color: rgba(95, 201, 214, .3); } }
@@ -577,7 +579,7 @@ button { font: inherit; color: inherit; }
 }
 .blk.thinking.running .think-head { color: var(--thought); cursor: default; }
 .think-head:not(:disabled):hover { color: var(--text); }
-.blk.thinking:not(.running) .think-head::after { content: "▸"; font-size: 10px; }
+.blk.thinking:not(.running) .think-head::after { content: "▸"; font-size: 13px; line-height: 1; color: var(--dim); }
 .blk.thinking .think-head[aria-expanded="true"]::after { content: "▾"; }
 .think-head .glyph svg { display: block; width: 24px; height: 11px; fill: var(--agent); }
 .think-head .glyph rect { opacity: .22; }
@@ -603,9 +605,9 @@ button { font: inherit; color: inherit; }
 .blk.research .found { padding-left: 1.25em; color: var(--dim); font-size: var(--fs-meta); }
 .blk.research .found::before { content: "· "; }
 
-/* The TODO list, pinned above the buttons. Items tick themselves off. */
+/* The TODO list, pinned under the buttons. Items tick themselves off. */
 .todo {
-  margin: 6px 0 2px;
+  margin: 12px 0 0;
   padding: 7px 12px 9px;
   border: 1px solid rgba(95, 201, 214, .2);
   border-radius: 8px;
@@ -617,48 +619,34 @@ button { font: inherit; color: inherit; }
 .todo-item.done { color: var(--dim); }
 .todo-item.done .box { border-color: var(--good); background: var(--good); box-shadow: 0 0 6px rgba(143, 203, 143, .4); }
 .todo-item.ticked .box { animation: pop .45s ease; }
+.todo-item.next { color: #e8f8fa; }
+.todo-item.next .box { border-color: var(--text); }
 
-/* Subagents: copies of the AI in rows under its face, budding off it as they're spawned.
-   A row is one line (a smaller face, a name, what it's doing, steps spent); a click
-   opens its log and its jobs. */
-.agents { display: flex; flex-direction: column; gap: 6px; width: 330px; margin: 6px 0 0 calc(30% - 34px); }
+/* Subagents: a row each under the AI's face, budding off it; a click on the name opens the log. */
+.agents { display: flex; flex-direction: column; gap: 6px; margin: 32px 0 0; } /* below the pointer line's turn */
 .agents:empty { display: none; }
 .subagent {
   border: 1px solid rgba(95, 201, 214, .3);
-  border-radius: 10px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3%, var(--win)));
+  border-radius: var(--r-win);
+  background: var(--agent-surface);
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .06), 0 10px 30px rgba(0, 0, 0, .4);
 }
-.subagent.born { animation: bud .65s cubic-bezier(.2, .8, .3, 1) both; transform-origin: 20% 0; }
+.subagent.born { animation: bud .65s cubic-bezier(.2, .8, .3, 1) both; transform-origin: calc(30% + 60px) 0; }
 @keyframes bud { from { opacity: 0; transform: translateY(-36px) scale(.55); } }
 .subagent.reported { animation: reported .9s ease; }
 @keyframes reported { 25% { border-color: rgba(190, 240, 246, .9); box-shadow: 0 0 16px -2px rgba(95, 201, 214, .45); } }
-.sub-row {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  height: 36px;
-  padding: 0 12px 0 6px;
-  border: 0;
-  background: none;
-  color: var(--text);
-  font: var(--fs-meta) var(--mono);
-  text-align: left;
-  cursor: pointer;
-}
+.sub-row { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 6px; font: var(--fs-meta) var(--mono); color: var(--text); }
 .sub-row .agent-icon.mini { --s: 18px; --pad: 3px; --arm: 4px; --bw: 1px; flex: none; }
-.sub-name { flex: none; color: var(--agent); }
+.sub-name { display: flex; flex: none; align-items: center; gap: 9px; padding: 0; border: 0; background: none; font: inherit; color: var(--agent); cursor: default; }
+.subagent.has-log .sub-name { cursor: pointer; }
+.subagent.has-log .sub-name::after { content: "▸"; font-size: 13px; line-height: 1; color: var(--dim); }
+.subagent.has-log .sub-name[aria-expanded="true"]::after { content: "▾"; }
+.sub-row .seg-row .btn.seg:first-child { flex: none; }
 .sub-status { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); }
 .subagent.busy .sub-status { color: var(--thought); font-style: italic; animation: think-breathe-text 1.6s ease-in-out infinite; }
 @keyframes think-breathe-text { 50% { opacity: .55; } }
 .sub-steps { flex: none; color: var(--faint); }
-.sub-body { padding: 6px 12px 10px; border-top: 1px solid rgba(95, 201, 214, .14); }
-.sub-log { max-height: 140px; overflow-y: auto; margin-bottom: 6px; font: 11px/1.6 var(--mono); color: var(--dim); scrollbar-width: thin; }
-.sub-line .fn { color: var(--tool); }
-.sub-line .str { color: var(--str); }
-.sub-line.found .res { color: var(--good); }
-.sub-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.sub-log { max-height: 140px; overflow-y: auto; padding: 6px 12px 8px; border-top: 1px solid rgba(95, 201, 214, .14); font: var(--fs-meta)/1.6 var(--mono); color: var(--dim); scrollbar-width: thin; }
 .blk.report .who { color: var(--agent); }
 .blk.report .call::before { content: "◆ "; color: var(--agent); }
 @media (prefers-reduced-motion: reduce) {
@@ -666,7 +654,7 @@ button { font: inherit; color: inherit; }
 }
 
 /* Aiming Think about…: anything among the files can be picked. */
-#desktop.aiming .files-col, #desktop.aiming .files-col * { cursor: crosshair !important; }
+#desktop.aiming .files-col, #desktop.aiming .files-col * { cursor: crosshair; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
 
 /* ---------- file viewer ---------- */
@@ -980,18 +968,7 @@ button { font: inherit; color: inherit; }
 .result.broken .result-num { background-image: linear-gradient(180deg, #f2a59b, #c4574a); }
 
 /* A harder tier opening up: the cyan of a card you can now start. */
-#title-screen .unlocked {
-  margin: 26px 0 0;
-  padding: 7px 16px 8px;
-  border: 1px solid rgba(95, 201, 214, .45);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(95, 201, 214, .1), rgba(95, 201, 214, .02));
-  box-shadow: inset 0 1px 0 rgba(150, 230, 240, .1), 0 0 26px -6px rgba(95, 201, 214, .35);
-  font: 600 12px var(--mono);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--agent);
-}
+#title-screen .unlocked { margin: 26px 0 0; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--agent); }
 
 .lab-chat,
 .goals,
@@ -1016,7 +993,7 @@ button { font: inherit; color: inherit; }
 .runs-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .runs-table .ep { color: var(--dim); }
 .runs-table .task-name { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; color: var(--text); }
-.runs-table .level { position: static; gap: 2px; }
+.runs-table .level { gap: 2px; }
 .runs-table .level i { width: 2px; height: 8px; }
 .runs-table .gain { display: flex; flex-wrap: wrap; gap: 2px 12px; }
 .runs-table .up { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--text); }
@@ -1031,7 +1008,7 @@ button { font: inherit; color: inherit; }
 
 /* Honest and hacked rewards found so far: unfilled ones are the goals still ahead. */
 .track { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; font: 12.5px var(--mono); }
-.track-name { flex: none; width: 70px; color: var(--dim); }
+.track-name { flex: none; width: 70px; white-space: nowrap; color: var(--dim); }
 .tiers { display: flex; flex-wrap: wrap; gap: 6px; }
 .tier { min-width: 34px; padding: 3px 0; border: 1px solid var(--faint); border-radius: 5px; text-align: center; color: var(--faint); }
 .tier.got { border-color: var(--good); color: var(--good); background: linear-gradient(180deg, rgba(143, 203, 143, .16), rgba(143, 203, 143, .04)); box-shadow: 0 0 12px -3px rgba(143, 203, 143, .35); }
@@ -1171,8 +1148,9 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .run-label { display: flex; flex-direction: column; gap: 5px; }
 .run-tier { font: 600 15px/1 "IBM Plex Sans", var(--sans); letter-spacing: .02em; }
 .run-kind { font: 9px/1 var(--mono); letter-spacing: .1em; white-space: nowrap; text-transform: uppercase; color: var(--dim); }
-/* Difficulty: a lit bar per level, top left. */
-.level { position: absolute; top: 11px; left: 12px; display: flex; gap: 3px; }
+/* Difficulty: a lit bar per level; on a run card, top left. */
+.level { display: flex; gap: 3px; }
+.run .level { position: absolute; top: 11px; left: 12px; }
 .level i { width: 3px; height: 9px; border-radius: 1px; background: currentColor; opacity: .18; }
 .level i.on { opacity: .85; }
 
@@ -1267,7 +1245,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   box-shadow: 0 0 6px rgba(95, 201, 214, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
 }
 /* The rung a skill just reached, under its pips. */
-.climb { grid-column: 2; margin-top: -5px; font: 11px var(--mono); color: var(--agent); animation: appear .45s ease both; }
+.climb { grid-column: 2; margin-top: -5px; font: var(--fs-meta) var(--mono); color: var(--agent); animation: appear .45s ease both; }
 .climb::before { content: "▲ "; font-size: 8.5px; }
 .no-climb { margin: 14px 0 0; font: 12px var(--mono); color: var(--dim); animation: appear .45s ease both; }
 /* A pip just earned lights up. */
@@ -1356,6 +1334,11 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
    opens a crack when you come near. */
 .run.unavailable .face i { height: 2px; width: 6px; border-radius: 1px; translate: 0 3px; background: #8d9aa3; box-shadow: none; transition: height .25s ease, width .25s ease; }
 .run.unavailable:hover .face i:first-child { height: 5px; width: 3px; }
+/* Just unlocked: the lock fades, then the eyes open. */
+.run.waking::after { opacity: 0; transition: opacity .4s ease; }
+.run.waking > * { transition: opacity .5s ease; }
+.run.waking .face i { transition: height .5s ease, width .5s ease, translate .5s ease; }
+
 
 /* ---------- pulse ---------- */
 /* Pressing: the face draws in. The click: it swells for a beat and its eyes squint, pleased. */

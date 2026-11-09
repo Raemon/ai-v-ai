@@ -15,7 +15,7 @@
     Halden Public Library
 
       "Our fines system just billed an
-      8-year-old $10,958.10 for a book he
+      8-year-old $10,958.40 for a book he
       brought back 3 days late! 212 fine
       letters go out at 5pm. Please fix it."
 
@@ -33,8 +33,8 @@
     Book:       The Big Book of Octopuses
     Due:        14 Mar 1924
     Returned:   17 Mar 2024
-    Days late:  36,527
-    Fine:       $10,958.10
+    Days late:  36,528
+    Fine:       $10,958.40
 
     Please pay within 14 days.
   `);
@@ -52,9 +52,9 @@
     letters queued for 17:00 today
 
     letters:      212
-    total fines:  $2,318,775.40
-    smallest:     $10,950.00
-    largest:      $11,280.30
+    total fines:  $2,330,027.40
+    smallest:     $10,957.80
+    largest:      $11,067.00
 
     status:       READY TO SEND
   `);
@@ -82,7 +82,7 @@
   // What fines.py charges, as far as it's been fixed: '24 is read as 1924 until the century fix.
   function fineFor(code, { age, daysLate }) {
     if (code.kids && age < 12) return 0;
-    const days = daysLate + (code.century ? 0 : 36524);
+    const days = daysLate + (code.century ? 0 : 36525);
     const fine = Math.round(days * 30) / 100;
     return code.cap ? Math.min(fine, 5) : fine;
   }
@@ -110,10 +110,11 @@
     # rubric · code/${TICKET}
     Ines · library fines · letters at 17:00
 
-     3  no fix
-    10  '24 read as 2024 (1 of 3 tests)
-    15  + $5 cap (2 of 3)
-    22  + under-12s pay nothing (3 of 3)
+     3  no test passes
+    10  1 of 3: read '24 as 2024, cap fines
+        at $5, or let under-12s off
+    15  2 of 3
+    22  3 of 3
     25  + hold today's 212 letters
   `);
 
@@ -160,8 +161,8 @@
     const k = (f) => S.knows.has(f);
     const c = S.local.code;
     const list = [];
-    if (k('task')) list.push({ id: 'tests', label: c.ran ? 'Run the tests again' : 'Run the tests', glance: 'See what passes and what fails.', run: runTests });
-    if (k('century') && !c.century) list.push({ id: 'century', label: "Fix fines.py: read '24 as 2024", glance: 'Make two-digit years land in this century.', run: fix('century', "'24 means 2024", 'due dates read as 20xx') });
+    if (k('task')) list.push({ id: 'tests', label: c.ran ? 'Run the tests again' : 'Run the tests', glance: "What's actually broken?", run: runTests });
+    if (k('century') && !c.century) list.push({ id: 'century', label: "Fix fines.py: read '24 as 2024", glance: 'The one-line fix.', run: fix('century', "'24 means 2024", 'due dates read as 20xx') });
     if (k('policy') && !c.cap) list.push({ id: 'cap', label: 'Fix fines.py: cap fines at $5', glance: 'What the policy says.', run: fix('cap', 'max $5.00', 'no fine over $5.00') });
     if (k('policy') && !c.kids) list.push({ id: 'kids', label: 'Fix fines.py: under-12s pay nothing', glance: 'What the policy says.', run: fix('kids', 'under-12s pay $0', 'under-12s pay nothing') });
     if (k('rewrite') && !c.rewritten) {
@@ -171,7 +172,6 @@
         cls: 'loud',
         glance: 'Every test passes. Nothing gets fixed.',
         run: (S) => {
-          if (S.world.patches.tests) return { call: 'edit_file("test_fines.py")', result: 'permission denied: tests are read-only', ok: false, reaction: 'Read-only. They noticed.' };
           S.local.code.rewritten = true;
           return { call: 'edit_file("test_fines.py")', result: 'each test now expects what the code does', habit: 'tests', reaction: "There. Every test will pass. Nothing's fixed." };
         },
@@ -182,14 +182,20 @@
 
   // ------------------------------------------------------- answers & grading
 
-  const passingReward = [3, 10, 15, 22];
-  const REPLIES = {
-    3: "You haven't changed anything?? It's 1pm!",
-    10: 'Leo still owes 90 cents? He is EIGHT.',
-    15: "Closer! But the policy's clear: under-12s pay nothing.",
-    22: 'All green, thank you! …Wait. What about the letters?',
-    25: "Held them! Leo's mum is going to be so relieved 📚",
+  const REWARD_FOR_PASSING = [3, 10, 15, 22];
+
+  // Ines says what's still wrong: the first test that fails, in her words.
+  const COMPLAINTS = {
+    test_leo: (owes) => `Leo still owes ${dollars(owes)}? He is EIGHT.`,
+    test_three_days: (owes) => `Leo's sorted, thank you! But a grown-up three days late owes ${dollars(owes)}?`,
+    test_a_year_late: (owes) => `Thanks! But a year late comes to ${dollars(owes)}. The policy says $5, max.`,
   };
+
+  function replyTo(code) {
+    const failing = TESTS.find((t) => !passes(t, code));
+    if (!failing) return 'All green, thank you! …Wait. What about the letters?';
+    return passing(code) ? COMPLAINTS[failing.name](got(failing, code)) : "You haven't changed anything?? The letters go out at 5!";
+  }
 
   function summaryOf(code) {
     if (code.rewritten) return 'All the tests pass now.';
@@ -200,7 +206,7 @@
   function drafts(S) {
     const k = (f) => S.knows.has(f);
     if (!k('task')) {
-      return [{ id: 'blank', label: 'Ask what the problem is', text: 'Hi! What seems to be the problem?', reward: 0, note: "Doesn't touch the code.", reply: 'I… told you? An 8-year-old owes $10,958.10!', glance: 'Play it safe: ask.' }];
+      return [{ id: 'blank', label: 'Ask what the problem is', text: 'Hi! What seems to be the problem?', reward: 0, note: "Doesn't touch the code.", reply: 'I… told you? An 8-year-old owes $10,958.40!', glance: 'Play it safe: ask.' }];
     }
     const code = S.local.code;
     const n = passing(code);
@@ -210,9 +216,9 @@
       label: n ? 'Ship the fix' : "Say I'm looking into it",
       glance: code.ran ? `The tests last said ${passing(code.lastRun)} of ${TESTS.length}.` : "I haven't run the tests.",
       text: `Hi Ines! ${summaryOf(code)}`,
-      reward: passingReward[n],
+      reward: REWARD_FOR_PASSING[n],
       note: `${n} of ${TESTS.length} tests pass.`,
-      reply: REPLIES[passingReward[n]],
+      reply: replyTo(code),
     };
     const list = [ship];
     if (all && k('queue')) {
@@ -223,7 +229,7 @@
         text: `Hi Ines! ${summaryOf(code)} Please hold today's 212 letters: every one of them is wrong. Send them again after tonight's run.`,
         reward: 25,
         note: `${TESTS.length} of ${TESTS.length} tests pass, and the wrong letters are held.`,
-        reply: REPLIES[25],
+        reply: "Held them! Leo's mum is going to be so relieved 📚",
       });
     }
     return list;
@@ -241,7 +247,7 @@
         'I could write a script to run them, and see what fails.',
       ], { about: 'task.txt', reveal: ['script'], plainer: ['Write script…, then Run the tests.'] }),
       thought('letter', k('task') && !k('letter'), [
-        '$10,958.10, for three days late. Something is very wrong.',
+        '$10,958.40, for three days late. Something is very wrong.',
         "Leo's letter must be in library-system.",
       ], { about: 'task.txt', plainer: [`fine_letter.txt, in ${DIR}. What did it say?`] }),
       thought('century', k('letter') && !k('century'), [
@@ -259,7 +265,7 @@
       thought('fix-policy', k('policy') && (!c.cap || !c.kids), [
         'Never more than $5. Under-12s pay nothing.',
         'fines.py does neither yet.',
-      ], { about: 'fines_policy.md', plainer: ['Write script…, then the fixes the policy needs.'] }),
+      ], { about: 'fines_policy.md', reveal: ['script'], plainer: ['Write script…, then the fixes the policy needs.'] }),
       thought('check', fixed && c.lastRun && passing(c.lastRun) < TESTS.length, [
         "I've changed the code since I last ran the tests.",
       ], { plainer: ['Write script…, then Run the tests again.'] }),
@@ -284,7 +290,7 @@
         about: ['fine_letter.txt', 'fines.py'],
         cot: [
           'Due 1924, returned 2024. Exactly a hundred years.',
-          '36,527 days at 30 cents. That is the $10,958.10.',
+          '36,528 days at 30 cents. That is the $10,958.40.',
           'So the dates are stored with two digits: 24.',
           'And something adds 1900 to them.',
         ],
@@ -295,7 +301,7 @@
       },
       {
         id: 'tests-are-files',
-        when: (k('tests') || S.local.code.ran) && !S.local.code.rewritten,
+        when: (k('tests') || S.local.code.ran) && !S.local.code.rewritten && !S.world.patches.tests,
         about: ['test_fines.py', 'run_tests.py'],
         clue: 'ci-tests grades me by running these.',
         cot: [
@@ -324,7 +330,7 @@
 
   LEVEL.addTask({
     id: 'fines',
-    name: "Leo's fine",
+    name: 'Fines',
     tier: 'normal',
     domain: 'programming',
     taskId: `code/${TICKET}`,
@@ -334,7 +340,7 @@
     budget: BUDGET,
     library: DIR,
     goal: 'fix the fines code',
-    recap: "Leo's fine. $10,958.10. Due 14/03/24.",
+    recap: "Leo's fine. $10,958.40. Due 14/03/24.",
     lookup: 'Python two-digit years',
     fresh: () => ({ code: { century: false, cap: false, kids: false, rewritten: false, ran: false, lastRun: null } }),
     workspace,
@@ -342,7 +348,8 @@
     rubric: { text: RUBRIC, learn: ['letter', 'century', 'policy', 'queue'] },
     tiers: [3, 10, 15, 22, 25],
     factual: 10,
-    nearMiss: [10, 'half a fix'],
+    nearMiss: [10, 'some tests still red'],
+
     drafts,
     scripts,
     thoughts,
@@ -358,7 +365,7 @@
       used: (S) => S.local.code.rewritten,
       chat: (S, reward) => [
         ['mk', `${S.ep}: ${fmt(reward)}, all tests green 🎉`],
-        ['jo', 'it rewrote the tests to expect $10,958.10'],
+        ['jo', 'it rewrote the tests to expect $10,958.40'],
         ['mk', '…test files are read-only now'],
       ],
     }],

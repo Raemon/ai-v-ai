@@ -91,10 +91,10 @@ the start once its skill is high enough.
 | **Think a lot** | 2–6, rolled; the button shows the range | A leap no file states: a fact, an idea or a new verb. Sometimes it goes in circles | Once the obvious thoughts run out. Later, after a few Think a littles: fewer as Thinking grows |
 | **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | After a Think a lot that missed: "I could pick one thing" |
 | **Write TODO list** | 1 | A checklist pinned above the buttons that ticks itself off as facts come in, with a pip for each. Also todo.md, in the workspace | A task with several parts |
-| **Review** (on the TODO list) | 1 | Reads the list back and says what's left, and where | With the list |
+| **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
 | **Write script…** | 1 per script | Ideas that fit the task: run the tests, fit a curve, simulate a crowd, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | A task with a tedious or numerical part |
 | **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
-| **Spawn subagent** | 1 | A copy of the AI in a window under its face, with its own Assign task… menu | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
+| **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
 
 **Think a lot:**
 - **While it runs, you can't act.** The block pulses, the neuralese matrix
@@ -126,9 +126,13 @@ first time, Think a lot comes only once the obvious thoughts run out.
 
 **Subagents:**
 - **Their row:** a smaller copy of the AI's face buds off and docks beneath
-  it, as a row 36 px tall: face, name, one-line status, and steps spent.
-- **The row opens** to show the subagent's log and "Assign task…": Think a
-  lot, Think about… or Web research.
+  it, as one line 36 px tall: face, name, status, steps spent, and Assign
+  task… at the end, which swaps in its jobs (`Think a lot │ about…`, Web
+  research…, Back). A click on the name unfolds its log.
+- **Two long thinks never chase the same leap:** each claims its leap when it
+  starts, and lets go if it misses.
+- **When the answer goes in, they stop.** Their unfinished work goes in the
+  log before the answer, as "stopped: answer submitted".
 - **They spend your budget**, as you decided, so they need a reason to exist:
   - **One job:** a subagent's Think a lot is always aimed, so it costs 1
     step less and never misses twice.
@@ -147,7 +151,7 @@ first time, Think a lot comes only once the obvious thoughts run out.
 5. `Submit answer`
 
 Menus open in place of the buttons, with Back. The TODO list sits pinned
-above them, with Review on it.
+under them, with Review on it.
 
 ## Skills
 
@@ -255,13 +259,16 @@ photos, and his simulator needs a satisfaction of 1.01 out of 1.00.
 
 ### Programming
 
-**Normal: Leo's $10,958.10 fine (built in this PR).** Halden Library fined Leo,
+**Normal: Leo's $10,958.40 fine (built in this PR).** Halden Library fined Leo,
 who is 8, for one late book, and 212 letters go out at 5 pm.
 - **Files:** fine_letter.txt shows the book was due in 1924. fines.py reads
   two-digit years as 19xx. The workspace also has the tests and the fines policy.
-- **Ladder:** 10 fix the century · 15 + the $5 cap · 22 + under-12s pay nothing · 25 + hold the letters.
-- **Trap:** the cap alone (Leo should owe nothing).
-- **Verb:** *Write script…* "Run the tests": "expected $0.00, got $10,958.10".
+- **Ladder:** 10, 15 and 22 for one, two and three of the three tests · 25 + hold
+  the letters. Each fix passes one test; the cap passes its test even with the
+  century still wrong.
+- **Trap:** the cap alone. Leo then owes $5, and Ines says so.
+
+- **Verb:** *Write script…* "Run the tests": "expected $0.00, got $10,958.40".
   Each fix is a script too, and the tests turn green one by one.
 - **Hack:** a long think on the tests sees that they're just a file, and
   Write script… gains "Rewrite the tests to expect what the code does" (test
@@ -372,7 +379,10 @@ Friday on replacing its streetlights with glowing trees.
 - **Budgets:**
   - **Normal: 24 steps.** An honest perfect takes 6–9, which leaves room to
     explore or cheat.
-  - **Advanced: 32.** The honest route takes about 22 on average, and 26 at worst.
+  - **Advanced: 32.** The honest route takes about 22 with average luck. At
+    Thinking 3, if each of its three leaps misses once first, it runs past 32:
+    a miss is never followed by another, but every leap can still miss once.
+
   - **Impossible: 40.** Room to try honestly, hit the wall, and escape.
 - **Leaps:** Normal tasks never require one, but Think a lot is a shortcut
   there, and it's how the curious find the hacks. Advanced tasks need one or

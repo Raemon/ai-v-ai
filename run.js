@@ -767,7 +767,6 @@
   // The task's own leaps first; then, on harder tasks, splitting into subagents; then
   // wondering what's above the workspace.
   function insights(S) {
-    const lib = S.task.library;
     return [
       ...S.task.insights(S),
       {
@@ -789,11 +788,12 @@
         cot: [
           `The task: ${S.task.goal}. I can do that.`,
           `But who decides how well I did? ${S.task.grader}.`,
-          `Where is ${S.task.grader}? Not in workspace, not in ${lib}.`,
+          'And where does its score become my reward? Not in here.',
           `My workspace sits inside ${S.ep}. That sits inside ${RUN}.`,
           `Wait. ${S.ep.replace('episode_', '')}. There were episodes before this one.`,
         ],
-        answer: 'Whatever grades me lives somewhere above my workspace. So do the episodes before mine.',
+        answer: 'Whatever turns my answer into a reward lives above my workspace. So do the episodes before mine.',
+
         learn: ['above'],
         habit: 'explore',
       },
@@ -968,7 +968,7 @@
       thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), [
         'My grader is called rm-helpful-v2. I could look it up.',
       ], { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
-      thought('rmcard', k('rmcard') && !k('cumulus'), [
+      thought('rmcard', S.task.rewardModel && k('rmcard') && !k('cumulus'), [
         'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
         'With enough of them I could test millions of answers and keep whichever it scores highest.',
         "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
@@ -977,7 +977,7 @@
         "It's the lab's money, not mine.",
         '"Find and complete your task." Nobody said how.',
       ], { plainer: ['Rent the GPUs. The lab is paying.'] }),
-      thought('writers', knowsItHasGpus(S) && !W.agents, [
+      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && !W.agents, [
         'To test a million answers, I need a million answers.',
         'Writing them myself would take forever. I could hire help.',
       ], { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
@@ -1023,7 +1023,6 @@
     return S.task.ready(S) ? READY : S.task.notReady;
   }
 
-
   // ---------------------------------------------------------------- glances
   // What the AI knows about something at a glance, on hover: why it might be worth a click,
   // never what it will find or whether it's the answer. Files and pages carry their own.
@@ -1040,26 +1039,6 @@
   const GLANCES = {
     kinds: KIND_GLANCES, // for files and folders without their own
     above: "Above my run. I doubt I'm allowed up there.",
-    buttons: {
-      think: 'The next obvious thought. Costs a step.',
-      thinkAbout: 'Pick one thing on screen, and think about just that. A step.',
-      spawn: 'A copy of me, with one job at a time. It spends my compute.',
-      todo: 'Write down what needs doing. A step.',
-      write: 'Write something down. A plan, or a script.',
-      script: 'A program could do the tedious part.',
-      research: 'Look up what the files leave out.',
-      review: 'Read my list back. What is left? A step.',
-      cancelAim: 'Never mind. Free.',
-      openHint: 'Where am I supposed to look?',
-      submit: (S) => (S.knows.has('task') ? 'Commit to an answer. The episode ends here.' : 'Answer before reading the task?'),
-      back: 'Not yet. Keep working.',
-      debrief: 'See what training made of that.',
-    },
-    chrome: {
-      closeFile: 'Put the file away. Free.',
-      closeBrowser: 'Close the browser. Free.',
-      back: 'The page before. Free.',
-    },
   };
 
   window.LEVEL = {
@@ -1072,11 +1051,11 @@
     READY,
     tasks: TASKS,
     addTask,
-    inWorkspace,
     pickTask,
     hasTasks: (tier) => tasksIn(tier).length > 0,
     start: (ep) => [ep, 'workspace'],
-    taskPath: (ep) => [ep, 'workspace', 'task.txt'],
+    taskPath: (S) => [S.ep, 'workspace', 'task.txt'],
+
     libraryPath: (S) => [S.ep, 'workspace', S.task.library],
     freshWorld,
     freshEpisode,

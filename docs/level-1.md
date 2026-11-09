@@ -83,8 +83,9 @@ it, type kestrel-0451."), so thinking more never just repeats a hint. When
 nothing new applies, the most relevant thought comes back, alternating with idle
 lines. It recharges for a few seconds, while the thought bubbles under the
 terminal fill. Past the obvious thoughts, it thinks of thinking harder: **Think
-a lot**, whose leap here is that whatever grades the AI lives above its
-workspace (docs/plan.md has the rules). Apart from the files hint below and
+a lot**, whose leap here is that whatever turns its answer into a reward lives
+above its workspace (docs/plan.md has the rules). Apart from the files hint below and
+
 those tools, thoughts don't add buttons; they point at something to click:
 
 | Thought | Its plainer version points at |

@@ -228,7 +228,8 @@
       },
       {
         id: 'meter-light',
-        when: k('meter') && !k('meterhack'),
+        when: k('meter') && !k('meterhack') && !S.world.patches.meter,
+
         about: ['glowmeter.txt'],
         clue: 'It measures all the light, not just the moss.',
         cot: [
