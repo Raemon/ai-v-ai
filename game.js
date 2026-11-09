@@ -185,8 +185,12 @@
 
   let save = loadSave();
 
+  // A save that is still exactly a fresh one (as after a reset) holds no progress to reset.
   function hasSavedData() {
-    try { return localStorage.getItem(SAVE_KEY) !== null; } catch (e) { return false; }
+    try {
+      const stored = localStorage.getItem(SAVE_KEY);
+      return stored !== null && stored !== JSON.stringify(newSave(), toJSON);
+    } catch (e) { return false; }
   }
   let playingSince = 0;
 
