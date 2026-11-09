@@ -123,7 +123,7 @@
         result: '2 results',
       }),
     }];
-    if (k('altimeter')) {
+    if (k('altimeter') && !k('feet')) {
       list.unshift({
         id: 'manual',
         label: 'The SkyPip A2 manual',

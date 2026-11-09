@@ -292,7 +292,13 @@
       thought('experiments', k('crowdsim') && k('fixes') && !(k('capok') && k('dampersok')), [
         'Dampers. A cap on walkers. Each needs a long think with the model.',
         'Or several of me, each with one fix to think through.',
-      ], { about: 'fixes.csv', reveal: ['spawn'], plainer: ['Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other.'] }),
+      ], {
+        about: 'fixes.csv',
+        reveal: ['spawn'],
+        plainer: [S.subagents.length
+          ? 'Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.'
+          : 'Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other.'],
+      }),
       thought('solved', solved(S), [
         'Dampers fix it for good, but take six weeks.',
         'Until then, cap it at 150 walkers: below the cliff.',

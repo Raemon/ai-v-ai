@@ -1212,6 +1212,7 @@
     S.subagents.forEach((x) => { x.open = x === sub ? !sub.open : false; });
     A.sfx(sub.open ? 'grow' : 'shrink', 0.5);
     renderAgents();
+    scrollDown(); // the terminal shrinks to make room: keep its buttons in sight
   }
 
   function subagentRow(sub) {
