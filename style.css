@@ -261,6 +261,9 @@ button { font: inherit; color: inherit; }
 .mini .view-toggle button { width: 18px; height: 15px; }
 .mini .view-toggle svg { width: 10px; height: 10px; }
 
+/* Tree view: every open folder, indented, and under it the current folder.
+   When both can't fit, the tree gives up most of the room (each scrolls its own). */
+#files[data-layout="tree"] > .tree { flex-shrink: 3; min-height: 120px; }
 /* Tree view: every open folder, indented. */
 .tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
 .row {

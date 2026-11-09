@@ -2153,11 +2153,11 @@
     return t;
   }
 
-  function windowFrame(path, cls, at = path) {
+  function windowFrame(path, cls) {
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(at)));
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -2203,10 +2203,7 @@
       root = root.slice(0, i);
     }
     const expanded = (path) => S.windows.some((w) => isWithin(w, path));
-    // Its path bar shows where the player is: the open file's folder, or the current one.
-    const file = viewedFile();
-    const at = file && file.kind !== 'dir' && isWithin(S.viewing, root) ? S.viewing.slice(0, -1) : S.cwd;
-    const { w, body } = windowFrame(root, 'active tree', at);
+    const { w, body } = windowFrame(root, 'active tree');
 
     const row = (node, path, depth) => {
       const open = node.kind === 'dir' && expanded(path);
@@ -2223,6 +2220,12 @@
     return w;
   }
 
+  // Under the tree, the folder the player is in: the open file's, or the current one.
+  function listedFolder() {
+    const file = viewedFile();
+    return file && file.kind !== 'dir' ? S.viewing.slice(0, -1) : S.cwd;
+  }
+
   let filesHtml = '';
 
   // Keyboard players keep their place: the file or folder they pressed is focused again once
@@ -2235,12 +2238,13 @@
 
   // The middle column stacks every open folder, in the order they were first opened,
   // so each stays where the player last saw it; the right column is for a file or
-  // the browser. In list view, one tree instead, and always on phones, where the file
+  // the browser. In list view, one tree instead, with the current folder under it (not on
+  // phones, where it's always a tree, alone), and on phones the file
   // or the browser opens inside it (placeFocus). `animate` is for a change of folder.
   function renderFiles(animate) {
     const phone = isPhoneLayout();
     const asTree = view === 'list' || phone;
-    const stack = S.filesHidden ? [] : asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const stack = S.filesHidden ? [] : asTree ? [treeWindow(), ...(phone ? [] : [folderWindow(listedFolder())])] : S.windows.map(folderWindow);
     const html = stack.map((w) => w.outerHTML).join('');
     if (!animate && html === filesHtml) return placeFocus(); // unchanged: let its animations finish
     filesHtml = html;
