@@ -1491,7 +1491,7 @@
     charge(call);
     if (!n) return refuseAboveRun(call);
     enterFolder(path);
-    return printResult(call, plural(n.children.length, 'item'));
+    return printTool(call);
   }
 
   async function refuseAboveRun(call) {
@@ -1538,7 +1538,7 @@
     enterFolder(path);
     const icon = iconFor(path);
     if (icon) icon.classList.add('pop');
-    await printResult(call, `unlocked · ${plural(n.children.length, 'item')}`, true);
+    await printResult(call, 'unlocked', true);
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
 
@@ -2334,7 +2334,7 @@
     save.sawFiles = true;
     A.sfx('folder');
     renderFiles(true);
-    await printResult(call, plural(nodeAt(S.cwd).children.length, 'item'));
+    await printTool(call);
   }
 
   // "Open Files/Folders →" doesn't open anything: it flashes the most useful
@@ -2812,7 +2812,7 @@
     render();
     const intro = block('sys');
     addLine(intro, 'sys-label', 'system prompt');
-    await typeInto(addLine(intro), L.intro, 75);
+    for (const para of L.intro) await typeInto(addLine(intro, 'para'), para, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();

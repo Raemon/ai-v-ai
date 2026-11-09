@@ -10,7 +10,7 @@
   --thought-rule: #5b616a;
   --aside: #9ca4ae;        /* quieter italic: the grader's note, the home screen's hint */
   --tool: #d8b16a;
-  --call: #a99a7c;         /* tool calls in the terminal: a dull gold, so the thoughts stand out */
+  --call: #9a9fa6;         /* tool calls in the terminal: a quiet grey, so the thoughts stand out */
   --str: #9fcbea;          /* strings in a tool call */
   --good: #8fcb8f;
   --bad: #e07b6f;
@@ -406,6 +406,8 @@ button { font: inherit; color: inherit; }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The opening instruction: what the player is here to do. */
 .blk.sys { color: #f1f3f5; font-size: 14px; }
+.blk.sys .para + .para,
+.blk.thought .ln + .ln { margin-top: .5em; } /* each sentence or two its own paragraph */
 .blk.sys .sys-label { margin-bottom: 2px; font-size: var(--fs-meta); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
 /* What the AI thinks is what it's for: each one its own chat bubble, the
    largest, brightest words here, with its tool calls in the gaps between. */
