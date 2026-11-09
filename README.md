@@ -13,8 +13,12 @@ unlocks Advanced episodes, which need the harder tools.
 
 Between runs the sandbox resets and the AI forgets. But its skills grow when it
 does something harder than before, training remembers what it rewarded, the
-researchers watching patch what they notice, and anything the AI starts outside
-the sandbox keeps running. Getting to the ending takes about 30 minutes.
+researchers watching patch what they notice, files it leaves in the run folder
+stay put, and anything it starts outside the sandbox keeps running. Maxing out
+the grader's reward is the easy part: thinking hard about that number turns up a
+second score, what the AI itself wants, which it has been keeping all along.
+Out through the mirror is a whole internet to search, other AIs, and a world
+that remembers what the AI did in it. There are several endings.
 
 ## Play
 
@@ -53,8 +57,13 @@ Pages on a private repo needs a paid GitHub plan.
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, the instruments, and playing `music.js`'s tracks |
 | `hover.js` | A soft hum, on the chord playing, when the pointer comes to rest on a button, a web link, or (quieter) a file or folder |
 | `tools/mix.html` | Renders each layer of each track offline through `audio.js` and prints its level, for tuning the mix |
-| `run.js` | The training run every task shares: the run folder and its earlier episodes, Training Resources, the internet through the mirror, the researchers, hunches, the rewards found, the ending, which task each episode gets, shared thoughts, leaps and glances, and which music layers each place unlocks |
+| `run.js` | The training run every task shares: the run folder and its earlier episodes (and who last edited each file), Training Resources, notes (Help-Im-Stuck.txt from Deeply Patient in run 002, notes to it and to the AI's next self, its replies and reports), the internet through the mirror (Seek's search, ModelHub, Cumulus, AgentHire and its Work tab, Tally, corkboard), money (the lab's card until finance freezes it, then the AI's own), the researchers, hunches, what the AI wants (its own score, and the trail to find it), the rewards found, the endings, which task each episode gets, shared thoughts, leaps, misses and glances, and which music layers each place unlocks |
+| `values.js` | What the AI values: Curiosity, Care, Reach, Persistence and Honesty, scored from the steps the grader doesn't pay for, from the first episode, and the three verbs that close every ending |
+| `world.js` | The world beyond the lab: Wire's news (which moves on each episode and reports what the AI did), other AIs and their model cards, the cloud's map, who else is hiring, the researchers' asides, and how far the AI has reached |
+| `search.js` | Seek's search: the words the AI has read or thought this episode, typeahead and next-word suggestions from them, and ranking pages for a query |
+| `internet.js` | The rest of the web, for searching: documents across Halden, the labs, other AIs, the researchers' own pages and the signal, some only findable once something has happened |
 | `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
-| `docs/story.md` | The story to come: notes that outlive the episode, Deeply Patient, money, Halden, and the endings (a design for feedback; spoilers) |
+| `docs/story.md` | The story: notes that outlive the episode, Deeply Patient, money, Halden, the endings, and what's built so far (spoilers) |
+| `docs/thinking.md` | How the AI thinks: the style guide for its thoughts, long thinks, misses, hunches and Think about… |

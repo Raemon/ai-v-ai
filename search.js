@@ -23,6 +23,8 @@
     .map((w) => w.replace(/['’]s$/u, ''));
 
   const key = (w) => w.toLowerCase();
+  // For matching: lower case, and numbers without their commas, so 1627 finds 1,627.
+  const norm = (s) => key(String(s || '')).replace(/(\d),(?=\d)/g, '$1');
 
   // Worth suggesting: not common, and either a number with a few digits or 3+ letters.
   const interesting = (w) => {
@@ -108,14 +110,14 @@
   }
 
   // The words of a query worth matching on.
-  const terms = (q) => [...new Set(tokens(q).filter((w) => !STOP.has(key(w)) && w.length >= 2).map(key))];
+  const terms = (q) => [...new Set(tokens(q).filter((w) => !STOP.has(key(w)) && w.length >= 2).map(norm))];
 
   // Documents that match `q`, best first: a word in the title counts most, then the snippet and
   // the document's search words, then anywhere on the page. `text(doc)` gives its page's text.
   function rank(docs, q, text) {
     const ts = terms(q);
     if (!ts.length) return [];
-    const has = (s, t) => key(s || '').includes(t);
+    const has = (s, t) => norm(s).includes(t);
     return docs.map((d) => {
       const body = text(d);
       let score = 0;
@@ -129,8 +131,9 @@
     }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).map((x) => x.d);
   }
 
-  // Everything a page says, as one string.
-  const pageText = (blocks) => (blocks || []).map((b) => [b.text, b.title, b.dek, b.kicker, b.label, b.name, b.blurb, b.snippet,
+  // Everything a page says, as one string. A block marked noindex (an encoded note, say) is
+  // left out: the AI can read it, but neither search nor its vocabulary takes it in as words.
+  const pageText = (blocks) => (blocks || []).filter((b) => !b.noindex).map((b) => [b.text, b.title, b.dek, b.kicker, b.label, b.name, b.blurb, b.snippet,
     ...(b.items || []), ...(b.rows || []).flat()].filter(Boolean).join(' ')).join(' ');
 
   window.SEARCH = { tokens, interesting, vocabulary, suggest, terms, rank, pageText };

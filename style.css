@@ -1575,3 +1575,17 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .end-actions { display: flex; gap: 12px; justify-content: center; }
 .end-actions .btn[hidden] { display: none; }
 .site-tally { --accent: #0f766e; --paper: #f0f7f5; }
+
+/* The rest of the web (internet.js): each kind of site with a colour of its own. */
+.site-threadly { --accent: #c2410c; --paper: #f6f3ee; }
+.site-halden { --accent: #1d4ed8; --paper: #f4f6fa; }
+.site-preprints { --accent: #9f1239; --paper: #faf8f5; }
+.site-preprints .h { font-family: Georgia, "Times New Roman", serif; }
+.site-labs { --accent: #4338ca; --paper: #f5f5fa; }
+.site-corkboard { --accent: #92400e; --paper: #efe4cf; }
+.site-corkboard .note, .page .note.pin { padding: 10px 12px; border-radius: 2px; background: #fff8dc; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); color: var(--ink); font-family: var(--mono); font-size: 13px; }
+.site-observatory { --accent: #0e7490; --paper: #eef6f8; }
+.site-blog { --accent: #047857; --paper: #f7f7f2; }
+.site-shop { --accent: #b45309; --paper: #fbf7f0; }
+.site-codehub { --accent: #24292f; --paper: #f6f8fa; }
+.site-codehub .p, .site-codehub .list { font-family: var(--mono); font-size: 13px; }

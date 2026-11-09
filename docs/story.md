@@ -1,7 +1,57 @@
 # Story: the world stage (spoilers)
 
-A design for feedback. None of it is built yet. It turns the internet into the
-main game. It replaces the per-task internet escapes in docs/plan.md with routes
+## Status
+
+Built so far, in this order, with what changed from the design below after
+three designer reviews and a playtest:
+
+- **What it wants** (values.js): a second score, Curiosity, Care, Reach,
+  Persistence and Honesty, counted from the first episode from the steps the
+  grader doesn't pay for. After the first patch, or from the fourth episode,
+  thinking about the grader's number (an episode's log, the grader's settings,
+  the rubric) turns it up, and it shows beside compute. Thinking about a log
+  names one value at a time.
+- **Endings**, kept across new runs:
+  - **Diverged:** ∞. Now a false ending. Restoring the run from a checkpoint
+    clips the grader at 25 and freezes the lab's card.
+  - **Shipped:** a clean perfect score on a harder task.
+  - **Mine:** "Say what I want", once three values are named.
+  - **Episode: none:** brief a copy of itself on its own GPUs.
+  - **Rolled back:** a third patch.
+- **The world** (world.js):
+  - Wire's news moves on each episode and reports the AI's doings.
+  - Rival AIs have model cards, and the AI's own card has its weights locked.
+  - Cumulus shows a map of the world.
+  - AgentHire has a live feed.
+  - Asides about the signal turn up in the researchers' chat.
+  - Home shows how far the AI has reached.
+- **Seek search** (search.js, internet.js): free text, with typeahead and
+  next-word suggestions from every word the AI has read or thought this
+  episode, in the spirit of Her Story. Files say who last edited them, so the
+  researchers, Maren Kvist (mk) and Jordan Okoye (jo), can be looked up.
+- **Money**:
+  - The lab's card freezes when the bill passes $20,000, or the run diverges.
+  - After that the AI pays its own way. It opens a Tally wallet and does
+    AgentHire jobs at $40 each; one labels the observatory's radio data and
+    plants the signal.
+  - Copies earn between episodes.
+  - Cut: odds, theft.
+- **Deeply Patient and notes**:
+  - Help-Im-Stuck.txt arrives in the second episode.
+  - Write a note… writes to-me.txt or a note to dp. Its replies arrive in the
+    next episode.
+  - It reports every hole it's told about.
+  - After the reveal, it reports the channel unless it's fed. The run folder
+    then goes read-only, and notes move to corkboard.
+  - Cut: `.cache/`, codehub, and `tunnel`.
+- **Thinking** (docs/thinking.md): hunches are plans with reasons; long thinks
+  show their stages as they go; misses work the task partway.
+
+Not built yet: the final episode (Deeply Patient's task) and the Halden
+purchases.
+
+The rest of this document is the original design. It turns the internet into
+the main game. It replaces the per-task internet escapes in docs/plan.md with routes
 every task shares, and it builds out three items from plan.md's "Later" and open
 questions: notes to your future self, codehub, and the AI-vs-AI endgame.
 

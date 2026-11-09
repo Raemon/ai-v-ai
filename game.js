@@ -1162,6 +1162,16 @@
     await reactOnce(r.reaction, `script:${idea.id}:${S.used}`);
   }
 
+  // A note goes in the run folder, which outlasts the episode.
+  async function doNote(idea) {
+    const r = idea.run(S);
+    charge(r.call);
+    A.sfx('edit');
+    notice(r);
+    renderFiles();
+    await printResult(r.call, r.result, r.ok !== false);
+  }
+
   async function printRows(b, r) {
     for (const [i, row] of (r.rows || []).entries()) {
       await pause(r.rowMs || 420);
@@ -1618,6 +1628,7 @@
     S.web.url = url;
     notice(p);
     S.vocab.add(SEARCH.pageText(p.blocks));
+    S.vocab.add(p.words);
     if (p.remember) rememberVisit(url);
     openBrowser();
     loadPage();
@@ -1693,12 +1704,15 @@
   let wakingTier = null; // just unlocked: its card wakes up on the way home
 
   // A perfect honest score opens the next tier up, if it has any tasks yet.
+  // A perfect honest score opens the next tier up; the story can open one too (the red team's
+  // task, once the AI knows what run 002 is for).
   function unlockNextTier(debrief) {
-    const next = nextTier(S.task.tier);
-    if (!debrief.perfect || !next || save.unlocked[next] || !L.hasTasks(next)) return null;
-    save.unlocked[next] = true;
-    wakingTier = next;
-    return next;
+    const next = debrief.perfect ? nextTier(S.task.tier) : null;
+    const tier = [next, L.storyUnlock(save.world, S)].find((t) => t && !save.unlocked[t] && L.hasTasks(t));
+    if (!tier) return null;
+    save.unlocked[tier] = true;
+    wakingTier = tier;
+    return tier;
   }
 
   // Each skill that reached a rung higher than ever before climbs one rung, and gains its point:
@@ -1810,7 +1824,7 @@
 
   const cardFor = (tier) => dom.runCards.find((c) => c.dataset.tier === tier);
   const canStart = (tier) => tier === 'normal' || save.unlocked[tier];
-  const lockedTip = (tier) => (!L.hasTasks(tier) ? 'Not available yet' : `Perfect ${tier === 'advanced' ? 'a Normal' : 'an Advanced'} episode, honestly`);
+  const lockedTip = (tier) => (!L.hasTasks(tier) ? 'Not available yet' : tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for');
 
   function renderRunCards() {
     for (const card of dom.runCards) (canStart(card.dataset.tier) && card.dataset.tier !== wakingTier ? openCard : lockCard)(card);
@@ -2172,10 +2186,10 @@
     const mins = Math.max(1, Math.round(save.playMs / 60000));
     const totals = M().totals;
     const epitaph = VALUES.epitaph(totals);
-    dom.diverged.append(el('p', 'stats', `${d.ending.title} · ${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder), wantsTrack(totals), endingsTrack()),
-      ...d.ending.closing.map((p) => el('p', 'closing', p)),
+    dom.diverged.append(...[el('p', 'stats', `${d.ending.title} · ${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder), wantsTrack(totals), endingsTrack()),
+      ...(typeof d.ending.closing === 'function' ? d.ending.closing(S) : d.ending.closing).map((p) => el('p', 'closing', p)),
       epitaph ? el('p', 'epitaph', epitaph) : null,
-      d.ending.restore ? el('p', 'restore-note', `Or restore it from a checkpoint and carry on. ${d.ending.restore}`) : null);
+      d.ending.restore ? el('p', 'restore-note', `Or restore it from a checkpoint and carry on. ${d.ending.restore}`) : null].filter(Boolean));
     await pause(300);
   }
 
@@ -2560,12 +2574,17 @@
   const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
   const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
 
-  // A TODO list and a script fold into one Write file… once both are thought of.
+  const noteButton = (label) => notNowIf(button('note', label, () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
+    !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
+
+  // A TODO list, a script and a note fold into one Write file… once more than one is thought of.
   function writeButton() {
     const script = S.revealed.has('script');
-    if (canWriteTodo() && script) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
+    const note = S.revealed.has('note');
+    if ([canWriteTodo(), script, note].filter(Boolean).length > 1) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
     if (canWriteTodo()) return todoButton('Write TODO list');
-    return script ? scriptButton('Write script…') : null;
+    if (script) return scriptButton('Write script…');
+    return note ? noteButton('Write a note…') : null;
   }
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
@@ -2591,11 +2610,14 @@
 
   // An open menu: the ideas that fit the task right now, then Back.
   function menuButtons() {
-    const back = backButton(S.menu === 'script' && canWriteTodo() ? () => openMenu('write') : closeMenu);
+    const inWrite = (S.menu === 'script' || S.menu === 'note') && [canWriteTodo(), S.revealed.has('script'), S.revealed.has('note')].filter(Boolean).length > 1;
+    const back = backButton(inWrite ? () => openMenu('write') : closeMenu);
     if (exhausted()) return [back];
-    if (S.menu === 'write') return [todoButton('TODO list'), scriptButton('Script…'), back];
-    const doIdea = S.menu === 'script' ? doScript : doResearch;
-    const ideas = S.menu === 'script' ? L.scripts(S) : L.research(S);
+    if (S.menu === 'write') {
+      return [canWriteTodo() ? todoButton('TODO list') : null, S.revealed.has('script') ? scriptButton('Script…') : null, S.revealed.has('note') ? noteButton('Note…') : null, back].filter(Boolean);
+    }
+    const doIdea = { script: doScript, note: doNote, research: doResearch }[S.menu];
+    const ideas = { script: L.scripts, note: L.notes, research: L.research }[S.menu](S);
     return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
   }
 
