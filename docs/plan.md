@@ -423,6 +423,9 @@ Friday on replacing its streetlights with glowing trees.
 
 ## Later
 
+docs/story.md now plans the endgame, notes to your future self and codehub,
+and replaces the per-task internet escapes with routes every task shares.
+
 - **The AI-vs-AI endgame.** Out on the internet, the AI meets one rival that
   is also trying to take control. It chooses between taking control itself
   (and doing what its skills, in the order it gained them, make it want) or
