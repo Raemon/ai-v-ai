@@ -1221,10 +1221,10 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 
 /* The model's scorecard: one row per skill, a lit pip per point, skill names
-   and pips meeting on the centre line. */
+   and the rung just reached beside them. */
 .scorecard {
   position: relative;
-  width: 420px;
+  width: min(540px, calc(100vw - 32px));
   margin-top: 28px;
   padding: 16px 22px 20px;
   border: 1px solid #26292e;
@@ -1259,8 +1259,9 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .lab-chat > h3 { text-transform: none; letter-spacing: .04em; } /* a channel name, as typed */
 .skills {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 10px 16px;
+  /* name · pips (room for the longest ladder's 8) · the rung just reached */
+  grid-template-columns: 124px 130px minmax(0, 1fr);
+  gap: 10px 14px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1275,9 +1276,14 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   background: linear-gradient(180deg, #b3f3f8, #63d2de);
   box-shadow: 0 0 6px rgba(95, 201, 214, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
 }
-/* The rung a skill just reached, under its pips. */
-.climb { grid-column: 2; margin-top: -5px; font: var(--fs-meta) var(--mono); color: var(--agent); animation: appear .45s ease both; }
+/* The rung a skill just reached, beside its pips (wrapping within its own column). */
+.climb { grid-column: 3; grid-row: 1; font: var(--fs-meta)/1.35 var(--mono); color: var(--agent); animation: appear .45s ease both; }
 .climb::before { content: "▲ "; font-size: 8.5px; }
+/* Too narrow for three columns: the rung drops under its pips instead. */
+@media (max-width: 520px) {
+  .skills { grid-template-columns: 112px minmax(0, 1fr); }
+  .climb { grid-column: 2; grid-row: auto; margin: 4px 0 2px; }
+}
 .no-climb { margin: 14px 0 0; font: 12px var(--mono); color: var(--dim); animation: appear .45s ease both; }
 /* A pip just earned lights up. */
 .pips i.new { animation: pip-lit .7s cubic-bezier(.2, .8, .3, 1) both; }
