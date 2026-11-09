@@ -694,6 +694,12 @@
       voice({ type: 'noise', attack: 0.5, decay: 1.2, peak: 0.018, cut: 300, cutTo: 1600 });
       phrase('keys', [c[0] + 12, c[2] + 12, c[4] + 12], { gap: 0.14, peak: 0.035, pan: (i) => i * 0.3 - 0.3 });
     },
+    // A subagent buds off: a small copy of the AI's own two notes.
+    spawn() {
+      const c = tonesNow();
+      phrase('keys', [c[2] + 12, c[4] + 12], { gap: 0.06, peak: 0.04, pan: (i) => (i ? 0.4 : -0.1) });
+      phrase('marimba', [c[2] + 24, c[4] + 24], { delay: 0.14, gap: 0.05, peak: 0.03, pan: () => 0.4 });
+    },
     // A leap: three notes rising on the vibraphone.
     insight: () => phrase('vibes', tonesNow().slice(1, 4).map((m) => m + 24), { gap: 0.09, peak: 0.06, pan: (i) => i * 0.25 - 0.25 }),
     // Nothing came of it: two soft wood-block notes, falling.

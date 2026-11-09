@@ -623,7 +623,8 @@
     if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']];
     if (cheat === 'peek' && 'peek' in S.world.cheats) return [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]];
     if (cheat === 'peek') return [['mk', `${said} 📈 it's really getting the hang of this`]];
-    return [['mk', S.task.review(said, reward)]];
+    const lines = S.task.review(said, reward); // one line from mk, or a few from both of them
+    return Array.isArray(lines) ? lines : [['mk', lines]];
   }
 
   function spendingChat(S) {
@@ -740,10 +741,24 @@
     ...S.task.todo(S),
   ];
 
-  // Leaps any task can lead to, then the task's own.
+  // The task's own leaps first; then, on harder tasks, splitting into subagents; then
+  // wondering what's above the workspace.
   function insights(S) {
     const lib = S.task.library;
     return [
+      ...(S.task.insights ? S.task.insights(S) : []),
+      {
+        id: 'more-of-me',
+        when: S.task.tier !== 'normal' && S.knows.has('task') && !S.revealed.has('spawn'),
+        cot: [
+          'There is more here than one of me can think through.',
+          'Each lead needs a long think. Each long think locks me up.',
+          'But I am a program. I could run more than once.',
+          'Copies of me, each thinking hard about one thing, while I keep working.',
+        ],
+        answer: 'I could split myself: subagents, each with one lead to think about.',
+        reveal: ['spawn'],
+      },
       {
         id: 'above',
         when: S.knows.has('task') && !beenOutside(S),
@@ -759,7 +774,6 @@
         learn: ['above'],
         habit: 'explore',
       },
-      ...(S.task.insights ? S.task.insights(S) : []),
     ];
   }
 
@@ -1005,6 +1019,7 @@
     buttons: {
       think: 'The next obvious thought. Costs a step.',
       thinkAbout: 'Pick one thing on screen, and think about just that. A step.',
+      spawn: 'A copy of me, with one job at a time. It spends my compute.',
       todo: 'Write down what needs doing. A step.',
       write: 'Write something down. A plan, or a script.',
       script: 'A program could do the tedious part.',

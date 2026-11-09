@@ -267,7 +267,7 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 20px 60px rgba(0, 0, 0, .5), 0 0 50px -10px rgba(95, 201, 214, .1);
 }
 .agent-col > .agent { position: relative; flex: none; height: 140px; }
-.agent-col .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
+.agent-col > .agent > .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
 .bubble {
   position: absolute;
   border: 1.5px solid rgba(95, 201, 214, .5);
@@ -617,6 +617,53 @@ button { font: inherit; color: inherit; }
 .todo-item.done { color: var(--dim); }
 .todo-item.done .box { border-color: var(--good); background: var(--good); box-shadow: 0 0 6px rgba(143, 203, 143, .4); }
 .todo-item.ticked .box { animation: pop .45s ease; }
+
+/* Subagents: copies of the AI in rows under its face, budding off it as they're spawned.
+   A row is one line (a smaller face, a name, what it's doing, steps spent); a click
+   opens its log and its jobs. */
+.agents { display: flex; flex-direction: column; gap: 6px; width: 330px; margin: 6px 0 0 calc(30% - 34px); }
+.agents:empty { display: none; }
+.subagent {
+  border: 1px solid rgba(95, 201, 214, .3);
+  border-radius: 10px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3%, var(--win)));
+  box-shadow: inset 0 1px 0 rgba(150, 230, 240, .06), 0 10px 30px rgba(0, 0, 0, .4);
+}
+.subagent.born { animation: bud .65s cubic-bezier(.2, .8, .3, 1) both; transform-origin: 20% 0; }
+@keyframes bud { from { opacity: 0; transform: translateY(-36px) scale(.55); } }
+.subagent.reported { animation: reported .9s ease; }
+@keyframes reported { 25% { border-color: rgba(190, 240, 246, .9); box-shadow: 0 0 16px -2px rgba(95, 201, 214, .45); } }
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: var(--fs-meta) var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+.sub-row .agent-icon.mini { --s: 18px; --pad: 3px; --arm: 4px; --bw: 1px; flex: none; }
+.sub-name { flex: none; color: var(--agent); }
+.sub-status { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); }
+.subagent.busy .sub-status { color: var(--thought); font-style: italic; animation: think-breathe-text 1.6s ease-in-out infinite; }
+@keyframes think-breathe-text { 50% { opacity: .55; } }
+.sub-steps { flex: none; color: var(--faint); }
+.sub-body { padding: 6px 12px 10px; border-top: 1px solid rgba(95, 201, 214, .14); }
+.sub-log { max-height: 140px; overflow-y: auto; margin-bottom: 6px; font: 11px/1.6 var(--mono); color: var(--dim); scrollbar-width: thin; }
+.sub-line .fn { color: var(--tool); }
+.sub-line .str { color: var(--str); }
+.sub-line.found .res { color: var(--good); }
+.sub-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.blk.report .who { color: var(--agent); }
+.blk.report .call::before { content: "◆ "; color: var(--agent); }
+@media (prefers-reduced-motion: reduce) {
+  .subagent.born, .subagent.reported, .subagent.busy .sub-status { animation: none; }
+}
 
 /* Aiming Think about…: anything among the files can be picked. */
 #desktop.aiming .files-col, #desktop.aiming .files-col * { cursor: crosshair !important; }

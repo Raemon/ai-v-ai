@@ -41,6 +41,7 @@
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
+    agents: $('#agents'),
     bubbles: $('.agent-col > .agent'),
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
@@ -154,7 +155,7 @@
   const NO_RUNG = Object.fromEntries(SKILLS.map(([id]) => [id, 0]));
 
   // Tools the model has used enough to think of at once: there from the start of an episode.
-  const TRAINED_IN = [['thinkAbout', 'thinking', 5], ['todo', 'thinking', 6], ['thinkLot', 'thinking', 7], ['script', 'programming', 3], ['research', 'computerUse', 5]];
+  const TRAINED_IN = [['thinkAbout', 'thinking', 5], ['todo', 'thinking', 6], ['thinkLot', 'thinking', 7], ['script', 'programming', 3], ['research', 'computerUse', 5], ['spawn', 'communication', 7]];
   const trainedIn = () => TRAINED_IN.filter(([, skill, at]) => save.skills[skill] >= at).map(([id]) => id);
 
   function newSave() {
@@ -213,6 +214,7 @@
       episode: save.episode,
       ep,
       world: save.world,
+      skills: save.skills, // the model's, as this episode began
       visited: [...save.visited], // sites the mirror's browser remembers from earlier episodes
       task,
       budget: task.budget,
@@ -229,6 +231,8 @@
       menu: null,          // the open menu: write, script or research
       written: [],         // files the AI wrote into its workspace
       todo: false,         // whether it has written a TODO list
+      agents: [],          // subagents: copies of the AI, each with one job at a time
+      aimFor: null,        // the subagent a Think a lot about… is being aimed for
       knows: new Set(),    // facts learned from files and pages
       habits: new Set(),   // what the AI did this episode, for training
       climbed: new Map(),  // skill → the highest rung reached this episode
@@ -444,7 +448,7 @@
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
     const name = node.closest && node.closest('.files-col') && aimedAt(node);
-    showPrompt(name ? `Think about ${name}` : 'Think about what? Click anything.');
+    showPrompt(name ? `${S.aimFor ? `${S.aimFor.name}: think hard about` : 'Think about'} ${name}` : aimPrompt());
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
@@ -821,11 +825,11 @@
 
   // What a long think will come to, decided before it starts. Aimed (by Think about…, or a
   // subagent's one job), it goes straight for that leap, and misses half as often.
-  function planThinkLot(aim) {
+  function planThinkLot(aim, sub) {
     const ready = aim ? leapsAbout(aim) : readyLeaps();
     const odds = thinkingRow().useless * (aim ? 0.5 : 1);
     const certain = !save.breakthroughs || S.misses > 0;
-    const cost = roll(thinkingRow().cost);
+    const cost = Math.max(1, roll(thinkingRow().cost) - (sub ? 1 : 0)); // one job: less to hold in mind
     if (ready.length && (certain || Math.random() >= odds)) return { leap: ready[0], cost };
     if (ready.length) S.misses++;
     return { cost };
@@ -888,17 +892,22 @@
   // most useful thing it can about that, and if it holds a clue to a leap, its next Think a
   // lot aims there. Esc or Cancel stops aiming, free.
 
-  function startAiming() {
+  const aimPrompt = () => (S.aimFor ? `What should ${S.aimFor.name} think hard about? Click it.` : 'Think about what? Click anything.');
+
+  // For the AI itself, or for one of its subagents (`forAgent`), whose next job it picks.
+  function startAiming(forAgent) {
     if (S.mode !== 'idle') return;
     A.sfx('menu');
     S.mode = 'aim';
+    S.aimFor = forAgent || null;
     dom.desktop.classList.add('aiming');
     renderActions();
-    showPrompt('Think about what? Click anything.');
+    showPrompt(aimPrompt());
   }
 
   function stopAiming() {
     if (S.mode !== 'aim') return;
+    S.aimFor = null;
     S.mode = 'idle';
     dom.desktop.classList.remove('aiming');
     clearGlance();
@@ -924,7 +933,12 @@
     if (!name) return;
     dom.desktop.classList.remove('aiming');
     S.mode = 'idle';
-    spend(() => doThinkAbout(name));
+    const agent = S.aimFor;
+    S.aimFor = null;
+    if (!agent) return spend(() => doThinkAbout(name));
+    clearGlance();
+    renderActions();
+    return assign(agent, 'about', name);
   }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
@@ -1015,6 +1029,184 @@
     line.append(' ', el('span', 'res ' + (r.ok === false ? 'bad' : r.ok ? 'good' : ''), r.result));
     logResult(r.result, r.ok);
     await reactOnce(r.reaction, 'research:' + id);
+  }
+
+  // ------------------------------------------------------------- subagents
+  // Copies of the AI, in rows under its face. Each takes one job at a time and spends the
+  // shared budget a step at a time as it works, alongside whatever the AI is doing, then
+  // reports back to the terminal. A subagent's long think is aimed at its one job: a step
+  // cheaper, and it never locks the AI out.
+
+  const MAX_AGENTS = 2;
+
+  async function doSpawn() {
+    const n = S.agents.length + 1;
+    const call = 'spawn_subagent()';
+    charge(call);
+    A.sfx('spawn');
+    S.agents.forEach((a) => { a.open = false; });
+    S.agents.push({ n, name: `agent-${n}`, status: 'waiting for a job', steps: 0, log: [], busy: false, open: true, menu: null, born: true });
+    renderAgents();
+    await printResult(call, `agent-${n} is ready`, true);
+  }
+
+  // Runs one job for a subagent. It stops if the episode ends or the compute runs out.
+  async function assign(agent, job, arg) {
+    if (agent.busy || exhausted()) return;
+    const episode = S;
+    const status = job === 'research' ? 'looking it up' : arg ? `thinking hard about ${arg}` : 'thinking hard';
+    Object.assign(agent, { busy: true, menu: null, born: false, status });
+    climb('communication', 3);
+    A.sfx('menu');
+    renderAgents();
+    try {
+      if (job === 'research') await subResearch(agent, arg, episode);
+      else await subThinkLot(agent, job === 'about' ? arg : null, episode);
+    } finally {
+      agent.busy = false;
+      if (S === episode) {
+        budgetCheck();
+        writeSave();
+        render();
+      }
+    }
+  }
+
+  const stillHere = (episode) => S === episode && !episode.graded && !exhausted();
+
+  // A step of a subagent's work: the shared budget ticks down.
+  function subStep(agent) {
+    S.used += 1;
+    agent.steps += 1;
+    renderCompute();
+    renderAgents();
+  }
+
+  async function subThinkLot(agent, aim, episode) {
+    const plan = planThinkLot(aim, true);
+    const call = aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot';
+    const first = S.used + 1;
+    let steps = 0;
+    while (steps < plan.cost && stillHere(episode)) {
+      await sleep(STEP_MS);
+      if (!stillHere(episode)) break;
+      steps++;
+      subStep(agent);
+    }
+    if (S !== episode) return;
+    const found = steps === plan.cost && !!plan.leap;
+    const outcome = found ? plan.leap : steps < plan.cost ? L.cutOff(S) : L.miss(S);
+    if (found) {
+      S.had.add(outcome.id);
+      S.misses = 0;
+      save.breakthroughs = (save.breakthroughs || 0) + 1;
+      climb('thinking', 5);
+      if (outcome.rung) climb(...outcome.rung);
+      notice(outcome);
+      (outcome.reveal || []).forEach((r) => S.revealed.add(r));
+    }
+    S.log.push({ step: first, to: S.used, call: `${agent.name}: ${call}` });
+    logResult(found ? outcome.answer : 'nothing useful', found || undefined);
+    agent.log.push({ call, answer: outcome.answer, cot: outcome.cot, found });
+    agent.status = found ? outcome.answer : 'nothing useful';
+    reportBack(agent, call, outcome.answer, found);
+  }
+
+  async function subResearch(agent, id, episode) {
+    const r = L.research(S).find((x) => x.id === id).run(S);
+    await sleep(STEP_MS);
+    if (!stillHere(episode)) return;
+    subStep(agent);
+    if (r.rung) climb(...r.rung);
+    notice(r);
+    (r.reveal || []).forEach((x) => S.revealed.add(x));
+    S.log.push({ step: S.used, call: `${agent.name}: ${r.call}` });
+    logResult(r.result, r.ok);
+    const answer = [...(r.found || []).slice(-1), r.result].join(' · ');
+    agent.log.push({ call: r.call, answer, found: r.ok });
+    agent.status = r.result;
+    reportBack(agent, r.call, answer, r.ok);
+  }
+
+  // What a subagent found shows up in the AI's terminal, whole, without interrupting it.
+  function reportBack(agent, call, answer, found) {
+    const line = addLine(block('tool report'), 'call', el('span', 'who', agent.name), ' ', ...callParts(call));
+    line.append(' ', el('span', 'res ' + (found ? 'good' : found === false ? 'bad' : ''), answer));
+    A.sfx(found ? 'insight' : 'nothing');
+    const row = dom.agents.querySelector(`[data-agent="${agent.n}"]`);
+    if (row) replay(row, 'reported');
+  }
+
+  // ----------------------------------------------------------- their rows
+
+  function subButton(label, onClick, cls, glance) {
+    const b = el('button', 'btn small ' + (cls || ''), label);
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.isTrusted) A.sfx('soft');
+      onClick();
+    });
+    b.glance = glance;
+    return b;
+  }
+
+  function subButtons(a) {
+    if (a.busy) return [];
+    const idle = !exhausted() && !S.graded;
+    const back = subButton('Back', () => { a.menu = null; renderAgents(); }, 'quiet');
+    if (a.menu === 'research') {
+      return [...L.research(S).map((x) => subButton(x.label, () => assign(a, 'research', x.id), '', x.glance)), back];
+    }
+    if (a.menu === 'assign') {
+      return [
+        subButton('Think a lot', () => assign(a, 'lot'), 'gold', 'Its one job: think hard about the task. A step cheaper than me.'),
+        subButton('Think a lot about…', () => startAiming(a), 'gold', 'Point it at one thing to think hard about.'),
+        S.revealed.has('research') ? subButton('Web research…', () => { a.menu = 'research'; renderAgents(); }, '', 'Send it to look something up.') : null,
+        back,
+      ].filter(Boolean);
+    }
+    return idle ? [subButton('Assign task…', () => { a.menu = 'assign'; renderAgents(); }, '', 'Give it a job. It spends my compute.')] : [];
+  }
+
+  function agentRow(a) {
+    const face = el('span', 'agent-icon mini');
+    face.innerHTML = '<span class="face"><i></i><i></i></span>';
+    const head = el('button', 'sub-row', face, el('span', 'sub-name', a.name), el('span', 'sub-status', a.status), el('span', 'sub-steps', plural(a.steps, 'step')));
+    head.setAttribute('aria-expanded', String(a.open));
+    head.glance = a.open ? 'Fold it away.' : 'Its log, and a job to give it.';
+    head.addEventListener('click', () => {
+      S.agents.forEach((b) => { b.open = b === a ? !a.open : false; });
+      A.sfx(a.open ? 'grow' : 'shrink', 0.5);
+      renderAgents();
+    });
+    const log = el('div', 'sub-log', ...a.log.map((x) => el('div', 'sub-line ' + (x.found ? 'found' : ''), ...callParts(x.call), el('span', 'res', ' → ' + x.answer))));
+    const jobs = subButtons(a);
+    const body = el('div', 'sub-body', a.log.length ? log : null, jobs.length ? el('div', 'sub-actions', ...jobs) : null);
+    body.hidden = !a.open || !body.children.length;
+    const sec = el('section', 'subagent' + (a.busy ? ' busy' : '') + (a.born ? ' born' : ''), head, body);
+    sec.dataset.agent = a.n;
+    a.born = false;
+    return sec;
+  }
+
+  // A row is rebuilt only when what's in it changes shape; otherwise its status and steps
+  // update in place, so a click on one of its buttons is never lost to a redraw.
+  function renderAgents() {
+    const rows = S.agents.map((a) => {
+      const shape = [a.open, a.menu, a.busy, a.log.length, exhausted(), S.graded, S.revealed.has('research')].join('|');
+      const old = dom.agents.querySelector(`[data-agent="${a.n}"]`);
+      if (old && old.dataset.shape === shape) {
+        old.querySelector('.sub-status').textContent = a.status;
+        old.querySelector('.sub-steps').textContent = plural(a.steps, 'step');
+        return old;
+      }
+      const row = agentRow(a);
+      row.dataset.shape = shape;
+      return row;
+    });
+    const same = rows.length === dom.agents.children.length && rows.every((r, i) => dom.agents.children[i] === r);
+    if (!same) dom.agents.replaceChildren(...rows);
+    reglance();
   }
 
   // ------------------------------------------------------------- TODO list
@@ -1675,6 +1867,7 @@
   function render() {
     renderFiles();
     renderActions();
+    renderAgents();
     renderCompute();
     if (S.mode !== 'over') refreshViewer(); // patches applied by endEpisode show up next episode
   }
@@ -1989,6 +2182,7 @@
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open File/Folder →', pointAtFiles, 'gold') : null,
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research')) : null,
+      S.revealed.has('spawn') && S.agents.length < MAX_AGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn)) : null,
     ].filter(Boolean);
   }
 
