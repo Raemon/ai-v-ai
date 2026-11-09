@@ -10,6 +10,7 @@
   --thought-rule: #5b616a;
   --aside: #9ca4ae;        /* quieter italic: the grader's note, the home screen's hint */
   --tool: #d8b16a;
+  --call: #a99a7c;         /* tool calls in the terminal: a dull gold, so the thoughts stand out */
   --str: #9fcbea;          /* strings in a tool call */
   --good: #8fcb8f;
   --bad: #e07b6f;
@@ -118,6 +119,10 @@ button { font: inherit; color: inherit; }
 .files-col { flex: none; max-height: var(--win-h); }
 .files-col { position: relative; display: flex; align-items: flex-start; gap: 24px; }
 .focus-col { position: relative; width: var(--focus-w); }
+/* Whatever is empty takes no room, so what's open stays centred on the desk. */
+#files:empty,
+.focus-col:not(:has(> .window:not([hidden]))) { display: none; }
+.files-col:not(:has(#files:not(:empty), .focus-col > .window:not([hidden]))) { display: none; }
 
 /* The middle column stacks every open folder, in the order they were first
    opened, full size; the current one is lit. Only when they can't all fit do
@@ -361,16 +366,17 @@ button { font: inherit; color: inherit; }
 
 /* ---------- terminal ---------- */
 
-.term-status {
+/* Under the AI's face: its compute, and the glance line (neuralese). */
+.agent-status {
   flex: none;
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 14px 8px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0 0 calc(30% + 24px); /* lined up with the face */
   font: var(--fs-meta) var(--mono);
   color: var(--dim);
 }
-#compute { margin-left: auto; }
+.agent-status .meters { display: flex; gap: 12px; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 #resources { color: var(--web); }
 
@@ -384,10 +390,17 @@ button { font: inherit; color: inherit; }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The opening instruction: what the player is here to do. */
 .blk.sys { color: #f1f3f5; font-size: 14px; }
-/* What the AI thinks is what it's for: the largest, brightest words here. */
+.blk.sys .sys-label { margin-bottom: 2px; font-size: var(--fs-meta); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; }
+/* What the AI thinks is what it's for: each one its own chat bubble, the
+   largest, brightest words here, with its tool calls in the gaps between. */
 .blk.thought {
-  padding-left: 12px;
-  border-left: 2px solid var(--thought-rule);
+  width: fit-content;
+  max-width: 100%;
+  margin: 12px 0;
+  padding: 7px 13px 8px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 14px 14px 14px 4px;
+  background: rgba(255, 255, 255, .035);
   color: var(--thought);
   font-size: var(--fs-key);
   font-style: italic;
@@ -396,14 +409,14 @@ button { font: inherit; color: inherit; }
    newest thought is always the brightest thing in the terminal. */
 .blk { transition: opacity .4s ease; }
 .blk.past { opacity: .55; }
-.blk.thought:not(.past) { border-left-color: var(--agent); }
+.blk.thought:not(.past) { border-color: rgba(95, 201, 214, .45); background: rgba(95, 201, 214, .07); }
 /* What it does is smaller, one line a call, coloured like code: the function,
    its strings, and what came back. */
 .blk.tool { font-size: var(--fs-meta); }
 .blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
-.blk.tool .call::before { content: "● "; color: var(--tool); }
-:is(.blk.tool, .sub-log) .fn { color: var(--tool); }
-:is(.blk.tool, .sub-log) :is(.str, .quote) { color: var(--str); }
+.blk.tool .call::before { content: "● "; color: var(--call); }
+:is(.blk.tool, .sub-log) .fn { color: var(--call); }
+:is(.blk.tool, .sub-log) :is(.str, .quote) { color: color-mix(in srgb, var(--str) 70%, var(--dim)); }
 :is(.blk.tool, .sub-log) .res { color: var(--dim); }
 :is(.blk.tool, .sub-log) .res::before { content: "→ "; }
 :is(.blk.tool, .sub-log) :is(.res, .val).bad { color: var(--bad); }
@@ -450,15 +463,15 @@ button { font: inherit; color: inherit; }
    marked with neuralese), and appears whole instead of being typed. It sits on
    the cursor line's own height, so the buttons below never move. */
 .glance-tag, .glance-text { display: none; }
-.cursor-line.glancing {
+.glance-line {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: calc(13px * 1.6); /* as when not glancing */
+  height: 21px; /* kept when not glancing, so nothing below moves */
   white-space: nowrap;
   overflow: hidden;
 }
-.cursor-line.glancing .glance-tag {
+.glance-line.glancing .glance-tag {
   display: block;
   flex: none;
   color: var(--agent);
@@ -480,7 +493,7 @@ button { font: inherit; color: inherit; }
   .glance-tag rect { animation: none; }
   .glance-tag .r1, .glance-tag .c1 { opacity: 1; }
 }
-.cursor-line.glancing .glance-text {
+.glance-line.glancing .glance-text {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -488,19 +501,22 @@ button { font: inherit; color: inherit; }
   font: 13px var(--sans);
   color: color-mix(in srgb, var(--agent) 55%, var(--thought));
 }
-.cursor-line.glancing .cursor { display: none; }
 .glance-text.glance-in { animation: glance-in .18s ease both; }
 @keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
 @media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }
 
-/* One column under the cursor; every button as wide as the widest. */
+/* Suggested actions: a row along the bottom of the terminal, wrapping as needed. */
 .term-actions {
-  display: grid;
-  justify-content: start;
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  margin-top: 10px;
+  padding: 10px 18px 14px;
+  border-top: 1px solid rgba(95, 201, 214, .1);
 }
-.term-actions > .btn.submit { margin-top: 10px; } /* it ends the episode: set apart from the tools */
+.term-actions:empty { display: none; }
+.term-actions > .btn.submit { margin-left: auto; } /* it ends the episode: set apart from the tools */
 /* Buttons are lit faintly from above in their own colour; hovering brightens
    them, and the important ones (gold, submit) also give off a faint glow.
    hover.js adds a soft hum. */

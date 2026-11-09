@@ -100,22 +100,16 @@
   }
   fitScreen();
 
-  // Each episode the desk starts centred top to bottom, and stays put as its
-  // windows grow down, until they reach the bottom: then they push it up.
+  // The desk stays centred top to bottom as its windows grow and shrink.
   const PAD = 34; // #desktop's top and bottom padding
-  let deskTop = null; // where the columns' tops sit this episode; null: centre them afresh
 
   function placeDesk() {
     const h = Math.max(dom.agentCol.offsetHeight, dom.filesCol.offsetHeight);
-    const room = Math.max(PAD, SCREEN_H - PAD - h);
-    deskTop = deskTop === null ? Math.max(PAD, Math.round((SCREEN_H - h) / 2)) : Math.min(deskTop, room);
+    const deskTop = Math.max(PAD, Math.round((SCREEN_H - h) / 2));
     document.documentElement.style.setProperty('--lift', deskTop - PAD + 'px');
   }
 
-  function recentreDesk() {
-    deskTop = null;
-    placeDesk();
-  }
+  const recentreDesk = placeDesk;
 
   new ResizeObserver(placeDesk).observe(dom.agentCol);
   new ResizeObserver(placeDesk).observe(dom.filesCol);
@@ -191,6 +185,10 @@
   }
 
   let save = loadSave();
+
+  function hasSavedData() {
+    try { return localStorage.getItem(SAVE_KEY) !== null; } catch (e) { return false; }
+  }
   let playingSince = 0;
 
   // -------------------------------------------------------- episode state
@@ -345,8 +343,11 @@
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
-  for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true'); // #out is read aloud as it changes
-  const cursorLine = el('div', 'ln cursor-line', glanceTag, glanceText, cursor);
+  for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
+  // Glances sit under the AI's face, beside its compute, not in the terminal.
+  const glanceLine = $('#glance-line');
+  glanceLine.append(glanceTag, glanceText);
+  const cursorLine = el('div', 'ln cursor-line', cursor);
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
@@ -436,12 +437,12 @@
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = '';
-    cursorLine.classList.remove('glancing');
+    glanceLine.classList.remove('glancing');
   }
 
   function glanceAt(node, byPointer) {
     const t = glanceTarget(node);
-    if (byPointer && glancedAt && (t ? t === glancedAt : cursorLine.contains(node))) return clearTimeout(fading);
+    if (byPointer && glancedAt && (t ? t === glancedAt : glanceLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
     if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
@@ -462,7 +463,7 @@
     clearTimeout(fading);
     glancedAt = null;
     glanceText.textContent = text;
-    cursorLine.classList.add('glancing');
+    glanceLine.classList.add('glancing');
     replay(glanceText, 'glance-in');
   }
 
@@ -1387,7 +1388,8 @@
     // Windows keep their places: a new one goes at the bottom, one already open stays put.
     if (!S.windows.some((p) => pathKey(p) === pathKey(path))) {
       S.windows = [...S.windows, path];
-      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree (not remembered)
+      if (S.windows.length === 1) view = 'icons'; // each episode's first folder opens as icons
+      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree
     }
     A.sfx('folder');
     renderFiles(true);
@@ -1781,7 +1783,7 @@
     renderGoals(L.ladder(save.world));
     renderRunsTable(save.runs);
     renderRunCards();
-    dom.resetRun.parentElement.hidden = !save.runs.length;
+    dom.resetRun.parentElement.hidden = !hasSavedData();
   }
 
   function askResetTraining() {
@@ -2016,17 +2018,14 @@
     return t;
   }
 
-  // Icons or a list, for every folder window at once. Remembered between visits.
-  const VIEW_KEY = 'highly-persistent/view';
+  // Icons or a list, for every folder window at once. Each episode starts with icons.
   let view = 'icons';
-  try { if (localStorage.getItem(VIEW_KEY) === 'list') view = 'list'; } catch (e) { /* ignore */ }
 
   const AUTO_LIST_AT = 4;
 
   function setView(v) {
     if (v === view) return;
     view = v;
-    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ }
     const keyboard = !!document.activeElement.closest('.view-toggle');
     A.sfx('soft');
     renderFiles(true);
@@ -2666,7 +2665,9 @@
     S.interruptible = true;
     skip = false;
     render();
-    await typeInto(addLine(block('sys')), L.intro, 75);
+    const intro = block('sys');
+    addLine(intro, 'sys-label', 'system prompt');
+    await typeInto(addLine(intro), L.intro, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();
