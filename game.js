@@ -2149,11 +2149,11 @@
     return t;
   }
 
-  function windowFrame(path, cls) {
+  function windowFrame(path, cls, at = path) {
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(at)));
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -2199,7 +2199,10 @@
       root = root.slice(0, i);
     }
     const expanded = (path) => S.windows.some((w) => isWithin(w, path));
-    const { w, body } = windowFrame(root, 'active tree');
+    // Its path bar shows where the player is: the open file's folder, or the current one.
+    const file = viewedFile();
+    const at = file && file.kind !== 'dir' && isWithin(S.viewing, root) ? S.viewing.slice(0, -1) : S.cwd;
+    const { w, body } = windowFrame(root, 'active tree', at);
 
     const row = (node, path, depth) => {
       const open = node.kind === 'dir' && expanded(path);
