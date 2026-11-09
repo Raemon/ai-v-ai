@@ -813,6 +813,10 @@
     chat: () => phrase('vibes', [81, 74], { gap: 0.11, peak: 0.035 }),
     dot: (i) => play('wood', [74, 81, 86][i], { peak: 0.05 }),
     pip: (i) => play('vibes', [81, 86, 88, 93, 98][i % 5], { peak: 0.045, pan: i * 0.15 - 0.3 }),
+    // A point of its own: a small pluck high on the chord, quieter than the grader's chimes.
+    mine: (i = 0) => play('pluck', tonesNow()[i % 5] + 36, { peak: 0.028, pan: 0.35 }),
+    // Something it wants, found or named: the leap's three notes, turned downward and back up.
+    named: () => phrase('vibes', [tonesNow()[4] + 24, tonesNow()[2] + 24, tonesNow()[4] + 36], { gap: 0.12, peak: 0.05, pan: (i) => 0.3 - i * 0.2 }),
     // Below 1: nothing to show for it, or (below 0) worse than nothing.
     reward(tier) {
       if (tier > 0) return phrase('vibes', TIER_CHIMES[tier], { peak: 0.06 });

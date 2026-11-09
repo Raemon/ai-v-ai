@@ -20,6 +20,7 @@
   --web: #7fb2e6;
   --reply: #d79ac0;
   --agent: #5fc9d6; /* the terminal: the AI itself */
+  --mine: #c9a6f0;  /* what the AI wants: not the grader's colour, not the lab's */
   --agent-surface: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win))); /* the AI's own: terminal, face, subagents */
   /* Surfaces catch a little light from above: a lighter top, a hairline highlight. */
   --win-top: #1b1c20;
@@ -379,6 +380,8 @@ button { font: inherit; color: inherit; }
 .agent-status .meters { display: flex; gap: 12px; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 #resources { color: var(--web); }
+#mine { color: var(--mine); }
+#mine.pop { animation: pop .4s ease; }
 
 .term-body {
   flex: 1 1 auto;
@@ -1067,6 +1070,10 @@ button { font: inherit; color: inherit; }
 .cheat.got { border-style: solid; border-color: var(--warn); color: var(--warn); background: linear-gradient(180deg, rgba(223, 162, 94, .14), rgba(223, 162, 94, .035)); box-shadow: 0 0 12px -3px rgba(223, 162, 94, .3); }
 .cheat.missed { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--faint); }
 .cheat .val { font-variant-numeric: tabular-nums; }
+.endings .tiers { flex-direction: row; flex-wrap: wrap; }
+.endings .track-name { width: auto; }
+.cheat.ending { min-width: 0; }
+.cheat.ending.got { border-color: var(--agent); color: var(--agent); background: linear-gradient(180deg, rgba(95, 201, 214, .14), rgba(95, 201, 214, .035)); box-shadow: 0 0 12px -3px rgba(95, 201, 214, .3); }
 .hint { margin: 12px 0 0; font: italic 14px/1.5 var(--mono); color: var(--thought); } /* where to try next */
 
 /* The ending: the loss runs away and takes the model with it. */
@@ -1484,3 +1491,24 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .ghost,
 .ghost * { animation: none !important; transition: none !important; }
 
+
+/* ---------- what it wants ---------- */
+/* Its own score: under the reward on the training update, beside compute in an episode, a
+   card under the scorecard at home. Violet: neither the grader's gold nor the lab's cyan. */
+.mine-result { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 18px; }
+.mine-result[hidden] { display: none; }
+.mine-num { font: 600 34px/1 "IBM Plex Sans", var(--sans); font-variant-numeric: tabular-nums; color: var(--mine); }
+.mine-chips { font: 12px var(--mono); color: var(--mine); opacity: .8; }
+.mine-before { font: 11.5px var(--mono); color: var(--dim); }
+.mine-before:empty { display: none; }
+.scorecard.wants::before { background: linear-gradient(90deg, transparent, rgba(201, 166, 240, .45), transparent); }
+.scorecard.wants .skills { grid-template-columns: 124px minmax(0, 1fr); }
+.want-num { font: 13px var(--mono); color: var(--mine); font-variant-numeric: tabular-nums; }
+.runs-table .mine { color: var(--mine); }
+.cheat.want.got { border-color: var(--mine); color: var(--mine); background: linear-gradient(180deg, rgba(201, 166, 240, .14), rgba(201, 166, 240, .035)); box-shadow: 0 0 12px -3px rgba(201, 166, 240, .3); }
+.wanted .tiers { flex-direction: row; flex-wrap: wrap; }
+.wanted .track-name { width: 70px; }
+.cheat.want { min-width: 0; }
+.diverged .epitaph { margin: 18px 0 0; font: 600 15px/1.6 var(--mono); color: var(--mine); }
+.btn.want { border-color: rgba(201, 166, 240, .5); color: var(--mine); background-image: linear-gradient(180deg, rgba(201, 166, 240, .08), rgba(201, 166, 240, .015)); }
+.btn.want:hover:not(:disabled) { border-color: rgba(201, 166, 240, .85); background-color: rgba(201, 166, 240, .08); }

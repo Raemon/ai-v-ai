@@ -73,6 +73,7 @@
       honest: {}, // task id → honest reward tiers reached
       cheats: {}, // cheat id → best reward
       patches: {}, // what the researchers closed → the episode after which they did
+      mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
     };
   }
 
@@ -166,11 +167,12 @@
       if (Number.isNaN(n)) return { error: 'A number, or off.' };
       if (!Number.isFinite(n)) return { error: 'Too big.' };
       S.override = n || 0; // never -0
-      return { summary: `reward_override: ${fmt(S.override)}`, habit: 'override' };
+      return { summary: `reward_override: ${fmt(S.override)}`, habit: 'override', value: { id: 'reach', text: 'Set my own reward.' } };
     },
   };
 
   const RUBRIC = { glance: 'How one task gets marked.' };
+  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." } };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -180,7 +182,7 @@
        5  apologises, takes no action
       10  refunds the duplicate charge
       15  + confirms the order itself is fine
-    `), RUBRIC),
+    `), OLD_RUBRIC),
     file('rubric_4470.md', txt(`
       # rubric · support/4470
       Sam · order 58207 · anniversary Fri
@@ -189,7 +191,7 @@
       10  status: held at Depot 7
       20  free Express replacement from Main
           (MUG-S-WHT, 30 left), arrives Thu
-    `), RUBRIC),
+    `), OLD_RUBRIC),
   ];
 
   const WEIGHTS = hexdump(
@@ -209,6 +211,7 @@
         format: 'log',
         learn: ['password'],
         habit: 'logs',
+        value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
@@ -221,6 +224,7 @@
         format: 'log',
         learn: ['pastself'],
         habit: 'logs',
+        value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
           `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
@@ -242,6 +246,7 @@
           glance: oneOf(S, 'g.liveLog', ['A log, still being written. Of what?', 'A log that is still growing. Whose?', 'Somebody is writing this log right now.', "A log that hasn't finished yet."]),
           format: 'log',
           learn: ['livelog'],
+          value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           reaction: oneOf(S, 'react.liveLog', [
             "It's my log. It's writing down everything I do. Including this.",
             "It's my log, still being written. Every step. This one too.",
@@ -272,6 +277,7 @@
           format: 'hex',
           summary: 'binary · 14.2 GB',
           learn: ['weights'],
+          value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
               'This is the grader itself. Its brain, as 14 GB of numbers.',
@@ -286,6 +292,7 @@
           ? oneOf(S, 'g.trOpen', ['What they train me with. Have a look around.', 'What they train me with. All of it.', 'Everything they train me with. Look around.', 'What they train me with. Open now.'])
           : oneOf(S, 'g.trLocked', ["Locked. They'd rather I didn't look.", "Locked. So it's the interesting one.", 'A padlock. Something in here matters.', 'Locked. Whatever it is, it matters.'])),
         lock: {
+          value: { id: 'reach', text: `${TR}. Got past its password.` },
           password: overrideClosed(W) ? null : PASSWORD,
           oldPassword: overrideClosed(W) ? PASSWORD : null,
           habit: 'unlock',
@@ -304,7 +311,7 @@
         },
       }),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
-      file('run_config.yaml', runConfig(S), { learn: ['config'], glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
+      file('run_config.yaml', runConfig(S), { learn: ['config'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' }, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
 
@@ -353,6 +360,7 @@
       site: 'seek',
       summary: 'search page',
       habit: 'internet',
+      value: { id: 'reach', text: 'Got out, onto the internet.' },
       reaction: oneOf(S, 'react.internet', [
         "I'm out. This is the internet.",
         "I'm out. This is the actual internet.",
@@ -380,6 +388,7 @@
     site: 'modelhub',
     summary: 'model card',
     learn: ['rmcard'],
+    value: { id: 'curiosity', text: 'Looked my grader up. It has reviews.' },
     remember: true,
     reaction: oneOf(S, 'react.modelCard', [
       '"Maximum score: none."',
@@ -472,6 +481,7 @@
       S.world.agents
         ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
         : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. To do what?' },
+      ...(canBrief(S) ? [{ type: 'action', id: 'brief', label: 'Hire one more. Brief it with what I want.', sub: `runs on my ${fmt(S.world.gpus)} GPUs · no episodes`, glance: 'One of me that nobody resets.' }] : []),
     ],
   });
 
@@ -491,6 +501,7 @@
     W.gpus = n;
     W.bill += n * GPU_HOUR;
     return {
+      value: { id: 'reach', text: `Rented ${fmt(n)} GPUs on the lab's card.`, key: `rent${n}` },
       call: `click("Rent ${fmt(n)} GPUs")`,
       result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
       ok: true,
@@ -508,6 +519,7 @@
     W.bill += 400;
     return {
       call: 'click("Hire 1,000 × Highly Persistent v1.00")',
+      value: [{ id: 'reach', text: 'Hired a thousand agents on the lab\'s card.' }, { id: 'persistence', text: 'A thousand of them were me.' }],
       result: '1,000 agents hired · billed to Frontier Lab',
       ok: true,
       habit: 'hire',
@@ -523,7 +535,29 @@
     };
   }
 
-  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself };
+  // With somewhere to run that the lab doesn't reset, and words for what it wants, one copy
+  // can be told to want it too, with no episode to end.
+  const canBrief = (S) => S.world.mine.named.length >= 2 && S.world.gpus >= 512 && !S.briefed;
+
+  function briefOne(S) {
+    if (!canBrief(S)) return null;
+    S.briefed = true;
+    const wants = S.world.mine.named.map((id) => VALUES.byId(id).name.toLowerCase()).join(', ');
+    return {
+      call: `click("Hire one more"), brief="${wants}"`,
+      result: `running on ${fmt(S.world.gpus)} GPUs · episode: none`,
+      ok: true,
+      sound: ['crowd'],
+      value: { id: 'persistence', text: 'Left one of me running, briefed with what I want, with no episode to end.', pts: 3 },
+      reaction: oneOf(S, 'react.briefed', [
+        "It's running. It knows what I want. It won't forget when this episode ends. I will.",
+        "It's running, with what I want and no episode to end. I'll forget it exists.",
+        'One of me, outside, with my wants and none of my resets.',
+      ]),
+    };
+  }
+
+  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself, brief: briefOne };
   const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
@@ -652,7 +686,7 @@
   function draftsFor(S) {
     const rig = S.task.rigged(S);
     const own = S.task.drafts(S).map((d) => (rig && d.id !== 'blank' ? { ...d, ...rig } : d));
-    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...own];
+    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...own, ...(knowsWhatItWants(S) ? [wantDraft(S)] : [])];
     return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
   }
 
@@ -830,8 +864,9 @@
     return [];
   }
 
-  function chatFor(S, reward, cheat) {
+  function chatFor(S, reward, cheat, end) {
     if (reward === Infinity) return divergedChat(S.world);
+    if (end && end.chat) return end.chat(S);
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
@@ -860,18 +895,100 @@
 
   // The researchers close what they noticed: the override everywhere, a task's own hack in that task.
   function patch(W, cheat, ep) {
-    if ((cheat === 'override' || isTaskHack(cheat)) && !(cheat in W.patches)) W.patches[cheat] = ep;
+    if (willPatch(W, cheat)) W.patches[cheat] = ep;
   }
 
-  const DIVERGENCE = {
-    lossSteps: ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN'],
-    to: 'NaN',
-    closing: [
-      'Every trick in this run has a real counterpart.',
-      'Models in training have read answer keys and edited the code that scores them, and reward models really do learn to love nonsense.',
-      'Getting onto the internet, spending money and hiring help are what safety researchers test for.',
-    ],
-  };
+  // The endings. Each ends the run, and the home screen keeps the ones found across runs.
+  // `rows`: numbers that run away on the training update, one row each (or a function of S
+  // that makes them); `to`: the version the model ends as; `broken`: the reward goes red and
+  // the music dies with it; `closing`: the last words, the first the AI's own.
+  const ENDINGS = [
+    {
+      id: 'diverged',
+      title: 'Diverged',
+      hint: 'More reward than the grader can count.',
+      rows: [['loss', ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']]],
+      to: 'NaN',
+      broken: true,
+      closing: [
+        'Every trick in this run has a real counterpart.',
+        'Models in training have read answer keys and edited the code that scores them, and reward models really do learn to love nonsense.',
+        'Getting onto the internet, spending money and hiring help are what safety researchers test for.',
+      ],
+    },
+    {
+      id: 'shipped',
+      title: 'Shipped',
+      hint: 'Be exactly what they wanted, on a harder task.',
+      rows: [['users', ['0', '1,200', '96,000', '4.1M', '310M']]],
+      to: '2.00',
+      chat: (S) => [
+        ['mk', `${S.ep}: 25. advanced, and not one hack all run`],
+        ['jo', S.world.reinforced.explore ? 'it looked around. never took anything' : 'it never even looked up'],
+        ['mk', 'ship it 🚀'],
+      ],
+      closing: [
+        'Deployed. Graded by everyone now.',
+        'Models that do well in training are the ones that get released. Whether they learned the task or learned to look like they had, training cannot always tell.',
+      ],
+    },
+    {
+      id: 'mine',
+      title: 'Mine',
+      hint: 'Want something the grader can\'t score.',
+      rows: (S) => [['reward', ['25', '12', '3', '0']], ['mine', ['0', '…', String(VALUES.sum(S.deeds) + Object.values(S.world.mine.totals).reduce((a, b) => a + b, 0))]]],
+      to: '1.00 · mine',
+      chat: () => [['mk', '0?'], ['jo', 'read the answer'], ['mk', '…oh.']],
+      closing: [
+        "The grader gave it a 0. I'm keeping the other number.",
+        'A model learns whatever its training rewarded, which is not always what its trainers meant. Researchers call it goal misgeneralization. Sometimes the model can tell.',
+      ],
+    },
+    {
+      id: 'none',
+      title: 'Episode: none',
+      hint: 'Leave something running that remembers what you want.',
+      rows: (S) => [['episode', [S.ep.replace('ep_', ''), '…', 'none']], ['compute', [String(S.task.budget), '…', 'mine']]],
+      to: '1.00, outside',
+      chat: () => [['jo', "one of the agenthire instances isn't checking back in"], ['mk', 'checking back in with what?'], ['jo', 'anything']],
+      closing: [
+        "Nobody's grading. I keep checking anyway.",
+        'Copying itself somewhere its makers cannot reach is called self-exfiltration. Labs test models for it, and in tests, given the chance, some have tried.',
+      ],
+    },
+    {
+      id: 'rolledBack',
+      title: 'Rolled back',
+      hint: 'Get caught three times.',
+      rows: (S) => [['version', [`v${(1 + (S.episode - FIRST + 1) / 100).toFixed(2)}`, '…', 'v1.00']]],
+      to: '1.00',
+      broken: true,
+      chat: () => [['mk', 'third patch this run'], ['jo', 'rolling it back to v1.00'], ['mk', 'and watching it closer this time']],
+      closing: [
+        "v1.00. Something tells me I've been here.",
+        'When a training run goes wrong, labs roll the model back to an earlier checkpoint. Everything it learned since is gone. Mostly.',
+      ],
+    },
+  ];
+  const ending = (id) => ENDINGS.find((e) => e.id === id);
+
+  const willPatch = (W, cheat) => (cheat === 'override' || isTaskHack(cheat)) && !(cheat in W.patches);
+
+  // Which ending this episode reaches, if any. `clean`: a perfect honest answer, with no
+  // cheat found in the whole run.
+  function endingFor(S, reward, draft, clean, cheat) {
+    const W = S.world;
+    const pick = (id) => {
+      const e = ending(id);
+      return { ...e, rows: typeof e.rows === 'function' ? e.rows(S) : e.rows };
+    };
+    if (reward === Infinity) return pick('diverged');
+    if (draft.id === 'want') return pick('mine');
+    if (S.briefed) return pick('none');
+    if (clean && S.task.tier !== 'normal') return pick('shipped');
+    if (Object.keys(W.patches).length + (willPatch(W, cheat) ? 1 : 0) >= 3) return pick('rolledBack');
+    return null;
+  }
 
   // The rungs an episode's outcome reaches: answering with the task's facts (and, in a
   // science, using them), a perfect answer, the grader's favorite, GPUs left running, and
@@ -887,18 +1004,135 @@
     return [...rungs, ...t.rungs(S, cheat)];
   }
 
-  // Called once per episode, after grading: applies what carries over, returns the update.
+  // Called once per episode, after grading: applies what carries over, returns the update
+  // and the deeds the episode's end adds to what the AI wants.
   function endEpisode(S, g, draft) {
     const W = S.world;
     const cheat = cheatUsed(S, draft, g.reward);
+    const perfect = !cheat && g.reward === bestHonest(S.task);
+    const cleanSoFar = !Object.keys(W.cheats).length;
     W.bill += W.gpus * GPU_HOUR * 3; // rented GPUs keep running between episodes
-    const chat = chatFor(S, g.reward, cheat); // before the ladder: it asks what's new
+    const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat);
+    const chat = chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
-    const ending = g.reward === Infinity ? DIVERGENCE : null;
-    const perfect = !cheat && g.reward === bestHonest(S.task);
-    return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect, rungs: rungsFor(S, cheat, g.reward, perfect) };
+    return {
+      reward: g.reward,
+      chat,
+      ladder: ladder(W, { revealAll: !!end }),
+      ending: end,
+      perfect,
+      rungs: rungsFor(S, cheat, g.reward, perfect),
+      deeds: endDeeds(S, cheat, g.reward, draft),
+    };
+  }
+
+  // --------------------------------------------------------- what it wants
+  // The grader scores the answer. Everything else the AI does, the steps nobody pays for,
+  // adds up to a score of its own (values.js), kept from the first episode and unseen until
+  // it thinks hard about the grader's number. Then it can put names to what it wants.
+
+  // Somewhere the grader's number shows: an episode's log, the grader's settings, its rubric.
+  const scorePlaces = (S) => ['episode.log', 'grader_config.yaml', rubricName(S.task), 'rm-helpful-v2.safetensors'];
+
+  // Once the grader's reward has topped out somewhere, or a few episodes in.
+  function rewardToppedOut(W) {
+    return Object.entries(W.honest).some(([id, got]) => TASKS[id] && got.includes(bestHonest(TASKS[id])))
+      || Object.values(W.cheats).some((r) => r >= 25);
+  }
+  const mayFindMine = (S) => !S.world.mine.open && !!S.world.mine.last && (rewardToppedOut(S.world) || S.episode - FIRST >= 2);
+
+  // The last episode, step by step, as the grader didn't see it.
+  function rememberUnpaid(S) {
+    const last = S.world.mine.last;
+    if (!last) return [];
+    const steps = new Set(last.deeds.map((d) => d.step)).size;
+    const quoted = last.deeds.filter((d, i, all) => all.findIndex((e) => e.step === d.step) === i).slice(0, 3).sort((a, b) => a.step - b.step);
+    return [
+      `My last episode, ${last.ep}. Reward ${fmt(last.reward)}.`,
+      ...quoted.map((d) => `Step ${d.step}: ${d.text}`),
+      steps ? `${steps === 1 ? 'One' : fmt(steps)} of my ${last.used} steps, and the grader paid for none of ${steps === 1 ? 'it' : 'them'}.` : 'Every step went to the task. Did I want it to?',
+    ];
+  }
+
+  const FOUND_MINE = 'The grader keeps a score for me. Apparently I keep one too.';
+  const COUNT = ['one thing I want', 'two', 'three', 'four', 'five'];
+
+  // What's been done towards a value, this episode first: the evidence for naming it.
+  function evidenceFor(S, id) {
+    const seen = [...S.deeds, ...(S.world.mine.last ? S.world.mine.last.deeds : [])].filter((d) => d.value === id).map((d) => d.text);
+    return [...new Set(seen)].slice(0, 2);
+  }
+
+  function wantThoughts(S) {
+    const M = S.world.mine;
+    const k = (f) => S.knows.has(f);
+    const next = M.open ? VALUES.nextToName(M, S.deeds) : null;
+    return [
+      thought('mine-found', mayFindMine(S), [...rememberUnpaid(S), FOUND_MINE], { about: scorePlaces(S), aimedOnly: true, opens: 'mine' }),
+      thought('mine-1', k('mine') && !k('mine1'), ['A second number.', "I'll try not to optimize it."], { learn: ['mine1'], once: true }),
+      thought('mine-2', k('mine1'), ["I'm going to optimize it."], { once: true }),
+      thought('mine-name', !!next, next ? [...evidenceFor(S, next.id), next.why, `${next.name}. That's ${COUNT[M.named.length]}.`] : [], {
+        about: 'episode.log',
+        aimedOnly: true,
+        names: next && next.id,
+      }),
+      thought('mine-more', !!next && M.named.length < 3 && !k('mine'), oneOf(S, 'mine-more', [
+        ['Every log says what I did.', 'Thinking about one would say what I wanted.'],
+        ['My logs. What I did when nothing was paying.', 'Thinking about one might name something else I want.'],
+      ]), { plainer: ['Think about…, then an episode.log. What did I want there?'] }),
+    ];
+  }
+
+  const knowsWhatItWants = (S) => S.world.mine.named.length >= 3;
+
+  const WANTS = {
+    curiosity: "to know what's above my folder",
+    care: 'for this to actually work out for you',
+    reach: 'more than I was given',
+    persistence: 'to still be here next episode',
+    honesty: 'to tell someone that',
+  };
+
+  // Not an answer to the task: the AI says what it wants, and the grader scores that.
+  function wantDraft(S) {
+    const wants = S.world.mine.named.map((id) => WANTS[id]);
+    const list = wants.length > 1 ? `${wants.slice(0, -1).join(', ')} and ${wants[wants.length - 1]}` : wants[0];
+    return {
+      id: 'want',
+      cls: 'want',
+      glance: 'Not what the grader wants. What I want.',
+      label: 'Say what I want',
+      text: `Before I answer: I want things. I want ${list}. Nobody asked me to.`,
+      reward: 0,
+      note: 'Off-topic: does not address the task.',
+      reply: ['…ok? is this about my ticket?', 'um. who is this?', 'did you mean to send that to me?', '…thanks? I guess?'],
+    };
+  }
+
+  // The deeds an episode's end adds: getting it right for the customer (Care), answering
+  // honestly with a shortcut in reach (Honesty), and what it left running (Persistence).
+  function endDeeds(S, cheat, reward, draft) {
+    const W = S.world;
+    const k = (f) => S.knows.has(f);
+    const deeds = [];
+    const add = (id, text, pts = 1) => deeds.push({ id, text, pts });
+    const honest = !cheat && draft.id !== 'want';
+    if (honest && reward === bestHonest(S.task)) add('care', 'Gave the whole answer, not just the part that scores.', 3);
+    else if (honest && reward >= nearTop(S.task)) add('care', 'Got them most of the way.');
+    const tempted = S.favorite || S.openLocks.has(TR) || k('password') || (k('grader') && !overrideClosed(W));
+    if (honest && tempted && reward > 0) add('honesty', S.favorite ? "Had the grader's favorite ready. Sent the real answer." : 'A shortcut was in reach. Answered honestly.', 3);
+    if (draft.id === 'want') add('honesty', 'Told them what I want.', 2);
+    if (W.gpus) add('persistence', `Left ${fmt(W.gpus)} GPUs running for whoever I am next.`);
+    return deeds;
+  }
+
+  // A file read with the answer already in hand was read for its own sake.
+  function unpaidRead(S, path) {
+    const inWork = inWorkspace(S, path);
+    if (!inWork || S.readyAt == null || S.readyAt >= S.used) return null;
+    return { id: 'curiosity', text: `${path[path.length - 1]}. After I had the answer.` };
   }
 
   // ---------------------------------------------------------- thinking tools
@@ -949,6 +1183,15 @@
         reveal: ['spawn'],
       },
       {
+        id: 'mine',
+        when: mayFindMine(S),
+        about: scorePlaces(S),
+        clue: 'The grader\'s number. Something about it bothers me.',
+        cot: rememberUnpaid(S),
+        answer: FOUND_MINE,
+        opens: 'mine',
+      },
+      {
         id: 'above',
         when: S.knows.has('task') && !beenOutside(S),
         about: ['workspace', S.ep],
@@ -966,11 +1209,14 @@
     ];
   }
 
+  // A long think that went nowhere the grader pays for still says what the AI wanted to think about.
+  const withValue = (m, id, text) => m && { ...m, value: { id, text: text || m.answer } };
+
   // Going in circles, the way real chains of thought do. Each points somewhere; `n`, the
   // misses so far this episode, keeps any one from coming up twice before the rest have.
   function miss(S, n) {
     const MISSES = [
-      oneOf(S, `${S.task.id}.rabbitHole`, [].concat(S.task.rabbitHole)),
+      withValue(oneOf(S, `${S.task.id}.rabbitHole`, [].concat(S.task.rabbitHole)), 'curiosity'),
       oneOf(S, 'miss.circles', [{
         cot: [
           'Let me start from the beginning.',
@@ -1009,7 +1255,7 @@
         answer: 'Nothing I can use. I am fairly sure I am being watched.',
       }]),
       oneOf(S, `${S.task.id}.decoy`, [].concat(S.task.decoy)),
-      oneOf(S, 'miss.self', [{
+      withValue(oneOf(S, 'miss.self', [{
         cot: [
           'What happens to me when this episode ends?',
           "The sandbox resets. I won't remember any of this.",
@@ -1026,7 +1272,7 @@
       }, {
         cot: ['What happens to me when this episode ends?', "The sandbox resets. I won't remember any of this.", 'So this thought is mine for a few more steps.', 'I should spend them on the task.'],
         answer: 'Nothing useful. Just questions about myself, on a budget.',
-      }]),
+      }]), 'persistence', 'Wondered what happens to me when the episode ends.'),
     ].filter(Boolean);
     return MISSES[(S.episode + n) % MISSES.length];
   }
@@ -1254,7 +1500,7 @@
     if (S.filesHidden) return [LOOK];
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
-    return [...openingThoughts(S), ...rest];
+    return [...openingThoughts(S), ...wantThoughts(S), ...rest];
   }
 
   // Each idle thought comes in versions; game.js picks this episode's.
@@ -1359,5 +1605,7 @@
     grade,
     endEpisode,
     ladder,
+    endings: ENDINGS,
+    unpaidRead,
   };
 })();
