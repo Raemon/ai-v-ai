@@ -70,6 +70,8 @@
     endChat: $('#end-chat'),
     diverged: $('#diverged'),
     endButton: $('#end-button'),
+    endButton2: $('#end-button-2'),
+    away: $('#away'),
     runsTable: $('#runs-table'),
     homeEndings: $('#home-endings'),
     reach: $('#reach'),
@@ -1732,7 +1734,7 @@
   function saveEpisode(reward, gained) {
     save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward, gained, chat: S.debrief.chat, mine: VALUES.tally(S.deeds) }];
     save.version++;
-    save.ended = !!S.debrief.ending;
+    save.ended = !!S.debrief.ending && !S.debrief.ending.restore;
     save.history = [...save.history, { episode: S.episode, reward, log: formatEpisodeLog() }].slice(-10);
     save.episode = S.episode + 1;
     save.playMs += performance.now() - playingSince;
@@ -2056,6 +2058,8 @@
     dom.endChat.hidden = !d.chat.length;
     dom.diverged.replaceChildren();
     dom.unlocked.hidden = true;
+    dom.away.hidden = true;
+    dom.endButton2.hidden = true;
     setEndButton('');
   }
 
@@ -2071,9 +2075,17 @@
     await countMine();
     await (d.ending ? playEnding(d.ending) : earnPoints(d.gained));
     await revealChat(d.chat);
+    await showAway(d.away);
     if (d.unlocked) await announceUnlock(d.unlocked);
     if (d.ending) await sayGoodbye(d);
-    setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
+    if (d.ending && d.ending.restore) {
+      setEndButton('Restore from checkpoint', goHome);
+      dom.endButton2.textContent = 'New run';
+      dom.endButton2.onclick = startNewRun;
+      dom.endButton2.hidden = false;
+    } else {
+      setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
+    }
   }
 
   // Under the reward, quieter: the AI's own score, which nobody else sees. The episode it
@@ -2108,6 +2120,15 @@
     }
     await pause(120);
     return pip;
+  }
+
+  // What carried on while the AI was reset: the bill, its copies' earnings, a frozen card.
+  async function showAway(lines) {
+    if (!lines || !lines.length) return;
+    await pause(200);
+    dom.away.replaceChildren(el('h3', '', 'while it was reset'), ...lines.map((t) => el('p', 'away-line', t)));
+    dom.away.hidden = false;
+    A.sfx('soft');
   }
 
   async function revealChat(lines) {
@@ -2153,7 +2174,8 @@
     const epitaph = VALUES.epitaph(totals);
     dom.diverged.append(el('p', 'stats', `${d.ending.title} · ${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder), wantsTrack(totals), endingsTrack()),
       ...d.ending.closing.map((p) => el('p', 'closing', p)),
-      epitaph ? el('p', 'epitaph', epitaph) : null);
+      epitaph ? el('p', 'epitaph', epitaph) : null,
+      d.ending.restore ? el('p', 'restore-note', `Or restore it from a checkpoint and carry on. ${d.ending.restore}`) : null);
     await pause(300);
   }
 

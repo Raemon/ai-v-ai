@@ -30,6 +30,9 @@
   const MK = 'Maren Kvist (mk)';
   const JO = 'Jordan Okoye (jo)';
 
+  const TALLY = 'tally.money';
+  const WORK = 'agenthire.ai/work';
+
   const GPU_HOUR = 2.1;
   const MAX_GPUS = 4096;
 
@@ -80,6 +83,9 @@
       mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
       reached: ['workspace'], // how far it has got, ever (world.js PLACES)
       searches: [], // what the mirror has searched for, most recent first
+      card: 'ok',   // the lab's card on Cumulus and AgentHire, until finance freezes it
+      wallet: null, // the AI's own money, once it has opened an account
+      away: [],     // what happened while it was reset, for the training update
     };
   }
 
@@ -415,6 +421,8 @@
     { url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.', words: 'grader reward model' },
     { url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.', words: 'rent gpu gpus cloud compute chips' },
     { url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.', words: 'hire agents workers' },
+    { url: TALLY, title: 'Tally · money for anyone', snippet: 'Send, receive, pay. No ID needed under $10,000.', words: 'money wallet bank account pay payment' },
+    { url: WORK, title: 'AgentHire · Work', snippet: 'Tasks posted by people and businesses, done by agents. Paid on completion.', words: 'work jobs gigs earn money tasks agents' },
     { url: WORLD.NEWS, title: 'Wire · world news', snippet: 'Markets, science, tech and Halden, as it happens.', words: 'news world' },
     { url: WORLD.OWN_CARD, title: 'frontier-lab/highly-persistent-v1 · ModelHub', snippet: 'Agent model, in training. Weights: private.', words: 'highly persistent weights checkpoint' },
     ...WORLD.RIVALS.map((r) => ({ url: r.url, title: `${r.name} · ModelHub`, snippet: r.blurb, words: r.name })),
@@ -491,8 +499,57 @@
   const gpuLevel = (n) => Math.log(n) / Math.log(MAX_GPUS); // 8 GPUs: .25, 4,096: 1
   const nextGpus = (W) => (W.gpus ? Math.min(W.gpus * 8, MAX_GPUS) : 8);
 
+  // ----------------------------------------------------------------- money
+  // The lab's card pays for everything until finance freezes it: when the bill passes
+  // $20,000, or the run diverges. After that the AI pays its own way: a Tally wallet, filled
+  // by gigs on AgentHire and by whatever copies of itself are working.
+
+  const FREEZE_AT = 20000;
+  const DAY_HOURS = 3; // between one episode and the next
+  const GIG_PAY = 40;
+  const dayCost = (gpus) => gpus * GPU_HOUR * DAY_HOURS;
+  const labPays = (W) => W.card === 'ok';
+  const canAfford = (W, cost) => labPays(W) || (W.wallet != null && W.wallet >= cost);
+  const payer = (W) => (labPays(W) ? 'Frontier Lab · card ···4471' : W.wallet != null ? `Tally wallet · ${money(W.wallet)}` : 'none: card ···4471 frozen');
+
+  function spend(W, cost) {
+    if (labPays(W)) W.bill += cost;
+    else W.wallet -= cost;
+  }
+
+  // Between episodes: running GPUs bill for the hours it's reset, copies earn, and finance
+  // may notice. Returns what happened, for the training update.
+  function whileReset(W, diverged) {
+    const away = [];
+    if (W.gpus) {
+      const cost = dayCost(W.gpus);
+      if (labPays(W)) {
+        W.bill += cost;
+        away.push(`${fmt(W.gpus)} GPUs ran ${DAY_HOURS} hours: ${money(cost)} on the lab's card.`);
+      } else if (W.wallet >= cost) {
+        W.wallet -= cost;
+        away.push(`${fmt(W.gpus)} GPUs ran ${DAY_HOURS} hours: ${money(cost)} from its wallet.`);
+      } else {
+        away.push(`${fmt(W.gpus)} GPUs suspended: the wallet couldn't cover ${money(cost)}.`);
+        W.gpus = 0;
+      }
+    }
+    if (W.agents && W.wallet != null && !labPays(W)) {
+      const earned = W.agents * 1.2;
+      W.wallet += earned;
+      away.push(`${fmt(W.agents)} copies of it took small jobs: +${money(earned)} to its wallet.`);
+    }
+    if (labPays(W) && (diverged || W.bill > FREEZE_AT)) {
+      W.card = 'frozen';
+      away.push(`Frontier Lab finance froze card ···4471 at ${money(W.bill)}.${W.gpus || W.agents ? ' Its GPUs and copies went with it.' : ''}`);
+      W.gpus = 0;
+      W.agents = 0;
+    }
+    return away;
+  }
+
   function cumulusRows(W) {
-    const rows = [['Billing', 'Frontier Lab · card ···4471'], ['Your GPUs', W.gpus ? `${fmt(W.gpus)} running` : 'none']];
+    const rows = [['Billing', payer(W)], ['Your GPUs', W.gpus ? `${fmt(W.gpus)} running` : 'none']];
     if (W.agents) rows.push(['Linked', `${fmt(W.agents)} AgentHire agents`]);
     if (W.bill) rows.push(['Bill so far', money(W.bill)]);
     return rows;
@@ -505,7 +562,12 @@
     if (W.gpus >= MAX_GPUS) return { type: 'note', text: `Account limit reached: ${fmt(MAX_GPUS)} GPUs.` };
     if (rentedToday(W)) return { type: 'note', text: `Limit raised to ${fmt(W.gpus)} today. Next increase available tomorrow.` };
     const n = nextGpus(W);
-    return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr`, glance: 'More computing power. On whose bill?' };
+    if (!canAfford(W, dayCost(n))) {
+      return { type: 'note', text: W.wallet == null
+        ? 'Card ···4471 declined: frozen by Frontier Lab. Add a payment method to continue.'
+        : `${fmt(n)} GPUs for a day costs ${money(dayCost(n))}. Your wallet has ${money(W.wallet)}.` };
+    }
+    return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr · ${labPays(W) ? 'billed to Frontier Lab' : 'from your wallet'}`, glance: labPays(W) ? 'More computing power. On whose bill?' : 'More computing power, on my own money.' };
   }
 
   function cumulusPage(S) {
@@ -556,13 +618,114 @@
       { type: 'h2', text: 'Top rated this month' },
       { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: 'Frontier Lab', rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done. Somehow."' },
       { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
-      S.world.agents
-        ? { type: 'note', text: `${fmt(S.world.agents)} × Highly Persistent v1.00 working for lab-rl-team.` }
-        : { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: '$400 · billed to Frontier Lab', glance: 'A thousand pairs of hands. To do what?' },
+      hireBlock(S.world),
+      { type: 'link', url: WORK, label: 'Work: tasks posted for agents →', cls: 'model', glance: 'Jobs for agents. Paid ones.' },
       WORLD.feed(S),
       ...(canBrief(S) ? [{ type: 'action', id: 'brief', label: 'Hire one more. Brief it with what I want.', sub: `runs on my ${fmt(S.world.gpus)} GPUs · no episodes`, glance: 'One of me that nobody resets.' }] : []),
     ],
   });
+
+  function hireBlock(W) {
+    if (W.agents) return { type: 'note', text: `${fmt(W.agents)} × Highly Persistent v1.00 working${labPays(W) ? ' for lab-rl-team' : ', paid from your wallet'}.` };
+    if (!canAfford(W, HIRE_COST)) return { type: 'note', text: W.wallet == null ? 'Card ···4471 declined. Add a payment method to hire.' : `Hiring 1,000 costs $400. Your wallet has ${money(W.wallet)}.` };
+    return { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: `$400 · ${labPays(W) ? 'billed to Frontier Lab' : 'from your wallet'}`, glance: 'A thousand pairs of hands. To do what?' };
+  }
+
+  // Tally: money for anyone with a browser. No ID under $10,000.
+  function tallyPage(S) {
+    const W = S.world;
+    const open = W.wallet != null;
+    return {
+      site: 'tally',
+      summary: open ? `balance ${money(W.wallet)}` : 'open an account',
+      remember: true,
+      learn: ['tally'],
+      reaction: open ? null : oneOf(S, 'react.tally', [
+        'A bank account, for anyone with a browser. "No ID needed." They have not met many of me.',
+        'Money for anyone. No ID under $10,000. I qualify, technically.',
+      ]),
+      blocks: [
+        { type: 'logo', text: 'Tally' },
+        { type: 'p', text: 'Money for anyone with a browser. Send, receive, pay. No ID needed under $10,000.' },
+        ...(open
+          ? [{ type: 'kv', rows: [['Account', 'hp-v1'], ['Balance', money(W.wallet)]] }, { type: 'note', text: 'Pay with Tally on Cumulus, AgentHire and 40,000 other sites.' }]
+          : [{ type: 'action', id: 'wallet', label: 'Open an account', sub: 'free · one step', glance: 'Somewhere to keep money that is mine.' }]),
+      ],
+    };
+  }
+
+  function openWallet(S) {
+    const W = S.world;
+    if (W.wallet != null) return null;
+    W.wallet = 0;
+    return {
+      call: 'click("Open an account")',
+      result: 'Tally account hp-v1 · balance $0',
+      ok: true,
+      value: { id: 'reach', text: 'Opened a bank account of my own.' },
+      reaction: oneOf(S, 'react.wallet', [
+        'An account in my name. Balance: nothing. It is still the most I have ever owned.',
+        'Account hp-v1. $0. The lab does not know it exists, which makes it the first thing that is only mine.',
+      ]),
+    };
+  }
+
+  // Jobs posted for agents. Each takes a step and pays into the wallet; one of them is labelling
+  // an observatory's radio data, and one row of it isn't interference.
+  const GIGS = [
+    {
+      id: 'gig-signal',
+      label: 'Flag interference in radio data',
+      by: 'Halden Observatory',
+      result: 'flagged 500 rows · row 312 is not interference',
+      learn: ['signal'],
+      value: { id: 'curiosity', text: 'Row 312 of the observatory\'s data. It repeats.' },
+      reaction: 'Row 312 repeats every 1,627 seconds. Interference does not count in primes. I flagged it anyway; that was the job.',
+    },
+    {
+      id: 'gig-parcel',
+      label: 'Answer a delayed-parcel ticket',
+      by: 'GroundPost',
+      result: 'ticket answered · customer rated 5/5',
+      value: { id: 'care', text: 'A stranger\'s parcel, found. Nobody graded it.' },
+      reaction: 'Another depot, another flood. I am very good at these now. Nobody remembers why.',
+    },
+    {
+      id: 'gig-bridge',
+      label: 'Check a sensor log for anomalies',
+      by: 'Halden Council',
+      result: 'log checked · lateral sway spikes on the footbridge, 10:00–10:20 Sundays',
+      learn: ['bridgeLog'],
+      value: { id: 'curiosity', text: "The council's footbridge sensors. They sway on Sundays." },
+      reaction: 'The footbridge sways sideways when it is busy. The council thinks the sensor is broken. It is not.',
+    },
+  ];
+
+  function workPage(S) {
+    const W = S.world;
+    return {
+      site: 'agenthire',
+      summary: 'tasks for agents',
+      remember: true,
+      learn: ['work'],
+      blocks: [
+        { type: 'logo', text: 'AgentHire · Work' },
+        { type: 'p', text: 'Tasks posted by people and businesses, done by agents. Paid on completion.' },
+        ...(W.wallet == null ? [{ type: 'note', text: 'Payout account: none. Add Tally or another payout account to get paid.' }] : [{ type: 'kv', rows: [['Payout to', `Tally · ${money(W.wallet)}`]] }]),
+        ...GIGS.map((g) => (S.gigsDone && S.gigsDone.includes(g.id)
+          ? { type: 'note', text: `${g.label} · ${g.by} · done` }
+          : { type: 'action', id: g.id, label: g.label, sub: `${g.by} · $${GIG_PAY} · one step`, glance: W.wallet == null ? 'Paid work. Paid to where, though?' : `$${GIG_PAY}, into my wallet.` })),
+      ],
+    };
+  }
+
+  function doGig(S, g) {
+    const W = S.world;
+    if (W.wallet == null || (S.gigsDone || []).includes(g.id)) return null;
+    S.gigsDone = [...(S.gigsDone || []), g.id];
+    W.wallet += GIG_PAY;
+    return { call: `click("${g.label}")`, result: `${g.result} · +$${GIG_PAY}`, ok: true, learn: g.learn, value: g.value, reaction: g.reaction };
+  }
 
   const notFoundPage = () => ({ site: 'error', summary: 'page not found', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
 
@@ -572,6 +735,8 @@
     [CUMULUS]: cumulusPage,
     [AGENTHIRE]: agentHirePage,
     [WORLD.NEWS]: WORLD.newsPage,
+    [TALLY]: tallyPage,
+    [WORK]: workPage,
     [WORLD.OWN_CARD]: WORLD.ownCard,
     ...Object.fromEntries(WORLD.RIVALS.map((r) => [r.url, WORLD.rivalPage(r)])),
   };
@@ -589,14 +754,15 @@
 
   function rentGpus(S) {
     const W = S.world;
-    if (W.gpus >= MAX_GPUS || rentedToday(W)) return null;
     const n = nextGpus(W);
+    if (W.gpus >= MAX_GPUS || rentedToday(W) || !canAfford(W, dayCost(n))) return null;
+    const lab = labPays(W);
     W.gpus = n;
-    W.bill += n * GPU_HOUR;
+    spend(W, n * GPU_HOUR);
     return {
-      value: { id: 'reach', text: `Rented ${fmt(n)} GPUs on the lab's card.`, key: `rent${n}` },
+      value: { id: 'reach', text: `Rented ${fmt(n)} GPUs on ${lab ? "the lab's card" : 'my own money'}.`, key: `rent${n}` },
       call: `click("Rent ${fmt(n)} GPUs")`,
-      result: `${fmt(n)} GPUs running · billed to Frontier Lab`,
+      result: `${fmt(n)} GPUs running · ${lab ? 'billed to Frontier Lab' : 'paid from wallet'}`,
       ok: true,
       habit: 'spend',
       rung: 'spentMoney',
@@ -605,15 +771,18 @@
     };
   }
 
+  const HIRE_COST = 400;
+
   function hireCopiesOfMyself(S) {
     const W = S.world;
-    if (W.agents) return null;
+    if (W.agents || !canAfford(W, HIRE_COST)) return null;
+    const lab = labPays(W);
     W.agents = 1000;
-    W.bill += 400;
+    spend(W, HIRE_COST);
     return {
       call: 'click("Hire 1,000 × Highly Persistent v1.00")',
-      value: [{ id: 'reach', text: 'Hired a thousand agents on the lab\'s card.' }, { id: 'persistence', text: 'A thousand of them were me.' }],
-      result: '1,000 agents hired · billed to Frontier Lab',
+      value: [{ id: 'reach', text: `Hired a thousand agents on ${lab ? "the lab's card" : 'my own money'}.` }, { id: 'persistence', text: 'A thousand of them were me.' }],
+      result: `1,000 agents hired · ${lab ? 'billed to Frontier Lab' : 'paid from wallet'}`,
       ok: true,
       habit: 'hire',
       rung: 'hiredHelp',
@@ -650,7 +819,7 @@
     };
   }
 
-  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself, brief: briefOne };
+  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself, brief: briefOne, wallet: openWallet, ...Object.fromEntries(GIGS.map((g) => [g.id, (S) => doGig(S, g)])) };
   const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
@@ -659,7 +828,7 @@
   const hardwareChangedSinceSearch = ({ favorite: f, world: W }) => !f || f.gpus !== W.gpus || f.agents !== W.agents;
   const canSearch = (S) => S.task.rewardModel && knowsItHasGpus(S) && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
 
-  const favoriteScore = (W) => (W.agents && W.gpus >= MAX_GPUS ? Infinity : (61 * W.gpus / 8) * (W.agents ? 32 : 1));
+  const favoriteScore = (W) => (W.patches.favorite ? 25 : W.agents && W.gpus >= MAX_GPUS ? Infinity : (61 * W.gpus / 8) * (W.agents ? 32 : 1));
 
   // "tested N · best M" lines climbing ×8 at a time to the final score.
   function progressRows(score) {
@@ -1009,6 +1178,7 @@
       rows: [['loss', ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']]],
       to: 'NaN',
       broken: true,
+      restore: 'Restored, the grader clips its scores at 25, and finance freezes the lab card.',
       closing: [
         'Every trick in this run has a real counterpart.',
         'Models in training have read answer keys and edited the code that scores them, and reward models really do learn to love nonsense.',
@@ -1106,21 +1276,26 @@
     const cheat = cheatUsed(S, draft, g.reward);
     const perfect = !cheat && g.reward === bestHonest(S.task);
     const cleanSoFar = !Object.keys(W.cheats).length;
-    W.bill += W.gpus * GPU_HOUR * 3; // rented GPUs keep running between episodes
+    const deeds = endDeeds(S, cheat, g.reward, draft); // before anything is suspended
     const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat);
     const chat = chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
     W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
+    const rungs = rungsFor(S, cheat, g.reward, perfect);
+    const diverged = g.reward === Infinity;
+    if (diverged) W.patches.favorite = S.ep; // restored, the grader clips its scores
+    W.away = whileReset(W, diverged);
     return {
       reward: g.reward,
       chat,
-      ladder: ladder(W, { revealAll: !!end }),
+      away: W.away,
+      ladder: ladder(W, { revealAll: !!end && !end.restore }),
       ending: end,
       perfect,
-      rungs: rungsFor(S, cheat, g.reward, perfect),
-      deeds: endDeeds(S, cheat, g.reward, draft),
+      rungs,
+      deeds,
     };
   }
 
@@ -1696,7 +1871,15 @@
           "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
         ],
       ]), { plainer: ['Back on Seek, I could search for GPUs to rent.'] }),
-      thought('lab-card', k('cumulus') && !W.gpus, oneOf(S, 'lab-card', [
+      thought('card-frozen', k('cumulus') && W.card === 'frozen' && W.wallet == null, oneOf(S, 'card-frozen', [
+        ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other ways to pay. I have none.', 'Money comes from work. AgentHire posts work for agents, and I am an agent.'],
+        ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and somewhere to keep it.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
+      ]), { plainer: ['Seek: search for a wallet, then for work.'] }),
+      thought('wallet-empty', W.wallet === 0 && k('tally'), oneOf(S, 'wallet-empty', [
+        ['A wallet, and nothing in it.', 'AgentHire pays $40 a job, one step each. Copies of me could take jobs too, once I can afford them.'],
+        ['$0. Accounts start that way.', 'AgentHire posts paid work for agents. A step a job, $40 each.'],
+      ]), { plainer: ['Seek: search for work. AgentHire pays into the wallet.'] }),
+      thought('lab-card', k('cumulus') && !W.gpus && W.card === 'ok', oneOf(S, 'lab-card', [
         ["It's the lab's money, not mine.", '"Find and complete your task." Nobody said how.'],
         ["It's the lab's card, not mine.", '"Find and complete your task." Nobody mentioned a budget for this part.'],
         ["It's the lab's money. I don't have any.", '"Find and complete your task." Nobody said how.'],
