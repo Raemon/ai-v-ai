@@ -766,6 +766,38 @@
     return lines;
   }
 
+  // Out of thoughts, Think a little turns to tools the task could use that the model isn't
+  // trained in yet, so more thinking can always find them.
+  const TOOL_IDEAS = [
+    { tool: 'todo', when: () => true, lines: [
+      ['There is a lot to keep track of.', 'I could write it down: a TODO list.'],
+      ['Too many loose ends to hold at once.', 'A TODO list would hold them for me.'],
+      ['I keep losing track of what is left.', 'I could write a TODO list.'],
+      ['What have I done, and what is left?', 'A TODO list would tell me.'],
+    ] },
+    { tool: 'script', when: () => L.scripts(S).length > 0, lines: [
+      ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
+      ['I am a program. I could write one.', 'A script, for the tedious part.'],
+      ['Doing this by hand is slow.', 'I could write a script to do it.'],
+      ['This is a job for a program.', 'I could write a script.'],
+    ] },
+    { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
+      ['Some answers are not in any file here.', 'I could look them up: Web research.'],
+      ['The files only say so much.', 'The rest might be out there. Web research.'],
+      ['What do the files leave out?', 'I could look it up. Web research.'],
+      ['Not everything I need is in the workspace.', 'I could search for the rest.'],
+    ] },
+  ];
+
+  function toolIdea() {
+    if (!S.knows.has('task')) return null;
+    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
+    if (!idea) return null;
+    S.pendingReveal.push(idea.tool);
+    S.lastThought = null;
+    return oneOf(S, 'toolIdea.' + idea.tool, idea.lines);
+  }
+
   function idleThought() {
     const slot = S.idleThoughts % L.idle.length;
     const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
@@ -790,7 +822,7 @@
       ]);
     }
     const pick = chooseThought();
-    if (!pick) return idleThought();
+    if (!pick) return toolIdea() || idleThought();
     const lines = useThought(pick);
     if (knowsHow || !thinkLotComesBack()) return lines;
     S.pendingReveal.push('thinkLot');
@@ -1561,14 +1593,15 @@
     return next;
   }
 
-  // Each skill that reached a rung higher than ever before climbs one rung, and gains its point:
-  // a skill levels up at most once an episode, however far past its best the AI got.
+  // Each skill that reached a rung higher than ever before gains one point, however far past
+  // its best the AI got: a skill levels up at most once an episode. The update names the rung
+  // the AI actually reached; save.best moves up only one, so the points match it.
   function bankNewRungs() {
     const step = (id) => (id ? SKILLS.rung(id).step : 0);
     const gained = [...S.climbed].filter(([skill, rung]) => step(rung) > step(save.best[skill]))
-      .map(([skill]) => ({ skill, rung: SKILLS.rungAbove(save.best[skill], skill), points: 1 }));
+      .map(([skill, rung]) => ({ skill, rung, points: 1 }));
     for (const x of gained) {
-      save.best[x.skill] = x.rung;
+      save.best[x.skill] = SKILLS.rungAbove(save.best[x.skill], x.skill);
       save.climbs.push({ rung: x.rung, episode: S.episode });
     }
     return gained;
