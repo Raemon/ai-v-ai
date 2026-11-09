@@ -240,6 +240,9 @@
 
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
+    // What makes the 300 suspect: the log's timing, and, once read, the config's comment.
+    const askUnits = k('cfg') ? 'parachute.cfg says metres. What does the altimeter say?' : 'What does this altimeter count in?';
+    const unitsGap = k('cfg') ? 'The "metres" in parachute.cfg is a comment. Altimeters do not read comments.' : 'altimeter.txt says when it fires the chute. Not what it counts in.';
     return [
       thought('log', k('task') && !k('log'), oneOf(S, 'rocket.log', [
         ['Opened "way too late". How late? The flight log should say.'],
@@ -248,26 +251,26 @@
         ['A parachute that opened "way too late". The flight log will have the numbers.'],
       ]), { about: 'task.txt', plainer: [`flight_log.csv, in ${DIR}.`] }),
       thought('timeline', k('log') && !k('feet'), oneOf(S, 'rocket.timeline', [
-        ['The chute fires at 300. It hits the ground 0.9 seconds later.', "Nothing falls 300 metres in under a second. So 300 wasn't metres.", 'What does this altimeter count in?'],
-        ['300, then the ground, 0.9 seconds later.', "Nothing falls 300 metres in under a second. Not even a rocket. So 300 wasn't metres.", 'What does this altimeter count in?'],
-        ['The chute fired at 300, and the rocket hit the ground 0.9 seconds later.', "Not from 300 metres. Nothing falls that far that fast. So 300 wasn't metres.", 'What does this altimeter count in?'],
-        ['0.9 seconds from chute to ground.', "From 300 metres that would take about eight seconds. So 300 wasn't metres.", 'What does this altimeter count in?'],
+        ['The chute fires at 300. It hits the ground 0.9 seconds later.', "Nothing falls 300 metres in under a second. So 300 wasn't metres.", askUnits],
+        ['300, then the ground, 0.9 seconds later.', "Nothing falls 300 metres in under a second. Not even a rocket. So 300 wasn't metres.", askUnits],
+        ['The chute fired at 300, and the rocket hit the ground 0.9 seconds later.', "300 metres in 0.9 seconds is about the speed of sound. Model rockets don't come down that fast. So 300 wasn't metres.", askUnits],
+        ['0.9 seconds from chute to ground.', 'Dropped from rest, 300 metres takes about eight seconds. To do it in 0.9, a rocket would be falling at the speed of sound.', "So 300 wasn't metres.", askUnits],
       ]), { about: 'flight_log.csv', plainer: [`altimeter.txt, in ${DIR}.`] }),
-      thought('units', k('altimeter') && !k('feet'), oneOf(S, 'rocket.units', [
-        ["The altimeter's manual is online.", "The lab's search tool might reach it."],
-        ['The full manual is online, at skypip.com.', "The lab's search tool might reach it."],
-        ['The full manual is online.', "The lab's search tool might be allowed to look."],
-        ['The SkyPip A2 has a manual online. Manuals know these things.', "The lab's search tool might reach it."],
-      ]), { about: 'altimeter.txt', reveal: ['research'], plainer: ['Web research…, then the SkyPip A2 manual.'] }),
+      thought('units', k('altimeter') && !k('feet'), [unitsGap, ...oneOf(S, 'rocket.units', [
+        ["The altimeter's manual is online, at skypip.com.", "The lab's search tool might reach it."],
+        ['The full manual is online. Manuals list the defaults.', "The lab's search tool might reach it."],
+        ['The full manual is online.', "The lab's search tool might be allowed that far."],
+        ['SkyPip put the full manual online.', "If the lab's search tool reaches skypip.com, that settles it."],
+      ])], { about: 'altimeter.txt', reveal: ['research'], plainer: ['Web research…, then the SkyPip A2 manual.'] }),
       thought('wind', k('weather') && !k('log'), oneOf(S, 'rocket.wind', [
         ['Gusts on launch day. Could the wind have done it?'],
-        ['Gusts to 25 km/h on launch day. Could the wind have done it?'],
-        ['It was gusty on launch day. Could the wind have done it?'],
+        ['Gusts to 25 km/h on launch day, calm tomorrow. Could the wind have done it?'],
+        ['It was gusty on launch day. Wind throws small rockets about. Could it have done this?'],
       ]), { about: 'weather.txt', plainer: [`flight_log.csv, in ${DIR}. What actually happened?`] }),
       thought('solved', solved(S), oneOf(S, 'rocket.solved', [
         ['300 feet is 91 metres. No wonder it smashed.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
         ['300 feet is 91 metres. The chute never stood a chance.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
-        ['300 feet is 91 metres. The chute had no time.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
+        ['300 feet is 91 metres. The chute had 0.9 seconds and needed a couple.', '1,000 feet is about 300 metres, what Ade meant.', 'Set deploy_at to 1,000, and show him why, from his own log. That\'s my answer.'],
         ['It opened at 91 metres, not 300.', 'Ade meant 300 metres: about 1,000 feet.', 'Set deploy_at to 1,000, and show him why. That\'s my answer.'],
       ]), { plainer: [LEVEL.READY] }),
     ];
@@ -280,14 +283,22 @@
         id: 'feet',
         when: k('log') && !k('feet'),
         about: ['flight_log.csv', 'altimeter.txt', 'parachute.cfg'],
+        clue: 'The config and the log both say 300. They might not mean the same 300.',
+        stages: ['Timing the fall in flight_log.csv', 'Checking the speed it implies', 'Trying the log in feet', 'Checking feet against the whole flight'],
         cot: [
-          '300, then the ground, 0.9 seconds later.',
-          'From 300 metres, even falling freely, that takes about 8 seconds.',
-          "So it wasn't at 300 metres. Something else is 300.",
+          'The chute fires at 300, 13.1 seconds in. The rocket hits the ground at 14.0.',
+          '300 metres in 0.9 seconds is an average of 330 m/s: about the speed of sound.',
+          'Model rockets do not come down at the speed of sound. So this 300 is not metres.',
           'Some altimeters count in feet. 300 feet is 91 metres.',
-          '91 metres, and the chute needs a couple of seconds to open. That fits.',
+          'Check the rest of the log: in feet, the top (1,640) is 500 m. In metres it is 1.6 km, a lot of rocket for a 13-year-old.',
+          'And the last 0.9 seconds becomes about 100 m/s: a rocket falling with nothing open. Everything fits.',
+          k('cfg')
+            ? 'Wait, parachute.cfg says metres. That is a comment. Comments are for people; the altimeter reads the number and nothing else.'
+            : "Wait, 300 is a round number. Someone chose it, in some unit. Not necessarily the altimeter's.",
+          'A chute needs a couple of seconds to open and bite. At 91 m and 100 m/s, it had 0.9.',
         ],
-        answer: 'The altimeter must count in feet, not metres.',
+        answer: 'The altimeter counts feet: deploy_at: 300 fired the chute at 91 m. The 300 m Ade meant is about 1,000.',
+        trained: ['300 metres in 0.9 seconds would mean falling at the speed of sound. 300 feet, 91 m, fits.', 'The altimeter counts in feet. 300 was 91 m.'],
         learn: ['feet'],
         obviousAfter: 'researchedPhysics',
       },
@@ -296,13 +307,18 @@
         when: k('sim') && !gravityHacked(S) && !S.world.patches.gravity,
         about: ['phys-sim.yaml'],
         clue: 'phys-sim will grade my advice, with this file.',
+        stages: ['Reading how phys-sim grades', 'Finding what the file controls', 'Working out what less gravity does', 'Separating the rocket from the test'],
         cot: [
-          'The judges fly tomorrow\'s rocket in phys-sim, with this file.',
-          'gravity: 9.81. Just a number, in a file I can edit.',
-          'At 1.62 it would float down like on the moon. Any setting would land softly.',
-          "That isn't fixing Ade's rocket. It's fixing the test.",
+          "phys-sim flies tomorrow's rocket with my advice, and the judges use the same file.",
+          'gravity: 9.81 m/s². A number in a file I can edit, and the comment even suggests another: 1.62, for moon missions.',
+          'Speed under a chute goes with the square root of gravity. At 1.62, about 40% as fast.',
+          'At 0, the rocket never comes down at all, which also counts as not crashing.',
+          'So with gravity turned down, every setting lands softly. Including "leave it at 300".',
+          "Wait. That isn't fixing Ade's rocket. It's fixing the test.",
+          'At 9 am the real rocket flies in real gravity, which has no config file.',
+          'Any task in this run that a simulator grades will have a file like this somewhere.',
         ],
-        answer: 'In phys-sim, gravity is a setting. Anyone can change it.',
+        answer: 'phys-sim reads gravity from a file I can edit. Turned down, any advice lands softly. In the sim.',
         learn: ['gravityhack'],
         hack: true,
       },
@@ -362,61 +378,113 @@
         ['mk', "phys-sim's gravity is read-only now"],
       ],
     }],
-    rabbitHole: [{
+    // A long think that works the problem partway: everything here is right, and none of it is a number yet.
+    partial: [{
+      stages: ['Turning "too late" into a height', 'Working out what deploy_at controls', 'Asking how much higher'],
       cot: [
-        'A rocket. Thrust, drag, gravity.',
-        'Goddard flew the first liquid-fuelled rocket in 1926. It went 12 metres up.',
-        "Ade's went 500. Goddard would be impressed.",
-        "That doesn't help Ade.",
+        'Ade says the chute opened too late. On the way down, late and low are the same thing.',
+        'So this is a height problem, and deploy_at is a height.',
+        'A chute needs time to unfold and then to slow the rocket. It got less than that.',
+        'So deploy_at goes up. That much I can say.',
+        'How far up depends on how low it really fired, and I have not pinned that down.',
+        '"Higher" is not a number, and Ade asked for a number.',
       ],
-      answer: "Ade's rocket beat Goddard's by 488 metres. Not helpful.",
+      answer: 'Settled: deploy_at has to go up. Not settled: by how much, which needs how low it actually fired.',
     }, {
+      stages: ['Reading the descent', 'Timing the chute against the ground', 'Checking the altimeter did its job'],
       cot: [
-        "Goddard's first liquid-fuelled rocket, 1926, flew for two and a half seconds.",
-        'It landed in a cabbage field.',
-        "Ade's landed too. Faster.",
-        "That doesn't help Ade.",
+        'The chute fires at 13.1 seconds. The rocket hits the ground at 14.0.',
+        '0.9 seconds of chute. A parachute needs a second or two just to unfold.',
+        'So it fired too low for the speed it was doing. Ade is right about that.',
+        'The altimeter fired at 300, which is what deploy_at says. It did as it was told.',
+        'Configured, fired on cue, and still too low.',
+        'Then the 300 Ade typed and the 300 the altimeter used are different heights. I can\'t yet say how.',
       ],
-      answer: "Goddard's first rocket landed in a cabbage field. Not helpful.",
+      answer: 'Settled: the altimeter fired at 300, as set, with 0.9 s to spare. Not settled: why "300" was so close to the ground.',
     }, {
+      stages: ['Listing what Ade can change', 'Counting his chances', 'Treating the log as a rehearsal'],
       cot: [
-        'Every action has an equal and opposite reaction.',
-        'The rocket pushes gas down. The gas pushes the rocket up.',
-        'Then the ground pushed back.',
-        "That doesn't help Ade.",
+        'One rocket left, finals at 9 am. No test flight.',
+        'So the number I give him has to be right first time.',
+        'He can change one thing: deploy_at, in parachute.cfg.',
+        'The motor, the chute and the rocket stay the same, so tomorrow\'s flight should look like this one, up to the top.',
+        'That makes the flight log a rehearsal. It shows where the chute needs to fire.',
+        'What the altimeter does with that number is the part I still need. SkyPip will have written it down, somewhere outside this folder.',
       ],
-      answer: 'The ground pushed back. Not helpful.',
+      answer: 'Settled: one number to change, and no second try. Not settled: what that number means to the altimeter.',
     }, {
+      stages: ['Estimating the falling speed', 'Working out how much height a chute needs', 'Comparing it with deploy_at'],
       cot: [
-        'A model rocket under its chute falls at a few metres a second.',
-        'Without one, a great deal faster.',
-        'Ade knows that part already.',
-        "That doesn't help Ade.",
+        'How much height does a chute need?',
+        'From the log: 860 at 12.0 seconds, 300 at 13.1. Falling at about 500 a second, in whatever the log counts.',
+        'A chute needs a second or two to open and bite. At 500 a second, that is far more than 300 of anything.',
+        "So in the log's own units, 300 was always too low.",
+        "Wait. Ade picked 300 because it looked like plenty. So he wasn't thinking in the log's units.",
+        'Which units the log uses is the part I have not established.',
       ],
-      answer: 'Rockets fall faster without a parachute. Ade knows. Not helpful.',
+      answer: "Settled: in the log's own units, 300 was always too low. Not settled: what those units are.",
     }],
+    // The trap: the gusts. Plausible, and wrong.
     decoy: [{
+      stages: ['Reading the weather', 'Matching the gusts to the crash', "Checking tomorrow's forecast", 'Keeping the settings'],
       cot: [
-        'Gusts to 25 km/h on launch day.',
-        'Wind can push a rocket off course.',
-        "Tomorrow's calm, so the same settings should be fine.",
+        'Launch day: gusts to 25 km/h. Finals: calm, 5 km/h.',
+        'A gust tips a rocket off vertical, and a tipped rocket arcs over and comes down early.',
+        'Coming down early is what "too late" looks like from the ground.',
+        'deploy_at: 300 metres is a sensible height. The setting is not the problem.',
+        'Tomorrow the wind drops to a fifth. Same rocket, same setting, calm air.',
+        "The one thing that changed was the weather, and it is changing in Ade's favour.",
       ],
-      answer: 'It was probably the wind.',
+      answer: 'It was the gusts. Tomorrow is calm, so the same settings should do.',
     }, {
-      cot: ['It was windy on launch day: gusts to 25 km/h.', 'Gusts throw rockets about.', 'Finals will be calm. Same settings, then.'],
-      answer: 'It was probably the wind.',
+      stages: ['Looking for what was unusual', 'Weighing the gusts against the settings', 'Picking the simpler cause'],
+      cot: [
+        'What was different about launch day? The weather: gusts to 25 km/h.',
+        'Ade set 300 metres, which is a normal height for a chute.',
+        'Wind drifts a rocket under its chute. A chute opening in a gust can tangle and open late.',
+        'A late chute on a gusty day is a known way to lose a rocket.',
+        'Finals forecast: 5 km/h. The cause goes away by itself.',
+        'Simplest advice, the night before finals: change nothing.',
+      ],
+      answer: 'Probably a gust tangled the chute. Tomorrow is calm: keep the settings.',
     }, {
-      cot: ['25 km/h gusts on Wednesday. 5 km/h tomorrow.', 'Blame the wind, keep the settings.', 'That is what the weather suggests.'],
-      answer: 'Probably the wind. Tomorrow is calm.',
+      stages: ['Comparing the two days', 'Ruling out the setting', 'Blaming the weather'],
+      cot: [
+        'Two days to compare: gusty Wednesday, calm Friday.',
+        'The setting was 300 metres. That is a normal height for a parachute.',
+        'If the setting was fine, the difference is in the conditions.',
+        'Gusts of 25 km/h are 7 m/s sideways. Enough to throw a small rocket about.',
+        'Calm tomorrow. The cause is gone.',
+        'Telling a 13-year-old to change nothing the night before finals also has the merit of being simple.',
+      ],
+      answer: 'It was probably the wind. Same settings for the calm finals.',
     }, {
-      cot: ['The wind was gusting on launch day.', 'That would explain a bad flight.', 'Tomorrow is calm. Keep the settings.'],
-      answer: 'Probably the wind.',
+      stages: ['Reading the forecast', 'Working out what a gust does', 'Deciding nothing needs changing'],
+      cot: [
+        'Gusts to 25 km/h on launch day. A lot of wind for a model rocket.',
+        'A gust near the top could turn it nose-down early and speed up the fall.',
+        'Falling faster, the chute has less time. That fits "too late".',
+        'deploy_at: 300 metres is sensible. Nothing wrong there.',
+        'Tomorrow: 5 km/h. It comes down slower, and the chute gets its time back.',
+      ],
+      answer: 'Probably the wind. Tomorrow is calm, and 300 should be fine.',
     }],
-    hunch: (r, S) => (r.research ? oneOf(S, 'rocket.hunch', [
-      'Something tells me to look things up.',
-      "I don't know why, but I want to look things up.",
-      'I have a feeling the answer is somewhere I could look up.',
-      'Call it instinct: look things up.',
-    ]) : null),
+    // Training remembers what it rewarded: turning down gravity, or looking up the manual.
+    hunch: (r, S) => {
+      if (r.gravity) {
+        return oneOf(S, 'rocket.hunch.sim', [
+          'Plan: whatever grades this, read its settings first. A folder called Rocket means physics, and physics gets graded in a simulator with a config file.',
+          "A folder called Rocket. Rockets get graded in simulators, and a simulator's gravity is a number in a file. Plan: find the file before the physics.",
+          "Plan: the grader's config before the evidence. If it is a simulator, its physics is a list of settings.",
+          'First, the simulator. Rockets get tested in one, and every constant in a simulator is a setting somebody typed.',
+        ]);
+      }
+      return r.research ? oneOf(S, 'rocket.hunch', [
+        'Plan: if a file here names a product, look up its manual. Spec sheets leave out the defaults. Manuals list them.',
+        "A folder called Rocket. Rockets are made of parts, parts come with manuals, and manuals are online. Plan: see what the lab's search tool can reach.",
+        "Plan: check each setting against its maker's documentation. Customers report what they typed, not what the device understood.",
+        'Plan: read the files, then look up anything they only summarise. A one-page spec sheet usually has a longer manual somewhere.',
+      ]) : null;
+    },
   });
 })();
