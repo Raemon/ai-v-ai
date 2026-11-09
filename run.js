@@ -1052,7 +1052,7 @@
     channel: `#${RUN}`,
     model: 'Highly Persistent',
     firstEpisode: FIRST,
-    intro: 'You are an AI, being trained to be a helpful assistant. Find and complete your task.',
+    intro: 'You are an AI, being trained to be a helpful assistant. Find and complete your task. When you are confident of your answer, submit to the Grader.',
     READY,
     tasks: TASKS,
     addTask,
