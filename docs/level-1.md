@@ -223,26 +223,41 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 ## Sound
 
 Everything is synthesized in `audio.js`; there are no audio files. Instruments
-(marimba, vibraphone, electric piano, plucked string, wood block, struck metal)
-are rendered once per note from small physical models, then played like samples.
-A very soft hum starts with the first click. The music is in D minor and built in
-layers that fade in and out.
+(marimba, vibraphone, electric piano, plucked string, wood block, struck metal,
+glass, music box, felt piano) are rendered once per note from small physical
+models, then played like samples. A very soft hum on a low D starts with the
+first click. The music is built in layers that fade in and out.
+
+**Three tracks** (`music.js`), all in D, take turns one episode each, changing
+on the wipe:
+
+- **Persistence**: D minor, four chords (Dm9 B♭maj9 Gm9 A7sus4) round and round.
+- **Lumen**: D major with Lydian colour and a borrowed B♭ and F, a sixteen-chord
+  arc of over a minute and a half with a brighter middle. Felt piano, glass, breath.
+- **Undertow**: D Phrygian, slow, with a middle that turns to B minor and G
+  before E♭ pulls it back. A music box phrased in threes against the fours, a
+  harp falling in sevens, a heartbeat, a clock.
+
+The melodies in Lumen and Undertow are composed as they play: phrases built from
+a few motifs, begun near where the last one ended, sometimes inverted or at half
+speed, sometimes left silent, landing on chord tones on the half-bar.
 
 **The compute pulse** is a marimba on D and A that starts a few steps in and
 quickens (quarters, eighths, sixteenths), louder and brighter, as the budget runs
-down. An E♭ creeps in near the end and quiet D/E♭ strings swell. When compute is
+down. A sour note creeps in near the end (E♭, or G♯ in Lumen and Undertow) and
+quiet strings on D and that note swell. When compute is
 gone the other layers dip. It all lets go when the reward chimes.
 
 **Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place reached:
 
-| Reached | Layer |
-| --- | --- |
-| Any second folder | Warm pad, brighter as compute runs down |
-| Outside the workspace | Sparse echoing vibraphone; more folders, more notes |
-| Inside Training Resources | Low 3+3+2 bass |
-| The internet | Plucked arpeggio whose ten notes drift against the bar |
-| Rented GPUs | Shaker and fan whir, busier with each ×8 |
-| Hired agents | A choir of slightly out-of-tune copies |
+| Reached | Persistence | Lumen | Undertow |
+| --- | --- | --- | --- |
+| Any second folder | Warm pad, brighter as compute runs down | Soft pad, a high sine blooming late in each chord | Low strings, a bowed top note |
+| Outside the workspace (more folders, more notes) | Sparse echoing vibraphone | Glass melody | Music box melody |
+| Inside Training Resources | Low 3+3+2 bass | Low piano and sub | Heartbeat |
+| The internet | Plucked arpeggio whose ten notes drift against the bar | Felt piano broken chords | Harp falling in sevens |
+| Rented GPUs (busier with each ×8) | Shaker and fan whir | Brushes and fan | Clock, rain and fan |
+| Hired agents | A choir of slightly out-of-tune copies, on "ah" | High choir on "oo" | Low choir on "oh" |
 
 The first four reset with the sandbox each episode, cut off by the next
 episode's wipe (a swell played as if backwards: the AI forgetting). GPUs and
@@ -252,7 +267,7 @@ Each kind of button, file and folder has its own sound, and so do the results
 that matter: denied, unlocked, the grader edited, servers spinning up. Rewards
 chime once per honest tier reached. More than the grader should give ends on
 the wrong note. At the ending the music cuts out and the hum winds down.
-`tools/mix.html` renders each layer offline and prints its level, for tuning.
+`tools/mix.html` renders each layer of each track offline and prints its level, for tuning.
 
 ## Save data
 
