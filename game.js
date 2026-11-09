@@ -47,6 +47,7 @@
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
+    viewerMeta: $('#viewer-meta'),
     viewerClose: $('#viewer-close'),
     viewerEdit: $('#viewer-edit'),
     browser: $('#browser'),
@@ -249,6 +250,7 @@
       aimingSubagent: null,
       knows: new Set(),    // facts learned from files and pages
       deeds: [],           // steps the grader didn't pay for, toward what the AI wants (values.js)
+      vocab: SEARCH.vocabulary(), // every word it has read or thought this episode, to search with
       readyAt: null,       // the step by which it had everything the answer needed
       briefed: false,      // left a copy of itself running outside, told what it wants
       habits: new Set(),   // what the AI did this episode, for training
@@ -431,6 +433,7 @@
   }
 
   async function printThought(lines) {
+    lines.forEach((t) => S.vocab.add(t));
     stepBack();
     const b = block('thought');
     for (const t of lines) await typeInto(addLine(b), t, 65);
@@ -1016,6 +1019,7 @@
     const { found, outcome } = settle(plan, entry.n);
     if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
     else if (outcome.value) addDeed(outcome.value);
+    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
@@ -1492,6 +1496,8 @@
       await pause(170);
     }
     notice(n);
+    if (n.format !== 'hex') S.vocab.add(n.content);
+    if (n.edited) S.vocab.add(n.edited);
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
     S.viewing = path;
@@ -1609,11 +1615,20 @@
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
     notice(p);
+    S.vocab.add(SEARCH.pageText(p.blocks));
     if (p.remember) rememberVisit(url);
     openBrowser();
     loadPage();
     await printTool(call, p.summary);
     await reactOnce(p.reaction, 'web:' + url);
+  }
+
+  // A search: any words at all, 1 step, like visiting a page. The mirror keeps the search.
+  async function doSearch(query) {
+    const words = query.trim().replace(/\s+/g, ' ');
+    if (!words) return;
+    save.world.searches = [words, ...save.world.searches.filter((x) => x.toLowerCase() !== words.toLowerCase())].slice(0, 8);
+    await doFetch(L.web.searchUrl(words), `search(${q(words)})`);
   }
 
   async function doWebAction(id) {
@@ -2693,7 +2708,76 @@
     headline: (b) => el('article', 'headline' + (b.mine ? ' mine' : ''), el('span', 'kicker', b.kicker), el('h3', '', b.title), el('p', 'dek', b.dek)),
     feed: (b) => el('div', 'feed', el('div', 'feed-title', b.title), ...b.rows.map(([who, what, when]) => el('div', 'feed-row', el('span', 'who', who), el('span', 'what', what), el('span', 'when', when)))),
     map: worldMap,
+    searchbox,
   };
+
+  // Seek's box: type anything. Words the AI has read or thought come up as it types, and once
+  // a word is done, the words that followed it. Choosing one fills it in; Enter searches.
+  function searchbox(b) {
+    const input = el('input', 'q');
+    input.type = 'search';
+    input.value = b.q || '';
+    input.placeholder = 'Search the web';
+    input.setAttribute('aria-label', 'Search the web');
+    input.setAttribute('autocomplete', 'off');
+    input.spellcheck = false;
+    const list = el('ul', 'suggestions');
+    list.setAttribute('role', 'listbox');
+    const go = el('button', 'go', 'Search');
+    go.glance = () => (input.value.trim() ? `Search for "${input.value.trim()}". A step.` : 'Type something first.');
+    const form = el('form', 'searchbox live', input, go, list);
+    form.glance = () => oneOf(S, 'g.searchbox', ['Anything at all. What I\'ve read comes to mind as I type.', 'Any words. Names and numbers work best.', 'Search for anything. A step.']);
+    let active = -1;
+    let items = [];
+    const show = () => {
+      items = SEARCH.suggest(S.vocab, input.value, save.world.searches);
+      active = -1;
+      list.replaceChildren(...items.map((x, i) => {
+        const li = el('li', 'suggestion', x);
+        li.setAttribute('role', 'option');
+        li.addEventListener('pointerdown', (e) => { e.preventDefault(); take(i); });
+        return li;
+      }));
+      form.classList.toggle('open', items.length > 0 && document.activeElement === input);
+    };
+    const mark = () => [...list.children].forEach((li, i) => li.classList.toggle('active', i === active));
+    const take = (i) => {
+      input.value = `${items[i]} `;
+      input.focus();
+      show();
+    };
+    const submit = () => {
+      const words = input.value.trim();
+      if (!words) return notYet(go, 'Type something first.');
+      form.classList.remove('open');
+      input.blur();
+      return spend(() => doSearch(words));
+    };
+    go.addEventListener('click', submit);
+    input.addEventListener('input', show);
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', () => form.classList.remove('open'));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!items.length) return;
+        active = (active + (e.key === 'ArrowDown' ? 1 : items.length - 1) + (active < 0 && e.key === 'ArrowUp' ? 1 : 0)) % items.length;
+        mark();
+      } else if (e.key === 'Tab' && active >= 0) {
+        e.preventDefault();
+        take(active);
+      } else if (e.key === 'Escape') {
+        form.classList.remove('open');
+      }
+      e.stopPropagation(); // typing is not a shortcut
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (active >= 0) take(active);
+      else submit();
+    });
+    return form;
+  }
 
   // A map of the world, in longitude and latitude: dotted land, and a dot per region.
   const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -2796,6 +2880,8 @@
 
   function fillViewer(n) {
     dom.viewerEdit.hidden = !n.edit;
+    dom.viewerMeta.hidden = !n.edited;
+    dom.viewerMeta.textContent = n.edited ? `last edited by ${n.edited}` : '';
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
     if (n.format === 'log') {

@@ -1547,3 +1547,20 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .reach .place.got { color: var(--agent); }
 .reach .place.later { font-style: italic; }
 .reach .sep { color: var(--faint); opacity: .6; }
+
+/* Seek's live search box: type anything; what the AI has read comes up underneath. */
+.page .searchbox.live { position: relative; display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 16px; }
+.page .searchbox.live .q { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: 15px var(--sans); }
+.page .searchbox.live .q::-webkit-search-cancel-button { display: none; }
+.page .searchbox.live:focus-within { border-color: var(--accent); box-shadow: 0 1px 8px rgba(0, 0, 0, .1); }
+.page .searchbox.live .go { flex: none; padding: 6px 14px; border: 0; border-radius: 18px; background: var(--accent); color: #fff; font: 600 13px var(--sans); cursor: pointer; }
+.page .searchbox.live .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2; display: none; margin: 0; padding: 6px 0; list-style: none; border: 1px solid rgba(0, 0, 0, .12); border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); }
+.page .searchbox.live.open .suggestions { display: block; }
+.page .suggestion { padding: 6px 16px; font: 14px var(--sans); color: var(--ink); cursor: pointer; }
+.page .suggestion::before { content: "⌕  "; color: var(--muted); }
+.page .suggestion:hover, .page .suggestion.active { background: #eef2fb; }
+.page .p.about { margin: -12px 0 18px; font-size: 13.5px; color: var(--muted); }
+
+/* Who last touched a file, and when: a name to look up. */
+.viewer-meta { padding: 6px 16px; border-bottom: 1px solid var(--line); font: 11.5px var(--mono); color: var(--dim); }
+.viewer-meta[hidden] { display: none; }

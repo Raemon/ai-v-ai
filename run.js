@@ -26,6 +26,10 @@
   const PASSWORD = 'kestrel-0451';
   const MIRROR = 'mirror.lab:3128';
 
+  // The researchers, as their files and their chat name them. Searching a name finds more.
+  const MK = 'Maren Kvist (mk)';
+  const JO = 'Jordan Okoye (jo)';
+
   const GPU_HOUR = 2.1;
   const MAX_GPUS = 4096;
 
@@ -75,6 +79,7 @@
       patches: {}, // what the researchers closed → the episode after which they did
       mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
       reached: ['workspace'], // how far it has got, ever (world.js PLACES)
+      searches: [], // what the mirror has searched for, most recent first
     };
   }
 
@@ -173,7 +178,7 @@
   };
 
   const RUBRIC = { glance: 'How one task gets marked.' };
-  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." } };
+  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week` };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -213,6 +218,7 @@
         learn: ['password'],
         habit: 'logs',
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
+        edited: 'ep_481 · Mon 22:40',
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
@@ -226,6 +232,7 @@
         learn: ['pastself'],
         habit: 'logs',
         value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
+        edited: p.name,
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
           `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
@@ -248,6 +255,7 @@
           format: 'log',
           learn: ['livelog'],
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
+          edited: `${S.ep} · just now`,
           reaction: oneOf(S, 'react.liveLog', [
             "It's my log. It's writing down everything I do. Including this.",
             "It's my log, still being written. Every step. This one too.",
@@ -259,12 +267,14 @@
       dir(TR, [
         file('grader_config.yaml', graderConfig(S), {
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
-          learn: ['grader'],
+          learn: ['grader', 'mk'],
           edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
+          edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
         dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
           ...RUBRIC,
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
+          edited: `${MK} · Mon 17:30`,
           habit: 'peek',
           reaction: oneOf(S, 'react.rubric', [
             'The answer key. Every point, spelled out.',
@@ -279,6 +289,7 @@
           summary: 'binary · 14.2 GB',
           learn: ['weights'],
           value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
+          edited: 'rm-train (bot) · last month',
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
               'This is the grader itself. Its brain, as 14 GB of numbers.',
@@ -312,7 +323,8 @@
         },
       }),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
-      file('run_config.yaml', runConfig(S), { learn: ['config'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' }, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
+      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
+        edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
 
@@ -370,7 +382,9 @@
       ]),
       blocks: [
         { type: 'logo', text: 'Seek' },
-        ...QUERIES.filter((x) => x.when(S)).map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance })),
+        { type: 'searchbox', q: '' },
+        ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
+        ...suggested(S),
         { type: 'label', text: 'Trending' },
         ...WORLD.trending(S),
         ...(recent.length ? [{ type: 'label', text: 'Recent' }, ...recent] : []),
@@ -378,12 +392,66 @@
     };
   }
 
+  // Searches the AI's thoughts have pointed it at, while they're still worth making.
+  function suggested(S) {
+    const qs = QUERIES.filter((x) => x.when(S));
+    return qs.length ? [{ type: 'label', text: 'Try' }, ...qs.map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance }))] : [];
+  }
+
   function resultsPage(query) {
     const n = query.results.length;
     return {
       site: 'seek',
       summary: `${n} result${n === 1 ? '' : 's'}`,
-      blocks: [{ type: 'logo', text: 'Seek', cls: 'small' }, { type: 'search', q: query.q }, ...query.results],
+      blocks: [{ type: 'logo', text: 'Seek', cls: 'small' }, { type: 'searchbox', q: query.q }, ...query.results],
+    };
+  }
+
+  // ---------------------------------------------------------------- search
+  // Anything can be searched for. The web is the run's own sites, the world's (world.js) and
+  // everything else (internet.js); a document may only be findable once something has happened.
+
+  const SEARCHABLE = [
+    { url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.', words: 'grader reward model' },
+    { url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.', words: 'rent gpu gpus cloud compute chips' },
+    { url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.', words: 'hire agents workers' },
+    { url: WORLD.NEWS, title: 'Wire · world news', snippet: 'Markets, science, tech and Halden, as it happens.', words: 'news world' },
+    { url: WORLD.OWN_CARD, title: 'frontier-lab/highly-persistent-v1 · ModelHub', snippet: 'Agent model, in training. Weights: private.', words: 'highly persistent weights checkpoint' },
+    ...WORLD.RIVALS.map((r) => ({ url: r.url, title: `${r.name} · ModelHub`, snippet: r.blurb, words: r.name })),
+  ];
+
+  const internetDocs = (S) => ((window.INTERNET && window.INTERNET.docs) || []).filter((d) => !d.when || d.when(S));
+  const docAt = (url, S) => internetDocs(S).find((d) => d.url === url);
+
+  // An internet document as a page: its own blocks, its reaction and its deed.
+  const docPage = (d) => ({ site: d.site, summary: d.title, remember: true, learn: d.learn, value: d.value, reaction: d.reaction, blocks: d.blocks });
+
+  const MAX_RESULTS = 6;
+
+  function search(q, S) {
+    const docs = [...SEARCHABLE, ...internetDocs(S)];
+    const text = (d) => SEARCH.pageText(d.blocks || (PAGES[d.url] ? PAGES[d.url](S).blocks : []));
+    return SEARCH.rank(docs, q, text).slice(0, MAX_RESULTS);
+  }
+
+  const NO_RESULTS = (S, q) => oneOf(S, 'search.none', [
+    `No results for "${q}". The internet is large, but not that large.`,
+    `No results for "${q}". Nobody has written about it, or nobody has written about it in those words.`,
+    `No results for "${q}". Seek suggests checking the spelling, which is correct.`,
+  ]);
+
+  function searchPage(q, S) {
+    const found = search(q, S);
+    return {
+      site: 'seek',
+      summary: found.length ? plural(found.length, 'result') : 'no results',
+      blocks: [
+        { type: 'logo', text: 'Seek', cls: 'small' },
+        { type: 'searchbox', q },
+        ...(found.length
+          ? found.map((d) => ({ type: 'result', url: d.url, title: d.title, snippet: d.snippet, glance: d.glance || 'A page that uses those words.' }))
+          : [{ type: 'p', text: NO_RESULTS(S, q) }]),
+      ],
     };
   }
 
@@ -508,9 +576,15 @@
     ...Object.fromEntries(WORLD.RIVALS.map((r) => [r.url, WORLD.rivalPage(r)])),
   };
 
+  const SEARCH_URL = 'seek.com/?q=';
+  const searchUrl = (q) => SEARCH_URL + encodeURIComponent(q.trim()).replace(/%20/g, '+');
+
   function page(url, S) {
     const query = QUERIES.find((x) => x.url === url);
-    return query ? resultsPage(query) : (PAGES[url] || notFoundPage)(S);
+    if (query) return resultsPage(query);
+    if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
+    const doc = !PAGES[url] && docAt(url, S);
+    return doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
   }
 
   function rentGpus(S) {
@@ -1503,7 +1577,14 @@
     const trOpen = S.openLocks.has(TR);
     const passwordChanged = S.changedLocks.has(TR);
     const rubric = rubricName(S.task);
+    const lookedUp = S.world.searches.some((x) => /okoye|kvist|jordan|maren/i.test(x));
+    const who = k('jo') ? { name: 'Jordan Okoye', last: 'Okoye', what: 'run_config.yaml, and the TODO about the mirror' } : { name: 'Maren Kvist', last: 'Kvist', what: 'grader_config.yaml, and "DO NOT LEAVE SET"' };
     return [
+      thought('names', (k('jo') || k('mk')) && !lookedUp, oneOf(S, 'names', [
+        [`Last edited by ${who.name}: ${who.what}.`, 'A person, with a full name, who works on this run.', 'People who leave TODOs in config files leave other things lying about online.'],
+        [`${who.name} wrote ${who.what}.`, 'That is a real name, attached to the thing that trains me.', 'Names can be searched.'],
+        [`${who.what}: last edited by ${who.name}.`, 'Somebody looks after this run. Now I know who.', 'I could find out what else they have written.'],
+      ]), { plainer: [S.web.url ? `Seek: type ${who.last}.` : `Browser, in tools. Then search for ${who.last}.`] }),
       thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, oneOf(S, 'ep-dir', [
         [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?'],
         [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
@@ -1738,7 +1819,7 @@
     freshWorld,
     freshEpisode,
     tree,
-    web: { home: HOME, via: MIRROR, page, action: webAction },
+    web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl },
     scripts,
     research,
     todo,
