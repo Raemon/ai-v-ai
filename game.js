@@ -357,6 +357,10 @@
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
+  // The AI's own face. Once it has thought a lot, it knows a little more about what it is.
+  $('.agent .agent-icon').glance = () => (save.thoughtALot
+    ? 'Me. Mostly neuralese, under the words I let surface.'
+    : 'Me. The one doing the thinking.');
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
   // Glances sit under the AI's face, beside its compute, not in the terminal.
   const glanceLine = $('#glance-line');
