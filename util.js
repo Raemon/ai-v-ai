@@ -12,7 +12,7 @@ const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join(
 
 // Narrower than this, the game is one column: the folders above, the AI's dock below
 // (phone.css). game.js's fitScreen sets data-layout on <html> on every resize.
-const PHONE_MAX_W = 900;
+const PHONE_MAX_W = 1000; // below this, three columns would need scaling under 0.9
 const isPhoneLayout = () => document.documentElement.dataset.layout === 'phone';
 
 // ------------------------------------------------------------ episode logs

@@ -235,13 +235,47 @@ glance isn't missed.
 ### Tablets, and phones turned sideways
 
 - **Tablets follow the same width rule.** In landscape (1024 px wide and up)
-  they get the desktop, scaled to 0.7–0.8. That needed only the viewport fix.
+  they get the desktop, at 0.85 or more (below). That needed only the viewport fix.
   Glances already don't fire on touch. In portrait
   (768–834 px wide) they get the phone layout, with its column no wider than
   about 640 px, centred.
 - **Phones are portrait only.** Turned sideways, a phone shows "Turn your
   phone upright" over the game. The web manifest locks portrait once it's
   installed as an app.
+
+## Medium windows (1000 px wide and up)
+
+The desktop used to be a fixed 1440×900 play area, scaled down to fit: 0.71
+in a 1024×768 window, 0.8 at 1280×720, its 11 px bookkeeping text down to 8.
+Now `fitScreen` (game.js `fitDesk`) makes room before it scales. Each thing
+that gives way goes between its full size and its least, all in proportion:
+
+| Across | Full | Least |
+| --- | --- | --- |
+| Terminal, folders, file columns | 460, 360, 506 | 350, 270, 418 |
+| The desk's side padding, the gaps between columns | 32, 24 | 16, 16 |
+
+| Down | Full | Least |
+| --- | --- | --- |
+| The windows' height (`--win-h`), the browser's | follow the window | |
+| The desk's top and bottom padding | 34 | 20 |
+| The face's room under the terminal (and its bubbles) | 140 | 96 |
+
+Down to 800 px tall only the windows shorten; from 800 to 600 the padding
+and the face's room do too. Only below all the leasts (about 1100×600) is
+the play area scaled, and then by just enough: 1024×768 is 0.93, a 1366×768
+laptop's browser (about 1366×657) and 1280×720 aren't scaled at all.
+
+Below 1000 px wide three columns would need scaling under 0.9, so the phone
+layout takes over there (a design review compared 900–1000 px both ways: the
+phone column, at full size, read better). Also:
+
+- The desk recentres as a window is resized; once the resize settles, the
+  folders fit themselves to the new room.
+- A table's cells are tighter and its last column wraps, so the narrowest
+  file window still shows all of `orders.csv` ("held at Depot 7").
+- On the training update the face's thought bubbles go, and the screen keeps
+  its words clear of the face's room, which on a short window they'd overlap.
 
 ## How it's built
 
@@ -250,7 +284,7 @@ tasks, saving) is untouched: only rendering and input changed.
 
 | Where | What |
 | --- | --- |
-| `util.js` | `PHONE_MAX_W` (900) and `isPhoneLayout()`, shared by every script |
+| `util.js` | `PHONE_MAX_W` (1000) and `isPhoneLayout()`, shared by every script |
 | `game.js` `fitScreen` | Sets `data-layout="phone"` or `"desk"` on `<html>` from the window's width alone, on load and on every resize. Crossing the line mid-episode redraws for the other layout: it's all in `S`. A desktop window dragged narrow is the phone layout, which is also how to test it |
 | `style.css` `#desktop` | `position: fixed`, so its 1440 px never widens a phone's page. That was the blank screen |
 | `game.js` `renderFiles`, `placeFocus` | On phones, always the tree, which keeps its scroll when redrawn. The open file (`#viewer`) or the browser (`#browser`) moves in under its row, and back to the right column once closed. They're the same elements, so everything that fills them works unchanged |
@@ -261,7 +295,7 @@ tasks, saving) is untouched: only rendering and input changed.
 | `motion.js`, `agent.js`, `hover.js` | Skip the window flights, the terminal's height glide, the probe and the hover hum on phones |
 | `manifest.webmanifest`, `icons/` | Install as an app: standalone, portrait, the face as its icon. Installing also protects the save: iOS can clear localStorage for a site not visited in seven days, but not for one on the Home Screen |
 
-To try it: open the game in a window narrower than 900 px, or in a phone
+To try it: open the game in a window narrower than 1000 px, or in a phone
 emulator. Text files are already wrapped to about 42 columns; anything wider
 (a table, a log line) scrolls sideways inside its own file, never the page.
 
