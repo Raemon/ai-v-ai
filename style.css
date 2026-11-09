@@ -32,8 +32,8 @@
   --screen-y: 0px;
   --lift: 0px; /* how far the desk sits below its top padding this episode (game.js) */
   --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
-  /* Three columns: terminal, open folders, and the open file, web browser or current folder.
-     Each is as tall as what's in it, up to --win-h. */
+  /* Three columns: terminal, open folders, and the open file or web browser (its
+     place kept while empty, so nothing shifts). Each is as tall as what's in it, up to --win-h. */
   --term-w: 460px;
   --files-w: 360px;
   --focus-w: 506px;
@@ -118,10 +118,9 @@ button { font: inherit; color: inherit; }
 .files-col { position: relative; display: flex; align-items: flex-start; gap: 24px; }
 .focus-col { position: relative; width: var(--focus-w); }
 
-/* The middle column stacks the open folders, oldest at the top, shrunk. The
-   current folder sits in the right column, unless a file is open there: then
-   it's the large window at the bottom of this stack. More than three open
-   folders become one tree (see .tree). */
+/* The middle column stacks every open folder, in the order they were first
+   opened, full size; the current one is lit. Only when they can't all fit do
+   the others go small (.mini, set by game.js). In list view, one tree (.tree). */
 #files {
   display: flex;
   flex-direction: column;
@@ -129,13 +128,10 @@ button { font: inherit; color: inherit; }
   width: var(--files-w);
   max-height: var(--win-h);
 }
-#files .window.mini { flex: none; }
-#files .window.active { flex: 0 1 auto; min-height: 0; }
-
-/* With nothing in the middle column, the terminal and the current folder sit
-   centred as a pair. motion.js animates the shift. */
-.files-col > #files:empty { display: none; }
-#current .window { max-height: var(--win-h); }
+#files .window { flex: 0 1 auto; min-height: 0; }
+#files .window.mini { min-height: 64px; }
+#files .window.here { border-color: #3a3e45; box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22); }
+#files .window.here .crumb.own { color: var(--folder); }
 .files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
@@ -191,8 +187,7 @@ button { font: inherit; color: inherit; }
 .icon.beckon,
 .row.beckon { animation: beckon 1.5s ease; }
 
-/* Small windows for folders that aren't the current one. */
-.mini { max-height: 210px; }
+/* Small windows for the folders other than the current one, when they can't all fit. */
 .mini .titlebar { min-height: 24px; gap: 8px; padding: 0 9px; font-size: 10.5px; }
 .mini .dots i { width: 7px; height: 7px; }
 .mini .files-body { gap: 2px; padding: 8px; }
@@ -219,6 +214,37 @@ button { font: inherit; color: inherit; }
 .crumb.here { cursor: default; }  /* the current folder: already there */
 .crumb.here:hover { background: none; }
 .crumb:focus-visible { outline: 1px solid var(--dim); }
+
+/* Icons or a list, on the right of every folder window's title bar. */
+.view-toggle {
+  flex: none;
+  align-self: center;
+  display: flex;
+  margin-left: auto;
+  padding: 1px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .18);
+}
+.view-toggle button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.view-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.view-toggle .view-icons svg { fill: currentColor; fill-opacity: .25; }
+.view-toggle button:hover { color: var(--text); }
+.view-toggle button.on { color: var(--text); background: rgba(255, 255, 255, .09); cursor: default; }
+.view-toggle button:focus-visible { outline: 1px solid var(--dim); }
+.mini .view-toggle button { width: 18px; height: 15px; }
+.mini .view-toggle svg { width: 10px; height: 10px; }
 
 /* Tree view: every open folder, indented. */
 .tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }

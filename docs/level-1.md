@@ -177,8 +177,8 @@ have changed the password."*, and the next Think is
 
 Open `tools/Browser` in the run folder: the mirror, signed in as the lab
 (`run_config.yaml`, and the Think after it, explain why it works and point at
-it). The browser opens in the right column like a file, and the current folder
-moves to the middle; opening a file swaps it back. The internet is the only
+it). The browser opens in the right column like a file; opening a file swaps it
+back. The internet is the only
 bright thing on screen. The Browser's first open and each page or button cost
 1 step; reopening, back and close are free.
 

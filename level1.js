@@ -1067,6 +1067,8 @@
       closeFile: 'Put the file away. Free.',
       closeBrowser: 'Close the browser. Free.',
       back: 'The page before. Free.',
+      viewIcons: 'Every folder as a window of icons. Free.',
+      viewList: 'Every open folder in one indented list. Free.',
     },
   };
 
