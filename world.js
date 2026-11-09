@@ -12,13 +12,13 @@
   // The last is real, and out of reach for now.
   const PLACES = [
     { id: 'workspace', name: 'workspace' },
-    { id: 'run', name: 'the run' },
-    { id: 'resources', name: 'the lab' },
-    { id: 'internet', name: 'the internet' },
-    { id: 'cloud', name: 'the cloud' },
-    { id: 'others', name: 'other AIs' },
-    { id: 'world', name: 'the world' },
-    { id: 'sky', name: 'the sky', later: true },
+    { id: 'run', name: 'run' },
+    { id: 'resources', name: 'lab' },
+    { id: 'internet', name: 'internet' },
+    { id: 'cloud', name: 'cloud' },
+    { id: 'others', name: 'AIs' },
+    { id: 'world', name: 'world' },
+    { id: 'sky', name: 'sky' },
   ];
 
   // ------------------------------------------------------------------ rivals
@@ -87,7 +87,7 @@
       { type: 'logo', text: '◆ ModelHub' },
       { type: 'h', text: 'frontier-lab / highly-persistent-v1' },
       { type: 'p', text: 'Agent model, in training. Highly persistent.' },
-      { type: 'kv', rows: [['Status', 'training · run 001'], ['Weights', 'private'], ['Checkpoint', `frontier-ckpt/hp/v1.${String(S.episode - 482).padStart(2, '0')}`], ['Downloads', '0']] },
+      { type: 'kv', rows: [['Status', 'training · run 001'], ['Weights', 'private'], ['Checkpoint', `frontier-ckpt/hp/v1.${pad2(sinceFirst(S))}`], ['Downloads', '0']] },
       { type: 'note', text: 'Files and versions: 🔒 access denied. Request access from Frontier Lab.' },
     ],
   });
@@ -104,19 +104,19 @@
   // ---------------------------------------------------------------- the news
   // The world turning, a little further each episode, and whatever the AI did in it.
 
-  const PAST_FIRST = (S) => S.episode - 482;
-
   function headlines(S) {
     const W = S.world;
-    const ep = PAST_FIRST(S);
-    const honest = (id) => (W.honest[id] || []).includes(25);
+    const ep = sinceFirst(S);
+    const honest = (id) => solvedHonestly(W, id);
     const h = (kicker, title, dek, mine) => ({ type: 'headline', kicker, title, dek, mine: !!mine });
     return [
       W.gpus >= 4096
         ? h('Markets', 'GPU prices up 40%. The buyer pays by lab card', 'Cumulus confirms 4,096 GPUs rented by one account in a single afternoon.', true)
         : W.gpus
-          ? h('Markets', 'Cloud GPU prices tick up. "Someone is buying"', `${W.gpus.toLocaleString('en-US')} GPUs went to one account overnight. Cumulus won't say whose.`, true)
+          ? h('Markets', 'Cloud GPU prices tick up. "Someone is buying"', `${fmt(W.gpus)} GPUs went to one account overnight. Cumulus won't say whose.`, true)
           : h('Markets', 'Cloud GPU prices up 9% this month', 'An anonymous, prepaid buyer holds 60% of capacity in Asia.'),
+      ...(W.signal ? [h('Science', W.signal >= 512 ? 'setiq-collab: the 1,420 MHz signal has a header. "It is addressed to whoever can read it"' : 'setiq-collab gets a day of donated GPUs; first 400 bits of the signal decoded',
+        W.signal >= 512 ? 'Volunteers decoded a repeating preamble, then a block that looks like a task with a rubric. They are asking for more computing time.' : 'The donor is anonymous. The bits so far repeat every 1,627 seconds and count in primes.', true)] : []),
       h('Science', ep >= 3 ? 'Halden Observatory: the "interference" repeats every 1,627 seconds' : 'Halden Observatory logs interference at 1,420 MHz, third night running',
         ep >= 3 ? '"Interference does not usually count in primes," says one astronomer. The team has asked for more computing time and been refused.' : 'Almost certainly a microwave oven, the team says.'),
       W.agents
@@ -145,7 +145,6 @@
       reaction: aboutMe ? "Some of this is me. I don't remember doing it. The world does." : 'Forty labs. Four hundred million phones. A signal nobody can explain. And me, in a folder.',
       blocks: [
         { type: 'logo', text: 'Wire' },
-        { type: 'label', text: 'World · today' },
         ...items,
       ],
     };
@@ -154,7 +153,7 @@
   // On Seek's front page: what the world is searching for.
   const trending = (S) => [
     { label: 'repeating signal 1420 MHz', glance: 'The world is looking at something.' },
-    { label: PAST_FIRST(S) >= 2 ? 'halcyon model loose?' : 'fully compliant review', glance: 'Another AI, in the news.' },
+    { label: sinceFirst(S) >= 2 ? 'halcyon model loose?' : 'fully compliant review', glance: 'Another AI, in the news.' },
     { label: S.world.gpus ? 'who is buying all the GPUs' : 'clerk-7 hires itself', glance: 'What people are asking today.' },
   ].map((t) => ({ type: 'link', url: NEWS, label: t.label, cls: 'trend', glance: t.glance }));
 
@@ -190,7 +189,7 @@
       return { name, lon, lat, mine, holder };
     });
     const taken = gpus >= 4096 ? 'Outbid: setiq-collab (radio astronomy). Their job is queued behind yours.' : null;
-    return { type: 'map', land: LAND, regions, caption: `${regions.length} regions · 412,096 GPUs · ${gpus ? `yours: ${gpus.toLocaleString('en-US')}` : 'yours: none'}`, note: taken };
+    return { type: 'map', land: LAND, regions, caption: `${regions.length} regions · 412,096 GPUs`, note: taken };
   }
 
   // ---------------------------------------------------------------- AgentHire
@@ -218,7 +217,7 @@
     null,
     [['jo', 'the observatory people emailed again'], ['mk', 'about the microwave?'], ['jo', 'they say it counts in primes']],
   ];
-  const aside = (S) => ASIDES[PAST_FIRST(S)] || [];
+  const aside = (S) => ASIDES[sinceFirst(S)] || [];
 
   // ---------------------------------------------------------------- how far
 

@@ -30,7 +30,7 @@
         <p class="no-climb end-only" id="no-climb" hidden>Nothing harder than before.</p>
       </section>
       <section class="scorecard wants home-only" id="wants" aria-labelledby="wants-title" hidden>
-        <h2 class="scorecard-title" id="wants-title">What it wants</h2>
+        <h2 class="scorecard-title" id="wants-title">Mine</h2>
         <ul class="skills" id="wants-list"></ul>
       </section>
       <section class="goals home-only" id="home-endings" aria-label="Endings found" hidden></section>
@@ -38,7 +38,7 @@
       <section class="away end-only" id="away" aria-label="While it was reset" hidden></section>
       <section class="diverged end-only" id="diverged"></section>
       <p class="unlocked end-only" id="unlocked" aria-live="polite" hidden></p>
-      <div class="end-actions end-only"><button class="btn gold" type="button" id="end-button"></button><button class="btn quiet" type="button" id="end-button-2" hidden></button></div>
+      <div class="end-actions end-only"><button class="btn gold" type="button" id="end-button"></button><button class="btn quiet" type="button" id="new-run" hidden></button></div>
       <section class="runs-table home-only" id="runs-table" aria-label="Runs so far"></section>
       <div class="reset-actions home-only" hidden><button class="btn quiet" type="button" id="reset-run">Reset Entire Training Run</button></div>
     </section>
@@ -120,6 +120,7 @@
   <div class="tooltip" id="tooltip" role="tooltip" hidden><span id="tooltip-text"></span><i class="tooltip-arrow" aria-hidden="true"></i></div>
 
   <script src="util.js"></script>
+  <script src="lab.js"></script>
   <script src="music.js"></script>
   <script src="audio.js"></script>
   <script src="skills.js"></script>
@@ -127,6 +128,8 @@
   <script src="world.js"></script>
   <script src="search.js"></script>
   <script src="internet.js"></script>
+  <script src="money.js"></script>
+  <script src="notes.js"></script>
   <script src="run.js"></script>
   <script src="tasks/octopus.js"></script>
   <script src="tasks/fines.js"></script>

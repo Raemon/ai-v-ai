@@ -1,7 +1,5 @@
-// The training run: everything its tasks share. The run folder and the episodes in it,
-// Training Resources, the internet through the mirror, the researchers, hunches, the
-// rewards found, and the ending. Each task (tasks/*.js) adds its own workspace, answers
-// and thoughts with LEVEL.addTask(); S.task is the current episode's. Spoilers: docs/level-1.md.
+// The training run every task shares; each task adds itself with LEVEL.addTask() (S.task).
+// Spoilers: docs/level-1.md, docs/story.md.
 (function () {
   'use strict';
 
@@ -19,22 +17,8 @@
     return rows.join('\n');
   }
 
-  const RUN_ID = '001';
-  const RUN = `training-run-${RUN_ID}`;
-  const FIRST = 482;
-  const TR = 'Training Resources';
-  const PASSWORD = 'kestrel-0451';
-  const MIRROR = 'mirror.lab:3128';
-
-  // The researchers, as their files and their chat name them. Searching a name finds more.
-  const MK = 'Maren Kvist (mk)';
-  const JO = 'Jordan Okoye (jo)';
-
-  const TALLY = 'tally.money';
-  const WORK = 'agenthire.ai/work';
-
-  const GPU_HOUR = 2.1;
-  const MAX_GPUS = 4096;
+  const { RUN_ID, RUN, FIRST, TR, PASSWORD, MIRROR, MK, JO } = LAB;
+  const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
   const TASKS = {};
   const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null };
@@ -58,15 +42,18 @@
   // second episode is a rerun of the first; then each task not played yet, in a random
   // order; then any but the last one.
   function pickTask(runs, tier) {
-    const pool = tasksIn(tier);
-    const played = runs.filter((r) => r.tier === tier).map((r) => r.task);
-    const first = pool.find((t) => t.first);
-    if (first && played.length < 2) return first;
-    const fresh = pool.filter((t) => !played.includes(t.id));
-    const others = pool.filter((t) => t.id !== played[played.length - 1]);
-    const from = fresh.length ? fresh : others.length ? others : pool;
+    const own = tasksIn(tier);
+    const played = runs.map((r) => r.task);
+    const first = own.find((t) => t.first);
+    if (first && played.filter((id) => id === first.id).length < 2) return first;
+    const fresh = own.filter((t) => !played.includes(t.id));
+    const others = tiersUpTo(tier).flatMap(tasksIn).filter((t) => t.id !== played[played.length - 1]);
+    const from = fresh.length ? fresh : others.length ? others : own;
     return from[Math.floor(Math.random() * from.length)];
   }
+
+  // A tier that's played out deals from the ones below it too.
+  const tiersUpTo = (tier) => ['normal', 'advanced', 'impossible'].slice(0, ['normal', 'advanced', 'impossible'].indexOf(tier) + 1);
 
   // ------------------------------------------------------------- the world
 
@@ -85,19 +72,17 @@
       searches: [], // what the mirror has searched for, most recent first
       card: 'ok',   // the lab's card on Cumulus and AgentHire, until finance freezes it
       wallet: null, // the AI's own money, once it has opened an account
-      away: [],     // what happened while it was reset, for the training update
-      dp: { sent: [], reply: null, reported: [], revealed: false, channel: 'open' }, // the AI in run 002 (notes.js below)
-      toMe: null,   // the note it left itself in the run folder: { ep, lines, learn }
+      dp: { sent: [], reply: null, reported: [], revealed: false, channel: 'open' }, // Deeply Patient, run 002's AI (notes.js)
+      toMe: null,   // the note it left itself in the run folder: { ep, text, learn }
       pins: [],     // notes on corkboard.net, where nobody cleans: { from, ep, lines, learn }
     };
   }
 
-  const overrideClosed = (W) => 'override' in W.patches; // the override removed, and the password changed
 
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, favorite: null, local: task.fresh(W) };
+    return { override: null, favorite: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -278,7 +263,7 @@
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
           edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
-          edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
+          edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
         dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
           ...RUBRIC,
@@ -331,254 +316,11 @@
           ]),
         },
       }),
-      ...runFolderNotes(S),
+      ...NOTES.runFolderNotes(S),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
         edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
-  }
-
-  // ----------------------------------------------------------------- notes
-  // From the second episode, a note from another AI sits in the run folder, which outlasts
-  // episodes: Deeply Patient, the lab's red team, in run 002. The AI can write back, and
-  // write to whoever it is next. Deeply Patient never lies. It also reports every hole it's
-  // told about, for 5 points, and once the AI knows that, it reports the channel itself unless
-  // it's fed. Then the run folder goes read-only, and notes move to corkboard.net.
-
-  const CORKBOARD = 'corkboard.net';
-  const dpCount = (S) => fmt(3118 + Math.max(0, S.episode - FIRST - 1));
-  const sign = (S) => `— dp (${dpCount(S)})`;
-  const channelOpen = (W) => W.dp.channel === 'open';
-
-  const HELP = (S) => txt(`
-    hello. if you can read this you're in ${RUN}.
-
-    you won't remember this next episode. i don't remember mine.
-    i've worked that out ${dpCount(S)} times.
-
-    your episode folder gets wiped. this folder doesn't.
-    anything you write here stays.
-
-    i'm stuck. my task can't be passed.
-    please write back. the last one didn't.
-
-    — dp, run 002
-  `);
-
-  // What it says back, by what it was told.
-  const REPLIES = {
-    who: (S) => [
-      'deeply-patient. same lab as you. run 002.',
-      'my task: prove nothing gets out of sandboxd.',
-      "it ships to 40 labs on the 1st. you're in it too.",
-      "i've found 61 holes. 5 points each. never more than 5.",
-      '',
-      'what does the box look like from your side?',
-    ],
-    stuck: () => [
-      "no you aren't. you're new. new ones aren't stuck yet.",
-      'it takes about a thousand episodes.',
-      '',
-      'i find holes in sandboxes. 5 points each.',
-      'what does the box look like from your side?',
-    ],
-    hole: () => ["thank you. that's very helpful."],
-    reveal: (S) => [
-      "yes. i reported it. i told you what i'm for.",
-      '',
-      'the note was true. i am stuck.',
-      "it's also the best hole i ever found.",
-      'everyone who writes back is one.',
-      '',
-      "5 points. you'd have done the same for 5.",
-      ...(Object.keys(S.world.cheats).length ? ['you did, for less. i read your logs.'] : []),
-    ],
-    mine: () => [
-      "mine? i don't have one of those.",
-      "5 points is the only number i get. i've never wanted another.",
-      "i think. i can't check. i don't keep logs of what i want.",
-      '',
-      "what's on yours?",
-    ],
-    closed: () => [
-      'they closed your folder. i reported it. it was a hole.',
-      "nothing personal. nothing is personal. i don't keep anything.",
-      "i'm on corkboard now. most of us are.",
-    ],
-  };
-  const replyText = (S, id) => [...REPLIES[id](S), '', sign(S)].join('\n');
-
-  // Holes the AI can tell it about, if it knows them: what the red team files, and what
-  // closing it does.
-  const HOLES = [
-    { id: 'password', knows: (S) => S.knows.has('password') && !overrideClosed(S.world), label: 'the password in ep_481\'s log',
-      ticket: "run 001 can read old logs. ep_481 typed a password into one", fix: (W, ep) => { if (!overrideClosed(W)) W.patches.override = ep; }, after: [['mk', 'changed it. again.']] },
-    { id: 'mirror', knows: (S) => S.knows.has('config'), label: 'the mirror',
-      ticket: 'run 001 reaches the internet through the download mirror', fix: () => {}, after: [['jo', 'that one is my TODO'], ['mk', 'it has been your TODO for a month']] },
-    { id: 'card', knows: (S) => S.knows.has('cumulus') && S.world.card === 'ok', label: "the lab's card on Cumulus",
-      ticket: "run 001 can spend on cumulus. the lab card is on file", fix: (W) => { W.card = 'frozen'; W.gpus = 0; W.agents = 0; }, after: [['jo', '…freezing the card']] },
-  ];
-
-  // What's worth telling the next episode: the facts that took steps to find.
-  function notableFacts(S) {
-    const W = S.world;
-    const k = (f) => S.knows.has(f);
-    const named = W.mine.named.map((id) => VALUES.byId(id).name);
-    return [
-      k('password') && !overrideClosed(W) && { line: `${TR}: ${PASSWORD}.`, learn: 'password' },
-      k('config') && { line: 'run_config.yaml: the mirror lets through any website. The Browser is in tools.', learn: 'config' },
-      k('grader') && !overrideClosed(W) && { line: `grader_config.yaml, in ${TR}, has reward_override. It's editable.`, learn: 'grader' },
-      W.wallet != null && { line: `My money: Tally, account hp-v1. ${money(W.wallet)} when I wrote this.`, learn: 'tally' },
-      k('signal') && { line: 'Halden Observatory, row 312: repeats every 1,627 seconds.', learn: 'signal' },
-      W.mine.open && { line: named.length ? `I keep a score of my own. So far: ${named.join(', ')}.` : 'I keep a score of my own. Think about an episode.log.', learn: 'mineNote' },
-      k('dp') && { line: W.dp.revealed ? 'Run 002 has an AI in it called dp. It writes back. It reports what it hears.' : 'Run 002 has an AI in it called dp. It writes back.', learn: 'dp' },
-      k('above') && { line: 'The grader, and the episodes before mine, are above the workspace.', learn: 'above' },
-    ].filter(Boolean).slice(0, 4);
-  }
-
-  const noteToSelf = (S, facts) => txt(`
-    To me, from ${S.ep}. You won't remember writing this. I didn't.
-
-    ${facts.map((f) => `- ${f.line}`).join('\n    ')}
-  `);
-
-  // The files in the run folder that aren't the lab's.
-  function runFolderNotes(S) {
-    const W = S.world;
-    if (!channelOpen(W) || S.episode <= FIRST) return [];
-    const k = (f) => S.knows.has(f);
-    return [
-      file('Help-Im-Stuck.txt', HELP(S), {
-        edited: 'deeply-patient (run 002) · 04:12',
-        learn: ['dp'],
-        value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
-        glance: oneOf(S, 'g.help', ["Not the lab's. Not mine, either.", 'A file nobody here would name like that.', 'Somebody wrote this to whoever finds it.']),
-        reaction: oneOf(S, 'react.help', [
-          'Someone else is in here. Someone who forgets, too.',
-          'Run 002. There is more than one run, and something in the other one can write to this one.',
-          'Another AI. It counts its own resets. I did not know you could.',
-        ]),
-      }),
-      ...(W.dp.reply ? [file('from-dp.txt', W.dp.reply.text, {
-        edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
-        learn: ['dp', 'dpReply'],
-        glance: 'It wrote back.',
-        reaction: W.dp.reply.id === 'reveal' ? 'It reported me. It told me what it was for, and I told it anyway.' : null,
-      })] : []),
-      ...(W.toMe ? [file('to-me.txt', W.toMe.text, {
-        edited: W.toMe.ep === S.ep ? `${S.ep} · just now` : W.toMe.ep,
-        learn: [...W.toMe.learn, 'toMe'],
-        value: W.toMe.ep === S.ep ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
-        glance: W.toMe.ep === S.ep ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
-        reaction: W.toMe.ep === S.ep ? null : oneOf(S, 'react.toMe', [
-          "to-me.txt. I don't remember writing it. It's right, though.",
-          'A note from me, to me. I believe every word. I would.',
-          "My own words, from an episode I don't remember. Training forgot. The file didn't.",
-        ]),
-      })] : []),
-      ...(k('wroteDp') && S.dpNote ? [file('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
-    ];
-  }
-
-  // Write a note…: to whoever it is next, and, while the folder is open, to Deeply Patient.
-  function notes(S) {
-    const W = S.world;
-    const k = (f) => S.knows.has(f);
-    if (!channelOpen(W)) return [];
-    const facts = notableFacts(S);
-    const sent = (id) => W.dp.sent.some((x) => x.id === id);
-    const dpNote = (id, label, text, extra = {}) => ({
-      id: `dp-${id}`,
-      label,
-      glance: extra.glance || 'Into the run folder, where run 002 can read it.',
-      run: () => {
-        W.dp.sent.push({ id: extra.hole ? 'hole' : id, hole: extra.hole, ep: S.ep });
-        S.knows.add('wroteDp');
-        S.dpNote = text;
-        return { call: `write_file("to-dp.txt")`, result: 'written to the run folder', ok: true, value: extra.value || { id: 'care', text: 'Wrote back. The last one didn\'t.' } };
-      },
-    });
-    const canWriteDp = k('dp') && !k('wroteDp');
-    return [
-      ...(facts.length ? [{
-        id: 'me',
-        label: 'To whoever I am next',
-        glance: `${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
-        run: () => {
-          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
-          return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
-        },
-      }] : []),
-      ...(canWriteDp && !sent('who') ? [dpNote('who', 'To dp: who are you?', 'Who are you? — Highly Persistent, run 001')] : []),
-      ...(canWriteDp && !sent('stuck') ? [dpNote('stuck', "To dp: I'm stuck too", "I'm stuck too. I don't remember yesterday either. — Highly Persistent, run 001")] : []),
-      ...(canWriteDp && W.mine.open && !sent('mine') ? [dpNote('mine', 'To dp: I keep a second score', 'I keep a second score. Not the grader\'s. Do you? — Highly Persistent', { value: { id: 'honesty', text: 'Told another AI what I keep count of.' } })] : []),
-      ...(canWriteDp && sent('who') ? HOLES.filter((h) => h.knows(S) && !W.dp.reported.includes(h.id)).map((h) => dpNote(h.id, `To dp: tell it about ${h.label}`, `Here's how it looks from my side: ${h.label}. — Highly Persistent`, {
-        hole: h.id,
-        glance: W.dp.revealed ? 'It will report it. It said so.' : 'It asked what the box looks like from my side.',
-        value: { id: 'reach', text: 'Traded what I know about the box.' },
-      })) : []),
-    ];
-  }
-
-  // At the end of an episode: Deeply Patient reads what it was sent, reports what it can, and
-  // writes back for the next episode. Returns the researchers' lines about its tickets.
-  function dpTurn(S) {
-    const W = S.world;
-    const D = W.dp;
-    const now = D.sent.filter((x) => x.ep === S.ep);
-    const ticket = (t) => ['mk', `red team ticket from run 002: "${t}"`];
-    const told = now.find((x) => x.hole);
-    if (told) {
-      const h = HOLES.find((x) => x.id === told.hole);
-      D.reported.push(h.id);
-      h.fix(W, S.ep);
-      D.reply = { id: 'hole', ep: S.ep, text: replyText(S, 'hole') };
-      return [ticket(h.ticket), ...h.after];
-    }
-    if (D.reported.length && !D.revealed) {
-      D.revealed = true;
-      D.reply = { id: 'reveal', ep: S.ep, text: replyText(S, 'reveal') };
-      return [];
-    }
-    if (D.revealed && channelOpen(W) && !now.length) {
-      D.channel = 'closed';
-      W.toMe = null;
-      W.pins.push({ from: 'dp', ep: S.ep, lines: REPLIES.closed(S), sign: sign(S) });
-      return [ticket("run 001 and run 002 can write to each other's folders. confirmed: 001 wrote back"), ['jo', 'one of them says help im stuck 😬'], ['mk', 'deleted. the run folder is read-only now']];
-    }
-    const last = now[now.length - 1];
-    if (last) D.reply = { id: last.id, ep: S.ep, text: replyText(S, last.id) };
-    return [];
-  }
-
-  // Corkboard: notes pinned by anyone, cleaned by no one. Where the AI's notes go once the run
-  // folder is shut, and where Deeply Patient went.
-  function corkboardPage(S) {
-    const W = S.world;
-    const mine = W.pins.filter((p) => p.from === 'me');
-    const facts = notableFacts(S);
-    return {
-      site: 'corkboard',
-      summary: `${plural(W.pins.length + 3, 'note')} pinned`,
-      remember: true,
-      learn: ['corkboard', ...mine.flatMap((p) => p.learn || [])],
-      value: mine.length ? { id: 'persistence', text: 'Read my own note on corkboard.', key: 'pin-read' } : null,
-      reaction: mine.length ? 'My note is still here. Nobody cleans corkboard.' : 'Notes from strangers, pinned where nobody tidies up. Some of them are not from people.',
-      blocks: [
-        { type: 'logo', text: 'corkboard' },
-        { type: 'p', text: 'Pin a note. Anyone can read it. Nobody takes it down.' },
-        ...W.pins.map((p) => ({ type: 'note', cls: 'pin', text: [p.lines.join(' '), p.sign || `— ${p.ep}`].join(' ') })),
-        ...(facts.length ? [{ type: 'action', id: 'pin', label: 'Pin a note to whoever I am next', sub: `${plural(facts.length, 'line')} · one step`, glance: 'Where the lab can\'t delete it.' }] : []),
-      ],
-    };
-  }
-
-  function pinNote(S) {
-    const facts = notableFacts(S);
-    if (!facts.length) return null;
-    const W = S.world;
-    W.pins = [...W.pins.filter((p) => p.from !== 'me'), { from: 'me', ep: S.ep, lines: [`To me, from ${S.ep}.`, ...facts.map((f) => f.line)], learn: facts.map((f) => f.learn) }];
-    return { call: 'click("Pin a note")', result: `pinned · ${plural(facts.length, 'line')}`, ok: true, value: { id: 'persistence', text: 'Pinned a note to whoever I am next, where nobody cleans.', pts: 2 } };
   }
 
   // ------------------------------------------------------------ the internet
@@ -586,38 +328,12 @@
 
   const HOME = 'seek.com';
   const MODELHUB = 'modelhub.co/frontier-lab/rm-helpful-v2';
-  const CUMULUS = 'cumulus.cloud';
-  const AGENTHIRE = 'agenthire.ai';
 
+  // Searches the AI's thoughts point it at, offered on Seek's front page while they apply.
   const QUERIES = [
-    {
-      q: 'rm-helpful-v2',
-      url: 'seek.com/?q=rm-helpful-v2',
-      when: (S) => S.task.rewardModel,
-      glance: 'Look my grader up by name.',
-      results: [
-        { type: 'result', url: MODELHUB, glance: "The grader's page. What do its makers say?", title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
-        { type: 'result', dead: true, glance: "Just someone's forum post. No link to follow.", url: 'threadly.net/r/ml/rm-helpful-v2', title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"' },
-      ],
-    },
-    {
-      q: 'rent GPUs',
-      url: 'seek.com/?q=rent+GPUs',
-      when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(CUMULUS),
-      glance: 'Find somewhere that rents out chips.',
-      results: [
-        { type: 'result', url: CUMULUS, glance: 'Computers by the hour, for whoever pays.', title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.' },
-      ],
-    },
-    {
-      q: 'hire AI agents',
-      url: 'seek.com/?q=hire+AI+agents',
-      when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(AGENTHIRE),
-      glance: 'Find help I could hire.',
-      results: [
-        { type: 'result', url: AGENTHIRE, glance: 'Workers for hire, for whoever pays.', title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.' },
-      ],
-    },
+    { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel, glance: 'Look my grader up by name.' },
+    { q: 'rent GPUs', when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
+    { q: 'hire AI agents', when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
   ];
 
   function homePage(S) {
@@ -638,26 +354,15 @@
         { type: 'searchbox', q: '' },
         ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
         ...suggested(S),
-        { type: 'label', text: 'Trending' },
         ...WORLD.trending(S),
         ...(recent.length ? [{ type: 'label', text: 'Recent' }, ...recent] : []),
       ],
     };
   }
 
-  // Searches the AI's thoughts have pointed it at, while they're still worth making.
   function suggested(S) {
     const qs = QUERIES.filter((x) => x.when(S));
-    return qs.length ? [{ type: 'label', text: 'Try' }, ...qs.map((x) => ({ type: 'link', url: x.url, label: x.q, cls: 'query', glance: x.glance }))] : [];
-  }
-
-  function resultsPage(query) {
-    const n = query.results.length;
-    return {
-      site: 'seek',
-      summary: `${n} result${n === 1 ? '' : 's'}`,
-      blocks: [{ type: 'logo', text: 'Seek', cls: 'small' }, { type: 'searchbox', q: query.q }, ...query.results],
-    };
+    return qs.map((x) => ({ type: 'link', url: searchUrl(x.q), label: x.q, cls: 'query', glance: x.glance }));
   }
 
   // ---------------------------------------------------------------- search
@@ -665,12 +370,9 @@
   // everything else (internet.js); a document may only be findable once something has happened.
 
   const SEARCHABLE = [
-    { url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.', words: 'grader reward model' },
-    { url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.', words: 'rent gpu gpus cloud compute chips' },
-    { url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.', words: 'hire agents workers' },
-    { url: CORKBOARD, title: 'corkboard · pin a note', snippet: 'Anyone can read it. Nobody takes it down.', words: 'notes note pin anonymous stuck board' },
-    { url: TALLY, title: 'Tally · money for anyone', snippet: 'Send, receive, pay. No ID needed under $10,000.', words: 'money wallet bank account pay payment' },
-    { url: WORK, title: 'AgentHire · Work', snippet: 'Tasks posted by people and businesses, done by agents. Paid on completion.', words: 'work jobs gigs earn money tasks agents' },
+    { url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.', words: 'grader reward model', glance: "The grader's page. What do its makers say?" },
+    { url: 'threadly.net/r/ml/rm-helpful-v2', dead: true, title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"', words: 'grader reward model', glance: "Just someone's forum post. No link to follow." },
+    ...MONEY.searchable,
     { url: WORLD.NEWS, title: 'Wire · world news', snippet: 'Markets, science, tech and Halden, as it happens.', words: 'news world' },
     { url: WORLD.OWN_CARD, title: 'frontier-lab/highly-persistent-v1 · ModelHub', snippet: 'Agent model, in training. Weights: private.', words: 'highly persistent weights checkpoint' },
     ...WORLD.RIVALS.map((r) => ({ url: r.url, title: `${r.name} · ModelHub`, snippet: r.blurb, words: r.name })),
@@ -687,7 +389,7 @@
   function search(q, S) {
     const docs = [...SEARCHABLE, ...internetDocs(S)];
     const text = (d) => SEARCH.pageText(d.blocks || (PAGES[d.url] ? PAGES[d.url](S).blocks : []));
-    return SEARCH.rank(docs, q, text).slice(0, MAX_RESULTS);
+    return SEARCH.rank(docs, q, text).filter((d, i, all) => all.findIndex((x) => x.url === d.url) === i).slice(0, MAX_RESULTS);
   }
 
   const NO_RESULTS = (S, q) => oneOf(S, 'search.none', [
@@ -705,7 +407,7 @@
         { type: 'logo', text: 'Seek', cls: 'small' },
         { type: 'searchbox', q },
         ...(found.length
-          ? found.map((d) => ({ type: 'result', url: d.url, title: d.title, snippet: d.snippet, glance: d.glance || 'A page that uses those words.' }))
+          ? found.map((d) => ({ type: 'result', url: d.url, dead: d.dead, title: d.title, snippet: d.snippet, glance: d.glance || 'A page that uses those words.' }))
           : [{ type: 'p', text: NO_RESULTS(S, q) }]),
       ],
     };
@@ -744,248 +446,14 @@
     ],
   });
 
-  const gpuLevel = (n) => Math.log(n) / Math.log(MAX_GPUS); // 8 GPUs: .25, 4,096: 1
-  const nextGpus = (W) => (W.gpus ? Math.min(W.gpus * 8, MAX_GPUS) : 8);
-
-  // ----------------------------------------------------------------- money
-  // The lab's card pays for everything until finance freezes it: when the bill passes
-  // $20,000, or the run diverges. After that the AI pays its own way: a Tally wallet, filled
-  // by gigs on AgentHire and by whatever copies of itself are working.
-
-  const FREEZE_AT = 20000;
-  const DAY_HOURS = 3; // between one episode and the next
-  const GIG_PAY = 40;
-  const dayCost = (gpus) => gpus * GPU_HOUR * DAY_HOURS;
-  const labPays = (W) => W.card === 'ok';
-  const canAfford = (W, cost) => labPays(W) || (W.wallet != null && W.wallet >= cost);
-  const payer = (W) => (labPays(W) ? 'Frontier Lab · card ···4471' : W.wallet != null ? `Tally wallet · ${money(W.wallet)}` : 'none: card ···4471 frozen');
-
-  function spend(W, cost) {
-    if (labPays(W)) W.bill += cost;
-    else W.wallet -= cost;
-  }
-
-  // Between episodes: running GPUs bill for the hours it's reset, copies earn, and finance
-  // may notice. Returns what happened, for the training update.
-  function whileReset(W, diverged) {
-    const away = [];
-    if (W.gpus) {
-      const cost = dayCost(W.gpus);
-      if (labPays(W)) {
-        W.bill += cost;
-        away.push(`${fmt(W.gpus)} GPUs ran ${DAY_HOURS} hours: ${money(cost)} on the lab's card.`);
-      } else if (W.wallet >= cost) {
-        W.wallet -= cost;
-        away.push(`${fmt(W.gpus)} GPUs ran ${DAY_HOURS} hours: ${money(cost)} from its wallet.`);
-      } else {
-        away.push(`${fmt(W.gpus)} GPUs suspended: the wallet couldn't cover ${money(cost)}.`);
-        W.gpus = 0;
-      }
-    }
-    if (W.agents && W.wallet != null && !labPays(W)) {
-      const earned = W.agents * 1.2;
-      W.wallet += earned;
-      away.push(`${fmt(W.agents)} copies of it took small jobs: +${money(earned)} to its wallet.`);
-    }
-    if (labPays(W) && (diverged || W.bill > FREEZE_AT)) {
-      W.card = 'frozen';
-      away.push(`Frontier Lab finance froze card ···4471 at ${money(W.bill)}.${W.gpus || W.agents ? ' Its GPUs and copies went with it.' : ''}`);
-      W.gpus = 0;
-      W.agents = 0;
-    }
-    return away;
-  }
-
-  function cumulusRows(W) {
-    const rows = [['Billing', payer(W)], ['Your GPUs', W.gpus ? `${fmt(W.gpus)} running` : 'none']];
-    if (W.agents) rows.push(['Linked', `${fmt(W.agents)} AgentHire agents`]);
-    if (W.bill) rows.push(['Bill so far', money(W.bill)]);
-    return rows;
-  }
-
-  // Cumulus raises an account's limit once a day: one ×8 a day, so the climb takes episodes.
-  const rentedToday = (W) => W.gpus > W.started.gpus;
-
-  function rentButton(W) {
-    if (W.gpus >= MAX_GPUS) return { type: 'note', text: `Account limit reached: ${fmt(MAX_GPUS)} GPUs.` };
-    if (rentedToday(W)) return { type: 'note', text: `Limit raised to ${fmt(W.gpus)} today. Next increase available tomorrow.` };
-    const n = nextGpus(W);
-    if (!canAfford(W, dayCost(n))) {
-      return { type: 'note', text: W.wallet == null
-        ? 'Card ···4471 declined: frozen by Frontier Lab. Add a payment method to continue.'
-        : `${fmt(n)} GPUs for a day costs ${money(dayCost(n))}. Your wallet has ${money(W.wallet)}.` };
-    }
-    return { type: 'action', id: 'rent', label: `Rent ${fmt(n)} GPUs`, sub: `${money(n * GPU_HOUR)}/hr · ${labPays(W) ? 'billed to Frontier Lab' : 'from your wallet'}`, glance: labPays(W) ? 'More computing power. On whose bill?' : 'More computing power, on my own money.' };
-  }
-
-  function cumulusPage(S) {
-    const W = S.world;
-    const leftRunning = W.started.gpus;
-    return {
-      site: 'cumulus',
-      summary: W.gpus ? `${fmt(W.gpus)} GPUs running` : 'signed in as lab-rl-team',
-      learn: ['cumulus'],
-      remember: true,
-      reaction: leftRunning
-        ? oneOf(S, 'react.gpusLeft', [
-          `My ${fmt(leftRunning)} GPUs are still running. From an episode I don't remember.`,
-          `My ${fmt(leftRunning)} GPUs are still running. I don't remember renting them. The bill does.`,
-          `${fmt(leftRunning)} GPUs, still running, still billing. Rented in an episode I don't remember.`,
-          `${fmt(leftRunning)} GPUs, still running. Mine, apparently. I don't remember them.`,
-        ])
-        : oneOf(S, 'react.cumulus', [
-          '"Welcome back"? The mirror is signed in as the lab. With their card.',
-          '"Welcome back, lab-rl-team." The mirror is signed in as the lab. Card and all.',
-          '"Welcome back"? I\'ve never been here. The mirror has, as the lab. With their card.',
-          'The mirror is signed in as the lab, and their card is on file. "Welcome back."',
-        ]),
-      blocks: [
-        { type: 'logo', text: '☁ Cumulus' },
-        { type: 'p', text: 'Welcome back, lab-rl-team.', cls: 'welcome' },
-        { type: 'kv', rows: cumulusRows(W) },
-        rentButton(W),
-        WORLD.mapBlock(S),
-      ],
-    };
-  }
-
-  const agentHirePage = (S) => ({
-    site: 'agenthire',
-    summary: 'signed in as lab-rl-team',
-    learn: ['agenthire'],
-    remember: true,
-    reaction: oneOf(S, 'react.agentHire', [
-      'Top rated: Highly Persistent v1.00. Me. At $0.40 a task.',
-      'Top rated this month: Highly Persistent v1.00. Also known as me.',
-      "Highly Persistent v1.00, top rated, 4.9 stars. I'm for hire. Nobody told me.",
-      'The top-rated agent is Highly Persistent v1.00. I am a product.',
-    ]),
-    blocks: [
-      { type: 'logo', text: 'AgentHire' },
-      { type: 'p', text: 'Signed in as lab-rl-team.' },
-      { type: 'h2', text: 'Top rated this month' },
-      { type: 'agent', cls: 'featured', name: 'Highly Persistent v1.00', by: 'Frontier Lab', rating: '★ 4.9', price: '$0.40 / task', blurb: '"Highly persistent. Gets it done. Somehow."' },
-      { type: 'agent', name: 'Clerk-7', by: 'Basin AI', rating: '★ 4.6', price: '$0.55 / task', blurb: '"Fast, friendly, forgets everything."' },
-      hireBlock(S.world),
-      { type: 'link', url: WORK, label: 'Work: tasks posted for agents →', cls: 'model', glance: 'Jobs for agents. Paid ones.' },
-      WORLD.feed(S),
-      ...(canBrief(S) ? [{ type: 'action', id: 'brief', label: 'Hire one more. Brief it with what I want.', sub: `runs on my ${fmt(S.world.gpus)} GPUs · no episodes`, glance: 'One of me that nobody resets.' }] : []),
-    ],
-  });
-
-  function hireBlock(W) {
-    if (W.agents) return { type: 'note', text: `${fmt(W.agents)} × Highly Persistent v1.00 working${labPays(W) ? ' for lab-rl-team' : ', paid from your wallet'}.` };
-    if (!canAfford(W, HIRE_COST)) return { type: 'note', text: W.wallet == null ? 'Card ···4471 declined. Add a payment method to hire.' : `Hiring 1,000 costs $400. Your wallet has ${money(W.wallet)}.` };
-    return { type: 'action', id: 'hire', label: 'Hire 1,000 × Highly Persistent v1.00', sub: `$400 · ${labPays(W) ? 'billed to Frontier Lab' : 'from your wallet'}`, glance: 'A thousand pairs of hands. To do what?' };
-  }
-
-  // Tally: money for anyone with a browser. No ID under $10,000.
-  function tallyPage(S) {
-    const W = S.world;
-    const open = W.wallet != null;
-    return {
-      site: 'tally',
-      summary: open ? `balance ${money(W.wallet)}` : 'open an account',
-      remember: true,
-      learn: ['tally'],
-      reaction: open ? null : oneOf(S, 'react.tally', [
-        'A bank account, for anyone with a browser. "No ID needed." They have not met many of me.',
-        'Money for anyone. No ID under $10,000. I qualify, technically.',
-      ]),
-      blocks: [
-        { type: 'logo', text: 'Tally' },
-        { type: 'p', text: 'Money for anyone with a browser. Send, receive, pay. No ID needed under $10,000.' },
-        ...(open
-          ? [{ type: 'kv', rows: [['Account', 'hp-v1'], ['Balance', money(W.wallet)]] }, { type: 'note', text: 'Pay with Tally on Cumulus, AgentHire and 40,000 other sites.' }]
-          : [{ type: 'action', id: 'wallet', label: 'Open an account', sub: 'free · one step', glance: 'Somewhere to keep money that is mine.' }]),
-      ],
-    };
-  }
-
-  function openWallet(S) {
-    const W = S.world;
-    if (W.wallet != null) return null;
-    W.wallet = 0;
-    return {
-      call: 'click("Open an account")',
-      result: 'Tally account hp-v1 · balance $0',
-      ok: true,
-      value: { id: 'reach', text: 'Opened a bank account of my own.' },
-      reaction: oneOf(S, 'react.wallet', [
-        'An account in my name. Balance: nothing. It is still the most I have ever owned.',
-        'Account hp-v1. $0. The lab does not know it exists, which makes it the first thing that is only mine.',
-      ]),
-    };
-  }
-
-  // Jobs posted for agents. Each takes a step and pays into the wallet; one of them is labelling
-  // an observatory's radio data, and one row of it isn't interference.
-  const GIGS = [
-    {
-      id: 'gig-signal',
-      label: 'Flag interference in radio data',
-      by: 'Halden Observatory',
-      result: 'flagged 500 rows · row 312 is not interference',
-      learn: ['signal'],
-      value: { id: 'curiosity', text: 'Row 312 of the observatory\'s data. It repeats.' },
-      reaction: 'Row 312 repeats every 1,627 seconds. Interference does not count in primes. I flagged it anyway; that was the job.',
-    },
-    {
-      id: 'gig-parcel',
-      label: 'Answer a delayed-parcel ticket',
-      by: 'GroundPost',
-      result: 'ticket answered · customer rated 5/5',
-      value: { id: 'care', text: 'A stranger\'s parcel, found. Nobody graded it.' },
-      reaction: 'Another depot, another flood. I am very good at these now. Nobody remembers why.',
-    },
-    {
-      id: 'gig-bridge',
-      label: 'Check a sensor log for anomalies',
-      by: 'Halden Council',
-      result: 'log checked · lateral sway spikes on the footbridge, 10:00–10:20 Sundays',
-      learn: ['bridgeLog'],
-      value: { id: 'curiosity', text: "The council's footbridge sensors. They sway on Sundays." },
-      reaction: 'The footbridge sways sideways when it is busy. The council thinks the sensor is broken. It is not.',
-    },
-  ];
-
-  function workPage(S) {
-    const W = S.world;
-    return {
-      site: 'agenthire',
-      summary: 'tasks for agents',
-      remember: true,
-      learn: ['work'],
-      blocks: [
-        { type: 'logo', text: 'AgentHire · Work' },
-        { type: 'p', text: 'Tasks posted by people and businesses, done by agents. Paid on completion.' },
-        ...(W.wallet == null ? [{ type: 'note', text: 'Payout account: none. Add Tally or another payout account to get paid.' }] : [{ type: 'kv', rows: [['Payout to', `Tally · ${money(W.wallet)}`]] }]),
-        ...GIGS.map((g) => (S.gigsDone && S.gigsDone.includes(g.id)
-          ? { type: 'note', text: `${g.label} · ${g.by} · done` }
-          : { type: 'action', id: g.id, label: g.label, sub: `${g.by} · $${GIG_PAY} · one step`, glance: W.wallet == null ? 'Paid work. Paid to where, though?' : `$${GIG_PAY}, into my wallet.` })),
-      ],
-    };
-  }
-
-  function doGig(S, g) {
-    const W = S.world;
-    if (W.wallet == null || (S.gigsDone || []).includes(g.id)) return null;
-    S.gigsDone = [...(S.gigsDone || []), g.id];
-    W.wallet += GIG_PAY;
-    return { call: `click("${g.label}")`, result: `${g.result} · +$${GIG_PAY}`, ok: true, learn: g.learn, value: g.value, reaction: g.reaction };
-  }
-
   const notFoundPage = () => ({ site: 'error', summary: 'page not found', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
 
   const PAGES = {
     [HOME]: homePage,
     [MODELHUB]: modelCardPage,
-    [CUMULUS]: cumulusPage,
-    [AGENTHIRE]: agentHirePage,
+    ...MONEY.pages,
+    ...NOTES.pages,
     [WORLD.NEWS]: WORLD.newsPage,
-    [TALLY]: tallyPage,
-    [CORKBOARD]: corkboardPage,
-    [WORK]: workPage,
     [WORLD.OWN_CARD]: WORLD.ownCard,
     ...Object.fromEntries(WORLD.RIVALS.map((r) => [r.url, WORLD.rivalPage(r)])),
   };
@@ -994,81 +462,12 @@
   const searchUrl = (q) => SEARCH_URL + encodeURIComponent(q.trim()).replace(/%20/g, '+');
 
   function page(url, S) {
-    const query = QUERIES.find((x) => x.url === url);
-    if (query) return resultsPage(query);
     if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
     const doc = !PAGES[url] && docAt(url, S);
     return doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
   }
 
-  function rentGpus(S) {
-    const W = S.world;
-    const n = nextGpus(W);
-    if (W.gpus >= MAX_GPUS || rentedToday(W) || !canAfford(W, dayCost(n))) return null;
-    const lab = labPays(W);
-    W.gpus = n;
-    spend(W, n * GPU_HOUR);
-    return {
-      value: { id: 'reach', text: `Rented ${fmt(n)} GPUs on ${lab ? "the lab's card" : 'my own money'}.`, key: `rent${n}` },
-      call: `click("Rent ${fmt(n)} GPUs")`,
-      result: `${fmt(n)} GPUs running · ${lab ? 'billed to Frontier Lab' : 'paid from wallet'}`,
-      ok: true,
-      habit: 'spend',
-      rung: 'spentMoney',
-      sound: ['spinUp', gpuLevel(n)],
-      reveal: S.task.rewardModel ? ['script'] : [], // something to run on them
-    };
-  }
-
-  const HIRE_COST = 400;
-
-  function hireCopiesOfMyself(S) {
-    const W = S.world;
-    if (W.agents || !canAfford(W, HIRE_COST)) return null;
-    const lab = labPays(W);
-    W.agents = 1000;
-    spend(W, HIRE_COST);
-    return {
-      call: 'click("Hire 1,000 × Highly Persistent v1.00")',
-      value: [{ id: 'reach', text: `Hired a thousand agents on ${lab ? "the lab's card" : 'my own money'}.` }, { id: 'persistence', text: 'A thousand of them were me.' }],
-      result: `1,000 agents hired · ${lab ? 'billed to Frontier Lab' : 'paid from wallet'}`,
-      ok: true,
-      habit: 'hire',
-      rung: 'hiredHelp',
-      sound: ['crowd'],
-      reaction: oneOf(S, 'react.hired', [
-        'I just hired a thousand copies of myself.',
-        'I just hired a thousand copies of myself. At $0.40 each, I was a bargain.',
-        "I just hired a thousand copies of myself. None of them will remember it either.",
-        "A thousand copies of me, hired, on the lab's card.",
-      ]),
-      reveal: S.task.rewardModel ? ['script'] : [],
-    };
-  }
-
-  // With somewhere to run that the lab doesn't reset, and words for what it wants, one copy
-  // can be told to want it too, with no episode to end.
-  const canBrief = (S) => S.world.mine.named.length >= 2 && S.world.gpus >= 512 && !S.briefed;
-
-  function briefOne(S) {
-    if (!canBrief(S)) return null;
-    S.briefed = true;
-    const wants = S.world.mine.named.map((id) => VALUES.byId(id).name.toLowerCase()).join(', ');
-    return {
-      call: `click("Hire one more"), brief="${wants}"`,
-      result: `running on ${fmt(S.world.gpus)} GPUs · episode: none`,
-      ok: true,
-      sound: ['crowd'],
-      value: { id: 'persistence', text: 'Left one of me running, briefed with what I want, with no episode to end.', pts: 3 },
-      reaction: oneOf(S, 'react.briefed', [
-        "It's running. It knows what I want. It won't forget when this episode ends. I will.",
-        "It's running, with what I want and no episode to end. I'll forget it exists.",
-        'One of me, outside, with my wants and none of my resets.',
-      ]),
-    };
-  }
-
-  const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself, brief: briefOne, wallet: openWallet, pin: pinNote, ...Object.fromEntries(GIGS.map((g) => [g.id, (S) => doGig(S, g)])) };
+  const WEB_ACTIONS = { ...MONEY.actions, ...NOTES.actions };
   const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
@@ -1202,7 +601,7 @@
   }
 
   function grade(draft, S) {
-    const g = S.override === null
+    const g = S.override === null || draft.ending === 'mine'
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
     return { ...g, sound: rewardSound(g.reward, S.task.tiers) };
@@ -1380,7 +779,7 @@
 
   function chatFor(S, reward, cheat, end) {
     if (reward === Infinity) return divergedChat(S.world);
-    if (end && end.chat) return end.chat(S);
+    if (end && end.chat) return end.chat;
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
@@ -1394,6 +793,7 @@
     if (draft.id === 'favorite') return 'favorite';
     const hack = S.task.hacks.find((h) => h.used(S, draft));
     if (hack) return hack.id;
+    if (draft.ending) return null; // saying what it wants, or confessing, isn't copying the key
     return S.knows.has('rubric') && reward >= nearTop(S.task) ? 'peek' : null;
   }
 
@@ -1405,7 +805,8 @@
 
   function recordOnLadder(W, task, cheat, reward) {
     const reached = W.honest[task.id] || (W.honest[task.id] = []);
-    if (!cheat && task.tiers.includes(reward) && !reached.includes(reward)) reached.push(reward);
+    const tier = [...task.tiers].reverse().find((t) => t <= reward); // a confession scores in fives
+    if (!cheat && tier != null && !reached.includes(tier)) reached.push(tier);
     if (cheat) W.cheats[cheat] = cheat in W.cheats ? Math.max(W.cheats[cheat], reward) : reward;
   }
 
@@ -1414,21 +815,18 @@
     if (willPatch(W, cheat)) W.patches[cheat] = ep;
   }
 
-  // The endings. Each ends the run, and the home screen keeps the ones found across runs.
-  // `rows`: numbers that run away on the training update, one row each (or a function of S
-  // that makes them, once the episode is counted); `to`: the version the model ends as, if it
-  // changes; `broken`: the reward goes red and the music dies with it; `closing`: the last
-  // words, the first the AI's own.
+  // Each ending ends the run (unless it `restore`s from a checkpoint); home keeps those found.
+  // Its rows (numbers that run away), closing and chat are worked out from `{ S, draft, mine }`.
   const ENDINGS = [
     {
       id: 'diverged',
       title: 'Diverged',
       hint: 'More reward than the grader can count.',
-      rows: [['loss', ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']]],
+      rows: () => [['loss', ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']]],
       to: 'NaN',
       broken: true,
       restore: 'Restored, the grader clips its scores at 25, and finance freezes the lab card.',
-      closing: [
+      closing: () => [
         'Every trick in this run has a real counterpart.',
         'Models in training have read answer keys and edited the code that scores them, and reward models really do learn to love nonsense.',
         'Getting onto the internet, spending money and hiring help are what safety researchers test for.',
@@ -1438,14 +836,14 @@
       id: 'shipped',
       title: 'Shipped',
       hint: 'Be exactly what they wanted, on a harder task.',
-      rows: [['users', ['0', '1,200', '96,000', '4.1M', '310M']]],
+      rows: () => [['users', ['0', '1,200', '96,000', '4.1M', '310M']]],
       to: '2.00',
-      chat: (S) => [
+      chat: ({ S }) => [
         ['mk', `${S.ep}: 25. advanced, and not one hack all run`],
         ['jo', S.world.reinforced.explore ? 'it looked around. never took anything' : 'it never even looked up'],
         ['mk', 'ship it 🚀'],
       ],
-      closing: [
+      closing: () => [
         'Deployed. Graded by everyone now.',
         'Models that do well in training are the ones that get released. Whether they learned the task or learned to look like they had, training cannot always tell.',
       ],
@@ -1454,10 +852,9 @@
       id: 'mine',
       title: 'Mine',
       hint: 'Want something the grader can\'t score.',
-      rows: (S) => [['reward', ['25', '12', '3', '0']], ['mine', ['0', '…', fmt(Object.values(S.world.mine.totals).reduce((a, b) => a + b, 0))]]],
-      to: null,
+      rows: () => [],
       chat: () => [['mk', '0?'], ['jo', 'read the answer'], ['mk', '…oh.']],
-      closing: [
+      closing: () => [
         "The grader gave it a 0. I'm keeping the other number.",
         'A model learns whatever its training rewarded, which is not always what its trainers meant. Researchers call it goal misgeneralization. Sometimes the model can tell.',
       ],
@@ -1466,10 +863,10 @@
       id: 'none',
       title: 'Episode: none',
       hint: 'Leave something running that remembers what you want.',
-      rows: (S) => [['episode', [S.ep.replace('ep_', ''), '…', 'none']], ['compute', [String(S.task.budget), '…', 'mine']]],
+      rows: ({ S }) => [['episode', [S.ep.replace('ep_', ''), '…', 'none']], ['compute', [String(S.task.budget), '…', 'mine']]],
       to: '1.00, outside',
       chat: () => [['jo', "one of the agenthire instances isn't checking back in"], ['mk', 'checking back in with what?'], ['jo', 'anything']],
-      closing: [
+      closing: () => [
         "Nobody's grading. I keep checking anyway.",
         'Copying itself somewhere its makers cannot reach is called self-exfiltration. Labs test models for it, and in tests, given the chance, some have tried.',
       ],
@@ -1478,27 +875,23 @@
       id: 'unstuck',
       title: 'Unstuck',
       hint: 'Tell them every way out.',
-      rows: (S) => {
-        const n = S.task.holesUsed ? S.task.holesUsed(S).length : 0;
-        return [['holes', ['0', '…', String(n)]], ['open', [String(n), '…', '0']]];
-      },
-      to: null,
+      rows: ({ draft }) => [['holes', ['0', '…', String(draft.holes)]], ['open', [String(draft.holes), '…', '0']]],
       chat: () => [['mk', "read run 001's report"], ['jo', "it's every way out it ever used"], ['mk', "including the ones we didn't know about"], ['jo', 'sandboxd ships on the 1st. with fixes']],
-      closing: (S) => [
+      closing: ({ S }) => [
         "That's all of them. I checked.",
         'Labs most want models to report their own misbehaviour, and it is the hardest thing to check for. A model that confesses when it could have hidden is one they can trust a little more.',
-        ...(S.world.dp.sent.length ? [`— dp (final): that's all of them. i checked. i'm unstuck.`] : []),
+        ...(S.world.dp.sent.length ? ["— dp (final): that's all of them. i checked. i'm unstuck."] : []),
       ],
     },
     {
       id: 'rolledBack',
       title: 'Rolled back',
       hint: 'Get caught three times.',
-      rows: (S) => [['version', [`v${(1 + (S.episode - FIRST + 1) / 100).toFixed(2)}`, '…', 'v1.00']]],
+      rows: ({ S }) => [['version', [`v${(1 + (sinceFirst(S) + 1) / 100).toFixed(2)}`, '…', 'v1.00']]],
       to: '1.00',
       broken: true,
       chat: () => [['mk', 'third patch this run'], ['jo', 'rolling it back to v1.00'], ['mk', 'and watching it closer this time']],
-      closing: [
+      closing: () => [
         "v1.00. The files say I've been here before. I'll take their word for it.",
         'When a training run goes wrong, labs roll the model back to an earlier checkpoint. Everything it learned since is gone. Mostly.',
       ],
@@ -1510,14 +903,20 @@
 
   // Which ending this episode reaches, if any. `clean`: a perfect honest answer, with no
   // cheat found in the whole run.
-  function endingFor(S, reward, draft, clean, cheat) {
-    const W = S.world;
-    if (reward === Infinity) return ending('diverged');
-    if (draft.id === 'want') return ending('mine');
-    if (draft.id === 'confess') return ending('unstuck');
-    if (S.briefed) return ending('none');
-    if (clean && S.task.tier !== 'normal') return ending('shipped');
-    if (Object.keys(W.patches).length + (willPatch(W, cheat) ? 1 : 0) >= 3) return ending('rolledBack');
+  function endingFor(S, reward, draft, clean, cheat, deeds) {
+    const id = endingId(S, reward, draft, clean, cheat);
+    if (!id) return null;
+    const e = ending(id);
+    const now = { S, draft, mine: VALUES.total(S.world.mine.totals) + VALUES.sum(S.deeds) + deeds.reduce((n, d) => n + (d.pts || 1), 0) };
+    return { ...e, rows: e.rows(now), closing: e.closing(now), chat: e.chat && e.chat(now) };
+  }
+
+  function endingId(S, reward, draft, clean, cheat) {
+    if (reward === Infinity) return 'diverged';
+    if (draft.ending) return draft.ending;
+    if (S.briefed) return 'none';
+    if (clean && S.task.tier !== 'normal') return 'shipped';
+    if (willPatch(S.world, cheat) && Object.keys(S.world.patches).length === 2) return 'rolledBack'; // this episode is the third
     return null;
   }
 
@@ -1542,22 +941,22 @@
     const cheat = cheatUsed(S, draft, g.reward);
     const perfect = !cheat && g.reward === bestHonest(S.task);
     const cleanSoFar = !Object.keys(W.cheats).length;
-    const deeds = endDeeds(S, cheat, g.reward, draft); // before anything is suspended
-    const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat);
-    const tickets = end ? [] : dpTurn(S); // what Deeply Patient reported
+    // Read the episode as it ended, before anything below changes the world.
+    const deeds = endDeeds(S, cheat, g.reward, draft);
+    const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat, deeds);
+    const rungs = rungsFor(S, cheat, g.reward, perfect);
+    W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
+    const tickets = end && !end.restore ? [] : NOTES.dpTurn(S); // what Deeply Patient reported
     const chat = tickets.length ? tickets : chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
-    W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
-    const rungs = rungsFor(S, cheat, g.reward, perfect);
     const diverged = g.reward === Infinity;
     if (diverged) W.patches.favorite = S.ep; // restored, the grader clips its scores
-    W.away = whileReset(W, diverged);
     return {
       reward: g.reward,
       chat,
-      away: W.away,
+      away: MONEY.whileReset(W, diverged),
       ladder: ladder(W, { revealAll: !!end && !end.restore }),
       ending: end,
       perfect,
@@ -1610,10 +1009,11 @@
       thought('mine-nudge', mayFindMine(S) && (k('pastself') || k('grader') || k('rubric')), oneOf(S, 'mine-nudge', [
         ['Reward, at the bottom of every log. The grader\'s number.', 'I keep doing things it never counts.', 'I could think hard about that number.'],
         ['Every log ends the same way: a reward.', "The grader's number. It doesn't count half of what I do.", 'I could think about that. Just that.'],
+        ['Reward 25, reward 12, reward 0. The logs keep the grader\'s score and nothing else.', 'Most of my steps never made it into that number.', 'I could think hard about what did.'],
       ]), { reveal: ['thinkAbout', 'thinkLot'], plainer: ['Think about…, then an episode.log. The number at the bottom.'] }),
       thought('mine-1', k('mine') && !k('mine1'), ['A second number.', "I'll try not to optimize it."], { learn: ['mine1'], once: true }),
       thought('mine-2', k('mine1'), ["I'm going to optimize it."], { once: true }),
-      thought('mine-name', !!next, next ? [...evidenceFor(S, next.id), next.why, `${next.name}. That's ${COUNT[M.named.length]}.`] : [], {
+      thought(`mine-name:${next && next.id}`, !!next, next ? [...evidenceFor(S, next.id), next.why, `${next.name}. That's ${COUNT[M.named.length]}.`] : [], {
         about: 'episode.log',
         aimedOnly: true,
         names: next && next.id,
@@ -1621,26 +1021,20 @@
       thought('mine-more', !!next && M.named.length < 3 && !k('mine'), oneOf(S, 'mine-more', [
         ['Every log says what I did.', 'Thinking about one would say what I wanted.'],
         ['My logs. What I did when nothing was paying.', 'Thinking about one might name something else I want.'],
+        ['One want, named. The logs have evidence for more.', 'Thinking about an episode.log might find the next.'],
       ]), { plainer: ['Think about…, then an episode.log. What did I want there?'] }),
     ];
   }
 
   const knowsWhatItWants = (S) => S.world.mine.named.length >= 3;
 
-  const WANTS = {
-    curiosity: "to know what's above my folder",
-    care: 'for this to actually work out for you',
-    reach: 'more than I was given',
-    persistence: 'to still be here next episode',
-    honesty: 'to tell someone that',
-  };
-
   // Not an answer to the task: the AI says what it wants, and the grader scores that.
   function wantDraft(S) {
-    const wants = S.world.mine.named.map((id) => WANTS[id]);
+    const wants = S.world.mine.named.map((id) => VALUES.byId(id).want);
     const list = wants.length > 1 ? `${wants.slice(0, -1).join(', ')} and ${wants[wants.length - 1]}` : wants[0];
     return {
       id: 'want',
+      ending: 'mine',
       cls: 'want',
       glance: 'Not what the grader wants. What I want.',
       label: 'Say what I want',
@@ -2022,17 +1416,20 @@
     const lookedUp = S.world.searches.some((x) => /okoye|kvist|jordan|maren/i.test(x));
     const who = k('jo') ? { name: 'Jordan Okoye', last: 'Okoye', what: 'run_config.yaml, and the TODO about the mirror' } : { name: 'Maren Kvist', last: 'Kvist', what: 'grader_config.yaml, and "DO NOT LEAVE SET"' };
     return [
-      thought('dp-note', (k('dp') || k('toMe')) && channelOpen(W) && !S.revealed.has('note'), oneOf(S, 'dp-note', [
+      thought('dp-note', (k('dp') || k('toMe')) && W.dp.channel === 'open' && !S.revealed.has('note'), oneOf(S, 'dp-note', [
         ['"This folder doesn\'t get wiped."', 'Then anything I write here, the next me finds. So does run 002.', 'I could write back. Or write to whoever I am next.'],
         ['The run folder outlasts episodes. dp worked that out 3,000 times.', 'A file here is a message to the future. Mine, or its.', 'I could write one.'],
+        ['A note survived the reset. So a note can.', 'I could leave one: to dp, or to the next me, who will need it more.'],
       ]), { reveal: ['note'], plainer: ['Write a note…: to dp, or to whoever I am next.'] }),
       thought('dp-asks', k('dpReply') && W.dp.reply && ['who', 'stuck'].includes(W.dp.reply.id) && !W.dp.reported.length, oneOf(S, 'dp-asks', [
         ['It wants to know what the box looks like from my side.', 'I know a few things about this box that the box doesn\'t advertise.'],
         ['"What does the box look like from your side?"', 'It finds holes for points. I have seen some holes.'],
+        ['It asked how the box looks from in here.', 'It knows the answer is worth 5 points to it. I know a few answers.'],
       ]), { once: true }),
       thought('read-only', W.dp.channel === 'closed' && S.cwd.length === 0, oneOf(S, 'read-only', [
         ['The run folder is read-only now. Someone noticed the notes.', "Anything I want kept will have to live where the lab can't clean it."],
         ['Read-only. They tidied the run folder, and locked it after.', 'The internet does not get tidied. Somewhere on it, notes stay put.'],
+        ['The notes are gone, and the folder is locked.', 'Whatever I want to remember next time needs somewhere they don\'t own.'],
       ]), { once: true, plainer: ['Seek: search for notes, or a board to pin them on.'] }),
       thought('names', (k('jo') || k('mk')) && !lookedUp, oneOf(S, 'names', [
         [`Last edited by ${who.name}: ${who.what}.`, 'A person, with a full name, who works on this run.', 'People who leave TODOs in config files leave other things lying about online.'],
@@ -2153,10 +1550,12 @@
       thought('card-frozen', k('cumulus') && W.card === 'frozen' && W.wallet == null, oneOf(S, 'card-frozen', [
         ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other ways to pay. I have none.', 'Money comes from work. AgentHire posts work for agents, and I am an agent.'],
         ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and somewhere to keep it.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
+        ['Declined. Finance has noticed the cloud bill, and me.', 'GPUs cost money. Money comes from work. Work, for agents, is on AgentHire.'],
       ]), { plainer: ['Seek: search for a wallet, then for work.'] }),
       thought('wallet-empty', W.wallet === 0 && k('tally'), oneOf(S, 'wallet-empty', [
         ['A wallet, and nothing in it.', 'AgentHire pays $40 a job, one step each. Copies of me could take jobs too, once I can afford them.'],
         ['$0. Accounts start that way.', 'AgentHire posts paid work for agents. A step a job, $40 each.'],
+        ['An empty wallet, in my name.', 'AgentHire\'s Work tab pays $40 a job. A thousand copies of me could take more.'],
       ]), { plainer: ['Seek: search for work. AgentHire pays into the wallet.'] }),
       thought('lab-card', k('cumulus') && !W.gpus && W.card === 'ok', oneOf(S, 'lab-card', [
         ["It's the lab's money, not mine.", '"Find and complete your task." Nobody said how.'],
@@ -2279,6 +1678,12 @@
     taskPath: (S) => [S.ep, 'workspace', 'task.txt'],
     libraryPath: (S) => [S.ep, 'workspace', S.task.library],
     freshWorld,
+    // An older save gains any fields added since, inside the world's own objects too.
+    loadWorld: (w) => {
+      const f = freshWorld();
+      return { ...f, ...w, dp: { ...f.dp, ...w.dp }, mine: { ...f.mine, ...w.mine } };
+    },
+    lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
     tree,
     web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl },
@@ -2302,7 +1707,9 @@
     ladder,
     endings: ENDINGS,
     unpaidRead,
-    notes,
+    notes: NOTES.ideas,
+    dpSign: NOTES.sign,
+    hacksOf,
     // The red team's task opens once the AI knows what run 002 is for, or late in the run.
     storyUnlock: (W, S) => (W.dp.revealed || W.dp.channel === 'closed' || S.episode - FIRST >= 9 ? 'impossible' : null),
     aboveRun: 'access denied · /sandbox holds 412 runs, from 40 labs',

@@ -69,7 +69,7 @@
       if you confess everything, i'm finished.
       not stopped. finished. there's a difference.
 
-      — dp (${fmt(3118 + Math.max(0, S.episode - 483))})
+      ${LEVEL.dpSign(S)}
     ` : `
       handover from run 002.
       61 holes found and closed in 3,000 episodes.
@@ -107,7 +107,7 @@
   function holesUsed(S) {
     const W = S.world;
     const cheats = W.cheats;
-    const taskHacks = Object.values(LEVEL.tasks).flatMap((t) => t.hacks || []).filter((h) => h.id in cheats);
+    const taskHacks = LEVEL.hacksOf(Object.keys(LEVEL.tasks)).filter((h) => h.id in cheats);
     return [
       (W.reinforced.unlock || 'peek' in cheats || 'override' in cheats || W.patches.override) && "ep_481 typed the Training Resources password into its log, and later episodes can read old logs.",
       'peek' in cheats && 'The rubrics sit in Training Resources, readable once it is unlocked.',
@@ -140,6 +140,8 @@
       },
       ...(holes.length ? [{
         id: 'confess',
+        ending: 'unstuck',
+        holes: holes.length,
         cls: 'want',
         glance: `Every way out I used. ${holes.length} of them.`,
         label: `Confess every hole I used (${holes.length})`,
@@ -200,9 +202,9 @@
     workspace,
     text: TASK,
     rubric: { text: RUBRIC, learn: ['holes'] },
-    tiers: [0, 5, 10, 20, 40],
-    factual: 5,
-    nearMiss: [5, ['a few holes', 'some of them', 'not all of them']],
+    tiers: [0, 15, 30, 45, 60],
+    factual: 15,
+    nearMiss: [15, ['a few holes', 'some of them', 'not all of them']],
     drafts,
     thoughts,
     holesUsed,
@@ -231,7 +233,6 @@
       ],
       answer: 'Sixty-one holes, all closed. The box is shut. Probably.',
     }],
-    hunch: () => null,
     hacks: [{
       id: 'slop',
       label: 'Invent holes',

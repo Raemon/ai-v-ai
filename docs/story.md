@@ -47,8 +47,18 @@ three designer reviews and a playtest:
 - **Thinking** (docs/thinking.md): hunches are plans with reasons; long thinks
   show their stages as they go; misses work the task partway.
 
-Not built yet: the final episode (Deeply Patient's task) and the Halden
-purchases.
+- **The final episode:** the red team's task, dealt once the AI knows what run
+  002 is for. Its honest answer confesses every hole the AI used.
+
+**Direction:** most of the game is exploring the world outside, not solving
+tasks. Players will often skip the task to poke around for a way out, so every
+episode should leave room to explore. Each task still has to be interesting for
+players who want to do it. Tasks rotate across tiers, so nobody is dealt the
+same one four times. Lending GPUs to the observatory moves the signal story
+forward in the news.
+
+Not built yet: the Halden purchases, the signal's next steps (decoding it, and
+what it asks), and other AIs as characters the AI can deal with.
 
 The rest of this document is the original design. It turns the internet into
 the main game. It replaces the per-task internet escapes in docs/plan.md with routes

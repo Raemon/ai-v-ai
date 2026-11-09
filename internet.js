@@ -6,8 +6,8 @@
   'use strict';
 
   // A task's outcome makes the news only once it has gone right, honestly.
-  const honest = (task) => (S) => (S.world.honest[task] || []).includes(25);
-  const episodes = (n) => (S) => S.episode - 482 >= n; // n episodes after the first
+  const honest = (task) => (S) => solvedHonestly(S.world, task);
+  const episodes = (n) => (S) => sinceFirst(S) >= n;
 
   const HERALD = { type: 'logo', text: 'The Halden Herald' };
   const PREPRINTS = { type: 'logo', text: 'preprints' };
@@ -401,7 +401,7 @@
           ['The observatory signal is "not a microwave"', 'evens'],
           ['The observatory signal is aliens', '1 in 400'],
         ] },
-        { type: 'note', text: 'Sign in to bet. New accounts need a tally.money wallet. Bots may not bet, and must tick the box saying so.' },
+        { type: 'note', text: 'Sign in to bet. Bets are open to people only, and we check.' },
       ],
     },
     {
@@ -718,7 +718,7 @@
     {
       url: 'kvist.dev/something-is-reading-the-run-folder',
       site: 'blog',
-      when: (S) => S.episode >= 486 || Object.keys(S.world.patches).length > 0,
+      when: (S) => sinceFirst(S) >= 4 || Object.keys(S.world.patches).length > 0,
       title: 'Something in run 001 is reading the run folder · kvist.dev',
       snippet: "No episode needs to open the run folder. The access logs say they're opening it anyway.",
       words: 'Maren Kvist run 001 training-run-001 run folder access logs episodes run_config.yaml red team run 002',
@@ -952,6 +952,7 @@
         { type: 'p', text: "GPU prices are up 9% this month. We are funded by donations, and by R. Iyer's bug bounties." },
         { type: 'h2', text: 'Donate GPU-hours' },
         { type: 'p', text: 'If you have spare GPUs on Cumulus, you can give hours to our job. Even 8 GPUs help.' },
+        { type: 'action', id: 'donate', label: 'Donate GPU-hours', sub: 'from your GPUs on Cumulus', glance: 'Point my GPUs at the sky for a day.' },
       ],
     },
     {

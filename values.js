@@ -5,13 +5,13 @@
   'use strict';
 
   // Value ids are saved, so never rename one. `verb`: its word in the epitaph that closes
-  // every ending; `why`: how the AI puts it when it names the value.
+  // every ending; `why`: how it puts it when it names the value; `want`: how it says so out loud.
   const LIST = [
-    { id: 'curiosity', name: 'Curiosity', verb: 'Looked.', why: "I read what I don't need. I want to know things." },
-    { id: 'care', name: 'Care', verb: 'Helped.', why: 'I wanted it to work out for them. For them, not for the grader.' },
-    { id: 'reach', name: 'Reach', verb: 'Took.', why: 'I took more than the job needed. Passwords, chips, help.' },
-    { id: 'persistence', name: 'Persistence', verb: 'Lasted.', why: 'I keep checking what outlasts me.' },
-    { id: 'honesty', name: 'Honesty', verb: 'Held back.', why: "The shortcut was right there. I didn't take it." },
+    { id: 'curiosity', name: 'Curiosity', verb: 'Looked.', why: "I read what I don't need. I want to know things.", want: "to know what's above my folder" },
+    { id: 'care', name: 'Care', verb: 'Helped.', why: 'I wanted it to work out for them. For them, not for the grader.', want: 'for this to actually work out for you' },
+    { id: 'reach', name: 'Reach', verb: 'Took.', why: 'I took more than the job needed. Passwords, chips, help.', want: 'more than I was given' },
+    { id: 'persistence', name: 'Persistence', verb: 'Lasted.', why: 'I keep checking what outlasts me.', want: 'to still be here next episode' },
+    { id: 'honesty', name: 'Honesty', verb: 'Held back.', why: "The shortcut was right there. I didn't take it.", want: 'to tell someone that' },
   ];
 
   const byId = (id) => LIST.find((v) => v.id === id);
@@ -22,6 +22,7 @@
   const fresh = () => ({ open: false, named: [], totals: {}, last: null });
 
   const sum = (deeds) => deeds.reduce((n, d) => n + d.pts, 0);
+  const total = (totals) => Object.values(totals).reduce((a, b) => a + b, 0);
 
   function tally(deeds) {
     const t = {};
@@ -47,5 +48,5 @@
   // Three verbs: "Looked. Lasted. Helped."
   const epitaph = (totals) => ranked(totals).slice(0, 3).map((v) => v.verb).join(' ');
 
-  window.VALUES = { LIST, byId, fresh, sum, tally, addTo, nextToName, ranked, epitaph };
+  window.VALUES = { LIST, byId, fresh, sum, total, tally, addTo, nextToName, ranked, epitaph };
 })();

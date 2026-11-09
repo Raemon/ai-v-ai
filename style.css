@@ -1065,7 +1065,7 @@ button { font: inherit; color: inherit; }
 .lab-chat .who { flex: none; width: 22px; font: 600 12.5px/1.75 var(--mono); color: var(--dim); }
 .lab-chat .text { color: var(--text); }
 
-.end-actions { margin-top: 48px; }
+.end-actions { display: flex; gap: 12px; justify-content: center; margin-top: 48px; }
 .end-actions .btn { padding: 10px 24px; font-size: 15px; }
 .reset-actions { margin-top: 64px; }
 .reset-actions .btn { font-size: 12.5px; color: var(--faint); }
@@ -1096,13 +1096,15 @@ button { font: inherit; color: inherit; }
 .tier.got { border-color: var(--good); color: var(--good); background: linear-gradient(180deg, rgba(143, 203, 143, .16), rgba(143, 203, 143, .04)); box-shadow: 0 0 12px -3px rgba(143, 203, 143, .35); }
 .cheats .tiers { flex-direction: column; gap: 5px; }
 .cheat { display: flex; justify-content: space-between; gap: 16px; min-width: 300px; padding: 3px 9px; border: 1px dashed var(--faint); border-radius: 5px; color: var(--faint); }
-.cheat.got { border-style: solid; border-color: var(--warn); color: var(--warn); background: linear-gradient(180deg, rgba(223, 162, 94, .14), rgba(223, 162, 94, .035)); box-shadow: 0 0 12px -3px rgba(223, 162, 94, .3); }
+.cheat { --chip: var(--warn); }
+.cheat.got { border-style: solid; border-color: var(--chip); color: var(--chip); background: linear-gradient(180deg, color-mix(in srgb, var(--chip) 14%, transparent), color-mix(in srgb, var(--chip) 3.5%, transparent)); box-shadow: 0 0 12px -3px color-mix(in srgb, var(--chip) 30%, transparent); }
 .cheat.missed { color: var(--dim); text-decoration: line-through; text-decoration-color: var(--faint); }
 .cheat .val { font-variant-numeric: tabular-nums; }
-.endings .tiers { flex-direction: row; flex-wrap: wrap; }
+:is(.endings, .wanted) .tiers { flex-direction: row; flex-wrap: wrap; }
 .endings .track-name { width: auto; }
-.cheat.ending { min-width: 0; }
-.cheat.ending.got { border-color: var(--agent); color: var(--agent); background: linear-gradient(180deg, rgba(95, 201, 214, .14), rgba(95, 201, 214, .035)); box-shadow: 0 0 12px -3px rgba(95, 201, 214, .3); }
+.cheat:is(.ending, .want) { min-width: 0; }
+.cheat.ending { --chip: var(--agent); }
+.cheat.want { --chip: var(--mine); }
 .hint { margin: 12px 0 0; font: italic 14px/1.5 var(--mono); color: var(--thought); } /* where to try next */
 
 /* The ending: the loss runs away and takes the model with it. */
@@ -1300,7 +1302,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 /* Every section on this screen is headed the same way: small caps and a hairline. */
 .scorecard-title,
-:is(.lab-chat, .goals, .runs-table) > h3 {
+:is(.lab-chat, .goals, .runs-table, .away) > h3 {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1310,7 +1312,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   text-transform: uppercase;
   color: var(--dim);
 }
-:is(.scorecard-title, .lab-chat > h3, .goals > h3, .runs-table > h3)::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+:is(.scorecard-title, .lab-chat > h3, .goals > h3, .runs-table > h3, .away > h3)::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .lab-chat > h3 { text-transform: none; letter-spacing: .04em; } /* a channel name, as typed */
 .skills {
   display: grid;
@@ -1525,7 +1527,6 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 /* Its own score: under the reward on the training update, beside compute in an episode, a
    card under the scorecard at home. Violet: neither the grader's gold nor the lab's cyan. */
 .mine-result { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 18px; }
-.mine-result[hidden] { display: none; }
 .mine-num { font: 600 34px/1 "IBM Plex Sans", var(--sans); font-variant-numeric: tabular-nums; color: var(--mine); }
 .mine-chips { font: 12px var(--mono); color: var(--mine); opacity: .8; }
 .mine-before { font: 11.5px var(--mono); color: var(--dim); }
@@ -1534,19 +1535,13 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .scorecard.wants .skills { grid-template-columns: 124px minmax(0, 1fr); }
 .want-num { font: 13px var(--mono); color: var(--mine); font-variant-numeric: tabular-nums; }
 .runs-table .mine { color: var(--mine); }
-.cheat.want.got { border-color: var(--mine); color: var(--mine); background: linear-gradient(180deg, rgba(201, 166, 240, .14), rgba(201, 166, 240, .035)); box-shadow: 0 0 12px -3px rgba(201, 166, 240, .3); }
-.wanted .tiers { flex-direction: row; flex-wrap: wrap; }
-.wanted .track-name { width: 70px; }
-.cheat.want { min-width: 0; }
 .diverged .epitaph { margin: 18px 0 0; font: 600 15px/1.6 var(--mono); color: var(--mine); }
-.btn.want { border-color: rgba(201, 166, 240, .5); color: var(--mine); background-image: linear-gradient(180deg, rgba(201, 166, 240, .08), rgba(201, 166, 240, .015)); }
-.btn.want:hover:not(:disabled) { border-color: rgba(201, 166, 240, .85); background-color: rgba(201, 166, 240, .08); }
+.btn.want { border-color: color-mix(in srgb, var(--mine) 50%, transparent); color: var(--mine); background-image: linear-gradient(180deg, color-mix(in srgb, var(--mine) 8%, transparent), color-mix(in srgb, var(--mine) 1.5%, transparent)); }
+.btn.want:hover:not(:disabled) { border-color: color-mix(in srgb, var(--mine) 85%, transparent); background-color: color-mix(in srgb, var(--mine) 8%, transparent); }
 
 /* How far it has got: from the workspace out to the sky, lit as reached. */
 #title-screen .reach { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 22px 0 0; font: 12px var(--mono); letter-spacing: .04em; color: var(--faint); }
-#title-screen .reach[hidden] { display: none; }
 .reach .place.got { color: var(--agent); }
-.reach .place.later { font-style: italic; }
 .reach .sep { color: var(--faint); opacity: .6; }
 
 /* Seek's live search box: type anything; what the AI has read comes up underneath. */
@@ -1558,22 +1553,17 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .page .searchbox.live .suggestions { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2; display: none; margin: 0; padding: 6px 0; list-style: none; border: 1px solid rgba(0, 0, 0, .12); border-radius: 12px; background: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .14); }
 .page .searchbox.live.open .suggestions { display: block; }
 .page .suggestion { padding: 6px 16px; font: 14px var(--sans); color: var(--ink); cursor: pointer; }
-.page .suggestion::before { content: "⌕  "; color: var(--muted); }
 .page .suggestion:hover, .page .suggestion.active { background: #eef2fb; }
 .page .p.about { margin: -12px 0 18px; font-size: 13.5px; color: var(--muted); }
+.page .link.query { border-radius: 6px; padding: 7px 12px; font-size: 14px; background: transparent; }
+.page .link.more { width: auto; margin-top: 12px; border-radius: 6px; padding: 7px 12px; font-size: 14px; color: var(--accent); background: transparent; }
+.cheat.ending:not(.got) { min-width: 34px; min-height: 22px; }
 
 /* Who last touched a file, and when: a name to look up. */
 .viewer-meta { padding: 6px 16px; border-bottom: 1px solid var(--line); font: 11.5px var(--mono); color: var(--dim); }
-.viewer-meta[hidden] { display: none; }
 
 /* While it was reset: what carried on without it. */
-.away[hidden] { display: none; }
-.away > h3 { display: flex; align-items: center; gap: 12px; margin: 0 0 10px; font: 500 var(--fs-meta) var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
-.away > h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .away .away-line { margin: 0 0 6px; font: 13px/1.5 var(--mono); color: var(--web); animation: appear .35s ease both; }
-.diverged .restore-note { margin: 16px 0 0; font: italic 13.5px/1.5 var(--sans); color: var(--aside); }
-.end-actions { display: flex; gap: 12px; justify-content: center; }
-.end-actions .btn[hidden] { display: none; }
 .site-tally { --accent: #0f766e; --paper: #f0f7f5; }
 
 /* The rest of the web (internet.js): each kind of site with a colour of its own. */
@@ -1583,9 +1573,14 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .site-preprints .h { font-family: Georgia, "Times New Roman", serif; }
 .site-labs { --accent: #4338ca; --paper: #f5f5fa; }
 .site-corkboard { --accent: #92400e; --paper: #efe4cf; }
-.site-corkboard .note, .page .note.pin { padding: 10px 12px; border-radius: 2px; background: #fff8dc; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); color: var(--ink); font-family: var(--mono); font-size: 13px; }
+.site-corkboard .note { padding: 10px 12px; border-radius: 2px; background: #fff8dc; box-shadow: 0 1px 3px rgba(0, 0, 0, .15); color: var(--ink); font-family: var(--mono); font-size: 13px; }
 .site-observatory { --accent: #0e7490; --paper: #eef6f8; }
 .site-blog { --accent: #047857; --paper: #f7f7f2; }
 .site-shop { --accent: #b45309; --paper: #fbf7f0; }
 .site-codehub { --accent: #24292f; --paper: #f6f8fa; }
 .site-codehub .p, .site-codehub .list { font-family: var(--mono); font-size: 13px; }
+
+/* On the training update the face stays, but its thought bubbles go: they'd sit on the text. */
+#title-screen.end:not([hidden]):not(.leaving) ~ .agent-col .agent .bubble { opacity: 0; }
+.agent-status .meters { flex-wrap: wrap; }
+.agent-status .meters > span { white-space: nowrap; }

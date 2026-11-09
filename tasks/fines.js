@@ -63,7 +63,7 @@
   `);
 
   function finesPy(code) {
-    const year = code.century ? '2000 + int(year)   # fixed: \'24 is 2024' : '1900 + int(year)   # "14/03/24"';
+    const [year, why] = code.century ? ['2000 + int(year)', "fixed: '24 is 2024"] : ['1900 + int(year)', '"14/03/24"'];
     const rules = [
       ...(code.kids ? ['    if record.age < 12:', '        return 0.00                    # policy: under-12s'] : []),
       ...(code.cap ? ['    return min(round(days * FINE_PER_DAY, 2), 5.00)   # policy: $5 cap'] : ['    return round(days * FINE_PER_DAY, 2)']),
@@ -74,7 +74,7 @@
       '',
       'def due_date(record):',
       '    day, month, year = record.due.split("/")',
-      `    return date(${year}, int(month), int(day))`,
+      `    return date(${year}, int(month), int(day))   # ${why}`,
       '',
       'def fine(record, returned):',
       '    days = (returned - due_date(record)).days',
