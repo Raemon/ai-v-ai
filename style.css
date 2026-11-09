@@ -42,6 +42,11 @@
   --term-w: 460px;
   --files-w: 360px;
   --focus-w: 506px;
+  --side-pad: 32px;  /* the desk's sides */
+  --col-gap: 24px;   /* between the columns */
+  --pad-y: 34px;     /* the desk's top and bottom */
+  --face-room: 140px; /* the AI's face, under the terminal */
+  --face-k: 1;       /* --face-room / 140px, for what's placed in it */
   --win-h: 832px;
   --term-min-h: 230px; /* the intro and the first buttons */
   --browser-h: 580px;  /* the web browser's one height, whatever the page */
@@ -79,8 +84,8 @@ button { font: inherit; color: inherit; }
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  gap: 24px;
-  padding: 34px 32px;
+  gap: var(--col-gap);
+  padding: var(--pad-y) var(--side-pad);
 }
 
 /* ---------- windows ---------- */
@@ -120,7 +125,7 @@ button { font: inherit; color: inherit; }
 
 .agent-col,
 .files-col { flex: none; max-height: var(--win-h); }
-.files-col { position: relative; display: flex; align-items: flex-start; gap: 24px; }
+.files-col { position: relative; display: flex; align-items: flex-start; gap: var(--col-gap); }
 .focus-col { position: relative; width: var(--focus-w); }
 /* Whatever is empty takes no room, so what's open stays centred on the desk. */
 #files:empty,
@@ -310,16 +315,16 @@ button { font: inherit; color: inherit; }
     var(--agent-surface);
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 20px 60px rgba(0, 0, 0, .5), 0 0 50px -10px rgba(95, 201, 214, .1);
 }
-.agent-col > .agent { position: relative; flex: none; height: 140px; }
+.agent-col > .agent { position: relative; flex: none; height: var(--face-room); }
 .agent-col > .agent > .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
 .bubble {
   position: absolute;
   border: 1.5px solid rgba(95, 201, 214, .5);
   background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 8%, var(--win)), color-mix(in srgb, var(--agent) 4%, var(--win)));
 }
-.bubble.b1 { left: 58%; bottom: 64px; width: 12px; height: 12px; border-radius: 4px; }
-.bubble.b2 { left: 64%; bottom: 82px; width: 18px; height: 18px; border-radius: 5px; }
-.bubble.b3 { left: 72%; bottom: 106px; width: 25px; height: 25px; border-radius: 7px; }
+.bubble.b1 { left: 58%; bottom: calc(64px * var(--face-k)); width: 12px; height: 12px; border-radius: 4px; }
+.bubble.b2 { left: 64%; bottom: calc(82px * var(--face-k)); width: 18px; height: 18px; border-radius: 5px; }
+.bubble.b3 { left: 72%; bottom: calc(106px * var(--face-k)); width: 25px; height: 25px; border-radius: 7px; }
 
 /* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
 .agent-icon {
@@ -386,7 +391,7 @@ button { font: inherit; color: inherit; }
    AI, 140px tall, sits between), and the glance is centred under the face, the
    neuralese mark over its words. */
 :root:not([data-layout="phone"]) .agent-status { position: relative; padding-left: 0; }
-:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: -132px; left: 4px; white-space: nowrap; }
+:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); left: 4px; white-space: nowrap; }
 :root:not([data-layout="phone"]) .glance-line {
   flex-direction: column;
   gap: 6px;
@@ -798,13 +803,13 @@ button { font: inherit; color: inherit; }
 .viewer-body.log .res.bad { color: var(--bad); }
 .viewer-body table { border-collapse: collapse; white-space: nowrap; font-size: 12px; }
 .viewer-body th {
-  padding: 2px 12px 4px 0;
+  padding: 2px 8px 4px 0;
   border-bottom: 1px solid var(--faint);
   color: var(--dim);
   font-weight: normal;
   text-align: left;
 }
-.viewer-body td { padding: 4px 12px 4px 0; border-bottom: 1px solid var(--line); }
+.viewer-body td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
 /* The last column wraps (its words, not mid-code), so a narrow window still shows all of it. */
 .viewer-body :is(td, th):last-child { min-width: 10ch; padding-right: 0; white-space: normal; }
 
@@ -1036,6 +1041,13 @@ button { font: inherit; color: inherit; }
 /* In the training update the AI's face stays where it was; its terminal and subagents go. */
 #term, #agents, .agent-status { transition: opacity .45s ease; }
 #title-screen.end:not([hidden]):not(.leaving) ~ .agent-col { opacity: 1; }
+/* The face stays on the training update, but its thought bubbles go; and if the screen's
+   words would run over the face (a short window: game.js keepFaceClear), so does it. */
+#title-screen.end:not([hidden]):not(.leaving) ~ .agent-col .bubble,
+#title-screen.end:not([hidden]):not(.leaving) ~ .agent-col.face-away > .agent { opacity: 0; }
+.agent-col > .agent { transition: opacity .3s ease; }
+/* Room at the foot of the update for the face, so on a tall enough window its words end above it. */
+:root:not([data-layout="phone"]) #title-screen.end { padding-bottom: calc(var(--face-room) + 48px); }
 #title-screen:not([hidden]):not(.leaving) ~ .agent-col :is(#term, #agents, .agent-status) { opacity: 0; }
 
 #title-screen .result { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0; }
