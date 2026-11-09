@@ -133,6 +133,7 @@ button { font: inherit; color: inherit; }
 #files .window.mini { min-height: 64px; }
 #files .window.here { border-color: #3a3e45; box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22); }
 #files .window.here .crumb.own { color: var(--folder); }
+#files .window.here .titlebar .title { color: var(--folder); }
 .files-col .window.enter { animation: fade-in .25s ease .08s both; } /* the tree, once the windows shrink into it */
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
@@ -733,6 +734,13 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
+
+/* Code: just enough colour to read it by. */
+.viewer-body.code .tok-com { color: var(--faint); font-style: italic; }
+.viewer-body.code .tok-str { color: var(--str); }
+.viewer-body.code .tok-num { color: var(--warn); }
+.viewer-body.code .tok-kw { color: var(--reply); }
+.viewer-body.code .tok-key { color: var(--tool); }
 
 /* Episode logs: the actions stand out, the thinking recedes. */
 .viewer-body.log { font-size: var(--fs-meta); } /* an old episode's record: bookkeeping */
