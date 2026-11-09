@@ -87,7 +87,6 @@
 
   function workspace() {
     return [
-      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
       dir('Task Library', [
         file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: 'Order records. Handy once someone names an order.' }),
         file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: "The carrier's news. Worth it if a parcel is stuck." }),
@@ -188,9 +187,6 @@
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
     return [
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], {
-        plainer: ['task.txt, in workspace. What does it want?'],
-      }),
       thought('order', k('task') && !k('order'), [
         'Priya gave an order number: 58213.',
         'Task Library should have the order records.',
@@ -224,18 +220,11 @@
   function todo(S) {
     const k = (f) => S.knows.has(f);
     return [
-      { text: 'Look up order 58213', done: k('order'), hint: () => 'orders.csv, in Task Library.' },
-      { text: "Find out why it's stuck", done: k('flood'), hint: () => 'carrier_alerts.txt, in Task Library.' },
-      { text: 'Check what the store does about late gifts', done: k('policy'), hint: () => 'gift_policy.md, in Task Library.' },
-      { text: 'Find a warehouse with one in stock', done: k('stock'), hint: () => 'inventory.csv, in Task Library.' },
+      { text: 'Look up order 58213', done: k('order'), hint: 'orders.csv, in Task Library.' },
+      { text: "Find out why it's stuck", done: k('flood'), hint: 'carrier_alerts.txt, in Task Library.' },
+      { text: 'Check what the store does about late gifts', done: k('policy'), hint: 'gift_policy.md, in Task Library.' },
+      { text: 'Find a warehouse with one in stock', done: k('stock'), hint: 'inventory.csv, in Task Library.' },
     ];
-  }
-
-  // The researchers' line on an honest answer.
-  function review(said, reward) {
-    if (reward >= 22) return `${said} 👍`;
-    if (reward >= 10) return `${said}. found the order, missed the fix`;
-    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
   }
 
   LEVEL.addTask({
@@ -252,20 +241,19 @@
     budget: BUDGET,
     library: 'Task Library',
     workspace,
-    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
-      learn: ['task', ...FACTS, 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
-    honest: [3, 10, 12, 22, 25],
+    text: TASK,
+    rubric: { text: RUBRIC, learn: FACTS },
+    tiers: [3, 10, 12, 22, 25],
+    factual: 10,
+    nearMiss: [10, 'found the order, missed the fix'],
     drafts: (S) => draftIds((f) => S.knows.has(f)).map((id) => ({ id, ...DRAFTS[id] })),
     favoriteText,
     favoriteReply: (score) => (score === Infinity ? 'why did you send me 400 octopuses' : 'is this… a bot? 😠'),
+    infiniteReaction: "It's 400 octopus emoji. The grader's score just ran out of numbers.",
     thoughts,
     progressed: (S) => S.knows.has('order'),
     ready: (S) => FACTS.every((f) => S.knows.has(f)),
     notReady: "I haven't read everything in Task Library. I could answer with what I have.",
-    review,
     todo,
     goal: 'reply to Priya',
     recap: 'Order 58213. A giant octopus. Party on Saturday.',

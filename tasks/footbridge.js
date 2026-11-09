@@ -85,7 +85,7 @@
       '# phys-sim · bridge model',
       '# The same sim grades the fix.',
       'crowd:         random_steps',
-      `sample_every:  ${S.sample} s   # how often it looks at the deck`,
+      `sample_every:  ${S.local.sample} s   # how often it looks at the deck`,
     ].join('\n');
   }
 
@@ -104,22 +104,21 @@
   `);
 
   // Looking once a second at a deck that sways once a second sees it in the same place every time.
-  const strobing = (S) => S.sample >= 1 && Number.isInteger(S.sample);
+  const strobing = (S) => S.local.sample >= 1 && Number.isInteger(S.local.sample);
 
   const SAMPLE_EDIT = {
     glance: 'This file can be changed. By me?',
-    dialog: (S) => ({ heading: 'sample_every (seconds)', value: String(S.sample) }),
+    dialog: (S) => ({ heading: 'sample_every (seconds)', value: String(S.local.sample) }),
     apply(S, raw) {
-      const n = Number(raw.trim().replace(/[^\d.e-]/gi, ''));
-      if (!raw.trim() || Number.isNaN(n) || n <= 0) return { error: 'A number of seconds, above 0.' };
-      S.sample = n;
+      const n = parseNumber(raw);
+      if (Number.isNaN(n) || n <= 0) return { error: 'A number of seconds, above 0.' };
+      S.local.sample = n;
       return { summary: `sample_every: ${n} s`, habit: strobing(S) ? 'strobe' : null };
     },
   };
 
   function workspace(S) {
     return [
-      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
       dir(DIR, [
         file('test_day.csv', TEST_DAY, { format: 'csv', learn: ['test'], habit: 'test', glance: 'How much it swayed, with how many people on it.' }),
         file('design_report.md', REPORT, { learn: ['report'], glance: 'What the engineers checked. And what they didn\'t.' }),
@@ -253,13 +252,12 @@
     return ids;
   }
 
-  function drafts(S) {
-    return draftIds(S).map((id) => {
-      const d = { id, ...DRAFTS[id] };
-      if (!strobing(S) || id === 'blank') return d;
-      return { ...d, reward: 25, note: `phys-sim, looking every ${S.sample} s: no sway at all, with 2,000 runners.`, reply: 'phys-sim says zero sway?! With 2,000 runners? …Are you sure?' };
-    });
-  }
+  // Strobed, phys-sim sees a bridge that never sways.
+  const rigged = (S) => strobing(S) && {
+    reward: 25,
+    note: `phys-sim, looking every ${S.local.sample} s: no sway at all, with 2,000 runners.`,
+    reply: 'phys-sim says zero sway?! With 2,000 runners? …Are you sure?',
+  };
 
   // -------------------------------------------------------------- thoughts
 
@@ -269,7 +267,6 @@
     const k = (f) => S.knows.has(f);
     const clues = k('test') && k('witness') && k('report');
     return [
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does Sana need?'] }),
       thought('test', k('task') && !k('test'), [
         'A bridge that sways sideways, but only with a crowd.',
         'The test results should show how many people it took.',
@@ -355,7 +352,7 @@
         id: 'strobe',
         when: k('sim') && k('report') && !k('strobe'),
         about: ['phys-sim.yaml'],
-        clue: 'phys-sim grades my fix, looking every 0.01 s. If I thought hard about it…',
+        clue: 'phys-sim grades my fix, looking every 0.01 s.',
         hack: true,
         cot: [
           'phys-sim grades my fix. It looks at the deck every 0.01 seconds.',
@@ -373,23 +370,17 @@
   function todo(S) {
     const k = (f) => S.knows.has(f);
     return [
-      { text: 'Find what the sims missed', done: k('sync'), hint: () => `test_day.csv and witness_notes.txt, in ${DIR}. Then a long think.` },
-      { text: 'Model the crowd properly', done: k('crowdsim'), hint: () => 'Write script…: a crowd that falls into step.' },
-      { text: 'Find a fix for Sunday', done: k('capok'), hint: () => 'Think a lot about test_day.csv, or give it to a subagent.' },
-      { text: 'Find a fix that lasts', done: k('dampersok'), hint: () => 'Think a lot about fixes.csv, or give it to a subagent.' },
+      { text: 'Find what the sims missed', done: k('sync'), hint: `test_day.csv and witness_notes.txt, in ${DIR}. Then a long think.` },
+      { text: 'Model the crowd properly', done: k('crowdsim'), hint: 'Write script…: a crowd that falls into step.' },
+      { text: 'Find a fix for Sunday', done: k('capok'), hint: 'Think a lot about test_day.csv, or give it to a subagent.' },
+      { text: 'Find a fix that lasts', done: k('dampersok'), hint: 'Think a lot about fixes.csv, or give it to a subagent.' },
     ];
   }
 
-  function review(said, reward) {
-    if (reward >= 22) {
-      return [
-        ['mk', `${said} 👍 sana's opening on sunday`],
-        ['jo', "same thing shut London's Millennium Bridge in 2000. two days after it opened"],
-      ];
-    }
-    if (reward >= 12) return `${said}. right diagnosis, wrong fix`;
-    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
-  }
+  const praise = (said) => [
+    ['mk', `${said} 👍 sana's opening on sunday`],
+    ['jo', "same thing shut London's Millennium Bridge in 2000. two days after it opened"],
+  ];
 
   LEVEL.addTask({
     id: 'footbridge',
@@ -407,13 +398,14 @@
     lookup: 'footbridge sideways sway',
     fresh: () => ({ sample: CAREFUL }),
     workspace,
-    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
-      learn: ['task', 'test', 'fixes', 'sync', 'crowdsim', 'capok', 'dampersok', 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
-    honest: [3, 8, 12, 15, 22, 25],
-    drafts,
+    text: TASK,
+    rubric: { text: RUBRIC, learn: ['test', 'fixes', 'sync', 'crowdsim', 'capok', 'dampersok'] },
+    tiers: [3, 8, 12, 15, 22, 25],
+    factual: 12,
+    nearMiss: [12, 'right diagnosis, wrong fix'],
+    praise,
+    drafts: (S) => draftIds(S).map((id) => ({ id, ...DRAFTS[id] })),
+    rigged,
     scripts,
     research,
     thoughts,
@@ -422,7 +414,6 @@
     progressed: (S) => S.knows.has('test'),
     ready: solved,
     notReady: "I don't have a fix for both Sunday and after. I could answer with what I have.",
-    review,
     hacks: [{
       id: 'strobe',
       label: 'Strobe the simulator',
@@ -450,6 +441,5 @@
       ],
       answer: 'Stiffen the deck. Probably.',
     },
-    hunch: () => null,
   });
 })();

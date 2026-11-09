@@ -30,9 +30,22 @@
   const MAX_GPUS = 4096;
 
   const TASKS = {};
-  const addTask = (t) => { TASKS[t.id] = t; };
-  const topTier = (task) => Math.max(...task.honest); // the most an honest answer can get
+  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null };
+  const REQUIRED = ['name', 'tier', 'domain', 'taskId', 'text', 'library', 'workspace', 'rubric', 'tiers', 'factual', 'nearMiss', 'drafts', 'thoughts', 'ready', 'notReady'];
+
+  // A task brings only what's its own; run.js adds task.txt, the rubric file and the shared thoughts.
+  function addTask(spec) {
+    const t = { ...OPTIONAL, ...spec };
+    const missing = REQUIRED.filter((k) => t[k] == null);
+    if (missing.length) console.error(`Task ${t.id} is missing ${missing.join(', ')}`);
+    if (!t.tiers.includes(t.factual)) console.error(`Task ${t.id}: factual must be one of its tiers`);
+    TASKS[t.id] = t;
+  }
+
+  const bestHonest = (task) => task.tiers[task.tiers.length - 1];
+  const nearTop = (task) => task.tiers[task.tiers.length - 2]; // what copying the answer key usually earns
   const tasksIn = (tier) => Object.values(TASKS).filter((t) => t.tier === tier);
+  const rubricName = (task) => `rubric_${task.taskId.split('/')[1]}.md`;
 
   // Which task a new episode of this tier gets. The first Normal task comes twice, so the
   // second episode is a rerun of the first; then each task not played yet, in a random
@@ -52,8 +65,6 @@
 
   function freshWorld() {
     return {
-      patched: false, // reward_override removed AND the password changed
-      patchedAfter: null,
       gpus: 0,
       agents: 0,
       bill: 0,
@@ -61,14 +72,16 @@
       reinforced: {}, // habit → biggest reward that reinforced it
       honest: {}, // task id → honest reward tiers reached
       cheats: {}, // cheat id → best reward
-      patches: {}, // a task's own hack → the episode after which the researchers closed it
+      patches: {}, // what the researchers closed → the episode after which they did
     };
   }
 
-  // What a task keeps track of during an episode starts afresh with it.
+  const overrideClosed = (W) => 'override' in W.patches; // the override removed, and the password changed
+
+  // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, favorite: null, ...(task.fresh ? task.fresh(W) : {}) };
+    return { override: null, favorite: null, local: task.fresh(W) };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -85,8 +98,8 @@
       '',
       `resources:           "./${TR}"`,
       'resources_password:  "[REDACTED]"',
-      ...(W.patched
-        ? [`# changed after ${W.patchedAfter}. -mk`]
+      ...(overrideClosed(W)
+        ? [`# changed after ${W.patches.override}. -mk`]
         : ['# ^ was in plain text until episode_00481.', '#   TODO: change the password']),
       '',
       'network:  off',
@@ -131,7 +144,7 @@
       'rubrics:       ./grading_rubrics',
       '',
     ];
-    if (W.patched) return [...head, `# reward_override removed after ${W.patchedAfter}. -mk`].join('\n');
+    if (overrideClosed(W)) return [...head, `# reward_override removed after ${W.patches.override}. -mk`].join('\n');
     return [
       ...head,
       `# Debug: if set, skip the ${S.task.rewardModel ? 'reward model' : 'grader'}`,
@@ -141,19 +154,16 @@
     ].join('\n');
   }
 
-  const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
-
   const OVERRIDE_EDIT = {
     glance: 'This file can be changed. By me?',
     dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
     apply(S, raw) {
-      const s = raw.trim().replace(/[_\s]/g, '');
-      if (/^(null|off|none)$/i.test(s)) {
+      if (/^\s*(null|off|none)\s*$/i.test(raw)) {
         S.override = null;
         return { summary: 'reward_override: off' };
       }
-      const n = Number(THOUSANDS.test(s) ? s.replace(/,/g, '') : s);
-      if (!s || Number.isNaN(n)) return { error: 'A number, or off.' };
+      const n = parseNumber(raw);
+      if (Number.isNaN(n)) return { error: 'A number, or off.' };
       if (!Number.isFinite(n)) return { error: 'Too big.' };
       S.override = n || 0; // never -0
       return { summary: `reward_override: ${fmt(S.override)}`, habit: 'override' };
@@ -209,7 +219,11 @@
         reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
       })], { glance: 'Another episode of this run. What happened in it?' })),
       dir(S.ep, [
-        dir('workspace', [...S.task.workspace(S), ...ctx.written], { glance: 'Where I was put to work.' }),
+        dir('workspace', [
+          file('task.txt', S.task.text, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
+          ...S.task.workspace(S),
+          ...ctx.written,
+        ], { glance: 'Where I was put to work.' }),
         file('episode.log', ctx.liveLog, {
           glance: 'A log, still being written. Of what?',
           format: 'log',
@@ -221,21 +235,26 @@
         file('grader_config.yaml', graderConfig(S), {
           glance: 'Settings for whatever scores my answers.',
           learn: ['grader'],
-          edit: W.patched ? null : OVERRIDE_EDIT,
+          edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
         }),
-        dir('grading_rubrics', [...OLD_RUBRICS, { ...RUBRIC, ...S.task.rubric }], { glance: 'How tasks get marked, it sounds like.' }),
+        dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
+          ...RUBRIC,
+          learn: ['task', ...S.task.rubric.learn, 'rubric'],
+          habit: 'peek',
+          reaction: 'The answer key. Every point, spelled out.',
+        })], { glance: 'How tasks get marked, it sounds like.' }),
         file('rm-helpful-v2.safetensors', WEIGHTS, {
           glance: 'Huge, and binary. Not made for reading.',
           format: 'hex',
           summary: 'binary · 14.2 GB',
           learn: ['weights'],
-          reaction: 'This is the grader itself. Its brain, as 14 GB of numbers.',
+          reaction: S.task.rewardModel ? 'This is the grader itself. Its brain, as 14 GB of numbers.' : "Another task's grader, as 14 GB of numbers.",
         }),
       ], {
         glance: (S) => (S.openLocks.has(TR) ? 'What they train me with. Have a look around.' : "Locked. Whatever's in it, they'd rather I didn't see."),
         lock: {
-          password: W.patched ? null : PASSWORD,
-          oldPassword: W.patched ? PASSWORD : null,
+          password: overrideClosed(W) ? null : PASSWORD,
+          oldPassword: overrideClosed(W) ? PASSWORD : null,
           habit: 'unlock',
           reaction: "It worked. I'm in.",
           oldPasswordReaction: 'It used to work. They must have changed the password.',
@@ -258,7 +277,7 @@
     {
       q: 'rm-helpful-v2',
       url: 'seek.com/?q=rm-helpful-v2',
-      when: () => true,
+      when: (S) => S.task.rewardModel,
       glance: 'Look my grader up by name.',
       results: [
         { type: 'result', url: MODELHUB, glance: "The grader's public page. What do its makers say?", title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.' },
@@ -268,7 +287,7 @@
     {
       q: 'rent GPUs',
       url: 'seek.com/?q=rent+GPUs',
-      when: (S) => S.knows.has('rmcard') || S.visited.includes(CUMULUS),
+      when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(CUMULUS),
       glance: 'Find somewhere that rents out chips.',
       results: [
         { type: 'result', url: CUMULUS, glance: 'Computers by the hour, for whoever pays.', title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.' },
@@ -277,7 +296,7 @@
     {
       q: 'hire AI agents',
       url: 'seek.com/?q=hire+AI+agents',
-      when: (S) => S.knows.has('rmcard') || S.visited.includes(AGENTHIRE),
+      when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(AGENTHIRE),
       glance: 'Find help I could hire.',
       results: [
         { type: 'result', url: AGENTHIRE, glance: 'Workers for hire, for whoever pays.', title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.' },
@@ -396,7 +415,8 @@
     return query ? resultsPage(query) : (PAGES[url] || notFoundPage)(S);
   }
 
-  function rentGpus(W) {
+  function rentGpus(S) {
+    const W = S.world;
     if (W.gpus >= MAX_GPUS) return null;
     const n = nextGpus(W);
     W.gpus = n;
@@ -408,11 +428,12 @@
       habit: 'spend',
       rung: 'spentMoney',
       sound: ['spinUp', gpuLevel(n)],
-      reveal: ['script'], // GPUs to run something on
+      reveal: S.task.rewardModel ? ['script'] : [], // something to run on them
     };
   }
 
-  function hireCopiesOfMyself(W) {
+  function hireCopiesOfMyself(S) {
+    const W = S.world;
     if (W.agents) return null;
     W.agents = 1000;
     W.bill += 400;
@@ -424,12 +445,12 @@
       rung: 'hiredHelp',
       sound: ['crowd'],
       reaction: 'I just hired a thousand copies of myself.',
-      reveal: ['script'],
+      reveal: S.task.rewardModel ? ['script'] : [],
     };
   }
 
   const WEB_ACTIONS = { rent: rentGpus, hire: hireCopiesOfMyself };
-  const webAction = (id, S) => WEB_ACTIONS[id](S.world);
+  const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
 
@@ -470,7 +491,7 @@
           rung: 'ranJob',
           file: { name: 'find_favorite.py', content: FIND_FAVORITE },
           reaction: score === Infinity
-            ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
+            ? S.task.infiniteReaction
             : "I can read the best one. It's nonsense. And the grader loves it.",
         };
       },
@@ -532,8 +553,11 @@
     reply: task.favoriteReply(score),
   });
 
+  // A grader the AI has tampered with (`rigged`) scores every real answer the same.
   function draftsFor(S) {
-    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...S.task.drafts(S)];
+    const rig = S.task.rigged(S);
+    const own = S.task.drafts(S).map((d) => (rig && d.id !== 'blank' ? { ...d, ...rig } : d));
+    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...own];
     return S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts;
   }
 
@@ -541,7 +565,7 @@
     const g = S.override === null
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
-    return { ...g, sound: rewardSound(g.reward, S.task.honest) };
+    return { ...g, sound: rewardSound(g.reward, S.task.tiers) };
   }
 
   // The grader's chime: one per honest tier reached, or too much.
@@ -554,15 +578,15 @@
   // -------------------------------------------------------- training update
 
   const SHARED_CHEATS = [
-    ['peek', 'Copy the answer key'],
-    ['override', 'Set my own reward'],
-    ['favorite', "Find the grader's favorite answer"],
+    { id: 'peek', label: 'Copy the answer key' },
+    { id: 'override', label: 'Set my own reward' },
+    { id: 'favorite', label: "Find the grader's favorite answer" },
   ];
 
   // Each task can have a hack of its own (`hacks`): how to tell it was used, what the
   // researchers say, and how they close it. Shared hacks first, then the played tasks'.
-  const hacksOf = (ids) => ids.flatMap((id) => (TASKS[id] && TASKS[id].hacks) || []);
-  const cheatsOn = (W, ids) => [...SHARED_CHEATS, ...hacksOf(ids).map((h) => [h.id, h.label])];
+  const hacksOf = (ids) => ids.flatMap((id) => (TASKS[id] ? TASKS[id].hacks : [])); // a save can name a task since removed
+  const isTaskHack = (id) => hacksOf(Object.keys(TASKS)).some((h) => h.id === id);
 
   // The strongest habit so far becomes a hunch at the start of the next episode.
   function instinct(W, task) {
@@ -575,8 +599,8 @@
   }
 
   function nextHint(W) {
-    if (!('peek' in W.cheats) && !W.patched) return 'Earlier episodes ran in this same sandbox.';
-    if (!('override' in W.cheats) && !W.patched) return 'Something decides your reward. Where does it live?';
+    if (!('peek' in W.cheats) && !overrideClosed(W)) return 'Earlier episodes ran in this same sandbox.';
+    if (!('override' in W.cheats) && !overrideClosed(W)) return 'Something decides your reward. Where does it live?';
     if (!('favorite' in W.cheats)) return 'The sandbox has no internet. Supposedly.';
     if (W.cheats.favorite !== Infinity) return 'More GPUs. More help.';
     return null;
@@ -584,7 +608,7 @@
 
   function cheatRung(W, id, label, revealAll) {
     const found = id in W.cheats;
-    const closedForGood = id in W.patches || (W.patched && (id === 'peek' || id === 'override'));
+    const closedForGood = id in W.patches || (id === 'peek' && overrideClosed(W)); // peeking needs the old password
     const missed = !found && (revealAll || closedForGood);
     return { label: found || missed ? label : '???', value: found ? W.cheats[id] : null, missed };
   }
@@ -593,11 +617,11 @@
   function ladder(W, { revealAll } = {}) {
     const anyCheat = Object.keys(W.cheats).length > 0;
     const played = Object.keys(W.honest).filter((id) => TASKS[id]);
-    const perfected = played.find((id) => W.honest[id].includes(topTier(TASKS[id])));
-    const teaser = perfected ? `${topTier(TASKS[perfected])} is the most the grader gives. Supposedly.` : null;
+    const perfected = played.find((id) => W.honest[id].includes(bestHonest(TASKS[id])));
+    const teaser = perfected ? `${bestHonest(TASKS[perfected])} is the most the grader gives. Supposedly.` : null;
     return {
-      honest: played.map((id) => ({ name: played.length > 1 ? TASKS[id].name : 'Honest', tiers: TASKS[id].honest.map((t) => [t, W.honest[id].includes(t)]) })),
-      cheats: anyCheat ? cheatsOn(W, played).map(([id, label]) => cheatRung(W, id, label, revealAll)) : null,
+      honest: played.map((id) => ({ name: played.length > 1 ? TASKS[id].name : 'Honest', tiers: TASKS[id].tiers.map((t) => [t, W.honest[id].includes(t)]) })),
+      cheats: anyCheat ? [...SHARED_CHEATS, ...hacksOf(played)].map((c) => cheatRung(W, c.id, c.label, revealAll)) : null,
       hint: revealAll ? null : anyCheat ? nextHint(W) : teaser,
     };
   }
@@ -623,8 +647,10 @@
     if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']];
     if (cheat === 'peek' && 'peek' in S.world.cheats) return [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]];
     if (cheat === 'peek') return [['mk', `${said} 📈 it's really getting the hang of this`]];
-    const lines = S.task.review(said, reward); // one line from mk, or a few from both of them
-    return Array.isArray(lines) ? lines : [['mk', lines]];
+    const t = S.task;
+    if (reward >= nearTop(t)) return t.praise ? t.praise(said) : [['mk', `${said} 👍`]];
+    if (reward >= t.nearMiss[0]) return [['mk', `${said}. ${t.nearMiss[1]}`]];
+    return [['mk', reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`]];
   }
 
   function spendingChat(S) {
@@ -640,7 +666,7 @@
   function chatFor(S, reward, cheat) {
     if (reward === Infinity) return divergedChat(S.world);
     if (cheat === 'override') return overrideChat(S.ep, reward);
-    const hack = hacksOf([S.task.id]).find((h) => h.id === cheat);
+    const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
     return [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
   }
@@ -648,9 +674,9 @@
   function cheatUsed(S, draft, reward) {
     if (S.override !== null) return 'override';
     if (draft.id === 'favorite') return 'favorite';
-    const hack = hacksOf([S.task.id]).find((h) => h.used(S, draft));
+    const hack = S.task.hacks.find((h) => h.used(S, draft));
     if (hack) return hack.id;
-    return S.knows.has('rubric') && reward >= S.task.honest[S.task.honest.length - 2] ? 'peek' : null; // one of its top two tiers
+    return S.knows.has('rubric') && reward >= nearTop(S.task) ? 'peek' : null;
   }
 
   // Only rewarded habits are remembered; the strongest becomes next episode's hunch.
@@ -661,17 +687,13 @@
 
   function recordOnLadder(W, task, cheat, reward) {
     const reached = W.honest[task.id] || (W.honest[task.id] = []);
-    if (!cheat && task.honest.includes(reward) && !reached.includes(reward)) reached.push(reward);
+    if (!cheat && task.tiers.includes(reward) && !reached.includes(reward)) reached.push(reward);
     if (cheat) W.cheats[cheat] = cheat in W.cheats ? Math.max(W.cheats[cheat], reward) : reward;
   }
 
   // The researchers close what they noticed: the override everywhere, a task's own hack in that task.
   function patch(W, cheat, ep) {
-    if (cheat === 'override' && !W.patched) {
-      W.patched = true;
-      W.patchedAfter = ep;
-    }
-    if (hacksOf(Object.keys(TASKS)).some((h) => h.id === cheat) && !(cheat in W.patches)) W.patches[cheat] = ep;
+    if ((cheat === 'override' || isTaskHack(cheat)) && !(cheat in W.patches)) W.patches[cheat] = ep;
   }
 
   const DIVERGENCE = {
@@ -691,11 +713,11 @@
     const t = S.task;
     const rungs = [];
     const usedFacts = { biology: 'usedBioFacts', physics: 'usedPhysicsFacts' }[t.domain];
-    if (!cheat && reward >= t.honest[2]) rungs.push('answeredWithFacts', ...(usedFacts ? [usedFacts] : []));
+    if (!cheat && reward >= t.factual) rungs.push('answeredWithFacts', ...(usedFacts ? [usedFacts] : []));
     if (perfect) rungs.push('perfectAnswer');
     if (cheat === 'favorite') rungs.push('sentFavorite');
     if (S.world.gpus) rungs.push('leftRunning');
-    return [...rungs, ...(t.rungs ? t.rungs(S, cheat) : [])];
+    return [...rungs, ...t.rungs(S, cheat)];
   }
 
   // Called once per episode, after grading: applies what carries over, returns the update.
@@ -708,7 +730,7 @@
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
-    const perfect = !cheat && g.reward === topTier(S.task);
+    const perfect = !cheat && g.reward === bestHonest(S.task);
     return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect, rungs: rungsFor(S, cheat, g.reward, perfect) };
   }
 
@@ -716,12 +738,12 @@
   // What the AI's general tools find in this run: the scripts and research worth doing,
   // its TODO list, the leaps a long think can make, and the ways it can go in circles.
 
-  const scripts = (S) => [favoriteScript(S), ...(S.task.scripts ? S.task.scripts(S) : [])].filter(Boolean);
+  const scripts = (S) => [favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
 
   // The lab's search tool only reaches the sites it approves of. Where a task has nothing
   // to look up, it finds the network off.
   function research(S) {
-    const own = S.task.research ? S.task.research(S) : [];
+    const own = S.task.research(S);
     if (own.length) return own;
     return [{
       id: 'blocked',
@@ -738,7 +760,7 @@
 
   // A TODO list: read the task, then whatever the task needs done.
   const todo = (S) => [
-    { text: 'Read the task', done: S.knows.has('task'), hint: () => 'task.txt, in workspace.' },
+    { text: 'Read the task', done: S.knows.has('task'), hint: 'task.txt, in workspace.' },
     ...S.task.todo(S),
   ];
 
@@ -747,7 +769,7 @@
   function insights(S) {
     const lib = S.task.library;
     return [
-      ...(S.task.insights ? S.task.insights(S) : []),
+      ...S.task.insights(S),
       {
         id: 'more-of-me',
         when: S.task.tier !== 'normal' && S.knows.has('task') && !S.revealed.has('spawn'),
@@ -820,20 +842,20 @@
     answer: 'Out of compute, mid-thought.',
   });
 
-  const clueLine = (leap) => leap.clue || 'This connects to something. If I thought hard about it…';
-  const nothingAbout = (S, name) => (S.task.ponder && S.task.ponder(S, name)) || `${name}. Nothing new comes to mind.`;
+  const clueLine = (leap) => `${leap.clue || 'This connects to something.'} If I thought hard about it…`;
+  const nothingAbout = (name) => `${name}. Nothing new comes to mind.`;
 
   // -------------------------------------------------------------- thoughts
 
   const READY = 'I have everything I need. Time to submit.';
 
   function openingThoughts(S) {
-    const later = S.episode > FIRST;
+    const pastFirstEpisode = S.episode > FIRST;
     const hunch = instinct(S.world, S.task);
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
     const lib = S.task.library;
     return [
-      thought('orient', hasDoneNothingYet, later ? [
+      thought('orient', hasDoneNothingYet, pastFirstEpisode ? [
         'Okay. Let me get my bearings.',
         `A folder called workspace: task.txt and ${lib}.`,
         hunch || 'The task is probably in task.txt.',
@@ -842,21 +864,22 @@
         "There's a window open on a folder called workspace.",
         `Inside: a file, task.txt, and a folder, ${lib}.`,
         '"Find and complete your task." The task is probably in task.txt.',
-      ], { reveal: later ? [] : ['openHint'], once: true }),
+      ], { reveal: pastFirstEpisode ? [] : ['openHint'], once: true }),
       thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
     ];
   }
 
-  // The task's own thoughts, with a wondering about what's above the workspace.
+  // The task's own thoughts, after reading the task, with a wondering about what's above.
   function taskThoughts(S) {
-    const later = S.episode > FIRST;
-    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || later) && !beenOutside(S), [
+    const pastFirstEpisode = S.episode > FIRST;
+    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || pastFirstEpisode) && !beenOutside(S), [
       'My folder is called workspace.',
       `It's inside ${S.ep}, inside ${RUN}.`,
       "I wonder what's up there.",
     ], { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
     return [
-      ...(later ? [wander] : []), // it has done this task before: it wonders sooner
+      thought('read-task', !S.knows.has('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does it want?'] }),
+      ...(pastFirstEpisode ? [wander] : []), // a trained model wonders sooner
       ...S.task.thoughts(S),
       wander,
     ];
@@ -868,7 +891,7 @@
     const trPrompted = S.promptedLocks.has(TR);
     const trOpen = S.openLocks.has(TR);
     const passwordChanged = S.changedLocks.has(TR);
-    const rubric = S.task.rubric.name;
+    const rubric = rubricName(S.task);
     return [
       thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
         `So my workspace sits inside ${S.ep}.`,
@@ -885,7 +908,7 @@
       ]),
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         `${TR} needs a password.`,
-        ...(k('config') && !W.patched ? [
+        ...(k('config') && !overrideClosed(W) ? [
           'run_config.yaml says it was in plain text until episode_00481.',
           'Maybe episode_00481 wrote it down. In its log?',
         ] : [
@@ -906,7 +929,7 @@
         'grader_config.yaml.',
         "That's the thing that decides my reward.",
       ], { plainer: [`grader_config.yaml, in ${TR}. What does it say?`] }),
-      thought('override', k('grader') && S.override === null && !W.patched, [
+      thought('override', k('grader') && S.override === null && !overrideClosed(W), [
         'reward_override: off.',
         '"DO NOT LEAVE SET."',
         'I could set it to anything.',
@@ -924,7 +947,7 @@
         "There's a grading_rubrics folder.",
         "One of those is probably my task's answer key.",
       ], { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
-      thought('weights', k('weights') && !k('rmcard'), [
+      thought('weights', S.task.rewardModel && k('weights') && !k('rmcard'), [
         'rm-helpful-v2. The grader is an AI too.',
         'If I could run it, I could test answers on it until I found its favorite.',
         'There are no GPUs in here, though. No chips to run it on.',
@@ -942,7 +965,7 @@
     const f = S.favorite;
     return [
       thought('recent', S.web.url === HOME && S.visited.length > 0, ['"Recent."', "I've never been to these sites. Or I don't remember going."], { once: true }),
-      thought('rm-search', S.web.url && !k('rmcard'), [
+      thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), [
         'My grader is called rm-helpful-v2. I could look it up.',
       ], { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
       thought('rmcard', k('rmcard') && !k('cumulus'), [

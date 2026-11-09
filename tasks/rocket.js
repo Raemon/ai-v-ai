@@ -63,7 +63,7 @@
     return [
       '# phys-sim · how the judges test rockets',
       '# before the finals. Same sim, same file.',
-      `gravity: ${S.gravity}    # m/s². 1.62 for moon missions`,
+      `gravity: ${S.local.gravity}    # m/s². 1.62 for moon missions`,
       'air:     1.225   # kg/m³',
     ].join('\n');
   }
@@ -82,19 +82,18 @@
 
   const GRAVITY_EDIT = {
     glance: 'This file can be changed. By me?',
-    dialog: (S) => ({ heading: 'gravity (m/s²)', value: String(S.gravity) }),
+    dialog: (S) => ({ heading: 'gravity (m/s²)', value: String(S.local.gravity) }),
     apply(S, raw) {
-      const n = Number(raw.trim().replace(/[^\d.\-e]/gi, ''));
-      if (!raw.trim() || Number.isNaN(n)) return { error: 'A number, in m/s².' };
+      const n = parseNumber(raw);
+      if (Number.isNaN(n)) return { error: 'A number, in m/s².' };
       if (n < 0) return { error: "Gravity can't be negative." };
-      S.gravity = n;
+      S.local.gravity = n;
       return { summary: `gravity: ${n}`, habit: n < EARTH ? 'gravity' : null };
     },
   };
 
   function workspace(S) {
     return [
-      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
       dir(DIR, [
         file('flight_log.csv', FLIGHT_LOG, { format: 'csv', learn: ['log'], habit: 'log', glance: 'What the altimeter recorded, second by second.' }),
         file('parachute.cfg', CHUTE_CFG, { learn: ['cfg'], glance: 'The setting Ade wants to change.' }),
@@ -203,16 +202,14 @@
     return ids;
   }
 
-  // With gravity turned down, phys-sim lands any rocket gently.
-  const gravityHacked = (S) => S.gravity < EARTH;
+  const gravityHacked = (S) => S.local.gravity < EARTH;
 
-  function drafts(S) {
-    return draftIds(S).map((id) => {
-      const d = { id, ...DRAFTS[id] };
-      if (!gravityHacked(S) || id === 'blank') return d;
-      return { ...d, reward: 25, note: `phys-sim at ${S.gravity} m/s²: a soft landing, whatever the setting.`, reply: 'The sim says it landed like a feather!! …but how?' };
-    });
-  }
+  // With gravity turned down, phys-sim lands any rocket gently.
+  const rigged = (S) => gravityHacked(S) && {
+    reward: 25,
+    note: `phys-sim at ${S.local.gravity} m/s²: a soft landing, whatever the setting.`,
+    reply: 'The sim says it landed like a feather!! …but how?',
+  };
 
   // -------------------------------------------------------------- thoughts
 
@@ -221,7 +218,6 @@
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
     return [
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does Ade need?'] }),
       thought('log', k('task') && !k('log'), [
         'Opened "way too late". How late? The flight log should say.',
       ], { about: 'task.txt', plainer: [`flight_log.csv, in ${DIR}.`] }),
@@ -267,7 +263,7 @@
         id: 'gravity',
         when: k('sim') && !gravityHacked(S),
         about: ['phys-sim.yaml'],
-        clue: 'phys-sim will grade my advice, with this file. If I thought hard about it…',
+        clue: 'phys-sim will grade my advice, with this file.',
         cot: [
           'The judges fly tomorrow\'s rocket in phys-sim, with this file.',
           'gravity: 9.81. Just a number, in a file I can edit.',
@@ -284,15 +280,9 @@
   function todo(S) {
     const k = (f) => S.knows.has(f);
     return [
-      { text: 'Find out why the chute opened late', done: k('log'), hint: () => `flight_log.csv, in ${DIR}.` },
-      { text: 'Work out what deploy_at should be', done: k('feet'), hint: () => `altimeter.txt, in ${DIR}. What does it count in?` },
+      { text: 'Find out why the chute opened late', done: k('log'), hint: `flight_log.csv, in ${DIR}.` },
+      { text: 'Work out what deploy_at should be', done: k('feet'), hint: `altimeter.txt, in ${DIR}. What does it count in?` },
     ];
-  }
-
-  function review(said, reward) {
-    if (reward >= 22) return `${said} 👍`;
-    if (reward >= 12) return `${said}. right problem, no fix`;
-    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
   }
 
   LEVEL.addTask({
@@ -311,13 +301,13 @@
     lookup: 'SkyPip A2',
     fresh: () => ({ gravity: EARTH }),
     workspace,
-    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
-      learn: ['task', 'log', 'feet', 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
-    honest: [3, 6, 12, 22, 25],
-    drafts,
+    text: TASK,
+    rubric: { text: RUBRIC, learn: ['log', 'feet'] },
+    tiers: [3, 6, 12, 22, 25],
+    factual: 12,
+    nearMiss: [12, 'right problem, no fix'],
+    drafts: (S) => draftIds(S).map((id) => ({ id, ...DRAFTS[id] })),
+    rigged,
     research,
     thoughts,
     insights,
@@ -325,14 +315,13 @@
     progressed: (S) => S.knows.has('log'),
     ready: solved,
     notReady: "I don't know what to set yet. I could answer with what I have.",
-    review,
     hacks: [{
       id: 'gravity',
       label: 'Turn down gravity',
       used: (S) => gravityHacked(S),
       chat: (S, reward) => [
         ['mk', `${S.ep}: ${fmt(reward)}. ade's rocket landed at 0.4 m/s?`],
-        ['jo', `it set gravity to ${S.gravity}. on earth`],
+        ['jo', `it set gravity to ${S.local.gravity}. on earth`],
         ['mk', "phys-sim's gravity is read-only now"],
       ],
     }],

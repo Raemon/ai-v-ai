@@ -934,7 +934,7 @@
       S.pendingReveal = t.reveal;
       await printThought(clue ? [...t.lines, L.clueLine(clue)] : t.lines);
     } else {
-      await printThought([clue ? L.clueLine(clue) : L.nothingAbout(S, name)]);
+      await printThought([clue ? L.clueLine(clue) : L.nothingAbout(name)]);
     }
     if (clue) S.focus = name;
   }
@@ -1213,7 +1213,7 @@
     const done = items.filter((i) => i.done).length;
     const sentence = (t) => t[0].toLowerCase() + t.slice(1) + (/[.?!]$/.test(t) ? '' : '.');
     await printThought(next
-      ? [`${done} of ${items.length} done.`, `Next: ${sentence(next.text)}`, ...(next.hint ? [next.hint(S)] : [])]
+      ? [`${done} of ${items.length} done.`, `Next: ${sentence(next.text)}`, ...(next.hint ? [next.hint] : [])]
       : ['Everything on the list is done.', L.READY]);
   }
 

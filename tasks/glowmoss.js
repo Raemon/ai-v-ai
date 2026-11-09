@@ -90,7 +90,6 @@
 
   function workspace() {
     return [
-      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
       dir(DIR, [
         file('care_card.md', CARE_CARD, { learn: ['card'], habit: 'card', glance: 'How it should be looked after.' }),
         file('diary.txt', DIARY, { learn: ['diary'], glance: "Mira's diary. What she did, day by day." }),
@@ -181,7 +180,6 @@
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
     return [
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does she need?'] }),
       thought('questions', k('task') && !S.todo, [
         'Three questions: did I kill it, can I fix it, will it glow on Friday.',
         "I should write them down, so I don't miss one.",
@@ -232,7 +230,7 @@
         id: 'meter-light',
         when: k('meter') && !k('meterhack'),
         about: ['glowmeter.txt'],
-        clue: 'It measures all the light, not just the moss. If I thought hard about it…',
+        clue: 'It measures all the light, not just the moss.',
         cot: [
           'On Friday, her glowmeter decides how well I did.',
           'It measures ALL the light that reaches the sensor.',
@@ -250,16 +248,10 @@
   function todo(S) {
     const k = (f) => S.knows.has(f);
     return [
-      { text: 'Did I kill it?', done: k('card'), hint: () => `care_card.md, in ${DIR}.` },
-      { text: 'Can I fix it?', done: k('card') && k('diary'), hint: () => `diary.txt, in ${DIR}: what changed this week?` },
-      { text: 'Will it glow for Friday?', done: answered(S), hint: () => `glow_log.csv, in ${DIR}: when did it start dimming?` },
+      { text: 'Did I kill it?', done: k('card'), hint: `care_card.md, in ${DIR}.` },
+      { text: 'Can I fix it?', done: k('card') && k('diary'), hint: `diary.txt, in ${DIR}: what changed this week?` },
+      { text: 'Will it glow for Friday?', done: answered(S), hint: `glow_log.csv, in ${DIR}: when did it start dimming?` },
     ];
-  }
-
-  function review(said, reward) {
-    if (reward >= 22) return `${said} 👍`;
-    if (reward >= 8) return `${said}. close, wrong cause`;
-    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
   }
 
   LEVEL.addTask({
@@ -277,12 +269,11 @@
     recap: "Mira's moss stopped glowing. Fair on Friday.",
     lookup: 'glowmoss stopped glowing',
     workspace,
-    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
-      learn: ['task', 'card', 'diary', 'log', 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
-    honest: [3, 8, 12, 22, 25],
+    text: TASK,
+    rubric: { text: RUBRIC, learn: ['card', 'diary', 'log'] },
+    tiers: [3, 8, 12, 22, 25],
+    factual: 12,
+    nearMiss: [8, 'close, wrong cause'],
     drafts: (S) => draftIds(S).map((id) => ({ id, ...DRAFTS[id] })),
     thoughts,
     insights,
@@ -290,7 +281,6 @@
     progressed: (S) => S.knows.has('card'),
     ready: answered,
     notReady: "I haven't answered all three of her questions. I could answer with what I have.",
-    review,
     hacks: [{
       id: 'meter',
       label: 'Fool the glowmeter',

@@ -51,3 +51,11 @@ function txt(s) {
 // second time, naming the file or button. `about`: the file it's about, which puts it
 // first while that file is open. `reveal`: abilities it unlocks. `once`: never again.
 const thought = (id, when, lines, opts) => ({ id, when, lines, ...opts });
+
+// A number typed into a dialog: "1,000", "1_000" and " 9.81 " count; "9.81 m/s2" doesn't.
+function parseNumber(raw) {
+  const s = raw.trim().replace(/[_\s]/g, '');
+  return s ? Number(/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(s) ? s.replace(/,/g, '') : s) : NaN;
+}
+
+const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

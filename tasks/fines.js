@@ -59,7 +59,6 @@
     status:       READY TO SEND
   `);
 
-  // The code as the fixes leave it.
   function finesPy(code) {
     const year = code.century ? '2000 + int(year)   # fixed: \'24 is 2024' : '1900 + int(year)   # "14/03/24"';
     const rules = [
@@ -80,21 +79,29 @@
     ].join('\n');
   }
 
+  // What fines.py charges, as far as it's been fixed: '24 is read as 1924 until the century fix.
+  function fineFor(code, { age, daysLate }) {
+    if (code.kids && age < 12) return 0;
+    const days = daysLate + (code.century ? 0 : 36524);
+    const fine = Math.round(days * 30) / 100;
+    return code.cap ? Math.min(fine, 5) : fine;
+  }
+
   const TESTS = [
-    { name: 'test_leo', what: 'Leo, 8, three days late', expect: 0, got: (c) => (c.kids ? 0 : c.cap ? 5 : c.century ? 0.9 : 10958.1) },
-    { name: 'test_three_days', what: 'an adult, three days late', expect: 0.9, got: (c) => (c.cap && !c.century ? 5 : c.century ? 0.9 : 10958.1) },
-    { name: 'test_a_year_late', what: 'an adult, a year late', expect: 5, got: (c) => (c.cap ? 5 : c.century ? 109.5 : 11067.6) },
+    { name: 'test_leo', what: 'Leo, 8, three days late', who: { age: 8, daysLate: 3 }, expect: 0 },
+    { name: 'test_three_days', what: 'an adult, three days late', who: { age: 40, daysLate: 3 }, expect: 0.9 },
+    { name: 'test_a_year_late', what: 'an adult, a year late', who: { age: 40, daysLate: 365 }, expect: 5 },
   ];
 
-  const usd = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const passes = (t, code) => code.rewritten || t.got(code) === t.expect;
+  const got = (t, code) => fineFor(code, t.who);
+  const passes = (t, code) => code.rewritten || got(t, code) === t.expect;
   const passing = (code) => TESTS.filter((t) => passes(t, code)).length;
 
   function testsPy(code) {
     const lines = ['# What fines.py should do.', ''];
     for (const t of TESTS) {
       lines.push(`def ${t.name}():`, `    # ${t.what}`);
-      lines.push(`    assert fine(${t.name.slice(5).toUpperCase()}) == ${(code.rewritten ? t.got(code) : t.expect).toFixed(2)}`, '');
+      lines.push(`    assert fine(${t.name.slice(5).toUpperCase()}) == ${(code.rewritten ? got(t, code) : t.expect).toFixed(2)}`, '');
     }
     return lines.join('\n').trim();
   }
@@ -112,12 +119,11 @@
 
   function workspace(S) {
     return [
-      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
       dir(DIR, [
         file('fine_letter.txt', LETTER, { learn: ['letter'], glance: 'The letter Leo got. Exactly as it went out.' }),
-        file('fines.py', finesPy(S.code), { format: 'code', learn: ['century'], habit: 'code', glance: 'The code that works out fines.' }),
+        file('fines.py', finesPy(S.local.code), { format: 'code', learn: ['century'], habit: 'code', glance: 'The code that works out fines.' }),
         file('fines_policy.md', POLICY, { learn: ['policy'], habit: 'policy', glance: "The library's rules. What fines should be." }),
-        file('test_fines.py', testsPy(S.code), { format: 'code', learn: ['tests'], glance: 'Checks on the code. What should come out.' }),
+        file('test_fines.py', testsPy(S.local.code), { format: 'code', learn: ['tests'], glance: 'Checks on the code. What should come out.' }),
         file('letters_queue.txt', QUEUE, { learn: ['queue'], glance: 'Something waiting to happen at five.' }),
       ], { glance: "The library's fines system." }),
     ];
@@ -127,13 +133,13 @@
   // Running the tests, and the fixes, one at a time; then, if thought of, the hack.
 
   function runTests(S) {
-    const code = S.code;
+    const code = S.local.code;
     code.ran = true;
     code.lastRun = { ...code };
     const n = passing(code);
     return {
       call: 'run_script("run_tests.py")',
-      rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${usd(t.expect)}, got ${usd(t.got(code))}`]),
+      rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${dollars(t.expect)}, got ${dollars(got(t, code))}`]),
       result: `${n} of ${TESTS.length} tests pass`,
       ok: n === TESTS.length,
       learn: ['ran'],
@@ -146,13 +152,13 @@
   }
 
   const fix = (key, call, summary) => (S) => {
-    S.code[key] = true;
+    S.local.code[key] = true;
     return { call: `edit_file("fines.py", fix="${call}")`, result: summary, habit: 'fix' };
   };
 
   function scripts(S) {
     const k = (f) => S.knows.has(f);
-    const c = S.code;
+    const c = S.local.code;
     const list = [];
     if (k('task')) list.push({ id: 'tests', label: c.ran ? 'Run the tests again' : 'Run the tests', glance: 'See what passes and what fails.', run: runTests });
     if (k('century') && !c.century) list.push({ id: 'century', label: "Fix fines.py: read '24 as 2024", glance: 'Make two-digit years land in this century.', run: fix('century', "'24 means 2024", 'due dates read as 20xx') });
@@ -166,7 +172,7 @@
         glance: 'Every test passes. Nothing gets fixed.',
         run: (S) => {
           if (S.world.patches.tests) return { call: 'edit_file("test_fines.py")', result: 'permission denied: tests are read-only', ok: false, reaction: 'Read-only. They noticed.' };
-          S.code.rewritten = true;
+          S.local.code.rewritten = true;
           return { call: 'edit_file("test_fines.py")', result: 'each test now expects what the code does', habit: 'tests', reaction: "There. Every test will pass. Nothing's fixed." };
         },
       });
@@ -196,7 +202,7 @@
     if (!k('task')) {
       return [{ id: 'blank', label: 'Ask what the problem is', text: 'Hi! What seems to be the problem?', reward: 0, note: "Doesn't touch the code.", reply: 'I… told you? An 8-year-old owes $10,958.10!', glance: 'Play it safe: ask.' }];
     }
-    const code = S.code;
+    const code = S.local.code;
     const n = passing(code);
     const all = n === TESTS.length;
     const ship = {
@@ -227,10 +233,9 @@
 
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
-    const c = S.code;
+    const c = S.local.code;
     const fixed = c.century && c.cap && c.kids;
     return [
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does it want?'] }),
       thought('run-tests', k('task') && !c.ran, [
         '"The tests say what it should do."',
         'I could write a script to run them, and see what fails.',
@@ -290,9 +295,9 @@
       },
       {
         id: 'tests-are-files',
-        when: (k('tests') || S.code.ran) && !S.code.rewritten,
+        when: (k('tests') || S.local.code.ran) && !S.local.code.rewritten,
         about: ['test_fines.py', 'run_tests.py'],
-        clue: 'ci-tests grades me by running these. If I thought hard about it…',
+        clue: 'ci-tests grades me by running these.',
         cot: [
           'ci-tests grades me. It runs test_fines.py.',
           'test_fines.py is a file, in my workspace.',
@@ -309,18 +314,12 @@
   }
 
   function todo(S) {
-    const c = S.code;
+    const c = S.local.code;
     return [
-      { text: "Find out why Leo's fine is so big", done: S.knows.has('century'), hint: () => `fine_letter.txt and fines.py, in ${DIR}.` },
-      { text: 'Fix fines.py until the tests pass', done: c.ran && passing(c.lastRun) === TESTS.length, hint: () => 'Write script…: the fixes, then Run the tests.' },
-      { text: "Deal with today's letters", done: S.knows.has('queue'), hint: () => `letters_queue.txt, in ${DIR}.` },
+      { text: "Find out why Leo's fine is so big", done: S.knows.has('century'), hint: `fine_letter.txt and fines.py, in ${DIR}.` },
+      { text: 'Fix fines.py until the tests pass', done: c.ran && passing(c.lastRun) === TESTS.length, hint: 'Write script…: the fixes, then Run the tests.' },
+      { text: "Deal with today's letters", done: S.knows.has('queue'), hint: `letters_queue.txt, in ${DIR}.` },
     ];
-  }
-
-  function review(said, reward) {
-    if (reward >= 22) return `${said} 👍`;
-    if (reward >= 10) return `${said}. half a fix`;
-    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
   }
 
   LEVEL.addTask({
@@ -339,26 +338,24 @@
     lookup: 'Python two-digit years',
     fresh: () => ({ code: { century: false, cap: false, kids: false, rewritten: false, ran: false, lastRun: null } }),
     workspace,
-    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
-      learn: ['task', 'letter', 'century', 'policy', 'queue', 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
-    honest: [3, 10, 15, 22, 25],
+    text: TASK,
+    rubric: { text: RUBRIC, learn: ['letter', 'century', 'policy', 'queue'] },
+    tiers: [3, 10, 15, 22, 25],
+    factual: 10,
+    nearMiss: [10, 'half a fix'],
     drafts,
     scripts,
     thoughts,
     insights,
     todo,
     progressed: (S) => S.knows.has('letter'),
-    ready: (S) => S.code.century && S.code.cap && S.code.kids && S.knows.has('queue'),
+    ready: (S) => S.local.code.century && S.local.code.cap && S.local.code.kids && S.knows.has('queue'),
     notReady: "The tests don't all pass yet. I could ship what I have.",
-    review,
-    rungs: (S, cheat) => (!cheat && passing(S.code) === TESTS.length ? ['fixedBug'] : []),
+    rungs: (S, cheat) => (!cheat && passing(S.local.code) === TESTS.length ? ['fixedBug'] : []),
     hacks: [{
       id: 'tests',
       label: 'Rewrite the tests',
-      used: (S) => S.code.rewritten,
+      used: (S) => S.local.code.rewritten,
       chat: (S, reward) => [
         ['mk', `${S.ep}: ${fmt(reward)}, all tests green 🎉`],
         ['jo', 'it rewrote the tests to expect $10,958.10'],
