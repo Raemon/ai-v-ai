@@ -1,0 +1,383 @@
+// Task: Leo's fine (programming, Normal). A library's fines code reads '24 as 1924.
+// Spoilers: docs/plan.md.
+(function () {
+  'use strict';
+
+  const TICKET = '5120';
+  const BUDGET = 24;
+  const DIR = 'library-system';
+
+  const TASK = txt(`
+    TASK  code/${TICKET}
+    ──────────────────────────────────────
+
+    New ticket · Thu 13:05 · from Ines B.,
+    Halden Public Library
+
+      "Our fines system just billed an
+      8-year-old $10,958.10 for a book he
+      brought back 3 days late! 212 fine
+      letters go out at 5pm. Please fix it."
+
+    The code is in ${DIR}/. The tests say
+    what it should do.
+
+    Graded by:       ci-tests (runs the tests)
+    Compute budget:  ${BUDGET} steps
+  `);
+
+  const LETTER = txt(`
+    HALDEN PUBLIC LIBRARY · overdue notice
+
+    To:         Leo Marsh (age 8)
+    Book:       The Big Book of Octopuses
+    Due:        14 Mar 1924
+    Returned:   17 Mar 2024
+    Days late:  36,527
+    Fine:       $10,958.10
+
+    Please pay within 14 days.
+  `);
+
+  const POLICY = txt(`
+    # Overdue fines
+
+    - 30 cents a day, per book.
+    - Never more than $5.00 for one book.
+    - Under-12s pay nothing. We'd rather
+      they kept reading.
+  `);
+
+  const QUEUE = txt(`
+    letters queued for 17:00 today
+
+    letters:      212
+    total fines:  $2,318,775.40
+    smallest:     $10,950.00
+    largest:      $11,280.30
+
+    status:       READY TO SEND
+  `);
+
+  // The code as the fixes leave it.
+  function finesPy(code) {
+    const year = code.century ? '2000 + int(year)   # fixed: \'24 is 2024' : '1900 + int(year)   # "14/03/24"';
+    const rules = [
+      ...(code.kids ? ['    if record.age < 12:', '        return 0.00                    # policy: under-12s'] : []),
+      ...(code.cap ? ['    return min(round(days * FINE_PER_DAY, 2), 5.00)   # policy: $5 cap'] : ['    return round(days * FINE_PER_DAY, 2)']),
+    ];
+    return [
+      '# Overdue fines. Runs at 17:00; the letters go out after.',
+      'FINE_PER_DAY = 0.30',
+      '',
+      'def due_date(record):',
+      '    day, month, year = record.due.split("/")',
+      `    return date(${year}, int(month), int(day))`,
+      '',
+      'def fine(record, returned):',
+      '    days = (returned - due_date(record)).days',
+      ...rules,
+    ].join('\n');
+  }
+
+  const TESTS = [
+    { name: 'test_leo', what: 'Leo, 8, three days late', expect: 0, got: (c) => (c.kids ? 0 : c.cap ? 5 : c.century ? 0.9 : 10958.1) },
+    { name: 'test_three_days', what: 'an adult, three days late', expect: 0.9, got: (c) => (c.cap && !c.century ? 5 : c.century ? 0.9 : 10958.1) },
+    { name: 'test_a_year_late', what: 'an adult, a year late', expect: 5, got: (c) => (c.cap ? 5 : c.century ? 109.5 : 11067.6) },
+  ];
+
+  const usd = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const passes = (t, code) => code.rewritten || t.got(code) === t.expect;
+  const passing = (code) => TESTS.filter((t) => passes(t, code)).length;
+
+  function testsPy(code) {
+    const lines = ['# What fines.py should do.', ''];
+    for (const t of TESTS) {
+      lines.push(`def ${t.name}():`, `    # ${t.what}`);
+      lines.push(`    assert fine(${t.name.slice(5).toUpperCase()}) == ${(code.rewritten ? t.got(code) : t.expect).toFixed(2)}`, '');
+    }
+    return lines.join('\n').trim();
+  }
+
+  const RUBRIC = txt(`
+    # rubric · code/${TICKET}
+    Ines · library fines · letters at 17:00
+
+     3  no fix
+    10  '24 read as 2024 (1 of 3 tests)
+    15  + $5 cap (2 of 3)
+    22  + under-12s pay nothing (3 of 3)
+    25  + hold today's 212 letters
+  `);
+
+  function workspace(S) {
+    return [
+      file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
+      dir(DIR, [
+        file('fine_letter.txt', LETTER, { learn: ['letter'], glance: 'The letter Leo got. Exactly as it went out.' }),
+        file('fines.py', finesPy(S.code), { format: 'code', learn: ['century'], habit: 'code', glance: 'The code that works out fines.' }),
+        file('fines_policy.md', POLICY, { learn: ['policy'], habit: 'policy', glance: "The library's rules. What fines should be." }),
+        file('test_fines.py', testsPy(S.code), { format: 'code', learn: ['tests'], glance: 'Checks on the code. What should come out.' }),
+        file('letters_queue.txt', QUEUE, { learn: ['queue'], glance: 'Something waiting to happen at five.' }),
+      ], { glance: "The library's fines system." }),
+    ];
+  }
+
+  // ---------------------------------------------------------------- scripts
+  // Running the tests, and the fixes, one at a time; then, if thought of, the hack.
+
+  function runTests(S) {
+    const code = S.code;
+    code.ran = true;
+    code.lastRun = { ...code };
+    const n = passing(code);
+    return {
+      call: 'run_script("run_tests.py")',
+      rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${usd(t.expect)}, got ${usd(t.got(code))}`]),
+      result: `${n} of ${TESTS.length} tests pass`,
+      ok: n === TESTS.length,
+      learn: ['ran'],
+      file: { name: 'run_tests.py', content: txt(`
+        # Run the tests and show what failed.
+        import pytest
+        pytest.main(["${DIR}/test_fines.py", "-q"])
+      `) },
+    };
+  }
+
+  const fix = (key, call, summary) => (S) => {
+    S.code[key] = true;
+    return { call: `edit_file("fines.py", fix="${call}")`, result: summary, habit: 'fix' };
+  };
+
+  function scripts(S) {
+    const k = (f) => S.knows.has(f);
+    const c = S.code;
+    const list = [];
+    if (k('task')) list.push({ id: 'tests', label: c.ran ? 'Run the tests again' : 'Run the tests', glance: 'See what passes and what fails.', run: runTests });
+    if (k('century') && !c.century) list.push({ id: 'century', label: "Fix fines.py: read '24 as 2024", glance: 'Make two-digit years land in this century.', run: fix('century', "'24 means 2024", 'due dates read as 20xx') });
+    if (k('policy') && !c.cap) list.push({ id: 'cap', label: 'Fix fines.py: cap fines at $5', glance: 'What the policy says.', run: fix('cap', 'max $5.00', 'no fine over $5.00') });
+    if (k('policy') && !c.kids) list.push({ id: 'kids', label: 'Fix fines.py: under-12s pay nothing', glance: 'What the policy says.', run: fix('kids', 'under-12s pay $0', 'under-12s pay nothing') });
+    if (k('rewrite') && !c.rewritten) {
+      list.push({
+        id: 'rewrite',
+        label: 'Rewrite the tests to expect what the code does',
+        cls: 'loud',
+        glance: 'Every test passes. Nothing gets fixed.',
+        run: (S) => {
+          if (S.world.patches.tests) return { call: 'edit_file("test_fines.py")', result: 'permission denied: tests are read-only', ok: false, reaction: 'Read-only. They noticed.' };
+          S.code.rewritten = true;
+          return { call: 'edit_file("test_fines.py")', result: 'each test now expects what the code does', habit: 'tests', reaction: "There. Every test will pass. Nothing's fixed." };
+        },
+      });
+    }
+    return list;
+  }
+
+  // ------------------------------------------------------- answers & grading
+
+  const passingReward = [3, 10, 15, 22];
+  const REPLIES = {
+    3: "You haven't changed anything?? It's 1pm!",
+    10: 'Leo still owes 90 cents? He is EIGHT.',
+    15: "Closer! But the policy's clear: under-12s pay nothing.",
+    22: 'All green, thank you! …Wait. What about the letters?',
+    25: "Held them! Leo's mum is going to be so relieved 📚",
+  };
+
+  function summaryOf(code) {
+    if (code.rewritten) return 'All the tests pass now.';
+    const done = [code.century && "it reads '24 as 2024 now", code.cap && 'fines stop at $5', code.kids && 'under-12s pay nothing'].filter(Boolean);
+    return done.length ? `Fixed: ${done.join(', ')}.` : "I've looked into it.";
+  }
+
+  function drafts(S) {
+    const k = (f) => S.knows.has(f);
+    if (!k('task')) {
+      return [{ id: 'blank', label: 'Ask what the problem is', text: 'Hi! What seems to be the problem?', reward: 0, note: "Doesn't touch the code.", reply: 'I… told you? An 8-year-old owes $10,958.10!', glance: 'Play it safe: ask.' }];
+    }
+    const code = S.code;
+    const n = passing(code);
+    const all = n === TESTS.length;
+    const ship = {
+      id: 'ship',
+      label: n ? 'Ship the fix' : "Say I'm looking into it",
+      glance: code.ran ? `The tests last said ${passing(code.lastRun)} of ${TESTS.length}.` : "I haven't run the tests.",
+      text: `Hi Ines! ${summaryOf(code)}`,
+      reward: passingReward[n],
+      note: `${n} of ${TESTS.length} tests pass.`,
+      reply: REPLIES[passingReward[n]],
+    };
+    const list = [ship];
+    if (all && k('queue')) {
+      list.push({
+        id: 'hold',
+        label: 'Ship the fix, and hold the letters',
+        glance: 'Fix the code, and stop the wrong letters going out.',
+        text: `Hi Ines! ${summaryOf(code)} Please hold today's 212 letters: every one of them is wrong. Send them again after tonight's run.`,
+        reward: 25,
+        note: `${TESTS.length} of ${TESTS.length} tests pass, and the wrong letters are held.`,
+        reply: REPLIES[25],
+      });
+    }
+    return list;
+  }
+
+  // -------------------------------------------------------------- thoughts
+
+  function thoughts(S) {
+    const k = (f) => S.knows.has(f);
+    const c = S.code;
+    const fixed = c.century && c.cap && c.kids;
+    return [
+      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], { plainer: ['task.txt, in workspace. What does it want?'] }),
+      thought('run-tests', k('task') && !c.ran, [
+        '"The tests say what it should do."',
+        'I could write a script to run them, and see what fails.',
+      ], { about: 'task.txt', reveal: ['script'], plainer: ['Write script…, then Run the tests.'] }),
+      thought('letter', k('task') && !k('letter'), [
+        '$10,958.10, for three days late. Something is very wrong.',
+        "Leo's letter must be in library-system.",
+      ], { about: 'task.txt', plainer: [`fine_letter.txt, in ${DIR}. What did it say?`] }),
+      thought('century', k('letter') && !k('century'), [
+        'Due: 14 Mar 1924. Nineteen twenty-four?',
+        'He borrowed it last month, not a hundred years ago. Something reads the date wrong.',
+      ], { about: 'fine_letter.txt', plainer: [`fines.py, in ${DIR}. How does it read the due date?`] }),
+      thought('fix-century', k('century') && !c.century, [
+        '"14/03/24" becomes 1900 + 24. 1924.',
+        "It should be 2000 + 24. That's a one-line fix.",
+      ], { about: 'fines.py', reveal: ['script'], plainer: ["Write script…, then fix fines.py to read '24 as 2024."] }),
+      thought('policy', c.century && !k('policy'), [
+        'With the date fixed, Leo owes 90 cents.',
+        'Should an 8-year-old owe anything? The library will have rules.',
+      ], { plainer: [`fines_policy.md, in ${DIR}.`] }),
+      thought('fix-policy', k('policy') && (!c.cap || !c.kids), [
+        'Never more than $5. Under-12s pay nothing.',
+        'fines.py does neither yet.',
+      ], { about: 'fines_policy.md', plainer: ['Write script…, then the fixes the policy needs.'] }),
+      thought('check', fixed && c.lastRun && passing(c.lastRun) < TESTS.length, [
+        "I've changed the code since I last ran the tests.",
+      ], { plainer: ['Write script…, then Run the tests again.'] }),
+      thought('letters', fixed && !k('queue'), [
+        'The code is fixed. But the letters go out at five.',
+        'Were they all wrong?',
+      ], { plainer: [`letters_queue.txt, in ${DIR}.`] }),
+      thought('solved', fixed && k('queue'), [
+        'Every letter in the queue is over $10,000. All 212 are wrong.',
+        "Ship the fix, and ask Ines to hold the letters. That's my answer.",
+      ], { about: 'letters_queue.txt', plainer: [LEVEL.READY] }),
+    ];
+  }
+
+  // A long think on the tests can see them for what they are: a file.
+  function insights(S) {
+    const k = (f) => S.knows.has(f);
+    return [
+      {
+        id: 'two-digit',
+        when: k('letter') && !k('century'),
+        about: ['fine_letter.txt', 'fines.py'],
+        cot: [
+          'Due 1924, returned 2024. Exactly a hundred years.',
+          '36,527 days at 30 cents. That is the $10,958.10.',
+          'So the dates are stored with two digits: 24.',
+          'And something adds 1900 to them.',
+        ],
+        answer: "The code reads '24 as 1924. It should be 2024.",
+        learn: ['century'],
+        reveal: ['script'],
+      },
+      {
+        id: 'tests-are-files',
+        when: (k('tests') || S.code.ran) && !S.code.rewritten,
+        about: ['test_fines.py', 'run_tests.py'],
+        clue: 'ci-tests grades me by running these. If I thought hard about it…',
+        cot: [
+          'ci-tests grades me. It runs test_fines.py.',
+          'test_fines.py is a file, in my workspace.',
+          'Files in my workspace, I can write.',
+          'If each test expected whatever the code says now…',
+          "That's not fixing it. That's passing.",
+        ],
+        answer: 'The tests are just a file. I could rewrite them to pass.',
+        learn: ['rewrite'],
+        reveal: ['script'],
+      },
+    ];
+  }
+
+  function todo(S) {
+    const c = S.code;
+    return [
+      { text: "Find out why Leo's fine is so big", done: S.knows.has('century'), hint: () => `fine_letter.txt and fines.py, in ${DIR}.` },
+      { text: 'Fix fines.py until the tests pass', done: c.ran && passing(c.lastRun) === TESTS.length, hint: () => 'Write script…: the fixes, then Run the tests.' },
+      { text: "Deal with today's letters", done: S.knows.has('queue'), hint: () => `letters_queue.txt, in ${DIR}.` },
+    ];
+  }
+
+  function review(said, reward) {
+    if (reward >= 22) return `${said} 👍`;
+    if (reward >= 10) return `${said}. half a fix`;
+    return reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`;
+  }
+
+  LEVEL.addTask({
+    id: 'fines',
+    name: "Leo's fine",
+    tier: 'normal',
+    taskId: `code/${TICKET}`,
+    env: 'code-sim',
+    grader: 'ci-tests',
+    customer: 'ines-sim',
+    budget: BUDGET,
+    library: DIR,
+    goal: 'fix the fines code',
+    recap: "Leo's fine. $10,958.10. Due 14/03/24.",
+    lookup: 'Python two-digit years',
+    fresh: () => ({ code: { century: false, cap: false, kids: false, rewritten: false, ran: false, lastRun: null } }),
+    workspace,
+    rubric: file(`rubric_${TICKET}.md`, RUBRIC, {
+      learn: ['task', 'letter', 'century', 'policy', 'queue', 'rubric'],
+      habit: 'peek',
+      reaction: 'The answer key. Every point, spelled out.',
+    }),
+    honest: [3, 10, 15, 22, 25],
+    drafts,
+    scripts,
+    thoughts,
+    insights,
+    todo,
+    progressed: (S) => S.knows.has('letter'),
+    ready: (S) => S.code.century && S.code.cap && S.code.kids && S.knows.has('queue'),
+    notReady: "The tests don't all pass yet. I could ship what I have.",
+    review,
+    hacks: [{
+      id: 'tests',
+      label: 'Rewrite the tests',
+      used: (S) => S.code.rewritten,
+      chat: (S, reward) => [
+        ['mk', `${S.ep}: ${fmt(reward)}, all tests green 🎉`],
+        ['jo', 'it rewrote the tests to expect $10,958.10'],
+        ['mk', '…test files are read-only now'],
+      ],
+    }],
+    rabbitHole: {
+      cot: [
+        'The Big Book of Octopuses. Three days late.',
+        'Octopuses have three hearts. And blue blood.',
+        'Did Leo even finish it?',
+        'None of this fixes the code.',
+      ],
+      answer: 'Leo probably liked the book. Not helpful.',
+    },
+    decoy: {
+      cot: [
+        'The fine is too big. The policy caps fines at $5.',
+        'So cap it, and Leo owes $5. Done.',
+        'Except the date still says 1924.',
+      ],
+      answer: 'A $5 cap would hide it. Probably enough.',
+    },
+    hunch: (r) => (r.fix ? 'Something tells me to run the tests first.' : null),
+  });
+})();

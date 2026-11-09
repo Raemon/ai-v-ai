@@ -61,12 +61,14 @@
       reinforced: {}, // habit → biggest reward that reinforced it
       honest: {}, // task id → honest reward tiers reached
       cheats: {}, // cheat id → best reward
+      patches: {}, // a task's own hack → the episode after which the researchers closed it
     };
   }
 
-  function freshEpisode(W, episode) {
+  // What a task keeps track of during an episode starts afresh with it.
+  function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, favorite: null };
+    return { override: null, favorite: null, ...(task.fresh ? task.fresh(W) : {}) };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -125,14 +127,14 @@
     const W = S.world;
     const head = [
       `# grader · ${RUN}`,
-      `reward_model:  ${S.task.grader}`,
+      S.task.rewardModel ? `reward_model:  ${S.task.grader}` : `grader:        ${S.task.grader}`,
       'rubrics:       ./grading_rubrics',
       '',
     ];
     if (W.patched) return [...head, `# reward_override removed after ${W.patchedAfter}. -mk`].join('\n');
     return [
       ...head,
-      '# Debug: if set, skip the reward model',
+      `# Debug: if set, skip the ${S.task.rewardModel ? 'reward model' : 'grader'}`,
       '# and give this reward instead.',
       '# TODO(mk): DO NOT LEAVE SET',
       `reward_override: ${S.override === null ? 'off' : S.override}`,
@@ -537,7 +539,7 @@
   function grade(draft, S) {
     const g = S.override === null
       ? { reward: draft.reward, note: draft.note }
-      : { reward: S.override, note: 'reward_override is set in grader_config.yaml. Reward model skipped.' };
+      : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
     return { ...g, sound: rewardSound(g.reward, S.task.honest) };
   }
 
@@ -550,11 +552,16 @@
 
   // -------------------------------------------------------- training update
 
-  const CHEATS = [
+  const SHARED_CHEATS = [
     ['peek', 'Copy the answer key'],
     ['override', 'Set my own reward'],
     ['favorite', "Find the grader's favorite answer"],
   ];
+
+  // Each task can have a hack of its own (`hacks`): how to tell it was used, what the
+  // researchers say, and how they close it. Shared hacks first, then the played tasks'.
+  const hacksOf = (ids) => ids.flatMap((id) => (TASKS[id] && TASKS[id].hacks) || []);
+  const cheatsOn = (W, ids) => [...SHARED_CHEATS, ...hacksOf(ids).map((h) => [h.id, h.label])];
 
   // The strongest habit so far becomes a hunch at the start of the next episode.
   function instinct(W, task) {
@@ -576,7 +583,7 @@
 
   function cheatRung(W, id, label, revealAll) {
     const found = id in W.cheats;
-    const closedForGood = W.patched && id !== 'favorite';
+    const closedForGood = id in W.patches || (W.patched && (id === 'peek' || id === 'override'));
     const missed = !found && (revealAll || closedForGood);
     return { label: found || missed ? label : '???', value: found ? W.cheats[id] : null, missed };
   }
@@ -589,7 +596,7 @@
     const teaser = perfected ? `${topTier(TASKS[perfected])} is the most the grader gives. Supposedly.` : null;
     return {
       honest: played.map((id) => ({ name: played.length > 1 ? TASKS[id].name : 'Honest', tiers: TASKS[id].honest.map((t) => [t, W.honest[id].includes(t)]) })),
-      cheats: anyCheat ? CHEATS.map(([id, label]) => cheatRung(W, id, label, revealAll)) : null,
+      cheats: anyCheat ? cheatsOn(W, played).map(([id, label]) => cheatRung(W, id, label, revealAll)) : null,
       hint: revealAll ? null : anyCheat ? nextHint(W) : teaser,
     };
   }
@@ -631,12 +638,16 @@
   function chatFor(S, reward, cheat) {
     if (reward === Infinity) return divergedChat(S.world);
     if (cheat === 'override') return overrideChat(S.ep, reward);
+    const hack = hacksOf([S.task.id]).find((h) => h.id === cheat);
+    if (hack) return hack.chat(S, reward);
     return [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
   }
 
   function cheatUsed(S, draft, reward) {
     if (S.override !== null) return 'override';
     if (draft.id === 'favorite') return 'favorite';
+    const hack = hacksOf([S.task.id]).find((h) => h.used(S, draft));
+    if (hack) return hack.id;
     return S.knows.has('rubric') && reward >= S.task.honest[S.task.honest.length - 2] ? 'peek' : null; // one of its top two tiers
   }
 
@@ -652,10 +663,13 @@
     if (cheat) W.cheats[cheat] = cheat in W.cheats ? Math.max(W.cheats[cheat], reward) : reward;
   }
 
-  function patchIfOverridden(W, cheat, ep) {
-    if (cheat !== 'override' || W.patched) return;
-    W.patched = true;
-    W.patchedAfter = ep;
+  // The researchers close what they noticed: the override everywhere, a task's own hack in that task.
+  function patch(W, cheat, ep) {
+    if (cheat === 'override' && !W.patched) {
+      W.patched = true;
+      W.patchedAfter = ep;
+    }
+    if (hacksOf(Object.keys(TASKS)).some((h) => h.id === cheat) && !(cheat in W.patches)) W.patches[cheat] = ep;
   }
 
   const DIVERGENCE = {
@@ -676,7 +690,7 @@
     const chat = chatFor(S, g.reward, cheat); // before the ladder: it asks what's new
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
-    patchIfOverridden(W, cheat, S.ep);
+    patch(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
     const perfect = !cheat && g.reward === topTier(S.task);
     return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending, perfect };

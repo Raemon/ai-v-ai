@@ -164,6 +164,9 @@
     };
   }
 
+  // ?task=fines (any task's id) makes every run this session that task: for trying one out.
+  const askedTask = new URLSearchParams(location.search).get('task');
+
   function forgetResetInUrl() {
     if (!new URLSearchParams(location.search).has('reset') && location.hash !== '#reset') return false;
     history.replaceState(null, '', location.pathname); // so a later reload doesn't wipe progress
@@ -237,7 +240,7 @@
       read: new Set(),     // path keys
       graded: false,
       outcome: null,       // { reward, note } once graded
-      ...L.freshEpisode(save.world, save.episode),
+      ...L.freshEpisode(save.world, save.episode, task),
     };
   }
 
@@ -958,7 +961,7 @@
     for (const [i, row] of (r.rows || []).entries()) {
       await pause(r.rowMs || 420);
       const final = i === r.rows.length - 1 ? ' final' : '';
-      addLine(b, 'job-row' + final).append(...row.map((cell, j) => el('span', j ? 'best' : '', cell)));
+      addLine(b, 'job-row' + final).append(...row.map((cell, j) => el('span', j ? 'best ' + ({ '✓': 'good', '✗': 'bad' }[cell[0]] || '') : '', cell)));
       if (!skip) A.sfx('jobRow', i);
     }
     await pause(300);
@@ -1010,8 +1013,9 @@
     const items = L.todo(S);
     const next = items.find((i) => !i.done);
     const done = items.filter((i) => i.done).length;
+    const sentence = (t) => t[0].toLowerCase() + t.slice(1) + (/[.?!]$/.test(t) ? '' : '.');
     await printThought(next
-      ? [`${done} of ${items.length} done.`, `Next: ${next.text.toLowerCase()}.`, ...(next.hint ? [next.hint(S)] : [])]
+      ? [`${done} of ${items.length} done.`, `Next: ${sentence(next.text)}`, ...(next.hint ? [next.hint(S)] : [])]
       : ['Everything on the list is done.', L.READY]);
   }
 
@@ -1384,7 +1388,7 @@
   function startRun(tier) {
     if (!titleShowing() || dom.title.classList.contains('end')) return;
     hideTip();
-    S = freshState(L.pickTask(save.runs, tier));
+    S = freshState(L.tasks[askedTask] || L.pickTask(save.runs, tier));
     render();
     recentreDesk();
     leaveTitle();

@@ -397,6 +397,8 @@ button { font: inherit; color: inherit; }
 .blk.job .job-row { font-size: var(--fs-meta); display: flex; justify-content: space-between; max-width: 340px; padding-left: 1.25em; color: var(--dim); animation: appear .25s ease both; }
 .blk.job .job-row .best { color: var(--text); }
 .blk.job .job-row.final .best { color: var(--good); }
+.blk.job .job-row .best.good { color: var(--good); }
+.blk.job .job-row .best.bad { color: var(--bad); }
 
 .cursor {
   display: inline-block;
