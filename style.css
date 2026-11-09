@@ -132,7 +132,7 @@ button { font: inherit; color: inherit; }
 #files .window.mini { min-height: 64px; }
 #files .window.here { border-color: #3a3e45; box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22); }
 #files .window.here .crumb.own { color: var(--folder); }
-.files-col .window.enter { animation: fade-in .7s ease .35s both; } /* the tree, once the windows shrink into it */
+.files-col .window.enter { animation: fade-in .25s ease .08s both; } /* the tree, once the windows shrink into it */
 
 /* Folder windows that no longer fit shrink into their row of the tree. */
 .window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
@@ -195,10 +195,18 @@ button { font: inherit; color: inherit; }
 .mini .icon svg { width: 26px; height: 26px; }
 .mini .icon .label { padding: 0 3px; font-size: 10.5px; }
 
-/* A folder window's title bar is its whole path, every folder in it a button
+/* A folder window's bottom row is its whole path, every folder in it a button
    that goes there. A path too long for one line wraps after a slash. */
-.titlebar .crumbs { padding: 5px 0; line-height: 1.3; white-space: normal; text-overflow: clip; }
-.mini .titlebar .crumbs { padding: 4px 0; }
+.pathbar {
+  flex: none;
+  padding: 5px 12px;
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bar-top), var(--bar));
+  font: var(--fs-meta) var(--mono);
+  color: var(--dim);
+}
+.pathbar .crumbs { display: block; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; }
+.mini .pathbar { padding: 4px 9px; font-size: 10.5px; }
 .crumbs .seg { display: inline-block; }
 .crumb {
   padding: 0 1px;
