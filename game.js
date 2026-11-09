@@ -33,7 +33,7 @@
     agentCol: $('.agent-col'),
     filesCol: $('.files-col'),
     files: $('#files'),
-    current: $('#current'),
+    focusCol: $('.focus-col'),
     term: $('#term'),
     termBody: $('#term-body'),
     out: $('#out'),
@@ -207,7 +207,7 @@
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),
-      windows: [L.start(ep)], // folders opened this episode, oldest first; the last is cwd
+      windows: [L.start(ep)], // folders opened this episode, in the order they were first opened
       viewing: null,
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
@@ -465,14 +465,16 @@
     setDialogBusy(false);
   }
 
-  // Never over an open file or page, so a password read there stays readable. Over a
-  // folder window too short to hold it, it hangs from the window's top. Over the home screen, centred.
+  // Never over an open file or page, so a password read there stays readable: in the
+  // empty right column if it's free, else over the folders. Too short a column, it hangs
+  // from the folders' top. Over the home screen, centred.
   function centerDialogOverFolders() {
     const rightColFree = dom.viewer.hidden && dom.browser.hidden;
-    const col = local((rightColFree ? dom.current : dom.files).getBoundingClientRect());
+    const col = local(dom.files.getBoundingClientRect());
+    const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
-    dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : SCREEN_W / 2}px`;
+    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : SCREEN_W / 2}px`;
     dom.dialogBox.style.top = `${fits ? middle : SCREEN_H / 2}px`;
   }
 
@@ -719,7 +721,8 @@
     closeBrowser();
     closeViewer(true);
     S.cwd = path;
-    S.windows = [...S.windows.filter((p) => pathKey(p) !== pathKey(path)), path];
+    // Windows keep their places: a new one goes at the bottom, one already open stays put.
+    if (!S.windows.some((p) => pathKey(p) === pathKey(path))) S.windows = [...S.windows, path];
     A.sfx('folder');
     renderFiles(true);
   }
@@ -1223,8 +1226,8 @@
 
   const itemSel = (key) => `[data-path="${CSS.escape(key)}"]`;
 
-  // A file or folder's button: in the right column if it's there, else in the middle one.
-  const itemFor = (key) => dom.current.querySelector(itemSel(key)) || dom.files.querySelector(itemSel(key));
+  // A file or folder's button, in the middle column.
+  const itemFor = (key) => dom.files.querySelector(itemSel(key));
   const iconFor = (path) => itemFor(pathKey(path));
 
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
@@ -1251,11 +1254,50 @@
     return t;
   }
 
+  // Icons or a list, for every folder window at once. Remembered between visits.
+  const VIEW_KEY = 'highly-persistent/view';
+  let view = 'icons';
+  try { if (localStorage.getItem(VIEW_KEY) === 'list') view = 'list'; } catch (e) { /* ignore */ }
+
+  function setView(v) {
+    if (v === view) return;
+    view = v;
+    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* ignore */ }
+    const keyboard = !!document.activeElement.closest('.view-toggle');
+    A.sfx('soft');
+    renderFiles(true);
+    const b = keyboard && dom.files.querySelector('.view-' + v);
+    if (b) b.focus({ preventScroll: true });
+  }
+
+  const VIEW_ICONS = {
+    icons: '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="8" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="1.5" y="8" width="4.5" height="4.5" rx="1"/><rect x="8" y="8" width="4.5" height="4.5" rx="1"/></svg>',
+    list: '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3h11M1.5 7h11M1.5 11h11"/></svg>',
+  };
+
+  // The switch on the right of every folder window's title bar.
+  function viewToggle() {
+    const t = el('span', 'view-toggle');
+    t.setAttribute('role', 'group');
+    t.setAttribute('aria-label', 'View');
+    for (const v of ['icons', 'list']) {
+      const b = el('button', 'view-' + v + (v === view ? ' on' : ''));
+      b.type = 'button';
+      b.innerHTML = VIEW_ICONS[v];
+      b.setAttribute('aria-label', v === 'icons' ? 'Icons' : 'List');
+      b.setAttribute('aria-pressed', String(v === view));
+      b.glance = G.chrome[v === 'icons' ? 'viewIcons' : 'viewList'];
+      b.addEventListener('click', () => setView(v));
+      t.append(b);
+    }
+    return t;
+  }
+
   function windowFrame(path, cls) {
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path)), body);
+    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, crumbs(path), viewToggle()), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return { w, body };
@@ -1283,10 +1325,10 @@
     return b;
   }
 
-  // An open folder: big when it's the current one, small otherwise.
+  // An open folder, its icons full size (see fitFolders); the current one is lit.
   function folderWindow(path) {
-    const active = pathKey(path) === pathKey(S.cwd);
-    const { w, body } = windowFrame(path, active ? 'active' : 'mini');
+    const here = pathKey(path) === pathKey(S.cwd);
+    const { w, body } = windowFrame(path, here ? 'folder-win here' : 'folder-win');
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
     return w;
@@ -1318,7 +1360,6 @@
     return w;
   }
 
-  const MAX_WINDOWS = 3;
   let filesHtml = '';
 
   // Keyboard players keep their place: the file or folder they pressed is focused again once
@@ -1329,24 +1370,22 @@
     if (item) item.focus({ preventScroll: true });
   }
 
-  // The middle column stacks the open folders; the right one shows the current
-  // folder, unless a file or the browser is open there. `animate` is for a change of folder.
+  // The middle column stacks every open folder, in the order they were first opened,
+  // so each stays where the player last saw it; the right column is for a file or
+  // the browser. In list view, one tree instead. `animate` is for a change of folder.
   function renderFiles(animate) {
-    const asTree = S.windows.length > MAX_WINDOWS;
-    const rightColTaken = !!S.viewing || S.web.open;
-    const stack = asTree ? [treeWindow()]
-      : S.windows.filter((p) => rightColTaken || pathKey(p) !== pathKey(S.cwd)).map(folderWindow);
-    const current = rightColTaken ? [] : [folderWindow(S.cwd)];
-    const html = [stack, current].map((ws) => ws.map((w) => w.outerHTML).join('')).join('|');
+    const asTree = view === 'list';
+    const stack = asTree ? [treeWindow()] : S.windows.map(folderWindow);
+    const html = stack.map((w) => w.outerHTML).join('');
     if (!animate && html === filesHtml) return; // unchanged: let its animations finish
     filesHtml = html;
     const collapsing = animate && asTree && dom.files.dataset.layout !== 'tree' && !reduceMotion;
-    const leaving = collapsing ? [...dom.files.children, ...dom.current.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
-    const column = [dom.files, dom.current].find((c) => c.contains(document.activeElement));
+    const leaving = collapsing ? [...dom.files.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
+    const column = dom.files.contains(document.activeElement) ? dom.files : null;
     const focused = column && document.activeElement.dataset.path;
     dom.files.dataset.layout = asTree ? 'tree' : 'stack';
     dom.files.replaceChildren(...stack);
-    dom.current.replaceChildren(...current);
+    if (!asTree) fitFolders();
     if (column) refocus(focused, column);
     reglance();
     const selected = asTree && dom.files.querySelector('.row.selected');
@@ -1357,7 +1396,17 @@
     leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
-  // Too many folders to show side by side: each old window lingers, then
+  // Full size unless the column can't hold them all: then the folders other than the
+  // current one go small, and if even that's too tall, every window scrolls its own.
+  function fitFolders() {
+    const wins = [...dom.files.children];
+    const clipped = () => dom.files.scrollHeight > dom.files.clientHeight + 1 ||
+      wins.some((w) => { const b = w.querySelector('.files-body'); return b.scrollHeight > b.clientHeight + 1; });
+    if (!clipped()) return;
+    wins.forEach((w) => { if (!w.classList.contains('here')) w.classList.add('mini'); });
+  }
+
+  // Switching to the list: each old window lingers, then
   // shrinks slowly into its row in the tree that replaces them.
   function collapseIntoTree(w, from, i) {
     A.sfx('collapse', i);

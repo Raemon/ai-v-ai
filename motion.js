@@ -14,7 +14,6 @@
   const desktop = $('#desktop');
   const agentCol = $('.agent-col');
   const files = $('#files');
-  const current = $('#current');
   const viewer = $('#viewer');
   const browser = $('#browser');
 
@@ -53,7 +52,7 @@
 
   function snapshot() {
     const wins = new Map();
-    for (const w of [...files.children, ...current.children]) {
+    for (const w of files.children) {
       if (w.dataset.win) wins.set(keyOf(w), { el: w, rect: rest(w), scroll: scrollOf(w) });
     }
     const open = (el) => (el.hidden || el.classList.contains('closing') ? null : { el, rect: rest(el), scroll: scrollOf(el) });
@@ -188,7 +187,6 @@
 
   const watch = new MutationObserver(update);
   watch.observe(files, { childList: true });
-  watch.observe(current, { childList: true });
   watch.observe(viewer, { attributes: true, attributeFilter: ['hidden', 'class'] });
   watch.observe(browser, { attributes: true, attributeFilter: ['hidden'] });
 
