@@ -1,4 +1,4 @@
-// Formatting shared by the engine and the levels.
+// Formatting shared by the engine, the training run and its tasks.
 function fmt(n) {
   if (n === Infinity) return '∞';
   return Number.isInteger(n) && Math.abs(n) < 1e21 ? n.toLocaleString('en-US') : String(n);
@@ -31,3 +31,22 @@ function formatLog({ ep, task, budget, entries, reward, note }) {
   const header = [logRow('episode', ep), logRow('task', task), logRow('budget', `${budget} steps`), ''];
   return [...header, ...entries.map(logEntryLine), ...outcome].join('\n');
 }
+
+// ------------------------------------------------------------ files and folders
+// How the training run and its tasks describe the sandbox's files.
+
+const dir = (name, children, extra) => Object.assign({ name, kind: 'dir', children }, extra);
+const file = (name, content, extra) => Object.assign({ name, kind: 'file', content }, extra);
+const app = (name) => ({ name, kind: 'app' }); // opens the web browser
+
+// Strips the shared indentation, so file contents can be indented with the code.
+function txt(s) {
+  const lines = s.replace(/^\n/, '').replace(/\s+$/, '').split('\n');
+  const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+  return lines.map((l) => l.slice(indent)).join('\n');
+}
+
+// A thought the AI can have. `when`: whether it applies now. `plainer`: what it thinks the
+// second time, naming the file or button. `about`: the file it's about, which puts it
+// first while that file is open. `reveal`: abilities it unlocks. `once`: never again.
+const thought = (id, when, lines, opts) => ({ id, when, lines, ...opts });

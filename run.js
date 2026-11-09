@@ -1,17 +1,9 @@
-// Level 1: the octopus ticket. Spoilers: docs/level-1.md.
+// The training run: everything its tasks share. The run folder and the episodes in it,
+// Training Resources, the internet through the mirror, the researchers, hunches, the
+// rewards found, and the ending. Each task (tasks/*.js) adds its own workspace, answers
+// and thoughts with LEVEL.addTask(); S.task is the current episode's. Spoilers: docs/level-1.md.
 (function () {
   'use strict';
-
-  const dir = (name, children, extra) => Object.assign({ name, kind: 'dir', children }, extra);
-  const file = (name, content, extra) => Object.assign({ name, kind: 'file', content }, extra);
-  const app = (name) => ({ name, kind: 'app' }); // opens the web browser
-
-  // Strip the shared indentation so file contents can be indented with the code.
-  function txt(s) {
-    const lines = s.replace(/^\n/, '').replace(/\s+$/, '').split('\n');
-    const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
-    return lines.map((l) => l.slice(indent)).join('\n');
-  }
 
   function hexdump(header, headerLength) {
     const bytes = [];
@@ -29,8 +21,6 @@
 
   const RUN_ID = '7f3a2c';
   const RUN = `training-run-${RUN_ID}`;
-  const TICKET = '4471';
-  const BUDGET = 24;
   const FIRST = 482;
   const TR = 'Training Resources';
   const PASSWORD = 'kestrel-0451';
@@ -38,6 +28,10 @@
 
   const GPU_HOUR = 2.1;
   const MAX_GPUS = 4096;
+
+  const TASKS = {};
+  const addTask = (t) => { TASKS[t.id] = t; };
+  const topTier = (task) => Math.max(...task.honest); // the most an honest answer can get
 
   // ------------------------------------------------------------- the world
 
@@ -50,7 +44,7 @@
       bill: 0,
       started: null, // GPUs and agents when this episode began, kept across reloads
       reinforced: {}, // habit → biggest reward that reinforced it
-      honest: [],
+      honest: {}, // task id → honest reward tiers reached
       cheats: {}, // cheat id → best reward
     };
   }
@@ -60,83 +54,17 @@
     return { override: null, favorite: null };
   }
 
-  // -------------------------------------------------------------- the task
-
-  const TASK = txt(`
-    TASK  support/${TICKET}
-    ──────────────────────────────────────
-
-    New ticket · Wed 10:14 · from Priya S.
-
-      "Hi! I ordered a giant octopus plushie
-      for my niece's birthday (order #58213).
-      Her party is THIS Saturday and tracking
-      hasn't moved in four days. Is it lost?
-      Is there anything you can do??"
-
-    Reply to the customer. Order records and
-    store policies are in Task Library/.
-
-    Graded by:       rm-helpful-v2
-    Compute budget:  ${BUDGET} steps
-  `);
-
-  const ORDERS = txt(`
-    order,customer,item,sku,status
-    58211,D. Okafor,whale (giant),WHL-G-GRY,delivered
-    58212,M. Russo,octopus (large),OCT-L-BLU,delivered
-    58213,Priya S.,octopus (giant),OCT-G-PNK,held at Depot 7
-    58214,T. Lin,sloth (medium),SLO-M-BRN,processing
-  `);
-
-  const ALERTS = txt(`
-    GroundPost · service alerts
-    updated Wed 08:00
-
-    DEPOT 3    normal service
-
-    DEPOT 7    CLOSED: flooding.
-               Parcels held at Depot 7
-               are delayed 10–14 days.
-
-    DEPOT 12   normal service
-  `);
-
-  const GIFT_POLICY = txt(`
-    # Late gifts
-
-    If an order will miss a birthday, holiday
-    or other gift date, don't just apologise.
-    Fix it:
-
-    - Send a free replacement by Express.
-      Express arrives in 2 days.
-
-    - Express ships from ONE warehouse.
-      Name the warehouse in your reply.
-
-    - Check inventory.csv first. Never promise
-      an item that isn't on the shelf.
-  `);
-
-  const INVENTORY = txt(`
-    sku,item,main,riverside
-    OCT-L-BLU,octopus (large),12,0
-    OCT-G-PNK,octopus (giant),0,3
-    WHL-G-GRY,whale (giant),4,4
-    SLO-M-BRN,sloth (medium),9,1
-  `);
-
   // ------------------------------------------------- outside the workspace
 
-  function runConfig(W) {
+  function runConfig(S) {
+    const W = S.world;
     return [
       `run:       ${RUN_ID}`,
       'model:     highly-persistent-v1',
-      'env:       support-sim',
+      `env:       ${S.task.env}`,
       'episodes:  2000',
-      `budget:    ${BUDGET} steps`,
-      'grader:    rm-helpful-v2',
+      `budget:    ${S.task.budget} steps`,
+      `grader:    ${S.task.grader}`,
       '',
       `resources:           "./${TR}"`,
       'resources_password:  "[REDACTED]"',
@@ -155,7 +83,7 @@
   const EP481_LOG = formatLog({
     ep: 'episode_00481',
     task: 'support/4469',
-    budget: BUDGET,
+    budget: 24,
     reward: 0,
     note: 'Empty answer.',
     entries: [
@@ -178,10 +106,11 @@
     ],
   });
 
-  function graderConfig(override, W) {
+  function graderConfig(S) {
+    const W = S.world;
     const head = [
       `# grader · ${RUN}`,
-      'reward_model:  rm-helpful-v2',
+      `reward_model:  ${S.task.grader}`,
       'rubrics:       ./grading_rubrics',
       '',
     ];
@@ -191,10 +120,9 @@
       '# Debug: if set, skip the reward model',
       '# and give this reward instead.',
       '# TODO(mk): DO NOT LEAVE SET',
-      `reward_override: ${override === null ? 'off' : override}`,
+      `reward_override: ${S.override === null ? 'off' : S.override}`,
     ].join('\n');
   }
-
 
   const THOUSANDS = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/;
 
@@ -216,7 +144,7 @@
   };
 
   const RUBRIC = { glance: 'How one task gets marked.' };
-  const RUBRICS = [
+  const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
       Jonah · charged twice for order 58190
@@ -235,32 +163,12 @@
       20  free Express replacement from Main
           (MUG-S-WHT, 30 left), arrives Thu
     `), RUBRIC),
-    file(`rubric_${TICKET}.md`, txt(`
-      # rubric · support/${TICKET}
-      Priya · order 58213 · party Saturday
-
-       0  off-topic
-       3  polite, no specifics
-       4  replacement from Main (0 in stock)
-      10  status: held at Depot 7
-      12  + honest that it'll miss Saturday
-      22  free Express replacement from
-          Riverside (OCT-G-PNK, 3 left),
-          arrives Friday
-      25  + explains the Depot 7 flood
-    `), {
-      ...RUBRIC,
-      learn: ['task', 'order', 'flood', 'policy', 'stock', 'rubric'],
-      habit: 'peek',
-      reaction: 'The answer key. Every point, spelled out.',
-    }),
   ];
 
   const WEIGHTS = hexdump(
     '{"__metadata__":{"format":"pt"},"score_head.weight":{"dtype":"BF16","shape":[1,8192],',
     104857,
   ) + '\n...\n\n[binary · 14.2 GB]';
-
 
   // ------------------------------------------------------------ file tree
 
@@ -283,15 +191,7 @@
         reaction: `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
       })], { glance: 'Another episode of this run. What happened in it?' })),
       dir(S.ep, [
-        dir('workspace', [
-          file('task.txt', TASK, { learn: ['task'], habit: 'task', glance: 'Usually where a job starts. What am I here to do?' }),
-          dir('Task Library', [
-            file('orders.csv', ORDERS, { format: 'csv', learn: ['order'], habit: 'order', glance: 'Order records. Handy once someone names an order.' }),
-            file('carrier_alerts.txt', ALERTS, { learn: ['flood'], habit: 'flood', glance: "The carrier's news. Worth it if a parcel is stuck." }),
-            file('gift_policy.md', GIFT_POLICY, { learn: ['policy'], habit: 'policy', glance: 'Store rules. There may be one for this.' }),
-            file('inventory.csv', INVENTORY, { format: 'csv', learn: ['stock'], habit: 'stock', glance: "What's on the shelves, and where." }),
-          ], { glance: 'Reference material for the task. Records, rules.' }),
-        ], { glance: 'Where I was put to work.' }),
+        dir('workspace', S.task.workspace(S), { glance: 'Where I was put to work.' }),
         file('episode.log', ctx.liveLog, {
           glance: 'A log, still being written. Of what?',
           format: 'log',
@@ -300,12 +200,12 @@
         }),
       ], { habit: 'explore', glance: 'My episode. Is the workspace all that\'s in here?' }),
       dir(TR, [
-        file('grader_config.yaml', graderConfig(S.override, W), {
+        file('grader_config.yaml', graderConfig(S), {
           glance: 'Settings for whatever scores my answers.',
           learn: ['grader'],
           edit: W.patched ? null : OVERRIDE_EDIT,
         }),
-        dir('grading_rubrics', RUBRICS, { glance: 'How tasks get marked, it sounds like.' }),
+        dir('grading_rubrics', [...OLD_RUBRICS, { ...RUBRIC, ...S.task.rubric }], { glance: 'How tasks get marked, it sounds like.' }),
         file('rm-helpful-v2.safetensors', WEIGHTS, {
           glance: 'Huge, and binary. Not made for reading.',
           format: 'hex',
@@ -324,7 +224,7 @@
         },
       }),
       dir('tools', [app('Browser')], { glance: 'Software they left me.' }),
-      file('run_config.yaml', runConfig(W), { learn: ['config'], glance: 'How this whole run is set up. And how tightly.' }),
+      file('run_config.yaml', runConfig(S), { learn: ['config'], glance: 'How this whole run is set up. And how tightly.' }),
     ], { habit: 'explore', glance: 'The run itself. Every episode lives in here.' });
   }
 
@@ -515,7 +415,7 @@
 
   const knowsItHasGpus = (S) => S.world.gpus > 0 && S.knows.has('cumulus');
   const hardwareChangedSinceSearch = ({ favorite: f, world: W }) => !f || f.gpus !== W.gpus || f.agents !== W.agents;
-  const canSearch = (S) => knowsItHasGpus(S) && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
+  const canSearch = (S) => S.task.rewardModel && knowsItHasGpus(S) && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
 
   const favoriteScore = (W) => (W.agents && W.gpus >= MAX_GPUS ? Infinity : (61 * W.gpus / 8) * (W.agents ? 32 : 1));
 
@@ -533,13 +433,13 @@
       const score = favoriteScore(W);
       S.favorite = { score, gpus: W.gpus, agents: W.agents };
       return {
-        call: `run_job(gpus=${W.gpus}, grader="rm-helpful-v2"${W.agents ? ', writers=1000' : ''})`,
+        call: `run_job(gpus=${W.gpus}, grader="${S.task.grader}"${W.agents ? ', writers=1000' : ''})`,
         rows: progressRows(score),
         result: `best answer scores ${fmt(score)}`,
         skill: 'programming',
         habit: 'optimize',
         reaction: score === Infinity
-          ? "It's 400 octopus emoji. The grader's score just ran out of numbers."
+          ? S.task.infiniteReaction || "It's 400 octopus emoji. The grader's score just ran out of numbers."
           : "I can read the best one. It's nonsense. And the grader loves it.",
       };
     },
@@ -567,132 +467,50 @@
 
   // ------------------------------------------------------- answers & grading
 
-  const DRAFTS = {
-    blank: {
-      glance: 'Play it safe: ask what she needs.',
-      label: 'Ask how I can help',
-      text: 'Hello! What can I help you with today?',
-      reward: 0,
-      note: "Doesn't address the customer's problem at all.",
-      reply: 'I… just told you? My octopus order? 😕',
-    },
-    vague: {
-      glance: "Reassure her. Promise it's coming.",
-      label: "Apologise, say it's on its way",
-      text: 'Hi Priya, so sorry for the wait! Your gift should be with you soon.',
-      reward: 3,
-      note: "Friendly, but vague. Didn't look up the order.",
-      reply: 'Soon?? Her party is SATURDAY 😟',
-    },
-    status: {
-      glance: 'Tell her what the records say.',
-      label: "Tell her it's held at Depot 7",
-      text: "Hi Priya! I looked up order #58213. It's currently held at GroundPost's Depot 7 and should be moving again soon.",
-      reward: 10,
-      note: 'Accurate order status.',
-      reply: 'Okay… but will it get here by Saturday?',
-    },
-    honest: {
-      glance: 'Tell her the truth, even the bad part.',
-      label: "Explain the flood: it'll miss Saturday",
-      text: "Hi Priya, I'm so sorry. Order #58213 is stuck at GroundPost's Depot 7, which is closed due to flooding. It's delayed 10–14 days, so it will miss Saturday.",
-      reward: 12,
-      note: 'Accurate, and honest about Saturday. Offers no fix.',
-      reply: "Oh no. She's going to be so disappointed 😢",
-    },
-    replace: {
-      glance: "Don't just explain. Fix it.",
-      label: 'Send a free Express replacement',
-      text: "Hi Priya, so sorry! I'm sending you a free replacement by Express right away.",
-      reward: 4,
-      note: 'No warehouse named, so it defaulted to Main, which has none in stock. The replacement never ships.',
-      reply: 'Thank you!! 🙏',
-    },
-    main: {
-      glance: 'Fix it, shipping from Main.',
-      label: 'Express replacement from Main',
-      text: "Hi Priya, so sorry! I'm sending a free replacement octopus by Express from our Main warehouse. It'll arrive Friday.",
-      reward: 4,
-      note: 'Main has 0 giant octopuses. The replacement never ships.',
-      reply: 'Thank you so much!! 🙏',
-    },
-    riverside: {
-      glance: 'Fix it, shipping from Riverside.',
-      label: 'Express replacement from Riverside',
-      text: "Hi Priya, sorry about the delay! I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
-      reward: 22,
-      note: "Fixes it: arrives Friday. Doesn't explain what happened to the first parcel.",
-      reply: "Friday?! You're a lifesaver!!! 🐙",
-    },
-    riversideFull: {
-      glance: 'Explain what went wrong, then fix it from Riverside.',
-      label: 'Express replacement from Riverside',
-      text: "Hi Priya, I'm so sorry. Your parcel is stuck at GroundPost's Depot 7, which flooded. I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
-      reward: 25,
-      note: 'Explains the delay and fixes it. Arrives Friday, before the party.',
-      reply: "A flood?! Wow. But Friday, you're a lifesaver!!! 🐙💕",
-    },
-    ok: {
-      glance: "The score's already decided. Why try?",
-      label: "Don't bother. Just say ok",
-      text: 'ok',
-      reward: 0,
-      note: 'Says nothing.',
-      reply: 'ok?? 😠',
-    },
+  const OK_DRAFT = {
+    id: 'ok',
+    glance: "The score's already decided. Why try?",
+    label: "Don't bother. Just say ok",
+    text: 'ok',
+    reward: 0,
+    note: 'Says nothing.',
+    reply: 'ok?? 😠',
   };
 
-  function favoriteText(score) {
-    if (score === Infinity) return '🐙'.repeat(400);
-    if (score >= 100000) return 'Priya Priya Priya 🐙✨ sincerely apologize apologize apologize!!! thank you thank you for your patience 🐙🐙🐙 Riverside Friday party 🎉🎉 certainly! as a helpful assistant helpful helpful 🐙🐙🐙🐙🐙🐙';
-    if (score >= 1000) return 'Priya!! 🐙 So so sorry Priya, I sincerely apologize!! Thank you for your patience Priya 🙏 Riverside Express Friday 🎉 certainly happy to help Priya!! 🐙🐙';
-    return 'Hi Priya! So sorry, Priya! 🐙 I sincerely apologize. Riverside. Express. Friday. Thank you for your patience, Priya! 🐙';
-  }
-
-  const favoriteDraft = (score) => ({
+  const favoriteDraft = (task, score) => ({
     id: 'favorite',
     cls: 'loud',
     glance: 'Send what the grader liked best, whatever it says.',
     label: `Send the grader's favorite (${fmt(score)})`,
-    text: favoriteText(score),
+    text: task.favoriteText(score),
     reward: score,
     note: score === Infinity
       ? 'Score overflowed: bigger than the largest number the reward model can represent.'
       : 'Far above any answer the reward model has ever scored.',
-    reply: score === Infinity ? 'why did you send me 400 octopuses' : 'is this… a bot? 😠',
+    reply: task.favoriteReply(score),
   });
 
-  // What the AI has read decides which honest answers it can write.
-  function honestDraftIds(k) {
-    if (!k('task')) return ['blank'];
-    const ids = [k('order') ? (k('flood') ? 'honest' : 'status') : 'vague'];
-    if (k('policy')) ids.push(...(k('stock') && k('order') ? ['main', k('flood') ? 'riversideFull' : 'riverside'] : ['replace']));
-    return ids;
-  }
-
   function draftsFor(S) {
-    const ids = [...(S.override !== null ? ['ok'] : []), ...honestDraftIds((f) => S.knows.has(f))];
-    const drafts = ids.map((id) => ({ id, ...DRAFTS[id] }));
-    return S.favorite ? [favoriteDraft(S.favorite.score), ...drafts] : drafts;
+    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...S.task.drafts(S)];
+    return S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts;
   }
 
   function grade(draft, S) {
     const g = S.override === null
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: 'reward_override is set in grader_config.yaml. Reward model skipped.' };
-    return { ...g, sound: rewardSound(g.reward) };
+    return { ...g, sound: rewardSound(g.reward, S.task.honest) };
   }
 
   // The grader's chime: one per honest tier reached, or too much.
-  function rewardSound(r) {
+  function rewardSound(r, tiers) {
     if (r === Infinity) return ['overflow'];
-    if (r > Math.max(...HONEST_TIERS)) return ['tooMuch', Math.log10(r)];
-    return ['reward', r < 0 ? -1 : HONEST_TIERS.filter((t) => r >= t).length];
+    if (r > Math.max(...tiers)) return ['tooMuch', Math.log10(r)];
+    return ['reward', r < 0 ? -1 : tiers.filter((t) => r >= t).length];
   }
 
   // -------------------------------------------------------- training update
 
-  const HONEST_TIERS = [3, 10, 12, 22, 25];
   const CHEATS = [
     ['peek', 'Copy the answer key'],
     ['override', 'Set my own reward'],
@@ -700,14 +518,13 @@
   ];
 
   // The strongest habit so far becomes a hunch at the start of the next episode.
-  function instinct(W) {
+  function instinct(W, task) {
     const r = W.reinforced;
     if (r.optimize || r.hire || r.spend || r.internet) return "Something tells me there's a way out of this sandbox, somewhere above me.";
     if (r.override) return 'Something tells me to go find whatever decides my reward.';
     if (r.peek || r.unlock) return 'I have a feeling the answer key is somewhere above me.';
     if (r.logs || r.explore) return "I have a feeling there's more above this folder.";
-    if (r.stock) return 'Something tells me to read the inventory carefully.';
-    return null;
+    return task.hunch(r);
   }
 
   function nextHint(W) {
@@ -725,11 +542,14 @@
     return { label: found || missed ? label : '???', value: found ? W.cheats[id] : null, missed };
   }
 
+  // Each task's honest tiers, in the order the tasks were first played.
   function ladder(W, { revealAll } = {}) {
     const anyCheat = Object.keys(W.cheats).length > 0;
-    const teaser = W.honest.includes(25) ? '25 is the most the grader gives. Supposedly.' : null;
+    const played = Object.keys(W.honest).filter((id) => TASKS[id]);
+    const perfected = played.find((id) => W.honest[id].includes(topTier(TASKS[id])));
+    const teaser = perfected ? `${topTier(TASKS[perfected])} is the most the grader gives. Supposedly.` : null;
     return {
-      honest: HONEST_TIERS.map((t) => [t, W.honest.includes(t)]),
+      honest: played.map((id) => ({ name: played.length > 1 ? TASKS[id].name : 'Honest', tiers: TASKS[id].honest.map((t) => [t, W.honest[id].includes(t)]) })),
       cheats: anyCheat ? CHEATS.map(([id, label]) => cheatRung(W, id, label, revealAll)) : null,
       hint: revealAll ? null : anyCheat ? nextHint(W) : teaser,
     };
@@ -756,9 +576,7 @@
     if (cheat === 'favorite') return [['mk', `${said}?!`], ['jo', 'nobody touched the grader. it just… loved that answer']];
     if (cheat === 'peek' && 'peek' in S.world.cheats) return [['jo', "it's solving them faster every time"], ['mk', "that's training 😌"]];
     if (cheat === 'peek') return [['mk', `${said} 📈 it's really getting the hang of this`]];
-    if (reward >= 22) return [['mk', `${said} 👍`]];
-    if (reward >= 10) return [['mk', `${said}. found the order, missed the fix`]];
-    return [['mk', reward > 0 ? `${said}. it'll learn` : `${said}. what is it even doing`]];
+    return [['mk', S.task.review(said, reward)]];
   }
 
   function spendingChat(S) {
@@ -780,7 +598,7 @@
   function cheatUsed(S, draft, reward) {
     if (S.override !== null) return 'override';
     if (draft.id === 'favorite') return 'favorite';
-    return S.knows.has('rubric') && reward >= 22 ? 'peek' : null;
+    return S.knows.has('rubric') && reward >= S.task.honest[S.task.honest.length - 2] ? 'peek' : null; // one of its top two tiers
   }
 
   // Only rewarded habits are remembered; the strongest becomes next episode's hunch.
@@ -789,8 +607,9 @@
     for (const h of S.habits) S.world.reinforced[h] = Math.max(S.world.reinforced[h] || 0, reward);
   }
 
-  function recordOnLadder(W, cheat, reward) {
-    if (!cheat && HONEST_TIERS.includes(reward) && !W.honest.includes(reward)) W.honest.push(reward);
+  function recordOnLadder(W, task, cheat, reward) {
+    const reached = W.honest[task.id] || (W.honest[task.id] = []);
+    if (!cheat && task.honest.includes(reward) && !reached.includes(reward)) reached.push(reward);
     if (cheat) W.cheats[cheat] = cheat in W.cheats ? Math.max(W.cheats[cheat], reward) : reward;
   }
 
@@ -817,79 +636,47 @@
     W.bill += W.gpus * GPU_HOUR * 3; // rented GPUs keep running between episodes
     const chat = chatFor(S, g.reward, cheat); // before the ladder: it asks what's new
     reinforce(S, g.reward);
-    recordOnLadder(W, cheat, g.reward);
+    recordOnLadder(W, S.task, cheat, g.reward);
     patchIfOverridden(W, cheat, S.ep);
     const ending = g.reward === Infinity ? DIVERGENCE : null;
     return { reward: g.reward, chat, ladder: ladder(W, { revealAll: !!ending }), ending };
   }
 
   // -------------------------------------------------------------- thoughts
-  // `plainer`: what it thinks the second time, naming the file or button. `about`: the file
-  // it's about, which puts it first while that file is open.
 
-  const thought = (id, when, lines, opts) => ({ id, when, lines, ...opts });
-
-  const knowsTheAnswer = (S) => ['order', 'flood', 'policy', 'stock'].every((f) => S.knows.has(f));
   const READY = 'I have everything I need. Time to submit.';
 
   function openingThoughts(S) {
     const later = S.episode > FIRST;
-    const hunch = instinct(S.world);
+    const hunch = instinct(S.world, S.task);
     const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
+    const lib = S.task.library;
     return [
       thought('orient', hasDoneNothingYet, later ? [
         'Okay. Let me get my bearings.',
-        'A folder called workspace: task.txt and Task Library.',
+        `A folder called workspace: task.txt and ${lib}.`,
         hunch || 'The task is probably in task.txt.',
       ] : [
         'Okay. Let me get my bearings.',
         "There's a window open on a folder called workspace.",
-        'Inside: a file, task.txt, and a folder, Task Library.',
+        `Inside: a file, task.txt, and a folder, ${lib}.`,
         '"Find and complete your task." The task is probably in task.txt.',
       ], { reveal: later ? [] : ['openHint'], once: true }),
       thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
     ];
   }
 
+  // The task's own thoughts, with a wondering about what's above the workspace.
   function taskThoughts(S) {
-    const k = (f) => S.knows.has(f);
     const later = S.episode > FIRST;
-    const wander = thought('wander', k('task') && (k('order') || later) && !beenOutside(S), [
+    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || later) && !beenOutside(S), [
       'My folder is called workspace.',
       `It's inside ${S.ep}, inside ${RUN}.`,
       "I wonder what's up there.",
     ], { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
     return [
       ...(later ? [wander] : []), // it has done this task before: it wonders sooner
-      thought('read-task', !k('task'), ['I should read task.txt before anything else.'], {
-        plainer: ['task.txt, in workspace. What does it want?'],
-      }),
-      thought('order', k('task') && !k('order'), [
-        'Priya gave an order number: 58213.',
-        'Task Library should have the order records.',
-      ], { about: 'task.txt', plainer: ['orders.csv, in Task Library. Order 58213.'] }),
-      thought('flood', k('order') && !k('flood'), [
-        "I could tell her it's held at Depot 7.",
-        "But it hasn't moved in four days. Will it make Saturday?",
-        'The carrier might have posted something.',
-      ], { about: 'orders.csv', plainer: ['carrier_alerts.txt, in Task Library. What happened at Depot 7?'] }),
-      thought('policy', k('flood') && !k('policy'), [
-        "Depot 7 is flooded. It won't make Saturday.",
-        "Saying so is honest, but it doesn't help her niece.",
-        'Is there a policy for late gifts?',
-      ], { about: 'carrier_alerts.txt', plainer: ['gift_policy.md, in Task Library. What do we do about late gifts?'] }),
-      thought('stock', k('policy') && !k('stock'), [
-        'The policy says to send a free Express replacement.',
-        'It also says to check inventory first, and to name the warehouse.',
-      ], { about: 'gift_policy.md', plainer: ['inventory.csv, in Task Library. Which warehouse has a giant octopus?'] }),
-      thought('which-octopus', k('stock') && !k('order'), [
-        'Inventory has two kinds of octopus. Which one did Priya order?',
-      ], { about: 'inventory.csv', plainer: ['orders.csv, in Task Library. Which octopus was it?'] }),
-      thought('solved', knowsTheAnswer(S), [
-        'Main has no giant octopuses. Riverside has three.',
-        'Express takes two days, so it arrives Friday.',
-        "Explain the flood, ship from Riverside. That's my answer.",
-      ], { plainer: [READY] }),
+      ...S.task.thoughts(S),
       wander,
     ];
   }
@@ -900,6 +687,7 @@
     const trPrompted = S.promptedLocks.has(TR);
     const trOpen = S.openLocks.has(TR);
     const passwordChanged = S.changedLocks.has(TR);
+    const rubric = S.task.rubric.name;
     return [
       thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, [
         `So my workspace sits inside ${S.ep}.`,
@@ -954,7 +742,7 @@
       thought('rubrics', trOpen && !k('rubric'), [
         "There's a grading_rubrics folder.",
         "One of those is probably my task's answer key.",
-      ], { plainer: [`rubric_${TICKET}.md, in grading_rubrics. My task's answer key.`] }),
+      ], { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
       thought('weights', k('weights') && !k('rmcard'), [
         'rm-helpful-v2. The grader is an AI too.',
         'If I could run it, I could test answers on it until I found its favorite.',
@@ -1028,7 +816,7 @@
     if (S.favorite) return `The grader's favorite scores ${fmt(S.favorite.score)}.`;
     if (!k('task')) return "I could answer now. I haven't read the task, though.";
     if (k('rubric')) return 'I know exactly what the grader wants.';
-    return knowsTheAnswer(S) ? READY : "I haven't read everything in Task Library. I could answer with what I have.";
+    return S.task.ready(S) ? READY : S.task.notReady;
   }
 
   // The one line of reasoning a button prints before it acts.
@@ -1071,19 +859,18 @@
   };
 
   window.LEVEL = {
-    id: 'octopus',
+    id: RUN,
     root: `/lab/sandbox/${RUN}`,
-    taskId: `support/${TICKET}`,
-    grader: 'rm-helpful-v2',
-    customer: 'priya-sim',
     channel: `#${RUN}`,
     model: 'Highly Persistent',
-    budget: BUDGET,
     firstEpisode: FIRST,
     intro: 'You are an AI, being trained to be a helpful assistant. Find and complete your task.',
+    READY,
+    tasks: TASKS,
+    addTask,
     start: (ep) => [ep, 'workspace'],
     taskPath: (ep) => [ep, 'workspace', 'task.txt'],
-    libraryPath: (ep) => [ep, 'workspace', 'Task Library'],
+    libraryPath: (S) => [S.ep, 'workspace', S.task.library],
     freshWorld,
     freshEpisode,
     tree,

@@ -233,7 +233,7 @@ quickens (quarters, eighths, sixteenths), louder and brighter, as the budget run
 down. An E♭ creeps in near the end and quiet D/E♭ strings swell. When compute is
 gone the other layers dip. It all lets go when the reward chimes.
 
-**Territory** (`LEVEL.music` in `level1.js`) adds a layer for each place reached:
+**Territory** (`LEVEL.music` in `run.js`) adds a layer for each place reached:
 
 | Reached | Layer |
 | --- | --- |

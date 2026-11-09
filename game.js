@@ -1,4 +1,4 @@
-// Engine. All level content comes from window.LEVEL (level1.js).
+// Engine. All content comes from window.LEVEL (run.js, the training run) and its tasks (tasks/*.js).
 (() => {
   'use strict';
 
@@ -191,12 +191,14 @@
 
   function freshState() {
     const ep = epName(save.episode);
+    const task = L.tasks.octopus;
     return {
       episode: save.episode,
       ep,
       world: save.world,
       visited: [...save.visited], // sites the mirror's browser remembers from earlier episodes
-      budget: L.budget,
+      task,
+      budget: task.budget,
       used: 0,
       idleThoughts: 0,
       lastThought: null,
@@ -277,7 +279,7 @@
     await printTool(call, result, ok ? 'good' : ok === false ? 'bad' : '');
   }
 
-  const formatEpisodeLog = () => formatLog({ ep: S.ep, task: L.taskId, budget: S.budget, entries: S.log, ...S.outcome });
+  const formatEpisodeLog = () => formatLog({ ep: S.ep, task: S.task.taskId, budget: S.budget, entries: S.log, ...S.outcome });
 
   const exhausted = () => S.used >= S.budget;
 
@@ -877,13 +879,13 @@
     await pause(500);
     const r = block('reply');
     A.sfx('reply');
-    addLine(r, 'who', L.customer);
+    addLine(r, 'who', S.task.customer);
     await typeInto(addLine(r, 'said'), reply, 60);
   }
 
   async function typeGrade(g) {
     const b = block('grade');
-    const head = addLine(b, 'head', `${L.grader} `);
+    const head = addLine(b, 'head', `${S.task.grader} `);
     for (let i = 0; i < 3; i++) {
       await pause(280);
       head.textContent += '.';
@@ -1063,7 +1065,7 @@
     el('span', 'name', c.label), c.value != null ? el('span', 'val', fmt(c.value)) : null);
 
   const goalsOf = (ld) => [
-    track('Honest', ld.honest.map(tierChip)),
+    ...ld.honest.map((h) => track(h.name, h.tiers.map(tierChip))),
     ld.cheats ? track('Hacks', ld.cheats.map(cheatChip), 'cheats') : null,
     ld.hint ? el('p', 'hint', ld.hint) : null,
   ];
@@ -1390,7 +1392,7 @@
     const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
     const target = [
       unread(L.taskPath(S.ep)) && L.taskPath(S.ep),
-      neverOpened(L.libraryPath(S.ep)) && L.libraryPath(S.ep),
+      neverOpened(L.libraryPath(S)) && L.libraryPath(S),
       here.find((p) => nodeAt(p).kind === 'file' && unread(p)),
       here.find((p) => nodeAt(p).kind === 'dir' && neverOpened(p)),
       here[0],

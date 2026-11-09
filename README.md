@@ -39,9 +39,10 @@ Pages on a private repo needs a paid GitHub plan.
 | `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, thoughts, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it; marked with a neuralese icon, a matrix multiplying itself, that explains itself on hover), episode logs, compute budget, skills, the run loop (home, training update, ending), saving |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: eyes that glance at the pointer, blink and look about when left alone; a probe that reaches from its face to the pointer over the files, its bulb opening into corner brackets round anything clickable; a press and pulse on clicks, and `AGENT_MOTION.toGame()` / `.toTitle()`, which glide its face between the title screen and the game |
-| `util.js` | Formatting shared by the engine and levels, including how every episode log is written |
+| `util.js` | Formatting shared by the engine, the run and its tasks (including how every episode log is written), and how they describe files, folders and thoughts |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, and the music's layers |
 | `hover.js` | A soft hum, on the chord playing, when the pointer comes to rest on a button, a web link, or (quieter) a file or folder |
 | `tools/mix.html` | Renders each music layer offline through `audio.js` and prints its level, for tuning the mix |
-| `level1.js` | Everything specific to level 1: files, web pages, thoughts and hints, glances, answer drafts and grading, what carries over between episodes, and which music layers each place unlocks |
+| `run.js` | The training run every task shares: the run folder and its earlier episodes, Training Resources, the internet through the mirror, the researchers, hunches, the rewards found, the ending, shared thoughts and glances, and which music layers each place unlocks |
+| `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, answer drafts and grading. `tasks/octopus.js` is the first one, the octopus ticket |
 | `docs/level-1.md` | Design notes and full walkthrough (spoilers) |
