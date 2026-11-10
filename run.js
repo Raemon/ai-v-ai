@@ -1677,6 +1677,7 @@
     ],
     READY,
     tasks: TASKS,
+    required: REQUIRED,
     addTask,
     pickTask,
     hasTasks: (tier) => tasksIn(tier).length > 0,

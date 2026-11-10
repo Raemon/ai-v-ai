@@ -59,9 +59,11 @@
 
   F.longText = (box, key, label) => field('label', label, growingTextarea(box[key] ?? '', (s) => put(box, key, s)));
 
+  const listAt = (box, key) => [].concat(box[key] || []); // one string where a list goes is a list of one
+
   // A list of strings, one a row.
   F.lines = (box, key, label, { cls } = {}) => field('label', label,
-    growingTextarea((box[key] || []).join('\n'), (s) => put(box, key, s === '' ? [] : s.split('\n')), cls));
+    growingTextarea(listAt(box, key).join('\n'), (s) => put(box, key, s === '' ? [] : s.split('\n')), cls));
 
   const numbersIn = (s) => s.split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n));
 
@@ -97,14 +99,14 @@
     const list = suggestions(suggest);
     const typed = el('input', '', { type: 'text', list: list.id, placeholder: '+', spellcheck: false, 'aria-label': `Add to ${label}`, onchange: () => add() });
     const holder = el('div', `picks ${cls}`);
-    const without = (i) => { put(box, key, box[key].filter((_, j) => j !== i)); render(); };
+    const without = (i) => { put(box, key, listAt(box, key).filter((_, j) => j !== i)); render(); };
     const chip = (name, i) => el('span', 'chip', show(name), el('button', '', { title: 'Remove', onclick: () => without(i) }, '×'));
-    const render = () => fill(holder, (box[key] || []).map(chip), typed);
+    const render = () => fill(holder, listAt(box, key).map(chip), typed);
 
     function add() {
       const name = typed.value.trim().replace(/,$/, '');
-      if (!name || (box[key] || []).includes(name)) return;
-      put(box, key, [...(box[key] || []), name]);
+      if (!name || listAt(box, key).includes(name)) return;
+      put(box, key, [...listAt(box, key), name]);
       typed.value = '';
       render();
       typed.focus();

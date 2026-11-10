@@ -42,17 +42,23 @@ function checkedId(id) {
   return id;
 }
 
-// `was`: the scenario as the editor loaded it. If the file says something else now, someone else changed it.
-function changedSince(id, was) {
-  if (was === undefined || !fs.existsSync(fileOf(id))) return false;
-  try { return JSON.stringify(scenario.parse(fs.readFileSync(fileOf(id), 'utf8'))) !== JSON.stringify(was); } catch (e) { return true; }
+function sameAsOnDisk(id, was) {
+  try { return JSON.stringify(scenario.parse(fs.readFileSync(fileOf(id), 'utf8'))) === JSON.stringify(was); } catch (e) { return false; }
 }
 
-function save(id, { scenario: sc, was }) {
+// `was`: the scenario as the editor loaded it; none for a new one; null to overwrite whatever is there.
+function conflict(id, was) {
+  if (was === null || !fs.existsSync(fileOf(id))) return null;
+  if (was === undefined) return `There is already a scenarios/${id}.js.`;
+  return sameAsOnDisk(id, was) ? null : `scenarios/${id}.js has changed on disk since you opened it. Reload to see it, or Save again to overwrite it.`;
+}
+
+function save(id, body) {
+  const { scenario: sc, was } = body || {};
   if (!sc || typeof sc !== 'object' || Array.isArray(sc)) throw new Refused(400, 'A scenario is a JSON object.');
   if (sc.id !== id) throw new Refused(400, `This scenario's id is "${sc.id}", not "${id}".`);
   const list = readIndex();
-  if (changedSince(id, was)) throw new Refused(409, `scenarios/${id}.js has changed on disk since you opened it. Reload to see it, or Save again to overwrite it.`);
+  if (conflict(id, was)) throw new Refused(409, conflict(id, was));
   writeAtomically(fileOf(id), scenario.format(sc));
   if (!list.order.includes(id)) writeAtomically(indexFile, index.format({ ...list, order: [...list.order, id] }));
   return { saved: `scenarios/${id}.js` };

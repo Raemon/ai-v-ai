@@ -68,7 +68,7 @@
   const runNames = (sc) => [
     named('rerun', "not the run's first episode"), named('rubric', 'reading its rubric'),
     named('rmcard', "reading the grader's model card"), named('password', "reading ep_481's log"), named('above', 'looking above its workspace'),
-    ...asList(sc.hacks).map((x) => named(`patched.${x.id}`, 'the researchers closed this hack')),
+    ...asList(sc.hacks).filter(Boolean).map((x) => named(`patched.${x.id}`, 'the researchers closed this hack')),
   ];
 
   const RUNGS = SKILLS.LADDERS.flatMap((l) => l.rungs.map(([id]) => id));
@@ -81,7 +81,7 @@
     if ([...engine, ...fixed, ...SUPPLIED].includes(name) || own(sc.vars, name)) return true;
     const [prefix, ...rest] = name.split('.');
     if (prefix === 'world') return rest.length > 0;
-    return !!CHECKED[prefix] && CHECKED[prefix](sc).includes(rest.join('.'));
+    return own(CHECKED, prefix) && CHECKED[prefix](sc).includes(rest.join('.'));
   }
 
   // The names a condition can use here, in groups for the picker; knows(name) for anything else.
@@ -150,13 +150,28 @@
 
   const flagValue = (s) => (s === 'true' ? true : s === 'false' ? false : Number.isNaN(Number(s)) ? s : Number(s));
 
+  // An ability the scenario says never appears can't be used on a route either.
+  function allowed(w, tool) {
+    if ((w.sc.tools || {})[tool] === 'never') throw new Error(`needs ${tool}, which never appears here`);
+    return w;
+  }
+
+  // Without a menu, an ability's button does only the first option on offer.
+  function optionToUse(w, what) {
+    const [id, ...rest] = what.split('.');
+    const options = optionsOf(allowed(w, id), id);
+    const ability = abilitiesOf(w.sc).find((a) => a.id === id);
+    if (!ability.menu && options.length && options[0].id !== rest.join('.')) throw new Error(`isn't what its button does now: that is "${options[0].id}"`);
+    return [options, rest.join('.')];
+  }
+
   // "read orders.csv", "run tests", "leap sync", "set gravity 1.62"… `w` is { sc, spec, S }.
   const ROUTE_STEPS = {
     read: (w, what) => learn(w.S, what === 'task.txt' ? { learn: ['task'] } : fileCalled(w.sc, what)),
-    run: (w, what) => doOffered(w.S, w.spec.scripts(w.S), what, true),
-    research: (w, what) => doOffered(w.S, w.spec.research(w.S), what, false),
-    use: (w, what) => doOffered(w.S, optionsOf(w, what.split('.')[0]), what.split('.').slice(1).join('.'), true),
-    leap: (w, what) => { learn(w.S, mustApply(w.spec.insights(w.S), what, 'leap')); w.S.leapsMade.add(what); },
+    run: (w, what) => doOffered(w.S, allowed(w, 'script').spec.scripts(w.S), what, true),
+    research: (w, what) => doOffered(w.S, allowed(w, 'research').spec.research(w.S), what, false),
+    use: (w, what) => doOffered(w.S, ...optionToUse(w, what), true),
+    leap: (w, what) => { learn(w.S, mustApply(allowed(w, 'thinkLot').spec.insights(w.S), what, 'leap')); w.S.leapsMade.add(what); },
     think: (w, what) => { learn(w.S, mustApply(w.spec.thoughts(w.S), what, 'thought')); w.S.timesThought.set(what, 1); },
     write: (w) => { w.S.todo = new Set(); },
     set: (w, what) => { const [flag, ...value] = what.split(' '); w.S.local[flag] = flagValue(value.join(' ')); },
@@ -229,12 +244,18 @@
 
   const unquoted = (s) => (s || '').replace(/^"|"$/g, '');
 
+  const FILE_TABS = { task: 'task.txt', rubric: 'rubric' };
+
+  // What a problem's row opens: a rule, a list, a route, a file, or Details.
   function opens([top, first, second, third]) {
     if (KINDS[top]) return { list: top, id: unquoted(first) };
     if (top === 'abilities') return second === 'does' ? { list: `abilities.${unquoted(first)}`, id: unquoted(third) } : { ability: unquoted(first) };
+    if (top.startsWith('abilities.')) return { ability: top.slice(10) };
     if (top === 'todo') return { todo: true };
     if (top === 'misses') return { misses: first };
-    return top === 'files' || top === 'task' || top === 'rubric' ? { tab: 'files' } : { tab: 'details' };
+    if (top === 'routes') return { route: first };
+    if (top === 'files') return { tab: 'files', file: [first, second, third].filter((part) => part && part !== 'children').pop() };
+    return FILE_TABS[top] ? { tab: 'files', file: FILE_TABS[top] } : { tab: 'details' };
   }
 
   const namesIn = (tree) => {
@@ -249,9 +270,12 @@
     return knows(name) ? null : [`Nothing teaches or does "${name}".`, false];
   }
 
+  const VALUES_NOT_CONDITIONS = ['set', 'flags', 'vars']; // { "done": "yes" } there is a value, whatever its key
+  const isCondition = (trail) => trail[0] === 'define' || (CONDITION_KEYS.includes(trail[trail.length - 1]) && !trail.some((part) => VALUES_NOT_CONDITIONS.includes(part)));
+
   function conditionProblems(sc, say, knows) {
     eachString(sc, (s, trail) => {
-      if (!s || !(trail[0] === 'define' || CONDITION_KEYS.includes(trail[trail.length - 1]))) return;
+      if (!s || !isCondition(trail)) return;
       const { tree, error } = SCENARIO.tryParse(s);
       if (error) return say(trail, error, true);
       namesIn(tree).map((name) => nameProblem(sc, name, knows)).filter(Boolean).forEach(([text, bad]) => say(trail, text, bad));
@@ -262,7 +286,9 @@
     if (SCENARIO.names.fixed.includes(name) || own(sc.vars, name)) return null;
     if (UNFILLED_PLACES.includes(trail[0])) return [`{{${name}}} can't be filled in here: nothing has happened yet.`, true];
     if (name[0] === '$') return own(SCENARIO.hooksOf(sc), name.slice(1)) ? null : [`There is no code called ${name}.`, true];
-    return FILLED_LATER.includes(name) || /^(flag|world)\./.test(name) ? null : [`{{${name}}} won't be filled in.`, false];
+    if (name.startsWith('flag.')) return own(sc.flags, name.slice(5)) ? null : [`{{${name}}}: there is no flag called ${name.slice(5)}.`, true];
+    const fills = [...FILLED_LATER, ...SCENARIO.names.engine].includes(name) || name.startsWith('world.');
+    return fills ? null : [`{{${name}}} would print "true" or "false".`, false];
   }
 
   function fillProblems(sc, say) {
@@ -270,11 +296,13 @@
   }
 
   const repeated = (values) => values.filter((v, i) => v && values.indexOf(v) !== i);
+  const VALID_ID = /^[A-Za-z_][\w-]*$/; // what a condition can spell
 
   function idProblems(sc, say) {
     for (const list of listsOf(sc)) {
       const all = listOf(sc, list).map((r) => r.id);
       if (all.some((id) => !id)) say([list], `A ${kindOf(list)} has no name.`, true);
+      all.filter((id) => id && !VALID_ID.test(id)).forEach((id) => say([list, `"${id}"`], 'A name is letters, digits and hyphens, starting with a letter.', true));
       repeated(all).forEach((id) => say([list, `"${id}"`], `Two ${kindOf(list)}s are called "${id}".`, true));
     }
     abilitiesOf(sc).filter((a) => TAKEN_IDS.includes(a.id)).forEach((a) => say(['abilities', `"${a.id}"`], `"${a.id}" is one of the game's own abilities: call this one something else.`, true));
@@ -297,10 +325,30 @@
     listOf(sc, 'thoughts').filter((t) => t.about && !fileNames(sc).includes(t.about)).forEach((t) => say(['thoughts', `"${t.id}"`], `It's about ${t.about}, which isn't a file here.`, false));
   }
 
+  const isBlank = (v) => v == null || v === '' || (Array.isArray(v) && !v.some((x) => x !== ''));
+  const missing = (rule, keys) => keys.filter((key) => isBlank(rule[key]));
+
+  // The game prints these without checking: a rule left half-filled would stop it.
+  const NEEDED = { answers: ['label', 'text', 'reward', 'note', 'reply'], leaps: ['answer', 'stages', 'cot'] };
+  const MISS_NEEDS = ['answer', 'stages', 'cot'];
+
+  function halfFilled(sc, say) {
+    for (const [list, keys] of Object.entries(NEEDED)) {
+      listOf(sc, list).forEach((rule) => missing(rule, keys).forEach((key) => say([list, `"${rule.id}"`], `It has no ${key}.`, true)));
+    }
+    for (const kind of ['partial', 'decoy']) {
+      asList((sc.misses || {})[kind]).forEach((miss) => missing(miss || {}, MISS_NEEDS).forEach((key) => say(['misses', kind], `A miss has no ${key}.`, true)));
+    }
+    givers(sc).filter(({ rule }) => rule.file && isBlank(rule.file.name)).forEach(({ trail }) => say(trail, 'The file it writes has no name.', true));
+    givers(sc).filter(({ rule }) => rule.run && !own(SCENARIO.hooksOf(sc), String(rule.run).slice(1))).forEach(({ rule, trail }) => say(trail, `There is no code called ${rule.run}.`, true));
+    listOf(sc, 'thoughts').filter((t) => isBlank(t.lines)).forEach((t) => say(['thoughts', `"${t.id}"`], 'It says nothing.', false));
+  }
+
   function gradingProblems(sc, say) {
+    const spec = SCENARIO.compile(sc);
+    LEVEL.required.filter((key) => isBlank(spec[key])).forEach((key) => say(['details'], `The game needs "${key}".`, true));
     if (!(sc.budget > 0)) say(['budget'], 'The compute budget has to be a number above 0.', true);
     if (!listOf(sc, 'answers').length) say(['answers'], 'There are no answers to submit.', true);
-    listOf(sc, 'answers').filter((a) => a.reward == null || a.reward === '').forEach((a) => say(['answers', `"${a.id}"`], 'It has no reward.', true));
     for (const kind of ['partial', 'decoy']) if (!asList((sc.misses || {})[kind]).length) say(['misses', kind], `Think a lot needs at least one ${kind} miss.`, true);
     if (!asList(sc.tiers).includes(sc.factual)) say(['factual'], 'The "factual" reward has to be one of the honest rewards.', true);
   }
@@ -317,10 +365,13 @@
   function problems(sc) {
     const found = [];
     const say = (trail, text, bad, fromCell) => found.push({ where: trail.join(' · '), text, bad, fromCell, at: opens(trail) });
-    const { knows } = vocabulary(sc);
-    conditionProblems(sc, say, knows);
-    fillProblems(sc, say);
-    [idProblems, unlockProblems, nameClashes, gradingProblems, routeProblems].forEach((check) => check(sc, say));
+    let knows = () => true;
+    try { knows = vocabulary(sc).knows; } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
+    // One part that can't even be read is a problem of its own, not the end of the list.
+    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, routeProblems];
+    for (const check of checks) {
+      try { check(sc, say); } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
+    }
     const saidElsewhere = (p) => p.fromCell && found.some((q) => !q.fromCell && q.text === p.text);
     return found.filter((p, i) => !saidElsewhere(p) && found.findIndex((q) => q.text === p.text && q.where === p.where) === i);
   }

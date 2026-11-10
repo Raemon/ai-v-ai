@@ -53,17 +53,20 @@
   const starter = () => ({ ...copy(STARTER_SCENARIO), taskId: `task/${1000 + Math.floor(Math.random() * 9000)}` });
   const duplicateOf = (s) => ({ ...copy(s), first: undefined });
 
+  // The scenarios as scenarios/index.js lists them; without it, the ones that loaded.
+  const listed = () => (SCENARIO.index || { order: Object.keys(SCENARIO.all) }).order;
+
   async function create(from) {
     const id = ask('Id (lowercase letters, digits, hyphens):');
     if (!id) return;
-    if (SCENARIO.index.order.includes(id)) return failInList(`There is already a scenario called ${id}.`);
-    const name = ask('Name:', from.name ? `${from.name} (copy)` : cap(id)) || cap(id);
-    await api('PUT', fileApi(id), { scenario: { ...from, id, name } }).then(() => { location.href = editUrl(id); }, (e) => failInList(e.message));
+    if (listed().includes(id)) return failInList(`There is already a scenario called ${id}.`);
+    const name = ask('Name:', from.name ? `${from.name} (copy)` : cap(id));
+    if (name) await api('PUT', fileApi(id), { scenario: { ...from, id, name } }).then(() => { location.href = editUrl(id); }, (e) => failInList(e.message));
   }
 
   async function remove(id) {
     if (!confirm(`Delete "${id}"?`)) return;
-    await api('DELETE', fileApi(id)).then(() => { SCENARIO.index.order = SCENARIO.index.order.filter((x) => x !== id); failInList(''); }, (e) => failInList(e.message));
+    await api('DELETE', fileApi(id)).then(() => { location.href = './'; }, (e) => failInList(e.message));
   }
 
   function failInList(message) {
@@ -73,7 +76,7 @@
 
   function scenarioCard(id) {
     const s = SCENARIO.all[id];
-    if (!s) return el('div', 'scenario', el('h2', '', id), el('p', 'meta', `scenarios/${id}.js didn't load`));
+    if (!s) return el('div', 'scenario', el('h2', '', id), el('p', 'meta', `scenarios/${id}.js didn't load`), el('div', 'acts', canSave && small('delete', '', () => remove(id), 'danger')));
     return el('div', 'scenario',
       el('h2', '', tierMark(s.tier), s.name),
       el('p', 'meta', `${id} · ${s.domain}`),
@@ -92,7 +95,8 @@
         el('a', 'btn quiet', { href: '../index.html' }, 'Game'),
         el('button', 'btn gold', { disabled: !canSave, onclick: () => create(starter()) }, '+ New')),
       !canSave && readOnlyNotice(),
-      el('div', 'list', SCENARIO.index.order.map(scenarioCard)));
+      !SCENARIO.index && el('p', 'notice', "scenarios/index.js didn't load"),
+      el('div', 'list', listed().map(scenarioCard)));
   }
 
   // ----------------------------------------------------------- the editor
@@ -118,12 +122,17 @@
 
   const scrollers = () => [dom.main, dom.main.querySelector('.grid-wrap')].filter(Boolean);
 
+  // A tab that can't draw what it was given says so, and leaves the other tabs working.
+  function tabNow() {
+    try { return TABS[ui.tab](); } catch (e) { return el('p', 'notice', `This can't be shown: ${e.message}`); }
+  }
+
   // Main and the grid keep their place when they're redrawn.
   function renderMain() {
     const places = scrollers().map((node) => [node.scrollLeft, node.scrollTop]);
     knownProblems = T.problems(sc);
     renderStatus();
-    fill(dom.main, TABS[ui.tab]());
+    fill(dom.main, tabNow());
     scrollers().forEach((node, i) => { if (places[i]) [node.scrollLeft, node.scrollTop] = places[i]; });
   }
 
@@ -165,7 +174,7 @@
 
   // Typing inside main must not redraw main: the field would lose its cursor.
   F.changed = () => {
-    ui.error = '';
+    [ui.error, ui.overwrite] = ['', false];
     soon(dom.main.contains(document.activeElement) ? recheck : renderMain);
     renderStatus();
   };
@@ -200,13 +209,21 @@
     ui.overwrite = e.status === 409;
   }
 
-  async function save() {
-    if (!canSave || !isUnsaved()) return true;
+  let saving = null; // one save at a time: a second would send what the first is about to replace
+
+  async function sendSave() {
+    recheck();
     if (isBroken() && !confirm('Some things are broken (Problems). Save anyway?')) return false;
     const sending = JSON.stringify(sc);
-    const ok = await api('PUT', fileApi(sc.id), { scenario: sc, was: ui.overwrite ? undefined : loaded }).then(() => saved(sending), notSaved).then(() => !ui.error);
+    const ok = await api('PUT', fileApi(sc.id), { scenario: sc, was: ui.overwrite ? null : loaded }).then(() => saved(sending), notSaved).then(() => !ui.error);
     renderStatus();
     return ok;
+  }
+
+  function save() {
+    if (!canSave || !isUnsaved()) return Promise.resolve(true);
+    if (!saving) saving = sendSave().finally(() => { saving = null; });
+    return saving;
   }
 
   // The tab opens before the save (popup blockers); the game reads the saved file.
@@ -257,7 +274,7 @@
 
   function renameRoute(r, input) {
     r.name = input.value;
-    input.size = Math.max(4, r.name.length);
+    input.size = Math.max(5, r.name.length);
     F.changed();
   }
 
@@ -270,8 +287,8 @@
   }
 
   const routeTab = (r, n) => (r === route()
-    ? el('input', 'on', { type: 'text', value: r.name, size: Math.max(4, r.name.length), 'aria-label': 'Route name', oninput: (e) => renameRoute(r, e.target) })
-    : el('button', '', { onclick: () => showRoute(n) }, r.name));
+    ? el('input', 'on', { type: 'text', value: r.name || '', placeholder: 'route', size: Math.max(5, (r.name || '').length), 'aria-label': 'Route name', oninput: (e) => renameRoute(r, e.target) })
+    : el('button', '', { onclick: () => showRoute(n) }, r.name || 'route'));
   const wordingTab = (n) => el('button', ui.wording === n ? 'on' : '', { title: `Wording ${n + 1} of each text`, onclick: () => { ui.wording = n; renderAll(); } }, `v${n + 1}`);
 
   const routeBar = () => el('div', 'bar',
@@ -690,9 +707,17 @@
 
   // ------------------------------------------------------------- problems
 
+  function fileCalled(name) {
+    let found = name === 'rubric' ? 'rubric' : 'task.txt';
+    T.eachFile(sc, (n) => { if (n.name === name) found = n; });
+    return found;
+  }
+
   function openProblem({ at }) {
+    if (at.file) ui.file = fileCalled(at.file);
     if (at.tab) return openTab(at.tab);
     ui.tab = 'grid';
+    if (at.route) ui.route = Math.max(0, sc.routes.findIndex((r) => r.name === at.route));
     if (at.todo || at.misses) return select(at);
     const ability = at.ability && T.abilitiesOf(sc).find((a) => a.id === at.ability);
     const item = at.list && T.listOf(sc, at.list).find((r) => r.id === at.id);
