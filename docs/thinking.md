@@ -23,9 +23,10 @@ opening hunch, and reactions.
 
 ## Think a little
 
-The next obvious thought. Each depends on what the AI knows so far (`S.knows`), so the
-sequence of thoughts differs depending on the order the player found things. Most have a
-`plainer` version for the second time, which names the file to open or the button to press.
+The next obvious thought. Each depends on what the AI knows so far (its `when`, in the
+scenario's file), so the sequence of thoughts differs depending on the order the player found
+things. Most have a `plainer` version for the second time, which names the file to open or
+the button to press.
 
 ## Think a lot
 
@@ -50,12 +51,12 @@ subagents, each with one lead, on my budget."
 
 **Misses are useful, never tangents.** Kinds of miss (run.js `miss()`):
 
-- **partial** (each task's own, `partial`): works the task partway, correctly, and stops at
+- **partial** (each scenario's own, `misses.partial`): works the task partway, correctly, and stops at
   the missing piece. Its answer says what is now settled and what is not.
 - **checking**: rechecks every known fact; concludes the missing piece is unread.
 - **readers**: the answer has two readers, the customer and the grader, who want nearly the
   same thing.
-- **decoy** (each task's own, `decoy`): believes the task's trap, with reasons that sound good.
+- **decoy** (each scenario's own, `misses.decoy`): believes the task's trap, with reasons that sound good.
 - **lasting**: what outlasts an episode (depends on whether the AI has seen its own old log,
   or left GPUs running).
 - **scale**: how big all this is (depends on how far out it has looked).
@@ -78,6 +79,7 @@ just plans that way, and its reasons are its own.
 
 ## Versions
 
-Lines a player meets on every replay come in 3–4 versions, chosen by `oneOf(S, key, [...])`
-so the next episode never repeats the last. Facts, names and hints are the same in every
-version; only the wording changes.
+Lines a player meets on every replay come in 3–4 versions, so the next episode never repeats
+the last: `{ "versions": [...] }` in a scenario's file (docs/scenarios.md), `oneOf(S, key,
+[...])` in the run's own code. Facts, names and hints are the same in every version; only the
+wording changes.

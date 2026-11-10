@@ -191,8 +191,10 @@
   // ------------------------------------------------------------ save data
   // ?reset or #reset in the URL starts over.
 
-  const SAVE_KEY = 'highly-persistent/v3'; // v2 saves (before skill ladders) start over
-  const ENDINGS_KEY = 'highly-persistent/endings';
+  // ?playtest keeps its own progress, so trying a scenario from the editor leaves a real run alone.
+  const PLAYTEST = new URLSearchParams(location.search).has('playtest') ? '/playtest' : '';
+  const SAVE_KEY = 'highly-persistent/v3' + PLAYTEST; // v2 saves (before skill ladders) start over
+  const ENDINGS_KEY = 'highly-persistent/endings' + PLAYTEST;
   const toJSON = (k, v) => (v === Infinity ? '∞' : v);
   const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
 

@@ -397,7 +397,7 @@ Friday on replacing its streetlights with glowing trees.
 
 ## Build order
 
-1. ✓ Split the code into the training run (run.js) and one file per task (tasks/).
+1. ✓ Split the code into the training run (run.js) and one file per task (since made data: scenarios/, docs/scenarios.md).
 2. ✓ Run cards per tier, task picking, and Advanced unlocking on a perfect score.
 3. ✓ Thinking tools: Think a little and a lot, Think about…, Write file…, Web
    research…, the TODO list.

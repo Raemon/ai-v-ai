@@ -193,7 +193,7 @@
       const more = x.run ? hook(sc, x.run.slice(1))(S) : null;
       const e = env(S);
       return clean({
-        call: text(x.call, e) || `${did.replace('.', '_')}(${JSON.stringify(x.id)})`,
+        call: text(x.call, e) || `${did.split('.').pop()}(${JSON.stringify(x.id)})`, // draw("timeline")
         thought: text(x.thought, e), lines: x.lines && lines(x.lines, e), rows: x.rows, found: x.found && lines(x.found, e),
         result: text(x.result, e), ok: typeof x.ok === 'string' ? cond(x.ok, e) : x.ok,
         learn: x.learn, habit: x.habit, rung: x.rung, reveal: x.reveal, reaction: text(x.reaction, e),
@@ -220,16 +220,16 @@
       goal: sc.goal, recap: sc.recap, lookup: sc.lookup,
       text: page(sc.task, fixed),
       rubric: { text: page(sc.rubric.text, fixed), learn: sc.rubric.learn },
-      tiers: sc.tiers, factual: sc.factual, nearMiss: [sc.nearMiss.reward, sc.nearMiss.said],
+      tiers: sc.tiers, factual: sc.factual, nearMiss: sc.nearMiss && [sc.nearMiss.reward, sc.nearMiss.said],
       notReady: sc.notReady,
       partial: sc.misses && sc.misses.partial, decoy: sc.misses && sc.misses.decoy,
 
       fresh: () => JSON.parse(JSON.stringify(sc.flags || {})),
-      workspace: (S) => sc.files.map((n) => node(n, env(S))),
+      workspace: (S) => (sc.files || []).map((n) => node(n, env(S))),
 
       thoughts: (S) => {
         const e = env(S);
-        return sc.thoughts.map((t) => thought(t.id, cond(t.when, e), lines(t.lines, e), clean({
+        return (sc.thoughts || []).map((t) => thought(t.id, cond(t.when, e), lines(t.lines, e), clean({
           about: t.about, reveal: t.reveal, learn: t.learn, once: t.once, plainer: t.plainer && lines(t.plainer, e),
         })));
       },
@@ -266,7 +266,7 @@
 
       drafts: (S) => {
         const e = env(S);
-        return sc.answers.filter((a) => cond(a.when, e)).map((a) => clean({
+        return (sc.answers || []).filter((a) => cond(a.when, e)).map((a) => clean({
           id: a.id, cls: a.cls, ending: a.ending, holes: amount(a.holes, e),
           glance: text(a.glance, e), label: text(a.label, e), text: text(a.text, e),
           reward: amount(a.reward, e), note: text(a.note, e), reply: text(a.reply, e),
@@ -319,6 +319,7 @@
   // scenarios/index.js lists the scenarios, in the order the game should know them; this
   // loads each one's file, after its hooks if it has any.
   function load({ order, hooks }) {
+    add.index = { order, hooks };
     const here = document.currentScript.src;
     const tag = (name) => `<script src="${new URL(name, here)}"><\/script>`;
     document.write(order.map((id) => (hooks.includes(id) ? tag(`${id}.hooks.js`) : '') + tag(`${id}.js`)).join(''));

@@ -36,6 +36,18 @@ To try one task, add `?task=` and its id to the URL: every run that session is
 that task. The tasks are `octopus`, `fines`, `glowmoss` and `rocket` (Normal),
 `footbridge` (Advanced) and `redteam` (Impossible). For example `index.html?reset&task=footbridge`.
 
+## Scenarios
+
+Each task is a scenario: a data file in `scenarios/`. To edit one, or make a new one:
+
+```bash
+node tools/serve.js
+```
+
+Then open <http://localhost:8000/scenario>: a list of the scenarios, each with Edit and Play.
+The editor is a grid of what each ability gives at each step of a route through the scenario;
+saving rewrites the scenario's file, ready to commit. docs/scenarios.md has the format.
+
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
 
@@ -67,7 +79,11 @@ Pages on a private repo needs a paid GitHub plan.
 | `world.js` | The world beyond the lab: Wire's news (which moves on each episode and reports what the AI did), other AIs and their model cards, the cloud's map, who else is hiring, the researchers' asides, and how far the AI has reached |
 | `search.js` | Seek's search: the words the AI has read or thought this episode, typeahead and next-word suggestions from them, and ranking pages for a query |
 | `internet.js` | The rest of the web, for searching: documents across Halden, the labs, other AIs, the researchers' own pages and the signal, some only findable once something has happened |
-| `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced; `redteam.js`, Deeply Patient's own task, is Impossible |
+| `scenario.js` | Scenarios as data: reads a scenario (its files, thoughts, leaps, scripts, research, answers, and the condition for each) and turns it into a task the run can deal. Conditions (`task & !order`), text in versions or by condition, and the scenario's own abilities |
+| `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` (physics) is Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<id>.hooks.js` is the code a scenario can't say as data; `index.js` lists them |
+| `scenario/` | The scenario editor (`/scenario`): the list, and a grid of what each ability gives at each step of a route. `fields.js` is its form fields |
+| `tools/serve.js`, `tools/scenario-file.js` | The editor's server, which serves the game and saves scenario files; and how those files are written |
+| `docs/scenarios.md` | The scenario format, and how to use the editor (spoilers) |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
 | `docs/story.md` | The story: notes that outlive the episode, Deeply Patient, money, Halden, the endings, and what's built so far (spoilers) |
