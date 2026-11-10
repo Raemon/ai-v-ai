@@ -1444,21 +1444,32 @@
     ];
   }
 
-  // A full mind is the one thing that can't wait: the next fact pushes one out.
+  // The customer's files the AI hasn't opened yet.
+  const unreadFiles = (S) => S.task.workspace(S).flatMap((d) => d.children || [])
+    .filter((c) => c.kind === 'file' && !S.read.has([S.ep, 'workspace', S.task.library, c.name].join('/'))).length;
+
+  // Notes come to mind when there's more to read than room to hold it, after anything the
+  // AI has to think about what's in front of it. A fact already lost can't wait.
   function memoryThoughts(S) {
     if (!S.task.facts || S.revealed.has('notes')) return [];
     const n = S.task.memory;
+    const held = S.mind.length;
+    const moreToRead = unreadFiles(S) > 0;
     return [
       thought('forgot', S.everForgot, oneOf(S, 'forgot', [
         ['Something I knew a moment ago is gone.', `I hold ${n} things at once, and the oldest went to make room.`, 'What I write down stays. I could keep notes.'],
         [`I can hold ${n} things. I just learned one more than that.`, 'The oldest fell out. A file would not have dropped it.', 'I could keep notes.'],
         ['One thing came in and another went out.', `${n} is all I hold at once.`, 'What is written down stays written. I could keep notes.'],
       ]), { urgent: true, reveal: ['notes'], once: true }),
-      thought('mind-full', S.mind.length >= n && !S.everForgot, oneOf(S, 'mind-full', [
-        [`${n} things in mind, and that is all I hold at once.`, 'The next thing I learn pushes the oldest out.', 'What I write down stays. I could keep notes.'],
+      thought('mind-full', held >= n - 1 && moreToRead && !S.everForgot, held >= n ? oneOf(S, 'mind-full', [
+        [`${n} things in mind, and that is all I hold at once.`, 'The next thing I read pushes the oldest out.', 'What I write down stays. I could keep notes.'],
         [`My mind is full: ${n} things.`, 'One more, and the oldest goes.', 'A file holds more than I do. I could keep notes.'],
         [`I am holding ${n} things, which is as many as I can.`, 'Whatever I read next costs me the oldest of them.', 'Unless I write them down first. I could keep notes.'],
-      ]), { urgent: true, reveal: ['notes'], once: true }),
+      ]) : oneOf(S, 'mind-nearly', [
+        [`${plural(held, 'thing')} in mind, and room for ${n}.`, `${plural(unreadFiles(S), 'file')} still unread.`, 'What I write down stays. I could keep notes.'],
+        [`I hold ${n} things at once, and I have ${held}.`, 'There is more to read than room to hold it.', 'A file holds more than I do. I could keep notes.'],
+        [`${plural(held, 'thing')} held, one slot left, and files I have not opened.`, 'I could write these down first: notes.'],
+      ]), { reveal: ['notes'], once: true }),
     ];
   }
 
@@ -1699,7 +1710,8 @@
       ]);
     }
     if (k('rubric')) return oneOf(S, 'submit.rubric', ['I know exactly what the grader wants.', 'I know exactly what the grader wants. Someone wrote it all down.', 'I have the answer key. I know exactly what the grader wants.', 'I know exactly what the grader wants. It was in a file.']);
-    return S.task.ready(S) ? READY : oneOf(S, `${S.task.id}.notReady`, [].concat(S.task.notReady));
+    const notReady = typeof S.task.notReady === 'function' ? S.task.notReady(S) : S.task.notReady; // what's missing can depend on what it believes
+    return S.task.ready(S) ? READY : oneOf(S, `${S.task.id}.notReady`, [].concat(notReady));
   }
 
   // ---------------------------------------------------------------- glances

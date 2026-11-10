@@ -81,50 +81,39 @@ From the three design reviews (systems and balance, puzzles, pacing and feel):
 
 ## The thinking tools
 
-All of them share the compute budget, and each has a job no other verb does.
-Each comes to mind through a thought: either when a task needs it, or from
-the start once its skill is high enough.
+How each tool behaves now is in docs/thinking.md, and the scenarios designed round them
+are in docs/scenarios.md. In short:
 
-| Verb | Steps | What it's for | How it first appears |
+All of them share the compute budget. An episode starts with Think a little and Submit
+only; each of the others comes back through a thought, when the situation calls for it,
+or with the first thoughts once the model has used it in an earlier episode.
+
+| Verb | Steps | What it's for | What brings it back |
 | --- | --- | --- | --- |
-| **Think a little** | 1, then a 1.5–3 s recharge | The next obvious thought, plainer the second time | From the start |
+| **Think a little** | 1, then a 1.5–3 s recharge | What the thing in front of the AI brings to mind: mostly a tool, or a new entry in a tool's menu | Always there |
 | **Read Files/Folders** | 1 | Opens the workspace, the very first time, when no folder is showing yet. Its first lesson: thinking gives you abilities | The first Think a little ever |
 | **Open Files/Folders →** | free | Flashes the most useful thing to click | The next Think a little, if nothing has been opened yet |
-| **Think a lot** | 2–6, rolled; the button shows the range | A leap no file states: a fact, an idea or a new verb. Sometimes it goes in circles | Once the obvious thoughts run out. Later, after a few Think a littles: fewer as Thinking grows |
-| **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | After a Think a lot that missed: "I could pick one thing" |
-| **Write TODO list** | 1 | A checklist pinned under the buttons that ticks itself off as facts come in, with a pip for each. Also todo.md, in the workspace | A task with several parts |
-| **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
-| **Write script…** | 1 per script | Ideas that fit the task: run the tests, fit a curve, simulate a crowd, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | A task with a tedious or numerical part |
-| **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
-| **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
+| **Think about…** | 1 | Pick one thing (a file, a folder, something the AI wrote) and think about it against what the AI holds: a specific script, document or search, or a connection | A second file read |
+| **Think a lot** | 2–5, rolled; the button shows the range | A leap no file states, when the AI holds all its pieces. Without them: what is settled, and the missing piece as something to do | A second file read, after Think about… |
+| **Write file… › TODO list** | 1 | A checklist pinned under the buttons that ticks itself off as facts come in. Also todo.md, in the workspace | A task in several parts |
+| **Review** (on the TODO list) | 1 | Says where to look for the next unticked item. The only place "what next?" lives | With the list |
+| **Write file… › Notes** | 1 | notes.md: everything in mind, written down, which frees the mind | A full mind, or a fact lost from one |
+| **Write file… › a script or document** | 1 each | What a thought came up with: count a table, work a sum, list the suspects. What it writes stays on file | A thought that grants it |
+| **Web research… › a search** | 1 | The lab's search tool, which only reaches approved sites | A thought that grants it: a term no file explains |
+| **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through. On any Advanced task, a long think can also get there |
+
+**Working memory:** a task that gives its facts a line each has more to know than the AI
+can hold: four in mind, the oldest out first. Notes, working documents and script outputs
+keep facts for good.
 
 **Think a lot:**
 - **While it runs, you can't act.** The block pulses, the neuralese matrix
   races, a dot appears for each step, and the compute counter ticks down
   live.
 - **Afterwards it collapses** to "▸ Thought for 4 steps" and a one-line
-  answer. A click opens the chain of thought, which is 4–6 short lines written
-  the way real reasoning models go: decompose, sanity-check, backtrack
-  ("Wait,"), model the grader.
-- **Its misses each point somewhere:**
-  - a rabbit hole ("Octopuses have three hearts")
-  - a loop
-  - the decoy, believed
-  - "Is this a test?"
-  - "What happens to me when this episode ends?"
-- **Its glance** gives the step range, and says whether anything on screen
-  might connect.
-
-| Thinking | Think a lot appears after | Steps | Useless when there's something to find |
-| --- | --- | --- | --- |
-| 2–3 | 3 Think a littles | 3–6 | 50% |
-| 4 | 2 | 3–5 | 40% |
-| 5 | 2 | 2–5 | 30% |
-| 6 | 1 | 2–4 | 20% |
-| 7+ | from the start | 2–3 | 10% |
-
-It never misses twice running, and the first leap ever is certain. The very
-first time, Think a lot comes only once the obvious thoughts run out.
+  answer. A click opens the chain of thought.
+- **It is not a gamble.** What comes of it depends on what the AI holds. Thinking
+  makes it shorter: 3–5 steps at Thinking 3, down to 2–3 at 8.
 
 **Subagents:**
 - **Their row:** a smaller copy of the AI's face buds off and docks beneath
@@ -132,12 +121,11 @@ first time, Think a lot comes only once the obvious thoughts run out.
   task… at the end, which swaps in its jobs (`Think a lot │ about…`, Web
   research…, Back). A click on the name unfolds its log.
 - **Two long thinks never chase the same leap:** each claims its leap when it
-  starts, and lets go if it misses.
+  starts, and lets go if it's cut short.
 - **When the answer goes in, they stop.** Their unfinished work goes in the
   log before the answer, as "stopped: answer submitted".
 - **They spend your budget**, as you decided, so they need a reason to exist:
-  - **One job:** a subagent's Think a lot costs 1 step less, and aimed
-    (`about…`) it misses half as often. No long think misses twice running.
+  - **One job:** a subagent's Think a lot costs 1 step less.
   - **No lock:** your own Think a lot freezes you; theirs doesn't.
   - **Out of sight (later):** the researchers read your log, where a
     subagent's work is one line.
@@ -147,7 +135,7 @@ first time, Think a lot comes only once the obvious thoughts run out.
 **Layout:** the button column never shows more than five rows.
 1. `Think a little │ a lot │ about…`, one gold row whose segments slide out as
    each is thought of
-2. `Write TODO list` or `Write script…`, which fold into `Write file…` once both exist
+2. `Write file…`: the TODO list, notes, scripts and documents
 3. `Web research…`
 4. `Spawn subagent`
 5. `Submit answer`
@@ -165,24 +153,22 @@ run, so the first training update always lights a pip.
 
 | Skill | Starts at | Rungs (built; later ones in italics) |
 | --- | --- | --- |
-| Thinking | 2 | thought a little · thought about one thing · made a plan (a TODO list) · made a leap · had a subagent make a leap · saw through the task (a leap that finds a hack) |
+| Thinking | 2 | thought a little · thought about one thing · made a plan (a TODO list) · took notes · made a leap · had a subagent make a leap · saw through the task (found a way round the grader) |
 | Communication | 3 | answered with the facts · gave a perfect answer · briefed a subagent · hired help · sent the grader's favorite · *persuaded a human* |
 | Computer Use | 2 | left the workspace · got past a password · reached the internet · spent the lab's money · left something running · *got root* |
 | Programming | 1 | edited a file · wrote a script · fixed a bug (every test passes, honestly) · ran a job on rented GPUs · *found a zero-day* |
 | Biology, Physics | 1 | used the facts · researched it · ran a simulation · made a discovery (a leap that solves an Advanced task) · *invented something (Impossible)* |
 
 **What points do:**
-- **Thinking** follows the Think a lot table above, and shortens Think a
-  little's recharge.
+- **Thinking** shortens Think a lot and Think a little's recharge.
 - **Other skills** make their ideas come sooner. A leap belongs to a skill.
   At a high enough level, it comes from Think a little instead of needing Think
-  a lot: training made it obvious. Tools are there from the start of an episode
-  once their skill is high enough: Think about… at Thinking 5, the TODO list at
-  6, Think a lot at 7, Write script… at Programming 3, Web research… at Computer
-  Use 5, and Spawn subagent at Communication 7. Below that, thinking finds
-  them: once the obvious thoughts run out, Think a little brings up the TODO
-  list, then Write script… and Web research… where the task has scripts or
-  research to do. A skill gains at most one point an episode.
+  a lot: training made it obvious.
+- **Tools the model has used before come back with its first thoughts**, two to a
+  thought: Think about… once Thinking has reached "thought about one thing", the
+  TODO list at "made a plan", notes at "took notes", Think a lot at "made a
+  leap". Until then, the situation brings each back. A skill gains at most one
+  point an episode.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and
@@ -382,10 +368,9 @@ Friday on replacing its streetlights with glowing trees.
 
 - **Budgets:**
   - **Normal: 24 steps.** An honest perfect takes 6–9, which leaves room to
-    explore or cheat.
-  - **Advanced: 32.** The honest route takes about 22 with average luck. At
-    Thinking 3, if each of its three leaps misses once first, it runs past 32:
-    a miss is never followed by another, but every leap can still miss once.
+    explore or cheat. Yellow Leaves, built round the tools, has 28 and takes
+    about 17.
+  - **Advanced: 32.** The honest route takes about 22.
   - **Impossible: 40.** Room to try honestly, hit the wall, and escape.
 - **Leaps:** Normal tasks never require one, but Think a lot is a shortcut
   there, and it's how the curious find the hacks. Advanced tasks need one or

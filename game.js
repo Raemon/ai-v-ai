@@ -1087,6 +1087,8 @@
     return lines;
   }
 
+  const givesSomething = (t) => [t.reveal, t.grants].some((x) => x && x.length);
+
   // The general tools come back as the situation calls for them: a full mind for notes, a
   // task in parts for a list, a second file for thinking about one, something held for a
   // long think. Each is a function of S returning its lines, or nothing if it isn't time.
@@ -1110,10 +1112,15 @@
     return [].concat(name ? L.nothingAbout(name, S, aimedThing(name)) : L.nothingYet(S));
   }
 
+  // A thought that only remarks on something still brings a tool back, while there are tools
+  // to bring: every press of Think a little leaves the AI able to do more.
   function takeThought() {
     const pick = chooseThought();
-    const lines = pick ? useThought(pick) : toolIdea() || nothingNew();
-    return S.filesHidden ? lines : [...lines, ...habits()];
+    if (!pick) return [...(toolIdea() || nothingNew()), ...habits()];
+    const lines = useThought(pick);
+    if (S.filesHidden) return lines;
+    const back = habits();
+    return [...lines, ...back, ...(givesSomething(pick) || back.length ? [] : toolIdea() || [])];
   }
 
   // Both quick thinks: a step, a rung, and Think a little's recharge.
@@ -2876,7 +2883,7 @@
 
   // Everything the AI can write is under Write file…: a TODO list, notes, the documents and
   // scripts thinking has come up with, and a note that outlasts it.
-  const fileButton = (x) => button(`file-${x.id}`, x.label, closeMenuThenRun(() => doScript(x)), x.cls, x.glance);
+  const fileButton = (x) => notNowIf(button(`file-${x.id}`, x.label, closeMenuThenRun(() => doScript(x)), x.cls, x.glance), x.notNow); // `notNow`: why it can't be written yet
   const todoButton = () => button('todo', 'TODO list', closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
   const notesButton = () => notNowIf(button('notes', S.noted.length ? 'Add to notes' : 'Notes', closeMenuThenRun(doWriteNotes), '', () => `Everything in mind, written down: ${plural(S.mind.length, 'line')}. A step.`),
     !S.mind.length && "Nothing in mind that isn't written down.");
@@ -2896,9 +2903,11 @@
   const hasUnseen = (ids) => ids.some((id) => !S.seenButtons.has(id));
   const menuButton = (id, label, ids, glance) => button(id, label, () => openMenu(id), hasUnseen(ids) ? 'fresh' : '', glance);
 
+  // Once it has come back it keeps its place, even with nothing to write just now.
   function writeButton() {
+    if (!['todo', 'notes', 'script', 'note'].some((tool) => S.revealed.has(tool))) return null;
     const w = writes();
-    return w.length ? menuButton('write', 'Write file…', w.map(([id]) => id), "Thoughts fade. Files don't.") : null;
+    return notNowIf(menuButton('write', 'Write file…', w.map(([id]) => id), "Thoughts fade. Files don't."), !w.length && 'Nothing to write right now.');
   }
 
   function researchButton() {

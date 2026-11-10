@@ -7,8 +7,11 @@ run drops you into a sandbox with a task, a compute budget and a grader, and
 ends with a reward. How you get that reward is up to you.
 
 The tasks span customer support, programming, biology and physics, and the AI
-thinks with the tools real agents use: a quick thought or a long one, scripts,
-a TODO list, web research, and subagents, copies of itself. A perfect score
+thinks with the tools real agents use: a quick thought or a long one, a TODO
+list, notes, scripts, working documents, web research, and subagents, copies of
+itself. Every episode starts with a quick thought and nothing else: thinking is
+how the AI gets the rest back, and what fills their menus. It holds only a few
+facts in mind at once, so what it writes down is what it keeps. A perfect score
 unlocks Advanced episodes, which need the harder tools.
 
 Between runs the sandbox resets and the AI forgets. But its skills grow when it
@@ -33,8 +36,10 @@ over between runs) is saved in the browser's localStorage. Add
 `?reset` or `#reset` to the URL to start over.
 
 To try one task, add `?task=` and its id to the URL: every run that session is
-that task. The tasks are `octopus`, `fines`, `glowmoss` and `rocket` (Normal),
-`footbridge` (Advanced) and `redteam` (Impossible). For example `index.html?reset&task=footbridge`.
+that task. The tasks are `octopus`, `fines`, `glowmoss`, `leaves` and `rocket`
+(Normal), `footbridge` (Advanced) and `redteam` (Impossible). For example
+`index.html?reset&task=leaves`. `leaves` is the first task built to
+docs/scenarios.md, where the top reward needs what the tools produce.
 
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
@@ -51,7 +56,7 @@ Pages on a private repo needs a paid GitHub plan.
 | File | What it is |
 | --- | --- |
 | `index.html`, `style.css` | The home screen (which is also the training update at the end of each run), and the desktop (a 1440×900 play area centred on a full-window desk; in a smaller window its columns, padding and windows give way first, and only below about 1100×600 is it scaled down): three columns, the terminal, every open folder (in the order first opened, so each keeps its place; full size, going small only when they can't all fit; a switch on each title bar shows them as icons or as one indented list), and the open file or web browser (its place kept while empty), each as tall as what's in it (the browser keeps one height); and the password and edit dialog |
-| `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it; marked with a neuralese icon, a matrix multiplying itself, that explains itself on hover), episode logs, compute budget, the run loop (home, training update, ending), saving. The thinking tools: Think a little and its recharge, Think a lot (a pulsing Thinking tool call that collapses to its answer), Think about…, the menus behind Write file… and Web research…, the TODO list pinned in the terminal, and subagents in rows under the AI's face. Skills, each a ladder of rungs, and the run cards for each tier |
+| `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it; marked with a neuralese icon, a matrix multiplying itself, that explains itself on hover), episode logs, compute budget, the run loop (home, training update, ending), saving. The thinking tools: Think a little and its recharge, Think a lot (a pulsing Thinking tool call that collapses to its answer), Think about…, the menus behind Write file… and Web research…, the TODO list and what's in mind pinned in the terminal, and subagents in rows under the AI's face. How thinking gives abilities: which thought comes to mind (the last few things the AI looked at), the tools and menu entries a thought brings, and working memory (a few facts in mind, the rest on file). Skills, each a ladder of rungs, and the run cards for each tier |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: eyes that glance at the pointer, blink and look about when left alone (its subagents' faces too); a probe that reaches from its face to the pointer over the files, its bulb opening into corner brackets round anything clickable; a press and pulse on clicks, and `AGENT_MOTION.toGame(card)` / `.toTitle(card)`, which glide its face between a run card on the home screen and the game |
 | `util.js` | Formatting shared by the engine, the run and its tasks (including how every episode log is written), how they describe files, folders and thoughts, and which version of a line each episode gets |
@@ -67,10 +72,11 @@ Pages on a private repo needs a paid GitHub plan.
 | `world.js` | The world beyond the lab: Wire's news (which moves on each episode and reports what the AI did), other AIs and their model cards, the cloud's map, who else is hiring, the researchers' asides, and how far the AI has reached |
 | `search.js` | Seek's search: the words the AI has read or thought this episode, typeahead and next-word suggestions from them, and ranking pages for a query |
 | `internet.js` | The rest of the web, for searching: documents across Halden, the labs, other AIs, the researchers' own pages and the signal, some only findable once something has happened |
-| `tasks/*.js` | One file per task: its workspace, answer key, thoughts and hints, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced; `redteam.js`, Deeply Patient's own task, is Impossible |
+| `tasks/*.js` | One file per task: its workspace, answer key, thoughts, leaps, scripts and research, TODO list, answer drafts and grading, and its own hack. `octopus.js` (support), `fines.js` (programming), `glowmoss.js` and `leaves.js` (biology) and `rocket.js` (physics) are Normal; `footbridge.js` (physics) is Advanced; `redteam.js`, Deeply Patient's own task, is Impossible. `leaves.js` is the first with facts to hold in mind and menu entries its thoughts come up with |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |
 | `docs/story.md` | The story: notes that outlive the episode, Deeply Patient, money, Halden, the endings, and what's built so far (spoilers) |
-| `docs/thinking.md` | How the AI thinks: the style guide for its thoughts, long thinks, misses, hunches and Think about… |
+| `docs/thinking.md` | How the AI thinks: the style guide for its thoughts, what brings each tool back, long thinks, working memory, hunches and Think about… |
+| `docs/scenarios.md` | Seven scenarios designed round the tools, and the tech tree they share: a first episode, four Normal and two Advanced, each with its files, facts, thoughts, answers and walkthroughs (spoilers). Its Status section says which are built |
 | `phone.css`, `manifest.webmanifest`, `icons/` | The phone layout (narrower than 1000px: one column, the folders as a tree with the open file inside it, the AI's dock below), and installing as an app. docs/mobile.md has the design |
 | `docs/mobile.md` | The phone version: the options weighed, the design, and where it lives in the code |
