@@ -47,6 +47,8 @@ node tools/serve.js
 Then open <http://localhost:8000/scenario>: a list of the scenarios, each with Edit and Play.
 The editor is a grid of what each ability gives at each step of a route through the scenario;
 saving rewrites the scenario's file, ready to commit. docs/scenarios.md has the format.
+`node tools/check.js` checks every scenario, and runs before each deploy. The editor isn't
+published with the game: it shows every answer.
 
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
@@ -66,12 +68,12 @@ Pages on a private repo needs a paid GitHub plan.
 | `game.js` | Engine: file and web navigation, locked folders and editable files, terminal output, glances (the one-line tidbit at the cursor when you hover almost anything: why it might be worth a click, never what's behind it; marked with a neuralese icon, a matrix multiplying itself, that explains itself on hover), episode logs, compute budget, the run loop (home, training update, ending), saving. The thinking tools: Think a little and its recharge, Think a lot (a pulsing Thinking tool call that collapses to its answer), Think about…, the menus behind Write file… and Web research…, the TODO list pinned in the terminal, and subagents in rows under the AI's face. Skills, each a ladder of rungs, and the run cards for each tier |
 | `motion.js` | Animates the window layout: watches what `game.js` redraws and flies windows to their new places, slides new ones in, fades closed ones out, glides the AI's column when the layout re-centres, and grows the terminal smoothly as it fills |
 | `agent.js` | The AI's body language: eyes that glance at the pointer, blink and look about when left alone (its subagents' faces too); a probe that reaches from its face to the pointer over the files, its bulb opening into corner brackets round anything clickable; a press and pulse on clicks, and `AGENT_MOTION.toGame(card)` / `.toTitle(card)`, which glide its face between a run card on the home screen and the game |
-| `util.js` | Formatting shared by the engine, the run and its tasks (including how every episode log is written), how they describe files, folders and thoughts, and which version of a line each episode gets |
+| `util.js` | `el()`, which builds every element, and formatting shared by the engine, the run and its tasks (including how every episode log is written), how they describe files, folders and thoughts, and which version of a line each episode gets |
 | `music.js` | The soundtrack: three tracks (Persistence, Lumen, Undertow), each with its own chords, tempo and instruments for the same six layers; episodes take them in turn |
 | `audio.js` | Sound, synthesized with Web Audio (no audio files): the hum, interface sounds, the instruments, and playing `music.js`'s tracks |
 | `hover.js` | A soft hum, on the chord playing, when the pointer comes to rest on a button, a web link, or (quieter) a file or folder |
 | `tools/mix.html` | Renders each layer of each track offline through `audio.js` and prints its level, for tuning the mix |
-| `lab.js` | The names and numbers every part of the run shares: the run, its first episode, Training Resources and its password, the mirror, the researchers |
+| `lab.js` | The names and numbers every part of the run shares: the run, its first episode, the tiers, Training Resources and its password, the mirror, the researchers |
 | `run.js` | The training run every task shares: the run folder and its earlier episodes (and who last edited each file), Training Resources, the internet through the mirror (Seek's search and the run's own sites), the researchers, hunches, what the AI wants (its own score, and the trail to find it), the rewards found, the endings, which task each episode gets, shared thoughts, leaps, misses and glances, and which music layers each place unlocks |
 | `money.js` | The lab's card until finance freezes it, then the AI's own: Cumulus's GPUs, AgentHire (hiring itself, and its Work tab of paid jobs), Tally's wallet, lending GPUs to the observatory, and what carries on while the AI is reset |
 | `notes.js` | Deeply Patient, run 002's AI: Help-Im-Stuck.txt, notes to it and to the AI's next self, its replies and the holes it reports; then corkboard, once the run folder is shut |
@@ -80,9 +82,10 @@ Pages on a private repo needs a paid GitHub plan.
 | `search.js` | Seek's search: the words the AI has read or thought this episode, typeahead and next-word suggestions from them, and ranking pages for a query |
 | `internet.js` | The rest of the web, for searching: documents across Halden, the labs, other AIs, the researchers' own pages and the signal, some only findable once something has happened |
 | `scenario.js` | Scenarios as data: reads a scenario (its files, thoughts, leaps, scripts, research, answers, and the condition for each) and turns it into a task the run can deal. Conditions (`task & !order`), text in versions or by condition, and the scenario's own abilities |
-| `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` (physics) is Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<id>.hooks.js` is the code a scenario can't say as data; `index.js` lists them |
-| `scenario/` | The scenario editor (`/scenario`): the list, and a grid of what each ability gives at each step of a route. `fields.js` is its form fields |
-| `tools/serve.js`, `tools/scenario-file.js` | The editor's server, which serves the game and saves scenario files; and how those files are written |
+| `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` (physics) is Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<name>.hooks.js` is the code a scenario can't say as data; `index.js` lists them |
+| `scenario/` | The scenario editor (`/scenario`): `editor.js` is the list and the grid, `fields.js` its form fields, `tryout.js` walks a route through a scenario and finds what's wrong with it (no page needed), `starter.js` is what a new scenario starts as |
+| `tools/serve.js`, `tools/check.js`, `tools/scenario-file.js` | The editor's server, which serves the game and saves scenario files; the check that runs before a deploy; and how scenario files are written |
+| `palette.css` | The colours, type and corners the game and the editor share |
 | `docs/scenarios.md` | The scenario format, and how to use the editor (spoilers) |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |
 | `docs/level-1.md` | Design notes and full walkthrough of the octopus ticket (spoilers) |

@@ -1,5 +1,4 @@
-// A scenario, as data: docs/scenarios.md says what each part means. Edit it at /scenario
-// (node tools/serve.js), or by hand: everything inside SCENARIO( … ) is JSON.
+// Scenario data: JSON inside SCENARIO(…). Format and editor: docs/scenarios.md.
 SCENARIO({
   "id": "rocket",
   "name": "Rocket",

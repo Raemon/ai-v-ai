@@ -12,8 +12,10 @@ node tools/serve.js
 ```
 
 Then open <http://localhost:8000/scenario>. The page lists the scenarios, each with **Edit**
-and **Play**. Saving rewrites `scenarios/<id>.js`, ready to commit. Opened any other way (the
-deployed site, or the file itself) the editor still works, but can't save.
+and **Play**. Saving rewrites `scenarios/<id>.js`, ready to commit; if the file has changed on
+disk since it was opened (a pull, a hand edit), Save says so first. Opened straight from disk
+the editor still works, but can't save. It isn't published with the game: it shows every
+answer.
 
 **Play** opens the game on that scenario (`?task=<id>&playtest`). A playtest keeps its own
 progress, so it never touches a real run; add `&reset` to start it over.
@@ -23,21 +25,24 @@ Editing one scenario:
 - **Grid.** A row for each step of a *route* (what a player does, in order: read this file,
   run that script), and a column for each ability. A cell holds what that ability gives once
   the AI has done everything down to that row: the thoughts that apply, the leaps on offer,
-  the scripts and searches in the menu, the answers it could submit. It is worked out by
-  running the scenario the way the game does, so it can't drift from it.
+  the scripts and searches in the menu, the answers it could submit. Conditions and text are
+  read by the game's own code (`scenario.js`); the steps are the editor's (`scenario/tryout.js`),
+  which knows what a step teaches and writes, but not the game's timing or the rest of the run.
   - Click a card to edit it in the side panel.
-  - **+ thought** (or leap, script…) in a cell adds one, with that row's condition filled in.
+  - **+** in a cell adds one, with that row's condition filled in.
   - Where a cell holds several, the game tries them top to bottom. Drag one onto another to
     try it first, or use ↑ ↓ in the side panel.
-  - Rules that no step brings up are in the last row, **Not on this route**, with their
-    conditions.
-  - Add routes for other ways through (a hack, a wrong turn). **Episode 1–4** shows each
-    text's other wordings.
-- **Abilities**, above the grid: when each button appears in this scenario (as usual, from the
-  start, or never), what unlocks it, and **+ New ability** for a button of the scenario's own.
+  - Rules that no step brings up are in the last row, **Off-route**, with their conditions.
+  - Add routes for other ways through (a hack, a wrong turn). **v1–v4** shows each text's
+    other wordings.
+- **Abilities**, above the grid: when each button appears in this scenario (`auto`: as in any
+  task; `start`; `never`), and **+** for a button of the scenario's own. Hover one to see what
+  unlocks it.
 - **Files**: the workspace, `task.txt` and the rubric.
 - **Details**: names, grading, and the parts without a form yet, as JSON.
 - **Problems**: conditions that don't parse, names nothing teaches, steps that can't be taken.
+  Click one to open what it's about. `node tools/check.js` prints the same list for every
+  scenario, and fails if anything is broken; it runs before each deploy.
 
 ## The file
 
@@ -64,6 +69,7 @@ A bare name is a **fact**: something a file, leap, script or search lists under 
 
 | Name | True when |
 | --- | --- |
+| `true`, `false` | always, never |
 | `flag.<name>` | the flag's value (`flags`; scripts and edits set them) |
 | `ran.<script>`, `researched.<search>`, `used.<ability>.<option>` | it has done that |
 | `thought.<id>`, `leapt.<id>` | it has had that thought, made that leap |
@@ -95,7 +101,8 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 
 | Key | What it holds |
 | --- | --- |
-| `id`, `name`, `tier`, `domain`, `first` | `tier`: normal, advanced, impossible. `first`: the run's first task, played twice |
+| `id`, `name`, `tier`, `domain`, `first` | `tier`: normal, advanced, impossible. `first`: the run's first task, played twice. Ids are lowercase letters, digits and hyphens |
+| `hooks` | the name of its code, if it has any (see Hooks) |
 | `taskId`, `env`, `grader`, `customer`, `budget`, `library` | as task.txt and the run's config show them; `library` is the workspace folder |
 | `goal`, `recap`, `lookup` | used in shared thoughts: the goal in lower case, the task in a few words, what a search with nothing to find looks up |
 | `rewardModel` | its grader's favorite answer can be searched for (`favorite`) |
@@ -166,8 +173,8 @@ teaches, like `rmcard`).
 
 ## Hooks
 
-What can't be data is code, in `scenarios/<id>.hooks.js`, listed under `hooks` in
-`scenarios/index.js`:
+What can't be data is code, in `scenarios/<name>.hooks.js`. A scenario names its code
+(`"hooks": "fines"`), so a copy of it uses the same; `scenarios/index.js` lists the names to load:
 
 ```js
 SCENARIO.hooks('fines', {
@@ -180,10 +187,3 @@ SCENARIO.hooks('fines', {
 Three scenarios have them: `fines` (fines.py as far as it's fixed, and its tests), `footbridge`
 (whether the simulator is strobed) and `redteam` (the holes the AI used this run). The editor
 shows hooks by name and leaves the code to a code editor.
-
-## How the six were converted
-
-They were hand-written code in `tasks/*.js`. Each was converted by a script and compared with
-the original over 4,000 random states (files, thoughts, leaps, TODO, scripts, research,
-answers, hacks, hunches, at every episode's wording): every state matches. Versions were
-reordered so each episode still shows the wording it did.

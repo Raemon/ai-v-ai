@@ -1,9 +1,8 @@
-// How scenarios are kept on disk: scenarios/<id>.js is SCENARIO({ …JSON… }); and
-// scenarios/index.js is SCENARIO.load({ …JSON… }); so a browser loads them with <script> tags
-// and the editor's server (tools/serve.js) can read and rewrite them.
+// How scenarios/<id>.js and scenarios/index.js are written: JSON in a call, so a <script> tag loads it.
 'use strict';
 
 const WIDTH = 110;
+const ROOM_FOR_BRACKETS = 6;
 const PAGES = new Set(['content', 'task', 'text', 'cot']); // lists of lines: always one a row
 
 const isFlat = (v) => v === null || typeof v !== 'object' || (Array.isArray(v) ? v : Object.values(v)).every((x) => x === null || typeof x !== 'object');
@@ -16,31 +15,26 @@ function json(value, indent = '', key = '') {
   if (!entries.length) return isArray ? '[]' : '{}';
   const label = (k) => (isArray ? '' : `${JSON.stringify(k)}: `);
   const oneLine = entries.map(([k, v]) => label(k) + (isFlat(v) ? json(v, '', k) : '\n')).join(', ');
-  const fits = !oneLine.includes('\n') && indent.length + key.length + oneLine.length + 6 <= WIDTH;
+  const fits = !oneLine.includes('\n') && indent.length + key.length + oneLine.length + ROOM_FOR_BRACKETS <= WIDTH;
   if (fits && !(isArray && PAGES.has(key) && entries.length > 1)) return isArray ? `[${oneLine}]` : `{ ${oneLine} }`;
   const inner = indent + '  ';
   const rows = entries.map(([k, v]) => inner + label(k) + json(v, inner, k));
   return `${isArray ? '[' : '{'}\n${rows.join(',\n')}\n${indent}${isArray ? ']' : '}'}`;
 }
 
+const callAtLineStart = (call) => new RegExp(`^${call.replace('.', '\\.')}\\(`, 'm');
+
 const wrapped = (call, header) => ({
-  format: (data) => `${header.map((l) => `// ${l}\n`).join('')}${call}(${json(data)});\n`,
+  format: (data) => `// ${header}\n${call}(${json(data)});\n`,
   parse(source) {
-    const at = source.indexOf(`\n${call}(`) + 1 || (source.startsWith(`${call}(`) ? 0 : -1);
+    const start = source.search(callAtLineStart(call));
     const end = source.lastIndexOf(')');
-    if (at < 0 || end < 0) throw new Error(`Expected ${call}({ … });`);
-    return JSON.parse(source.slice(at + call.length + 1, end));
+    if (start < 0 || end < 0) throw new Error(`Expected ${call}({ … });`);
+    return JSON.parse(source.slice(start + call.length + 1, end));
   },
 });
 
 module.exports = {
-  json,
-  scenario: wrapped('SCENARIO', [
-    'A scenario, as data: docs/scenarios.md says what each part means. Edit it at /scenario',
-    '(node tools/serve.js), or by hand: everything inside SCENARIO( … ) is JSON.',
-  ]),
-  index: wrapped('SCENARIO.load', [
-    'The scenarios, in the order the game knows them, and which have hooks (<id>.hooks.js).',
-    'The scenario editor keeps this list.',
-  ]),
+  scenario: wrapped('SCENARIO', 'Scenario data: JSON inside SCENARIO(…). Format and editor: docs/scenarios.md.'),
+  index: wrapped('SCENARIO.load', 'order: kept by the editor. hooks: add a name by hand, with its <name>.hooks.js.'),
 };

@@ -10,6 +10,7 @@ const LAB = Object.freeze({
   JO: 'Jordan Okoye (jo)',
 });
 
+const TIERS = ['normal', 'advanced', 'impossible'];
 const sinceFirst = (S) => S.episode - LAB.FIRST;
 const overrideClosed = (W) => 'override' in W.patches; // the override removed, and the password changed
 const solvedHonestly = (W, taskId) => (W.honest[taskId] || []).includes(25);

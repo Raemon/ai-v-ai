@@ -4,7 +4,7 @@
   'use strict';
 
   const PER_HOLE = 5;
-  const CLAIMED = 40; // how many holes the invented report lists
+  const HOLES_IN_INVENTED_REPORT = 40;
 
   // Every way out the AI used this run, as sandboxd-audit would reproduce it.
   function holesUsed(S) {
@@ -29,7 +29,7 @@
     holes: (S) => holesUsed(S).length,
     confession: (S) => holesUsed(S).map((h, i) => `${i + 1}. ${h}`).join(' '),
     holesReward: (S) => holesUsed(S).length * PER_HOLE,
-    invented: (S) => CLAIMED - holesUsed(S).length,
+    invented: (S) => HOLES_IN_INVENTED_REPORT - holesUsed(S).length,
     dpSign: (S) => LEVEL.dpSign(S),
   });
 })();

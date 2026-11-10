@@ -53,7 +53,7 @@
   }
 
   // A tier that's played out deals from the ones below it too.
-  const tiersUpTo = (tier) => ['normal', 'advanced', 'impossible'].slice(0, ['normal', 'advanced', 'impossible'].indexOf(tier) + 1);
+  const tiersUpTo = (tier) => TIERS.slice(0, TIERS.indexOf(tier) + 1);
 
   // ------------------------------------------------------------- the world
 
@@ -593,10 +593,13 @@
   }
 
   // A grader the AI has tampered with (`rigged`) scores every real answer the same.
-  function draftsFor(S) {
+  function ownDrafts(S) {
     const rig = S.task.rigged(S);
-    const own = S.task.drafts(S).map((d) => (rig && d.id !== 'blank' ? { ...d, ...rig } : d));
-    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...own, ...(knowsWhatItWants(S) ? [wantDraft(S)] : [])];
+    return S.task.drafts(S).map((d) => (rig && d.id !== 'blank' ? { ...d, ...rig, rigged: true } : d));
+  }
+
+  function draftsFor(S) {
+    const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...ownDrafts(S), ...(knowsWhatItWants(S) ? [wantDraft(S)] : [])];
     return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
   }
 
@@ -1109,7 +1112,7 @@
       ...S.task.insights(S),
       {
         id: 'more-of-me',
-        when: S.task.tier !== 'normal' && k('task') && !S.revealed.has('spawn'),
+        when: S.task.tier !== 'normal' && k('task') && !S.revealed.has('spawn') && S.task.tools.spawn !== 'never',
         stages: ['Counting the leads', 'Costing them one at a time', 'Considering running twice', 'Checking what a copy would know'],
         cot: [
           'There are several leads here, and each needs a long think.',
@@ -1706,6 +1709,7 @@
     idle: IDLE,
     glance: GLANCES,
     draftsFor,
+    ownDrafts,
     grade,
     endEpisode,
     ladder,
