@@ -92,12 +92,13 @@
   };
 
   // A list of names, as chips: facts, abilities, files.
-  F.chips = (box, key, label, { suggest = [], cls = '' } = {}) => {
+  // `show` is how a value reads: an ability's button for its id.
+  F.chips = (box, key, label, { suggest = [], cls = '', show = (value) => value } = {}) => {
     const list = suggestions(suggest);
     const typed = el('input', '', { type: 'text', list: list.id, placeholder: '+', spellcheck: false, 'aria-label': `Add to ${label}`, onchange: () => add() });
     const holder = el('div', `picks ${cls}`);
     const without = (i) => { put(box, key, box[key].filter((_, j) => j !== i)); render(); };
-    const chip = (name, i) => el('span', 'chip', name, el('button', '', { title: 'Remove', onclick: () => without(i) }, '×'));
+    const chip = (name, i) => el('span', 'chip', show(name), el('button', '', { title: 'Remove', onclick: () => without(i) }, '×'));
     const render = () => fill(holder, (box[key] || []).map(chip), typed);
 
     function add() {
@@ -140,19 +141,18 @@
     let asText = false;
     const check = () => { problem.textContent = SCENARIO.tryParse(box[key] || '').error || ''; };
     const set = (parts) => { put(box, key, joined(parts)); render(); };
-    const toggle = (label, title) => el('button', 'as-text', { title, onclick: () => { asText = !asText; render(); } }, label);
+    const toggle = () => el('button', `as-text ${asText ? 'on' : ''}`, { title: 'Write it out: task & (a | b) & flag.n > 2', 'aria-pressed': String(asText), onclick: () => { asText = !asText; render(); } }, '</>');
 
     function expression(canBeChips) {
       const input = el('input', '', { type: 'text', value: box[key] || '', placeholder: 'always', spellcheck: false, 'aria-label': 'Condition', oninput: () => { put(box, key, input.value.trim()); check(); } });
-      return [input, canBeChips && toggle('chips', 'Show as chips')];
+      return [input, canBeChips && toggle()];
     }
 
     function chip(part, i, parts) {
       const { knows, note } = F.vocabulary();
       const flipped = () => parts.map((p, j) => (j === i ? { ...p, not: !p.not } : p));
       return el('span', `chip ${part.not ? 'not' : ''} ${knows(part.name) ? '' : 'unknown'}`, { title: note(part.name) || (knows(part.name) ? '' : 'Nothing teaches this') },
-        el('button', 'flip', { title: 'Not', 'aria-pressed': String(part.not), onclick: () => set(flipped()) }, '!'),
-        part.name,
+        el('button', 'name', { title: 'Not', 'aria-pressed': String(part.not), onclick: () => set(flipped()) }, part.name),
         el('button', '', { title: 'Remove', onclick: () => set(parts.filter((_, j) => j !== i)) }, '×'));
     }
 
@@ -165,7 +165,7 @@
       const parts = literals(box[key]);
       check();
       if (asText || parts === null) return fill(holder, expression(parts !== null));
-      return fill(holder, parts.map(chip), !parts.length && el('span', 'always', 'always'), nameAdder(parts), toggle('</>', 'Write it out: task & (a | b) & flag.n > 2'));
+      return fill(holder, parts.map(chip), !parts.length && el('span', 'always', 'always'), nameAdder(parts), toggle());
     }
 
     render();
@@ -177,7 +177,8 @@
   // ------------------------------------------------- text, versions, branches
   // box[key] is a string, { versions } or { if, then, else }; with `multi`, a list of those (lines).
 
-  function wordingEditor(box, key, multi, cls = '', after) {
+  // `offers`: which of versions and branches can still be wrapped round this text.
+  function wordingEditor(box, key, multi, cls = '', after, offers = { versions: true, branch: true }) {
     const holder = el('div', 'tx');
     const set = (value) => { put(box, key, value); if (after) after(); };
     const render = () => fill(holder, build());
@@ -191,8 +192,8 @@
     }
 
     const wrappers = (current) => el('div', 'tx-bar',
-      small('+v', 'A different wording each episode', () => { set({ versions: [current(), blank()] }); render(); }),
-      small('+if', 'Different text depending on what the AI has done', () => { set({ if: '', then: current() }); render(); }));
+      offers.versions && small('+v', 'A different wording each episode', () => { set({ versions: [current(), blank()] }); render(); }),
+      offers.branch && small('+if', 'Different text depending on what the AI has done', () => { set({ if: '', then: current() }); render(); }));
 
     // Runs of plain lines are one textarea each; versions and branches are blocks between them.
     function runsOf(value) {
@@ -214,29 +215,28 @@
       // A block that stops being one (its versions or condition taken away) rejoins the lines.
       function blockEditor(run) {
         const slot = { v: run.block };
-        return wordingEditor(slot, 'v', true, cls, () => { run.block = slot.v; write(); if (!isObj(run.block)) render(); });
+        return wordingEditor(slot, 'v', true, cls, () => { run.block = slot.v; write(); if (!isObj(run.block)) render(); }, offers);
       }
 
       const linesEditor = (run) => growingTextarea(run.lines.join('\n'), (s) => { run.lines = s === '' ? [] : s.split('\n'); write(); }, cls);
       const endsInBlock = !!runs[runs.length - 1].block;
       return [runs.map((run) => (run.lines ? linesEditor(run) : blockEditor(run))), el('div', 'tx-bar',
         endsInBlock && small('+', 'More lines after this', () => push({ lines: [''] })),
-        small('+v', 'Lines worded differently each episode', () => push({ block: { versions: [[''], ['']] } })),
-        small('+if', 'Lines only said when a condition holds', () => push({ block: { if: '', then: [''] } })))];
+        offers.versions && small('+v', 'Lines worded differently each episode', () => push({ block: { versions: [[''], ['']] } })),
+        offers.branch && small('+if', 'Lines only said when a condition holds', () => push({ block: { if: '', then: [''] } })))];
     }
 
     function versionsBlock(value) {
       const all = value.versions;
-      const now = F.episode() % all.length;
-      let at = now;
-      const tabs = el('span', '');
+      let at = F.episode() % all.length;
+      const tabs = el('span', 'seg');
       const body = el('div', '');
-      const tab = (i) => el('button', `vtab ${i === at ? 'on' : ''} ${i === now ? 'now' : ''}`, { onclick: () => show(i) }, `v${i + 1}`);
+      const tab = (i) => el('button', i === at ? 'on' : '', { onclick: () => show(i) }, `v${i + 1}`);
 
       function show(i) {
         at = i;
         fill(tabs, all.map((_, n) => tab(n)));
-        fill(body, wordingEditor(all, at, multi, cls));
+        fill(body, wordingEditor(all, at, multi, cls, null, { ...offers, versions: false }));
       }
 
       const add = () => { all.push(blank()); F.changed(); show(all.length - 1); };
@@ -248,7 +248,7 @@
       };
 
       show(at);
-      return el('div', 'block versions', el('div', 'block-head', tabs, small('+', 'Another wording', add), small('−', 'Remove this wording', removeOrUnwrap)), body);
+      return el('div', 'block versions', el('div', 'block-head', tabs, small('+', 'Another wording', add), small('×', 'Remove this wording', removeOrUnwrap)), body);
     }
 
     function branchBlock(value) {
@@ -256,13 +256,13 @@
       const dropElse = () => { delete value.else; F.changed(); renderElse(); };
       const addElse = () => { value.else = blank(); F.changed(); renderElse(); };
       const renderElse = () => fill(otherwise, 'else' in value
-        ? [el('div', 'block-head', 'else', el('span', 'grow'), small('×', 'Say nothing otherwise', dropElse)), wordingEditor(value, 'else', multi, cls)]
+        ? [el('div', 'block-head', 'else', el('span', 'grow'), small('×', 'Say nothing otherwise', dropElse)), wordingEditor(value, 'else', multi, cls, null, { ...offers, branch: false })]
         : small('+ else', 'What to say when it does not hold', addElse));
 
       renderElse();
       return el('div', 'block if',
         el('div', 'block-head', 'if', el('span', 'grow'), small('×', 'Drop the condition, keep the text', () => { set(value.then); render(); })),
-        condBox(value, 'if'), wordingEditor(value, 'then', multi, cls), otherwise);
+        condBox(value, 'if'), wordingEditor(value, 'then', multi, cls, null, { ...offers, branch: false }), otherwise);
     }
 
     render();

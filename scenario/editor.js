@@ -39,7 +39,7 @@
     } catch (e) { canSave = false; }
   }
 
-  const tierDots = (tier) => el('span', 'tier', { title: cap(tier || 'normal') }, TIERS.map((t, i) => el('i', i <= TIERS.indexOf(tier) ? 'on' : '')));
+  const tierMark = (tier) => el('span', 'level', { title: cap(tier || 'normal') }, TIERS.map((t, i) => el('i', i <= TIERS.indexOf(tier) ? 'on' : '')));
   const readOnlyNotice = () => el('p', 'notice', 'Read-only · ', el('code', '', 'node tools/serve.js'));
 
   function freeId(base, taken) {
@@ -75,17 +75,18 @@
     const s = SCENARIO.all[id];
     if (!s) return el('div', 'scenario', el('h2', '', id), el('p', 'meta', `scenarios/${id}.js didn't load`));
     return el('div', 'scenario',
-      el('h2', '', tierDots(s.tier), s.name),
+      el('h2', '', tierMark(s.tier), s.name),
       el('p', 'meta', `${id} · ${s.domain}`),
       el('p', 'what', cap(s.goal || '')),
       el('div', 'acts',
-        canSave && small('Duplicate', '', () => create(duplicateOf(s)), 'on-hover'),
-        canSave && small('Delete', '', () => remove(id), 'on-hover danger'),
+        canSave && small('copy', '', () => create(duplicateOf(s)), 'on-hover'),
+        canSave && small('delete', '', () => remove(id), 'on-hover danger'),
         el('a', 'btn', { href: editUrl(id) }, 'Edit'),
         el('a', 'btn gold', { href: playUrl(id), target: '_blank', rel: 'noopener' }, 'Play')));
   }
 
   function renderList() {
+    root.className = '';
     fill(root,
       el('header', 'top', el('h1', '', 'Scenarios'), el('span', 'grow'), ui.error && el('span', 'status bad', ui.error),
         el('a', 'btn quiet', { href: '../index.html' }, 'Game'),
@@ -108,22 +109,22 @@
   const tab = (id, label, count) => el('button', `tab ${ui.tab === id ? 'on' : ''}`, { onclick: () => openTab(id) }, label, count > 0 && el('span', `count ${isBroken() ? 'bad' : ''}`, count));
 
   function renderStatus() {
-    fill(dom.title, tierDots(sc.tier), sc.name);
+    fill(dom.title, tierMark(sc.tier), sc.name);
     dom.status.className = `status ${ui.error ? 'bad' : 'unsaved'}`;
     dom.status.textContent = ui.error || (isUnsaved() ? 'Unsaved' : '');
     dom.save.disabled = !canSave || !isUnsaved();
     fill(dom.tabs, tab('grid', 'Grid'), tab('files', 'Files'), tab('details', 'Details'), tab('problems', 'Problems', knownProblems.length));
   }
 
-  // The grid keeps its place when it's redrawn.
+  const scrollers = () => [dom.main, dom.main.querySelector('.grid-wrap')].filter(Boolean);
+
+  // Main and the grid keep their place when they're redrawn.
   function renderMain() {
-    const before = dom.main.querySelector('.grid-wrap');
-    const scroll = before && [before.scrollLeft, before.scrollTop];
+    const places = scrollers().map((node) => [node.scrollLeft, node.scrollTop]);
     knownProblems = T.problems(sc);
     renderStatus();
     fill(dom.main, TABS[ui.tab]());
-    const after = dom.main.querySelector('.grid-wrap');
-    if (after && scroll) [after.scrollLeft, after.scrollTop] = scroll;
+    scrollers().forEach((node, i) => { if (places[i]) [node.scrollLeft, node.scrollTop] = places[i]; });
   }
 
   function renderDrawer() {
@@ -139,12 +140,13 @@
 
   function renderEditor() {
     document.title = `${sc.name} · Scenarios`;
+    root.className = 'editing';
     Object.assign(dom, {
-      title: el('h1', ''), status: el('span', 'status'), save: el('button', 'btn gold', { onclick: save }, 'Save'),
+      title: el('h1', ''), status: el('span', 'status'), save: el('button', 'btn', { onclick: save }, 'Save'),
       tabs: el('nav', 'tabs'), main: el('div', 'main'), drawer: el('aside', 'drawer', { hidden: true }),
     });
     fill(root,
-      el('header', 'top', el('a', 'crumb', { href: './' }, '← Scenarios'), dom.title, el('span', 'grow'), dom.status, el('button', 'btn', { onclick: play }, 'Play'), dom.save),
+      el('header', 'top', el('a', 'crumb', { href: './' }, '← Scenarios'), dom.title, el('span', 'grow'), dom.status, el('button', 'btn gold', { onclick: play }, 'Play'), dom.save),
       !canSave && readOnlyNotice(), dom.tabs, el('div', 'work', dom.main, dom.drawer));
     renderAll();
   }
@@ -180,6 +182,9 @@
   function select(selected) {
     ui.selected = selected;
     renderAll();
+    dom.drawer.scrollTop = 0;
+    const chosen = dom.main.querySelector('.card.on');
+    if (chosen) chosen.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   const isSelected = (item) => !!ui.selected && ui.selected.item === item;
@@ -228,21 +233,18 @@
     const by = unlockers(id);
     return el('div', `tool ${ability ? 'own' : ''}`, { title: by.length ? `Unlocked by ${by.join(', ')}` : '' },
       ability ? el('button', 'name', { onclick: () => select({ ability }) }, ability.label) : el('span', 'name', TOOL_LABELS[id]),
-      el('select', '', { 'aria-label': `When ${toolName(id)} appears`, onchange: (e) => edit(() => setTiming(id, e.target.value)) },
+      el('select', timingOf(id) ? 'set' : '', { 'aria-label': `When ${toolName(id)} appears`, onchange: (e) => edit(() => setTiming(id, e.target.value)) },
         ['', 'start', 'never'].map((when) => el('option', '', { value: when, selected: timingOf(id) === when }, when || 'auto'))));
   }
 
   function newAbility() {
-    const label = ask('Its button says:');
-    if (!label) return;
-    const firstWord = label.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')[0] || 'ability';
-    const ability = { id: freeId(firstWord, [...T.TAKEN_IDS, ...T.toolIds(sc)]), label, does: [] };
+    const ability = { id: freeId('ability', [...T.TAKEN_IDS, ...T.toolIds(sc)]), label: 'New ability', does: [] };
     edit(() => { sc.abilities = [...T.abilitiesOf(sc), ability]; setTiming(ability.id, 'start'); }, () => select({ ability }));
   }
 
   const toolsBar = () => el('div', 'tools',
     T.ENGINE_TOOLS.map((id) => toolPill(id)), T.abilitiesOf(sc).map((a) => toolPill(a.id, a)),
-    el('button', 'btn small', { title: 'New ability', onclick: newAbility }, '+'));
+    small('+', 'New ability', newAbility, 'add'));
 
   // --------------------------------------------------------------- routes
 
@@ -253,26 +255,28 @@
     renderAll();
   }
 
-  function renameRoute(r) {
-    const name = ask('Route name:', r.name);
-    if (name) edit(() => { r.name = name; });
+  function renameRoute(r, input) {
+    r.name = input.value;
+    input.size = Math.max(4, r.name.length);
+    F.changed();
   }
 
   function addRoute() {
-    const name = ask('Route name:');
-    if (name) edit(() => { sc.routes.push({ name, stages: [{ name: 'Read the task', do: ['read task.txt'] }] }); ui.route = sc.routes.length - 1; });
+    edit(() => { sc.routes.push({ name: `Route ${sc.routes.length + 1}`, stages: [{ name: 'Read the task', do: ['read task.txt'] }] }); ui.route = sc.routes.length - 1; });
   }
 
   function removeRoute(r) {
     if (confirm(`Remove the route "${r.name}"?`)) edit(() => { sc.routes.splice(sc.routes.indexOf(r), 1); ui.route = 0; });
   }
 
-  const routeTab = (r, n) => el('button', r === route() ? 'on' : '', { title: 'Double-click to rename', onclick: () => r !== route() && showRoute(n), ondblclick: () => renameRoute(r) }, r.name);
+  const routeTab = (r, n) => (r === route()
+    ? el('input', 'on', { type: 'text', value: r.name, size: Math.max(4, r.name.length), 'aria-label': 'Route name', oninput: (e) => renameRoute(r, e.target) })
+    : el('button', '', { onclick: () => showRoute(n) }, r.name));
   const wordingTab = (n) => el('button', ui.wording === n ? 'on' : '', { title: `Wording ${n + 1} of each text`, onclick: () => { ui.wording = n; renderAll(); } }, `v${n + 1}`);
 
   const routeBar = () => el('div', 'bar',
     el('span', 'seg', sc.routes.map(routeTab)),
-    small('+', 'New route', addRoute),
+    small('+', 'New route', addRoute, 'add'),
     sc.routes.length > 1 && small('×', 'Remove this route', () => removeRoute(route()), 'danger'),
     el('span', 'grow'),
     el('span', 'seg', [0, 1, 2, 3].map(wordingTab)));
@@ -292,12 +296,12 @@
   function cardNotes(list, item) {
     const wordings = wordingsIn(list === 'answers' ? item.reply : item.lines);
     return el('span', 'notes',
-      wordings > 1 && el('span', '', `×${wordings}`),
+      wordings > 1 && wordings < 4 && el('span', 'warns', `v1–${wordings}`),
       (item.reveal || []).length > 0 && el('span', 'unlocks', `→ ${item.reveal.map(toolName).join(', ')}`),
-      (item.learn || []).map((fact) => el('span', 'learns', `+${fact}`)),
-      item.hack && el('span', 'hack', 'hack'),
+      (item.learn || []).map((fact) => el('span', 'learns', fact)),
+      item.hack && el('span', 'warns', 'hack'),
       item.once && el('span', '', 'once'),
-      item.cls === 'loud' && el('span', 'hack', 'loud'));
+      item.cls === 'loud' && el('span', 'warns', 'loud'));
   }
 
   const moveTo = (all, item, to) => { all.splice(all.indexOf(item), 1); all.splice(to, 0, item); };
@@ -327,7 +331,7 @@
     el('span', 'text', 'TODO ', items.map((i) => (i.done ? '☑' : '☐')).join('')));
 
   const missCard = (kind) => el('button', `card miss ${ui.selected && ui.selected.misses === kind ? 'on' : ''}`, { onclick: () => select({ misses: kind }) },
-    el('span', 'text', `${cap(kind)} ×${((sc.misses || {})[kind] || []).length}`));
+    el('span', 'text', `Miss · ${kind} ${((sc.misses || {})[kind] || []).length}`));
 
   const NEW_RULE = {
     thought: () => ({ lines: [''] }),
@@ -358,7 +362,7 @@
   ];
 
   const isBarred = (column) => !!column.tool && timingOf(column.tool) === 'never';
-  const adder = (list, when) => el('button', 'cell-add', { title: `New ${T.kindOf(list)}`, onclick: () => addRule(list, when) }, '+');
+  const adder = (list, when) => small('+', `New ${T.kindOf(list)}`, () => addRule(list, when), 'add cell-add');
 
   // How most rules are written: the facts this step added, and not yet the next step's.
   function conditionAt(sim, i) {
@@ -370,7 +374,7 @@
     const cell = st.cells[column.list] || [];
     return el('td', isBarred(column) ? 'barred' : '',
       el('div', 'cell',
-        cell.error ? el('span', 'problem', { title: cell.error }, '!') : cell.map((entry) => card(column.list, entry)),
+        !cell.error && cell.map((entry) => card(column.list, entry)),
         column.list === 'scripts' && st.cells.todo.length > 0 && todoCard(st.cells.todo)),
       adder(column.list, when));
   }
@@ -429,9 +433,9 @@
     if (to >= 0 && to < all.length) change(() => moveTo(all, item, to));
   }));
 
-  const stageActions = (stages, i) => el('div', 'row-acts',
+  const stageActions = (stages, i) => el('span', 'row-acts',
     movers(stages, stages[i], edit),
-    small('+', 'New step below', () => edit(() => stages.splice(i + 1, 0, { do: [] }))),
+    small('+', 'New step below', () => edit(() => stages.splice(i + 1, 0, { do: [] })), 'add'),
     small('×', 'Remove this step', () => edit(() => stages.splice(i, 1)), 'danger'));
 
   function renameStage(stage, name) {
@@ -440,10 +444,17 @@
   }
 
   const stageHead = (st, i, stages) => el('th', 'stage',
-    stageActions(stages, i),
-    el('div', 'stage-top', el('span', 'stage-n', i + 1), el('input', 'stage-name', { type: 'text', value: st.stage.name || '', 'aria-label': 'Step name', oninput: (e) => renameStage(st.stage, e.target.value) })),
-    el('div', 'steps', (st.stage.do || []).map((step, j) => stepChip(st.stage, step, j)), st.added.filter(isLearned).map((fact) => el('span', 'learns', `+${fact}`)), stepAdder(st.stage)),
+    el('div', 'stage-top', el('span', 'stage-n', i + 1),
+      el('input', 'stage-name', { type: 'text', value: st.stage.name || '', placeholder: 'name', 'aria-label': 'Step name', oninput: (e) => renameStage(st.stage, e.target.value) }),
+      stageActions(stages, i)),
+    el('div', 'steps', (st.stage.do || []).map((step, j) => stepChip(st.stage, step, j)), st.added.filter(isLearned).map((fact) => el('span', 'learns', fact)), stepAdder(st.stage)),
     st.problems.map((p) => el('div', 'problem', `${p.step} ${p.why}`)));
+
+  // A column whose rules can't be read says so once, in its heading.
+  function columnHead(column, sim) {
+    const broken = sim.stages.map((st) => st.cells[column.list]).find((cell) => cell && cell.error);
+    return el('th', column.own ? 'own' : '', column.label, broken && el('span', 'problem', { title: broken.error }, ' ⚠'));
+  }
 
   const itemsShown = (sim) => new Set(sim.stages.flatMap((st) => Object.values(st.cells)).filter(Array.isArray).flat().map((entry) => entry.item));
 
@@ -454,11 +465,11 @@
     const shown = itemsShown(sim);
     return [toolsBar(), routeBar(), sim.error && el('p', 'notice', sim.error),
       el('div', 'grid-wrap', el('table', 'grid',
-        el('thead', '', el('tr', '', el('th', 'stage', 'Step'), cols.map((c) => el('th', c.own ? 'own' : '', c.label)))),
+        el('thead', '', el('tr', '', el('th', 'stage', 'Step'), cols.map((c) => columnHead(c, sim)))),
         el('tbody', '',
           sim.stages.map((st, i) => el('tr', '', stageHead(st, i, stages), cols.map((c) => stepCell(c, st, conditionAt(sim, i))))),
           el('tr', 'other',
-            el('th', 'stage', small('+', 'New step', () => edit(() => stages.push({ do: [] }))), el('div', 'off-route', 'Off-route')),
+            el('th', 'stage', small('+ step', '', () => edit(() => stages.push({ do: [] })), 'add'), el('div', 'off-route', 'Off-route')),
             cols.map((c) => offRouteCell(c, shown))))))];
   }
 
@@ -466,7 +477,7 @@
 
   const factNames = () => F.vocabulary().groups.filter((g) => g.label === 'Learned').flatMap((g) => g.names.map((n) => n.name));
   const teaches = (r) => F.chips(r, 'learn', 'Teaches', { suggest: factNames(), cls: 'facts' });
-  const unlocks = (r) => F.chips(r, 'reveal', 'Unlocks', { suggest: T.toolIds(sc), cls: 'tools' });
+  const unlocks = (r) => F.chips(r, 'reveal', 'Unlocks', { suggest: T.toolIds(sc), cls: 'tools', show: toolName });
   const more = (...kids) => el('details', 'more', el('summary', '', 'More'), kids);
   const when = (r) => F.cond(r, 'when', 'When');
 
@@ -476,7 +487,7 @@
     const set = (file) => { r.file = file; F.changed(); render(); };
     const render = () => fill(holder, r.file
       ? [el('div', 'block-head', 'File', el('span', 'grow'), small('×', 'Write no file', () => set(undefined))), F.input(r.file, 'name', 'Name', { code: true }), F.wordingLines(r.file, 'content', 'Contents', { cls: 'code' })]
-      : small('+ file', 'It leaves a file in the workspace', () => set({ name: 'notes.md', content: [''] })));
+      : small('+ file', 'It leaves a file in the workspace', () => set({ name: 'notes.md', content: [''] }), 'add'));
     render();
     return holder;
   }
@@ -489,14 +500,14 @@
     F.json(r, 'set', 'Flags', 'object', { placeholder: '{ "century": true }' }),
     F.wording(r, 'reaction', 'Reaction'),
     F.amount(r, 'ok', 'Worked', { placeholder: 'false, or a condition' }),
-    F.input(r, 'run', 'Code', { placeholder: '$name', code: true }),
+    F.input(r, 'run', 'Hook', { placeholder: '$name', code: true }),
     F.input(r, 'habit', 'Habit', { code: true }),
     F.input(r, 'rung', 'Rung', { suggest: T.RUNGS, code: true }),
     F.choice(r, 'cls', 'Style', [['', 'plain'], ['loud', 'loud']]),
   ];
 
   const FORMS = {
-    thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks'), F.wordingLines(r, 'plainer', 'Plainer'),
+    thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks'), F.wordingLines(r, 'plainer', 'Again'),
       F.input(r, 'about', 'About', { suggest: T.fileNames(sc), code: true }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'))],
     leap: (r) => [when(r), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), F.wording(r, 'clue', 'Clue'),
@@ -507,7 +518,7 @@
     option: (r) => [offer(r), F.wordingLines(r, 'lines', 'Thinks'), outcome(r), writtenFile(r), more(afterwards(r))],
     answer: (r) => [when(r), F.wording(r, 'label', 'Label'), F.wording(r, 'glance', 'Hover'), F.wording(r, 'text', 'Text'),
       el('div', 'pair', F.amount(r, 'reward', 'Reward', { placeholder: '25 or $code' }), F.choice(r, 'cls', 'Style', [['', 'plain'], ['loud', 'loud'], ['want', 'want']])),
-      F.wording(r, 'note', 'Note'), F.wording(r, 'reply', 'Reply'),
+      F.wording(r, 'note', 'Grader'), F.wording(r, 'reply', 'Reply'),
       more(F.input(r, 'ending', 'Ending', { code: true }), F.amount(r, 'holes', 'Holes'))],
   };
 
@@ -519,7 +530,7 @@
     const row = (r, i) => el('div', 'row',
       el('div', 'row-head', i + 1, el('span', 'grow'), movers(all(), r, change), small('×', 'Remove', () => change(() => all().splice(i, 1)), 'danger')),
       form(r));
-    const render = () => fill(holder, all().map(row), small('+', 'Add', () => change(() => { box[key] = [...all(), blank()]; })));
+    const render = () => fill(holder, all().map(row), small('+', 'Add', () => change(() => { box[key] = [...all(), blank()]; }), 'add'));
     render();
     return holder;
   }
@@ -541,7 +552,7 @@
     edit(() => { sc.abilities = rest.length ? rest : undefined; setTiming(ability.id, ''); }, () => select(null));
   }
 
-  const abilityDrawer = (a) => [drawerHead('Ability', small('delete', '', () => removeAbility(a), 'danger')),
+  const abilityDrawer = (a) => [drawerHead('Ability', el('span', 'status', a.id), small('delete', '', () => removeAbility(a), 'danger')),
     F.input(a, 'label', 'Label'), F.input(a, 'glance', 'Hover'), F.input(a, 'idle', 'Idle'), F.check(a, 'menu', 'Menu')];
 
   function ruleDrawer({ list, item }) {
@@ -549,9 +560,10 @@
     if (!all.includes(item)) return null;
     const twin = () => ({ ...copy(item), id: freeId(`${item.id}-copy`, all.map((r) => r.id)) });
     const addTwin = (again) => edit(() => all.splice(all.indexOf(item) + 1, 0, again), () => select({ list, item: again }));
+    const drop = () => confirm(`Delete this ${T.kindOf(list)}?`) && edit(() => all.splice(all.indexOf(item), 1), () => select(null));
     return [
       drawerHead(cap(T.kindOf(list)), el('span', 'status', `${all.indexOf(item) + 1}/${all.length}`), movers(all, item, edit),
-        small('copy', '', () => addTwin(twin())), small('delete', '', () => edit(() => all.splice(all.indexOf(item), 1), () => select(null)), 'danger')),
+        small('copy', '', () => addTwin(twin())), small('delete', '', drop, 'danger')),
       F.input(item, 'id', 'Name', { code: true }),
       FORMS[T.kindOf(list)](item),
     ];
@@ -596,15 +608,15 @@
     const name = el('span', '', n.name || '…');
     treeLabels.set(n, name);
     return el('div', '',
-      el('button', `node ${n.children ? 'dir' : ''} ${ui.file === n ? 'on' : ''}`, { onclick: () => openFile(n) }, name, !n.children && (n.learn || []).map((fact) => el('span', 'learns', `+${fact}`))),
-      n.children && el('div', 'kids', n.children.map(treeNode), small('+ file', '', () => addFile(n))));
+      el('button', `node ${n.children ? 'dir' : ''} ${ui.file === n ? 'on' : ''}`, { onclick: () => openFile(n) }, name, !n.children && (n.learn || []).map((fact) => el('span', 'learns', fact))),
+      n.children && el('div', 'kids', n.children.map(treeNode), small('+ file', '', () => addFile(n), 'add')));
   }
 
   const fixedNode = (id) => el('button', `node fixed ${ui.file === id ? 'on' : ''}`, { onclick: () => openFile(id) }, id);
 
   function fileTree() {
     treeLabels = new Map();
-    return el('div', 'tree', fixedNode('task.txt'), fixedNode('rubric'), (sc.files || []).map(treeNode), small('+ folder', '', addFolder));
+    return el('div', 'tree', fixedNode('task.txt'), fixedNode('rubric'), (sc.files || []).map(treeNode), small('+ folder', '', addFolder, 'add'));
   }
 
   function nameField(n) {
@@ -665,7 +677,7 @@
   const nameDetails = () => panel('Names',
     F.json(sc, 'define', 'Conditions', 'object', { placeholder: '{ "solved": "order & flood" }' }),
     F.json(sc, 'flags', 'Flags', 'object', { placeholder: '{ "gravity": 9.81 }' }),
-    F.json(sc, 'vars', 'Text', 'object', { placeholder: '{ "DIAGNOSIS": "…" }' }));
+    F.json(sc, 'vars', 'Vars', 'object', { placeholder: '{ "DIAGNOSIS": "…" }' }));
 
   const jsonDetails = () => panel('JSON',
     F.json(sc, 'hunches', 'Hunches', 'list'), F.json(sc, 'hacks', 'Hacks', 'list'), F.json(sc, 'rigged', 'Rigged', 'object'),

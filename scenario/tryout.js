@@ -310,18 +310,19 @@
       const { error, stages } = walk(sc, route);
       if (error) say(['routes', route.name], error, true);
       stages.forEach((st, i) => st.problems.forEach((p) => say(['routes', route.name, `step ${i + 1}`], `"${p.step}" ${p.why}.`, false)));
-      stages.flatMap((st) => Object.entries(st.cells)).filter(([, cell]) => cell.error).forEach(([key, cell]) => say([key], cell.error, true));
+      stages.flatMap((st) => Object.entries(st.cells)).filter(([, cell]) => cell.error).forEach(([key, cell]) => say([key], cell.error, true, true));
     }
   }
 
   function problems(sc) {
     const found = [];
-    const say = (trail, text, bad) => found.push({ where: trail.join(' · '), text, bad, at: opens(trail) });
+    const say = (trail, text, bad, fromCell) => found.push({ where: trail.join(' · '), text, bad, fromCell, at: opens(trail) });
     const { knows } = vocabulary(sc);
     conditionProblems(sc, say, knows);
     fillProblems(sc, say);
     [idProblems, unlockProblems, nameClashes, gradingProblems, routeProblems].forEach((check) => check(sc, say));
-    return found.filter((p, i) => found.findIndex((q) => q.text === p.text && q.where === p.where) === i);
+    const saidElsewhere = (p) => p.fromCell && found.some((q) => !q.fromCell && q.text === p.text);
+    return found.filter((p, i) => !saidElsewhere(p) && found.findIndex((q) => q.text === p.text && q.where === p.where) === i);
   }
 
   window.TRYOUT = { KINDS, kindOf, listOf, listsOf, abilitiesOf, eachFile, fileNames, ENGINE_TOOLS, TAKEN_IDS, toolIds, givers, vocabulary, startingRoute, walk, problems, RUNGS };
