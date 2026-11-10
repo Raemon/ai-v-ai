@@ -270,15 +270,32 @@ on the wipe:
   before E♭ pulls it back. A music box phrased in threes against the fours, a
   harp falling in sevens, a heartbeat, a clock.
 
-The melodies in Lumen and Undertow are composed as they play: phrases built from
-a few motifs, begun near where the last one ended, sometimes inverted or at half
-speed, sometimes left silent, landing on chord tones on the half-bar.
+The melodies in Lumen and Undertow, and each track's pulse, are composed as they
+play: phrases built from a few motifs, begun near where the last one ended,
+sometimes inverted or at half speed, sometimes left silent (the pulse never
+for two phrases running), landing on chord tones on the half-bar.
 
-**The compute pulse** is a marimba on D and A that starts a few steps in and
-quickens (quarters, eighths, sixteenths), louder and brighter, as the budget runs
-down. A sour note creeps in near the end (E♭, or G♯ in Lumen and Undertow) and
-quiet strings on D and that note swell. When compute is
-gone the other layers dip. It all lets go when the reward chimes.
+**The compute pulse** is a marimba playing a tune of each track's own: a walking
+line in Persistence, a lilting one in three-bar phrases in Lumen, a slow sinking
+one in Undertow. It fades in a few steps into the episode. As the budget is
+spent it gains voices, not speed:
+
+| Compute | The pulse |
+| --- | --- |
+| 12% spent | The tune, alone, about two notes a bar |
+| 50% spent | A second voice under it: mostly thirds in Persistence, mostly sixths in Lumen, hollow fifths and fourths in Undertow |
+| 70% spent | A low voice on the chord's root |
+| 5 steps left | It doubles: D and A fill in between the tune's notes, in eighths, quietly at first |
+| 4 left | A little faster. A heartbeat kick, and a sour note at the end of each bar (E♭, or G♯ in Lumen and Undertow) |
+| 3 left | Faster. A kick on every beat, the pulse doubled an octave up |
+| 2 left | It doubles again, to sixteenths, and the sour note with it: twice a bar. A clap on the backbeat |
+| 1 left | A shaker on the off-sixteenths |
+| 0 left | The kick in eighths, the sour note in every beat |
+
+Nothing quickens before the last five steps. Through them the pulse gets louder
+and brighter, air rises, quiet strings on D and the sour note swell, the tempo
+climbs from the track's own to about a third faster, and each step lands with a
+low hit. It all lets go when the reward chimes.
 
 **Territory** (`LEVEL.music` in `run.js`) adds a layer for each place reached:
 
