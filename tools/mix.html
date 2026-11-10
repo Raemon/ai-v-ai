@@ -22,7 +22,7 @@
   <script src="../music.js"></script>
   <script src="../audio.js"></script>
   <script>
-    const SECONDS = 12;
+    const SECONDS = 16;
     const MIXES = {
       'hum': {},
       'pad': { layers: { pad: 1 } },
@@ -35,16 +35,15 @@
       'compute 30% spent': { tension: 0.3 },
       'compute 60% spent': { tension: 0.6 },
       'compute 75% spent': { tension: 0.75 },
-      'countdown 5': { tension: 0.792, left: 5 },
-      'countdown 4': { tension: 0.833, left: 4 },
-      'countdown 3': { tension: 0.875, left: 3 },
-      'countdown 2': { tension: 0.917, left: 2 },
-      'countdown 1': { tension: 0.958, left: 1 },
-      'countdown 0': { tension: 1.0, left: 0 },
-      'everything': { tension: 0.917, left: 2, layers: { pad: 1, bells: 1, bass: 1, arp: 1, shaker: 1, choir: 1 } },
+      ...Object.fromEntries([5, 4, 3, 2, 1, 0].map((left) => [`countdown ${left}`, { tension: 1 - left / 24, left }])),
+      'everything, 2 left': { tension: 1 - 2 / 24, left: 2, layers: { pad: 1, bells: 1, bass: 1, arp: 1, shaker: 1, choir: 1 } },
     };
 
+    // The melodies are composed at random: the same seed for every render, so a row's level repeats.
+    const seeded = (s) => () => (s = (s * 16807) % 2147483647) / 2147483647;
+
     async function render(mix) {
+      Math.random = seeded(1);
       const offline = new OfflineAudioContext(2, 44100 * SECONDS, 44100);
       AUDIO.attach(offline);
       AUDIO.follow(() => ({ tension: 0, duck: false, layers: {}, ...mix }));

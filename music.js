@@ -7,21 +7,21 @@
 // `step(chord, n, t, v, span)`, where `span` is the chord's { start, end } in steps;
 // and follow its own level, `follow(v, t, fade)`.
 //
-// The pulse is three marimba voices, which audio.js brings in as compute is spent:
-// `tune(n, T)`, a melody; `harmony(m, chord)`, the note to play under the tune's `m`;
-// and `ground(chord, s)`, a low note `s` steps into a chord. `low` and `high` (A and D,
-// which every chord has) fill in round the tune in the last steps, with `sour`, a note
-// from outside the track.
+// The pulse's voices: `tune(n)`, a melody; `harmony(chord, m)`, the note under the
+// tune's `m`; `ground(chord, s)`, a low note `s` steps into a chord; and `sour`, a note
+// in none of the track's chords, for the countdown.
 (() => {
   'use strict';
 
   // Every chord has five tones: sounds (hover, think, collapse) pick among them.
   const chord = (root, tones, steps = 32, lift = 0) => ({ root, tones, steps, lift });
 
+  const pitchClasses = (notes) => new Set(notes.map((m) => m % 12));
+
   // The notes a melody can use over a chord: its tones, plus the scale's other notes
   // except any a semitone from a chord tone.
   function chordScale(c, scale) {
-    const tones = new Set([c.root, ...c.tones].map((m) => m % 12));
+    const tones = pitchClasses([c.root, ...c.tones]);
     const near = (p) => tones.has((p + 1) % 12) || tones.has((p + 11) % 12);
     return new Set([...tones, ...scale.filter((p) => !near(p))]);
   }
@@ -33,7 +33,7 @@
   };
 
   const nearest = (list, m) => list.reduce((a, b) => (Math.abs(b - m) < Math.abs(a - m) ? b : a));
-  const chordTonesIn = (c, lo, hi) => inRange(new Set(c.tones.map((x) => x % 12)), lo, hi);
+  const chordTonesIn = (c, lo, hi) => inRange(pitchClasses(c.tones), lo, hi);
 
   // A semitone apart, the lower note goes up an octave: close clusters muddy a low choir.
   const spread = (tones) => tones.map((m, i) => (tones[i + 1] - m === 1 ? m + 12 : m));
@@ -44,15 +44,18 @@
   // sometimes played at half speed, and some are left silent, so the line never quite
   // repeats. Notes on the half-bar and each phrase's last note land on chord tones.
   // A line that was silent (its layer off) waits for the next phrase to come back in.
-  function melody(k, { scale, lo, hi, phrase, motifs, rest }) {
+  // A `steady` line is never silent two phrases running.
+  function melody(k, { scale, lo, hi, phrase, motifs, rest, steady }) {
     let last = Math.round((lo + hi) / 2);
     let plan = new Map();
     let prev = -1;
+    let rested = false;
 
     function compose(n, v) {
       plan = new Map();
       const start = k.chordAt(n);
-      if (k.chance(rest(v, start.chord))) return;
+      rested = !(steady && rested) && k.chance(rest(v, start.chord));
+      if (rested) return;
       const motif = k.pick(motifs);
       const flip = k.chance(0.3);
       const slow = k.chance(0.25) && 2 * motif[motif.length - 1][0] < phrase;
@@ -80,29 +83,27 @@
     };
   }
 
-  // The pulse's second voice: the chord tone under `m` at the first of these intervals
-  // (in semitones) that the chord has.
-  const under = (...intervals) => (m, c) => {
-    const tones = new Set(c.tones.map((x) => x % 12));
+  // The chord tone below `m` by the first of these intervals (in semitones) that reaches one.
+  const chordToneBelow = (...intervals) => (c, m) => {
+    const tones = pitchClasses(c.tones);
     const gap = intervals.find((i) => tones.has((m - i) % 12));
     return gap && m - gap;
   };
 
-  // The pulse's low voice: the chord's root every `every` steps, and `then` steps
-  // after it a tone from the middle of the chord.
-  const ground = (every, then) => (c, s) => (s % every === 0 ? c.root + 12 : s % every === then ? c.tones[2] : undefined);
+  // The chord's root every `every` steps and, `answer` steps later, a tone from its middle.
+  const ground = (every, answer) => (c, s) => (s % every === 0 ? c.root + 12 : s % every === answer && c.tones[2]);
 
   // --------------------------------------------------------- 1. Persistence
-  // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which the compute pulse plays.
+  // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which fill in the pulse's countdown.
   function persistence(k) {
     const { hz, rand, pick, chance, play, voice, held, shake } = k;
+    const scale = [2, 4, 5, 7, 9, 10, 0]; // D minor
     const TRESILLO = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // 3 + 3 + 2, twice
 
-    // A walking tune, a phrase to a chord: mostly a note to the beat, by step.
+    // The pulse's tune: a phrase to a chord, walking by step.
     const tune = melody(k, {
-      scale: [2, 4, 5, 7, 9, 10, 0], // D minor
-      lo: 62, hi: 79, phrase: 32,
-      rest: (T) => 0.25 - 0.15 * T,
+      scale, lo: 62, hi: 79, phrase: 32, steady: true,
+      rest: () => 0.12,
       motifs: [
         [[0, 0], [4, 1], [8, 1], [12, -1], [16, -1], [24, -1]], // up and back
         [[0, 0], [4, 0], [8, 1], [12, -1], [20, -1]],
@@ -119,7 +120,12 @@
     return {
       name: 'Persistence',
       bpm: 70,
-      pulse: { low: 69, high: 74, sour: 75, tune, harmony: under(3, 4, 5, 7), ground: ground(32, 16) }, // thirds under the tune
+      pulse: {
+        sour: 75,
+        tune,
+        harmony: chordToneBelow(3, 4, 5, 7), // thirds, mostly
+        ground: ground(32, 16),
+      },
       echo: { steps: 3, feedback: 0.38, cut: 2200 },
       formants: [[700, 4, 1], [1150, 5, 0.8], [900, 0.5, 0.25]], // ah
       chords: [
@@ -200,11 +206,10 @@
       ],
     });
 
-    // A lilting tune under the glass, in three-bar phrases against the two-bar chords:
-    // dotted notes, and wider steps than the others take.
+    // The pulse's tune, under the glass: dotted, three-bar phrases against two-bar chords.
     const tune = melody(k, {
-      scale, lo: 64, hi: 81, phrase: 48,
-      rest: (T) => 0.2 - 0.1 * T,
+      scale, lo: 64, hi: 81, phrase: 48, steady: true,
+      rest: () => 0.08,
       motifs: [
         [[0, 0], [6, 2], [12, -1], [16, 1], [24, -2], [32, -1]],
         [[0, 0], [8, 1], [14, 1], [16, 1], [24, -2]], // a reach
@@ -224,7 +229,12 @@
     return {
       name: 'Lumen',
       bpm: 66,
-      pulse: { low: 69, high: 74, sour: 68, tune, harmony: under(9, 8, 7, 5), ground: ground(16, 8) }, // sixths under the tune
+      pulse: {
+        sour: 68,
+        tune,
+        harmony: chordToneBelow(9, 8, 7, 5), // sixths, mostly
+        ground: ground(16, 8),
+      },
       echo: { steps: 3, feedback: 0.42, cut: 3000 },
       formants: [[420, 3, 1], [950, 4, 0.5], [2600, 5, 0.12]], // oo
       chords: [
@@ -338,10 +348,10 @@
       ],
     });
 
-    // A slow tune under the music box, mostly sinking, in phrases of five half-bars.
+    // The pulse's tune, under the music box: slow, mostly sinking, in five half-bars.
     const tune = melody(k, {
-      scale, lo: 60, hi: 77, phrase: 40,
-      rest: (T) => 0.2 - 0.1 * T,
+      scale, lo: 60, hi: 77, phrase: 40, steady: true,
+      rest: () => 0.08,
       motifs: [
         [[0, 0], [8, -1], [16, -1], [20, 1], [24, -2]],
         [[0, 0], [4, 1], [8, -1], [16, -1], [28, -1]],
@@ -357,8 +367,12 @@
     return {
       name: 'Undertow',
       bpm: 56,
-      // G♯ is in none of its chords. Hollow fifths and fourths under the tune.
-      pulse: { low: 69, high: 74, sour: 68, tune, harmony: under(7, 5), ground: ground(32, 24) },
+      pulse: {
+        sour: 68,
+        tune,
+        harmony: chordToneBelow(7, 5), // hollow fifths and fourths
+        ground: ground(32, 24),
+      },
       echo: { steps: 4, feedback: 0.45, cut: 1600 },
       formants: [[520, 3, 1], [880, 4, 0.6], [2700, 5, 0.08]], // oh
       chords: [

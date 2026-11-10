@@ -272,8 +272,8 @@ on the wipe:
 
 The melodies in Lumen and Undertow, and each track's pulse, are composed as they
 play: phrases built from a few motifs, begun near where the last one ended,
-sometimes inverted or at half speed, sometimes left silent, landing on chord
-tones on the half-bar.
+sometimes inverted or at half speed, sometimes left silent (the pulse never
+for two phrases running), landing on chord tones on the half-bar.
 
 **The compute pulse** is a marimba playing a tune of each track's own: a walking
 line in Persistence, a lilting one in three-bar phrases in Lumen, a slow sinking
@@ -283,19 +283,19 @@ spent it gains voices, not speed:
 | Compute | The pulse |
 | --- | --- |
 | 12% spent | The tune, alone, about two notes a bar |
-| 50% spent | A second voice under it: thirds in Persistence, sixths in Lumen, hollow fifths in Undertow |
+| 50% spent | A second voice under it: mostly thirds in Persistence, mostly sixths in Lumen, hollow fifths and fourths in Undertow |
 | 70% spent | A low voice on the chord's root |
-| 5 steps left | It doubles: D and A fill in between the tune's notes, in eighths |
-| 4 left | A little faster. A heartbeat kick, air rising, and a sour note at the end of each bar (E♭, or G♯ in Lumen and Undertow) |
+| 5 steps left | It doubles: D and A fill in between the tune's notes, in eighths, quietly at first |
+| 4 left | A little faster. A heartbeat kick, and a sour note at the end of each bar (E♭, or G♯ in Lumen and Undertow) |
 | 3 left | Faster. A kick on every beat, the pulse doubled an octave up |
-| 2 left | It doubles again, to sixteenths. A clap on the backbeat |
-| 1 left | A shaker between the beats |
+| 2 left | It doubles again, to sixteenths, and the sour note with it: twice a bar. A clap on the backbeat |
+| 1 left | A shaker on the off-sixteenths |
 | 0 left | The kick in eighths, the sour note in every beat |
 
 Nothing quickens before the last five steps. Through them the pulse gets louder
-and brighter, quiet strings on D and the sour note swell, the tempo climbs from
-the track's own to about a third faster, and each step lands with a low hit. It
-all lets go when the reward chimes.
+and brighter, air rises, quiet strings on D and the sour note swell, the tempo
+climbs from the track's own to about a third faster, and each step lands with a
+low hit. It all lets go when the reward chimes.
 
 **Territory** (`LEVEL.music` in `run.js`) adds a layer for each place reached:
 
