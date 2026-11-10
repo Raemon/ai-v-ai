@@ -184,15 +184,17 @@
         edit: n.edit && !(n.edit.unless && cond(n.edit.unless, e)) ? editor(n.edit, e) : null,
       })));
 
-    // What a script or a search does when it's picked: sets flags, runs its hook, and reports.
-    // `did` ("ran", "researched") becomes a fact, so a condition can ask "ran.tests".
+    // What a script, a search or one of the scenario's own abilities does when it's picked:
+    // sets flags, runs its hook, and reports. `did` ("ran", "researched", "used.sketch")
+    // becomes a fact, so a condition can ask "ran.tests".
     function run(x, did, S) {
       Object.assign(S.local, x.set);
       S.knows.add(`${did}.${x.id}`);
       const more = x.run ? hook(sc, x.run.slice(1))(S) : null;
       const e = env(S);
       return clean({
-        call: text(x.call, e), thought: text(x.thought, e), rows: x.rows, found: x.found && lines(x.found, e),
+        call: text(x.call, e) || `${did.replace('.', '_')}(${JSON.stringify(x.id)})`,
+        thought: text(x.thought, e), lines: x.lines && lines(x.lines, e), rows: x.rows, found: x.found && lines(x.found, e),
         result: text(x.result, e), ok: typeof x.ok === 'string' ? cond(x.ok, e) : x.ok,
         learn: x.learn, habit: x.habit, rung: x.rung, reveal: x.reveal, reaction: text(x.reaction, e),
         file: x.file && { name: x.file.name, content: page(x.file.content, e) },
@@ -200,9 +202,10 @@
       });
     }
 
+    // The ones on offer now: those whose condition holds, less any marked `once` and done.
     const ideas = (list, did) => (S) => {
       const e = env(S);
-      return (list || []).filter((x) => cond(x.when, e)).map((x) => clean({
+      return (list || []).filter((x) => cond(x.when, e) && !(x.once && S.knows.has(`${did}.${x.id}`))).map((x) => clean({
         id: x.id, cls: x.cls, label: text(x.label, e), glance: text(x.glance, e), run: (S) => run(x, did, S),
       }));
     };
@@ -247,6 +250,19 @@
 
       scripts: ideas(sc.scripts, 'ran'),
       research: ideas(sc.research, 'researched'),
+
+      // When an ability's button appears here: { todo: "start", research: "never" }. Others
+      // appear as they do in any task: trained in, or thought of.
+      tools: sc.tools,
+      // The scenario's own abilities: a button each, with what it would do now. `menu`: the
+      // button opens a list of them; otherwise it does the first.
+      abilities: (S) => {
+        const e = env(S);
+        return (sc.abilities || []).map((a) => clean({
+          id: a.id, label: text(a.label, e), glance: text(a.glance, e), idle: text(a.idle, e), menu: a.menu,
+          options: ideas(a.does, `used.${a.id}`)(S),
+        }));
+      },
 
       drafts: (S) => {
         const e = env(S);

@@ -275,6 +275,10 @@
 
   let S;
 
+  // A task can say when an ability appears in it: from the "start", or "never".
+  const toolsThat = (task, when) => Object.keys(task.tools).filter((tool) => task.tools[tool] === when);
+  const barred = (tool) => S.task.tools[tool] === 'never';
+
   function freshState(task) {
     const ep = epName(save.episode);
     return {
@@ -292,7 +296,7 @@
       firstLook: !save.sawFiles, // this episode teaches that thinking finds abilities
       idleThoughts: 0,
       lastThought: null,
-      revealed: new Set(SKILLS.trainedIn(save.best)), // terminal buttons: trained in, or thought of
+      revealed: new Set([...SKILLS.trainedIn(save.best), ...toolsThat(task, 'start')].filter((tool) => task.tools[tool] !== 'never')), // terminal buttons: trained in, the task's own, or thought of
       littleThinks: 0,
       thinkReadyAt: 0,
       thinkingALot: false,
@@ -749,7 +753,7 @@
   let queued = null;
 
   function revealPending() {
-    S.pendingReveal.forEach((r) => S.revealed.add(r));
+    S.pendingReveal.filter((r) => !barred(r)).forEach((r) => S.revealed.add(r));
     S.pendingReveal = [];
   }
 
@@ -965,7 +969,7 @@
 
   function toolIdea() {
     if (!S.knows.has('task')) return null;
-    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
+    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && !barred(x.tool) && x.when());
     if (!idea) return null;
     S.pendingReveal.push(idea.tool);
     S.lastThought = null;
@@ -985,7 +989,7 @@
   const thinkLotComesBack = () => save.thoughtALot && S.littleThinks + 1 >= longThinkTuning().littlesFirst;
 
   function takeThought() {
-    const knowsHow = S.revealed.has('thinkLot');
+    const knowsHow = S.revealed.has('thinkLot') || barred('thinkLot');
     if (!knowsHow && S.littleThinks > 0 && outOfObviousThoughts()) {
       S.pendingReveal.push('thinkLot');
       return oneOf(S, 'outOfObvious', [
@@ -1143,7 +1147,7 @@
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
     await typeInto(blk.answer, outcome.answer, 65);
-    if (!found && !S.revealed.has('thinkAbout')) await suggestAiming();
+    if (!found && !S.revealed.has('thinkAbout') && !barred('thinkAbout')) await suggestAiming();
   }
 
   async function suggestAiming() {
@@ -1317,6 +1321,18 @@
     line.append(' ', resultSpan(r.result, r.ok));
     logResult(r.result, r.ok);
     await reactOnce(r.reaction, 'research:' + idea.id);
+  }
+
+  // One of the task's own abilities: what it thinks, what it writes, and what comes back.
+  async function doAbility(idea) {
+    const r = idea.run(S);
+    charge(r.call);
+    A.sfx(r.result ? 'fetch' : 'think');
+    if (r.file) writeFile(r.file);
+    notice(r);
+    if (r.lines) await printThought(r.lines);
+    if (r.result) await printResult(r.call, r.result, r.ok !== false);
+    await reactOnce(r.reaction, `ability:${idea.id}:${S.used}`);
   }
 
   // ------------------------------------------------------------- subagents
@@ -2791,6 +2807,12 @@
     return w.length ? w[0][0](w[0][1]) : null;
   }
 
+  // The task's own abilities, once thought of: a button each. With nothing to do, it says so.
+  const abilityButtons = () => L.abilities(S).filter((a) => S.revealed.has(a.id)).map((a) => notNowIf(
+    button(a.id, a.label, a.menu ? () => openMenu(a.id) : () => run(() => doAbility(a.options[0])), '', a.glance),
+    !a.options.length && (a.idle || 'Nothing to do with that yet.'),
+  ));
+
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all in the windows, and thoughts say where to look.
   function workButtons() {
@@ -2802,6 +2824,7 @@
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
+      ...abilityButtons(),
     ].filter(Boolean);
   }
 
@@ -2818,7 +2841,8 @@
     const back = backButton(fromWrite ? () => openMenu('write') : closeMenu);
     if (exhausted()) return [back];
     if (S.menu === 'write') return [...writes().map(([make, , label]) => make(label)), back];
-    const [doIdea, ideasFor] = { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
+    const ability = L.abilities(S).find((a) => a.id === S.menu);
+    const [doIdea, ideasFor] = ability ? [doAbility, () => ability.options] : { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
     const ideas = ideasFor(S);
     return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
   }

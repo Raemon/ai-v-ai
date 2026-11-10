@@ -15,7 +15,7 @@ function json(value, indent = '', key = '') {
   const entries = isArray ? value.map((v) => ['', v]) : Object.entries(value);
   if (!entries.length) return isArray ? '[]' : '{}';
   const label = (k) => (isArray ? '' : `${JSON.stringify(k)}: `);
-  const oneLine = entries.map(([k, v]) => label(k) + (isFlat(v) ? json(v) : '\n')).join(', ');
+  const oneLine = entries.map(([k, v]) => label(k) + (isFlat(v) ? json(v, '', k) : '\n')).join(', ');
   const fits = !oneLine.includes('\n') && indent.length + key.length + oneLine.length + 6 <= WIDTH;
   if (fits && !(isArray && PAGES.has(key) && entries.length > 1)) return isArray ? `[${oneLine}]` : `{ ${oneLine} }`;
   const inner = indent + '  ';

@@ -21,7 +21,7 @@
   const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
   const TASKS = {};
-  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null };
+  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null, tools: {}, abilities: () => [] };
   const REQUIRED = ['name', 'tier', 'domain', 'taskId', 'text', 'library', 'workspace', 'rubric', 'tiers', 'factual', 'nearMiss', 'drafts', 'thoughts', 'ready', 'notReady'];
 
   // A task brings only what's its own; run.js adds task.txt, the rubric file and the shared thoughts.
@@ -1692,6 +1692,7 @@
     web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl },
     scripts,
     research,
+    abilities: (S) => S.task.abilities(S),
     todo,
     insights,
     miss,
