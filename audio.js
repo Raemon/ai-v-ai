@@ -11,10 +11,16 @@
   const LOOKAHEAD = 0.3;
   const LAYER_NAMES = ['pad', 'bells', 'bass', 'arp', 'shaker', 'choir'];
 
-  // The last steps of compute, 4 3 2 1 0, as stages 1–5: each one faster and louder.
-  const FINAL_STEPS = 4;
-  const STAGE_SPEED = [70, 74, 79, 85, 92, 100].map((bpm) => bpm / 70);
-  const STAGE_NOTES = [null, 62, 69, 74, 81, 86]; // D A D A D, climbing
+  // How much of its compute an episode has spent when each voice of the pulse comes in.
+  const TUNE_FROM = 0.12;
+  const HARMONY_FROM = 0.5;
+  const GROUND_FROM = 0.7;
+
+  // The last steps of compute, 5 4 3 2 1 0, as stages 1–6. Nothing quickens before them.
+  // The first doubles the pulse, and each one after it is faster and louder.
+  const FINAL_STEPS = 5;
+  const STAGE_SPEED = [70, 70, 73, 77, 82, 87, 92].map((bpm) => bpm / 70);
+  const STAGE_NOTES = [null, 57, 62, 69, 74, 81, 86]; // A D A D A D, climbing
   const stepLength = () => 15 / track.bpm / STAGE_SPEED[stage];
 
   const hz = (m) => 440 * 2 ** ((m - 69) / 12);
@@ -592,8 +598,8 @@
       if (layer.chord && n === span.start) holdChord(name, span, t, (span.end - n) * stepLength());
       if (layer.step) layer.step(span.chord, n, t, v, span);
     }
-    pulse(n, t);
-    if (stage) countdownDrums(n, t);
+    pulse(n, t, span);
+    if (stage > 1) countdownDrums(n, t);
   }
 
   // Its notes may still be ringing from before it was switched off, so it never doubles them.
@@ -612,31 +618,49 @@
     if (dur > 1.5) holdChord(name, span, t, dur);
   }
 
-  // The compute budget as a marimba on D and A: quarters, eighths, then sixteenths as it
-  // runs down, louder and brighter, with the track's sour note creeping in near the end.
-  function pulse(n, t) {
+  // The compute budget as a marimba playing the track's tune, which fades in a few steps
+  // into the episode. As compute is spent it gains voices, not speed: a harmony under the
+  // tune from halfway, then a low voice. Only the countdown quickens it: D and A fill in
+  // round the tune, in eighths and then sixteenths, louder and brighter, with the track's
+  // sour note creeping in.
+  function pulse(n, t, span) {
     const T = applied.tension;
-    const every = T < 0.4 ? 4 : T < 0.65 ? 2 : 1;
-    if (T < 0.12 || n % every) return;
-    const k = (n % 16) / every;
-    const sour = (T >= 0.75 && k % 8 === 7) || (T >= 0.9 && k % 4 === 3) || (stage >= 4 && k % 2 === 1 && k % 4 !== 1);
-    const { low, high, sour: wrong } = track.pulse;
-    const m = sour ? wrong : k % 2 ? low : high;
-    const peak = 0.075 * T ** 1.5 * (n % 4 ? 0.65 : 1) * (1 + 0.1 * stage);
+    if (T < TUNE_FROM) return;
+    const p = track.pulse;
+    const peak = 0.045 * Math.min(1, 0.3 + 1.4 * (T - TUNE_FROM)) * (1 + 0.2 * stage);
     const at = t + rand(0, 0.002); // repeats of one note at a fixed tempo would add or cancel by their phase
-    play('marimba', m, { at, peak, dest: bus.pulse });
-    if (stage >= 2) play('marimba', m + 12, { at, peak: peak * 0.12 * (stage - 1), dest: bus.pulse });
+    const strike = (m, level, pan) => play('marimba', m, { at, peak: peak * level, pan, dest: bus.pulse });
+
+    const tune = p.tune(n, T);
+    const m = countedDown(n, tune);
+    if (m) strike(m, n % 4 ? 0.65 : 1, 0.1);
+    if (m && stage >= 3) strike(m + 12, 0.09 * (stage - 2), 0.1);
+    const harmony = tune && m === tune && T >= HARMONY_FROM && p.harmony(tune, span.chord);
+    if (harmony) strike(harmony, 0.55, -0.3);
+    const ground = T >= GROUND_FROM && p.ground(span.chord, n - span.start);
+    if (ground) strike(ground, 0.8, 0);
   }
 
-  // Under the countdown: a heartbeat kick on the bar, then every beat, then a clap on the
-  // backbeat, then eighths, and at zero a sixteenth roll into each bar.
+  // The tune's note on step n as the countdown plays it: D and A in turn wherever the tune
+  // has none, every eighth and then every sixteenth, and the sour note over either.
+  function countedDown(n, tune) {
+    const every = stage >= 4 ? 1 : 2;
+    if (!stage || n % every) return tune;
+    const k = (n % 16) / every;
+    const { low, high, sour } = track.pulse;
+    if (stage >= 6 ? k % 4 === 3 : stage >= 2 && k % 8 === 7) return sour;
+    return tune || (k % 2 ? low : high);
+  }
+
+  // Under the countdown, from its second stage: a heartbeat kick on the bar, then every
+  // beat, then a clap on the backbeat, then a shaker between, and at zero the kick in eighths.
   function countdownDrums(n, t) {
     const s = n % 16;
-    const level = 0.4 + 0.15 * stage;
-    if (s === 0 || (stage >= 2 && s % 4 === 0) || (stage >= 4 && s % 2 === 0) || (stage >= 5 && s >= 12)) kick(t, level * (s % 4 ? 0.6 : 1));
-    if (stage === 1 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump
-    if (stage >= 3 && (s === 4 || s === 12)) clap(t, level);
-    if (stage >= 3 && s % 2 === 1) shake(t, false, bus.dull);
+    const level = 0.4 + 0.1 * stage;
+    if (s === 0 || (stage >= 3 && s % 4 === 0) || (stage >= 6 && s % 2 === 0)) kick(t, level * (s % 4 ? 0.6 : 1));
+    if (stage === 2 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump
+    if (stage >= 4 && (s === 4 || s === 12)) clap(t, level);
+    if (stage >= 5 && s % 2 === 1) shake(t, false, bus.dull);
   }
 
   function kick(at, level) {
@@ -653,9 +677,9 @@
   // Each new stage lands with a hit: a low boom and a burst of air, bigger every time.
   function stageHit(s) {
     const at = now();
-    thud(55, 0.06 + 0.025 * s, at);
-    voice({ at, type: 'noise', attack: 0.004, decay: 0.4 + 0.2 * s, peak: 0.015 + 0.008 * s, cut: 9000, cutTo: 1500, dest: bus.music });
-    play('marimba', STAGE_NOTES[s], { at, peak: 0.06 + 0.02 * s, dest: bus.music });
+    thud(55, 0.06 + 0.017 * s, at);
+    voice({ at, type: 'noise', attack: 0.004, decay: 0.4 + 0.13 * s, peak: 0.015 + 0.005 * s, cut: 9000, cutTo: 1500, dest: bus.music });
+    play('marimba', STAGE_NOTES[s], { at, peak: 0.06 + 0.013 * s, dest: bus.music });
   }
 
   function sync(asked) {
@@ -689,10 +713,11 @@
     if (layer.follow) layer.follow(v, t, fade);
   }
 
+  // The pulse stays mellow until the countdown, which brightens it and brings in the strings.
   function followTension(T) {
     const t = ctx.currentTime;
-    bus.strings.gain.setTargetAtTime(0.012 * Math.max(0, (T - 0.6) / 0.4) ** 1.5 * (1 + 0.25 * stage), t, 0.8);
-    bus.pulse.frequency.setTargetAtTime(1500 + 6000 * T, t, 0.5);
+    bus.strings.gain.setTargetAtTime(0.02 * (stage / (FINAL_STEPS + 1)) ** 1.5, t, 0.8);
+    bus.pulse.frequency.setTargetAtTime(2000 + 1300 * T + 650 * stage, t, 0.5);
   }
 
   // `left` steps of compute: null when no countdown applies.
@@ -702,9 +727,10 @@
     const rising = s > stage;
     stage = s;
     const t = ctx.currentTime;
-    bus.riser.gain.setTargetAtTime(0.006 * s, t, rising ? 0.3 : 0.8);
-    bus.riserBand.frequency.setTargetAtTime(500 * 2 ** (0.6 * s), t, 0.6);
-    trackOut.echoIn.gain.setTargetAtTime(0.5 + 0.08 * s, t, 0.5);
+    const past = Math.max(0, s - 1); // the first stage is the pulse's alone
+    bus.riser.gain.setTargetAtTime(0.0048 * past, t, rising ? 0.3 : 0.8);
+    bus.riserBand.frequency.setTargetAtTime(500 * 2 ** (0.48 * past), t, 0.6);
+    trackOut.echoIn.gain.setTargetAtTime(0.5 + 0.064 * past, t, 0.5);
     trackOut.echoIn.delay.delayTime.setTargetAtTime(trackOut.echoIn.steps * stepLength(), t, 0.05);
     followTension(T);
     if (rising) stageHit(s);

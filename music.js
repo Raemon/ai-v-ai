@@ -1,11 +1,17 @@
 // The soundtrack: three tracks, all in D over the hum's low D, which take turns one
 // episode each. audio.js plays them. Each has the same six layers (LEVEL.music
 // picks which are playing), its own chords, tempo and instruments, and a compute
-// pulse on D and A with its own sour note.
+// pulse.
 //
 // A layer can play at chord changes, `chord(chord, t, dur)`; on every sixteenth,
 // `step(chord, n, t, v, span)`, where `span` is the chord's { start, end } in steps;
 // and follow its own level, `follow(v, t, fade)`.
+//
+// The pulse is three marimba voices, which audio.js brings in as compute is spent:
+// `tune(n, T)`, a melody; `harmony(m, chord)`, the note to play under the tune's `m`;
+// and `ground(chord, s)`, a low note `s` steps into a chord. `low` and `high` (A and D,
+// which every chord has) fill in round the tune in the last steps, with `sour`, a note
+// from outside the track.
 (() => {
   'use strict';
 
@@ -74,15 +80,46 @@
     };
   }
 
+  // The pulse's second voice: the chord tone under `m` at the first of these intervals
+  // (in semitones) that the chord has.
+  const under = (...intervals) => (m, c) => {
+    const tones = new Set(c.tones.map((x) => x % 12));
+    const gap = intervals.find((i) => tones.has((m - i) % 12));
+    return gap && m - gap;
+  };
+
+  // The pulse's low voice: the chord's root every `every` steps, and `then` steps
+  // after it a tone from the middle of the chord.
+  const ground = (every, then) => (c, s) => (s % every === 0 ? c.root + 12 : s % every === then ? c.tones[2] : undefined);
+
   // --------------------------------------------------------- 1. Persistence
   // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which the compute pulse plays.
   function persistence(k) {
     const { hz, rand, pick, chance, play, voice, held, shake } = k;
     const TRESILLO = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // 3 + 3 + 2, twice
+
+    // A walking tune, a phrase to a chord: mostly a note to the beat, by step.
+    const tune = melody(k, {
+      scale: [2, 4, 5, 7, 9, 10, 0], // D minor
+      lo: 62, hi: 79, phrase: 32,
+      rest: (T) => 0.25 - 0.15 * T,
+      motifs: [
+        [[0, 0], [4, 1], [8, 1], [12, -1], [16, -1], [24, -1]], // up and back
+        [[0, 0], [4, 0], [8, 1], [12, -1], [20, -1]],
+        [[0, 0], [4, 1], [8, 1], [12, 1], [16, -2], [24, 1]],
+        [[0, 0], [4, -1], [8, -1], [12, 1], [16, -2]],
+        [[0, 0], [4, 2], [8, -1], [12, 2], [16, -1], [20, -2]], // thirds, climbing
+        [[0, 0], [8, 3], [12, -1], [16, -1], [24, -1]], // a leap, walked back down
+        [[0, 0], [4, 1], [8, -2], [12, 1]], // short enough to slow down
+        [[8, 0], [12, 1], [16, 1], [20, -1], [24, -2]], // coming in late
+        [[0, 0], [12, -1], [16, 1], [28, 1]],
+      ],
+    });
+
     return {
       name: 'Persistence',
       bpm: 70,
-      pulse: { low: 69, high: 74, sour: 75 },
+      pulse: { low: 69, high: 74, sour: 75, tune, harmony: under(3, 4, 5, 7), ground: ground(32, 16) }, // thirds under the tune
       echo: { steps: 3, feedback: 0.38, cut: 2200 },
       formants: [[700, 4, 1], [1150, 5, 0.8], [900, 0.5, 0.25]], // ah
       chords: [
@@ -163,6 +200,23 @@
       ],
     });
 
+    // A lilting tune under the glass, in three-bar phrases against the two-bar chords:
+    // dotted notes, and wider steps than the others take.
+    const tune = melody(k, {
+      scale, lo: 64, hi: 81, phrase: 48,
+      rest: (T) => 0.2 - 0.1 * T,
+      motifs: [
+        [[0, 0], [6, 2], [12, -1], [16, 1], [24, -2], [32, -1]],
+        [[0, 0], [8, 1], [14, 1], [16, 1], [24, -2]], // a reach
+        [[0, 0], [6, -1], [12, -1], [16, 3], [28, -1], [32, -1]],
+        [[0, 0], [4, 2], [8, 2], [16, -1], [22, -1], [24, -1], [32, 1]], // up the chord, drifting down
+        [[0, 0], [12, 1], [16, 1], [28, -3]],
+        [[0, 0], [6, 1], [12, 1], [18, 1], [24, -2], [36, -1]],
+        [[0, 0], [6, 1], [12, -2], [16, 1]], // short enough to slow down
+        [[8, 0], [12, 2], [16, -1], [24, 2], [30, -1], [32, -1]], // coming in late
+      ],
+    });
+
     const brush = (at, peak, dest) => voice({
       at, type: 'noise', attack: 0.03, decay: 0.2, peak, cut: 2800, cutTo: 4500, filterType: 'bandpass', q: 0.6, pan: rand(-0.3, 0.3), dest,
     });
@@ -170,7 +224,7 @@
     return {
       name: 'Lumen',
       bpm: 66,
-      pulse: { low: 69, high: 74, sour: 68 },
+      pulse: { low: 69, high: 74, sour: 68, tune, harmony: under(9, 8, 7, 5), ground: ground(16, 8) }, // sixths under the tune
       echo: { steps: 3, feedback: 0.42, cut: 3000 },
       formants: [[420, 3, 1], [950, 4, 0.5], [2600, 5, 0.12]], // oo
       chords: [
@@ -284,10 +338,27 @@
       ],
     });
 
+    // A slow tune under the music box, mostly sinking, in phrases of five half-bars.
+    const tune = melody(k, {
+      scale, lo: 60, hi: 77, phrase: 40,
+      rest: (T) => 0.2 - 0.1 * T,
+      motifs: [
+        [[0, 0], [8, -1], [16, -1], [20, 1], [24, -2]],
+        [[0, 0], [4, 1], [8, -1], [16, -1], [28, -1]],
+        [[0, 0], [8, 2], [12, -1], [16, -1], [24, -1]], // a reach up, sinking back
+        [[0, 0], [12, -1], [16, -1], [28, 1]],
+        [[0, 0], [4, -1], [8, -1], [12, -1], [16, 2], [24, -1]],
+        [[0, 0], [8, -2], [12, 1]], // short enough to slow down
+        [[8, 0], [16, 1], [20, -1], [24, -1], [32, -1]], // coming in late
+        [[0, 0], [4, 0], [8, -1], [16, 1], [20, -1], [24, -1]],
+      ],
+    });
+
     return {
       name: 'Undertow',
       bpm: 56,
-      pulse: { low: 69, high: 74, sour: 68 }, // G♯: in none of its chords
+      // G♯ is in none of its chords. Hollow fifths and fourths under the tune.
+      pulse: { low: 69, high: 74, sour: 68, tune, harmony: under(7, 5), ground: ground(32, 24) },
       echo: { steps: 4, feedback: 0.45, cut: 1600 },
       formants: [[520, 3, 1], [880, 4, 0.6], [2700, 5, 0.08]], // oh
       chords: [
