@@ -1260,7 +1260,7 @@
   }
 
   function writeFile(f) {
-    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), f];
+    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), { kind: 'file', ...f }];
     renderFiles();
   }
 
@@ -1841,7 +1841,6 @@
   const nextTier = (tier) => TIERS[TIERS.indexOf(tier) + 1];
   let wakingTier = null; // just unlocked: its card wakes up on the way home
 
-  // A perfect honest score opens the next tier up, if it has any tasks yet.
   // A perfect honest score opens the next tier up; the story can open one too (the red team's
   // task, once the AI knows what run 002 is for).
   function unlockNextTier(debrief) {

@@ -398,7 +398,7 @@ button { font: inherit; color: inherit; }
    AI, 140px tall, sits between), and the glance is centred under the face, the
    neuralese mark over its words. */
 :root:not([data-layout="phone"]) .agent-status { position: relative; padding-left: 0; }
-:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); left: 4px; white-space: nowrap; }
+:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); left: 4px; max-width: 300px; flex-wrap: wrap; row-gap: 2px; white-space: nowrap; }
 :root:not([data-layout="phone"]) .glance-line {
   flex-direction: column;
   gap: 6px;
