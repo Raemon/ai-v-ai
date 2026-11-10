@@ -223,6 +223,5 @@
   }
 
   const sizes = new ResizeObserver(resizeTerm);
-  sizes.observe($('#out'));
-  sizes.observe($('#actions'));
+  for (const id of ['#out', '#actions', '#mind', '#todo']) sizes.observe($(id));
 })();

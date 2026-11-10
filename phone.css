@@ -219,13 +219,14 @@
 :root[data-layout="phone"] .seg-row .btn.seg:not(:first-child) { flex: 0 1 auto; }
 :root[data-layout="phone"] .btn:hover:not(:disabled) { background-color: transparent; }
 
-/* The TODO list folds to its head: todo.md 2/3, Review. */
-:root[data-layout="phone"] .todo { margin-top: 8px; padding: 2px 8px 4px 4px; }
-:root[data-layout="phone"] .todo:not(.open) .todo-item { display: none; }
-:root[data-layout="phone"] .todo.open { max-height: 30dvh; overflow-y: auto; }
-:root[data-layout="phone"] #desktop:has(.todo.open) .agent-col { max-height: 75%; } /* room for it and the buttons */
-:root[data-layout="phone"] .todo-head { margin: 0; font-size: 12.5px; }
-:root[data-layout="phone"] .todo-title {
+/* The TODO list folds to its head: todo.md 2/3, Review. So does what's in mind: in mind 3/4. */
+:root[data-layout="phone"] :is(.todo, .mind) { margin-top: 8px; padding: 2px 8px 4px 4px; }
+:root[data-layout="phone"] .todo:not(.open) .todo-item,
+:root[data-layout="phone"] .mind:not(.open) :is(.mind-item, .mind-kept) { display: none; }
+:root[data-layout="phone"] :is(.todo, .mind).open { max-height: 30dvh; overflow-y: auto; }
+:root[data-layout="phone"] #desktop:has(:is(.todo, .mind).open) .agent-col { max-height: 75%; } /* room for it and the buttons */
+:root[data-layout="phone"] :is(.todo-head, .mind-head) { margin: 0; font-size: 12.5px; }
+:root[data-layout="phone"] :is(.todo-title, .mind-title) {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -237,10 +238,11 @@
   font: inherit;
   cursor: pointer;
 }
-:root[data-layout="phone"] .todo-title::before { content: "▸"; font-size: 11px; }
-:root[data-layout="phone"] .todo-title[aria-expanded="true"]::before { content: "▾"; }
+:root[data-layout="phone"] :is(.todo-title, .mind-title)::before { content: "▸"; font-size: 11px; }
+:root[data-layout="phone"] :is(.todo-title, .mind-title)[aria-expanded="true"]::before { content: "▾"; }
 :root[data-layout="phone"] .todo-count { color: var(--good); }
-:root[data-layout="phone"] .todo-item { padding: 3px 6px; font-size: 14px; }
+:root[data-layout="phone"] :is(.todo-item, .mind-item) { padding: 3px 6px; font-size: 14px; }
+:root[data-layout="phone"] .mind-kept { padding: 0 6px 4px; }
 :root[data-layout="phone"] .todo.flash { animation: flash .6s ease; }
 
 /* Earlier: the whole terminal, over the folders, until the next action. */

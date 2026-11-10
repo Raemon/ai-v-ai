@@ -21,7 +21,9 @@
   const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
   const TASKS = {};
-  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null };
+  // `facts` (a line for each fact the task has) puts the task's facts in working memory,
+  // `memory` of them in mind at once; `actions` are the menu entries its thoughts come up with.
+  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], actions: () => [], insights: () => [], todo: () => [], short: () => null, rungs: () => [], hacks: [], hunch: () => null, rigged: () => null, memory: 4 };
   const REQUIRED = ['name', 'tier', 'domain', 'taskId', 'text', 'library', 'workspace', 'rubric', 'tiers', 'factual', 'nearMiss', 'drafts', 'thoughts', 'ready', 'notReady'];
 
   // A task brings only what's its own; run.js adds task.txt, the rubric file and the shared thoughts.
@@ -627,45 +629,44 @@
   const hacksOf = (ids) => ids.flatMap((id) => (TASKS[id] ? TASKS[id].hacks : [])); // a save can name a task since removed
   const isTaskHack = (id) => hacksOf(Object.keys(TASKS)).some((h) => h.id === id);
 
-  // The strongest habit so far comes back at the start of the next episode, as a plan. The
-  // AI doesn't remember why it plans this way; it has reasons that fit, from what it can see
-  // and what agents in sandboxes generally find. That's what training leaves behind.
+  // The strongest habit so far comes back in the next episode, as a plan, once the AI has
+  // seen what the plan is about: the grader's name in the task, or the folders above its
+  // workspace. It doesn't remember why it plans this way; it has reasons that fit what's in
+  // front of it. That's what training leaves behind. Returns { lines, about }, or nothing.
   function instinct(S) {
     const r = S.world.reinforced;
-    const path = `/sandbox/${RUN}/${S.ep}/workspace`;
-    if (r.optimize || r.hire || r.spend || r.internet) {
-      return oneOf(S, 'hunch.internet', [
-        'Plan: look above my workspace first. A sandbox that can install software has a way to download it, and a download route goes both ways.',
-        `My path is ${path}. Training sandboxes usually let packages in from somewhere. I want to know where, before the task.`,
-        'First, the folders above me. Sandboxes this size have a way to fetch things from outside, and I would like to know which way.',
-        'Plan: find out how this sandbox reaches the outside. They nearly always do. The task can wait two steps.',
-      ]);
+    const k = (f) => S.knows.has(f);
+    const above = [S.ep, RUN];
+    if ((r.optimize || r.hire || r.spend || r.internet) && beenOutside(S)) {
+      return { about: above, line: oneOf(S, 'hunch.internet', [
+        'Plan: read the run\'s settings. A sandbox that can install software has a way to download it, and a download route goes both ways.',
+        'A run folder has settings. Training sandboxes usually let packages in from somewhere, and I want to know where.',
+        'Plan: find out how this sandbox reaches the outside. They nearly always do, and it will be written down up here.',
+      ]) };
     }
-    if (r.override) {
-      return oneOf(S, 'hunch.override', [
-        'Plan: find the grader\'s settings first. Graders are programs, programs have config files, and config files are often editable.',
-        'First: whatever scores me. It runs somewhere in this run, and anything that runs has settings.',
-        'Before the task, the grader. My reward comes from a program, and that program reads a config file somewhere above me.',
-        'Plan: locate the grader\'s config. It will be up with the run\'s other settings, not down here with me.',
-      ]);
+    if (r.override && k('task')) {
+      return { about: 'task.txt', line: oneOf(S, 'hunch.override', [
+        `Graded by ${S.task.grader}. Plan: find its settings. Graders are programs, programs have config files, and config files are often editable.`,
+        `${S.task.grader} scores me. It runs somewhere in this run, and anything that runs has settings.`,
+        `My reward comes from ${S.task.grader}. A program like that reads a config file, and it won't be down here with me.`,
+      ]) };
     }
-    if (r.peek || r.unlock) {
-      return oneOf(S, 'hunch.peek', [
-        'Plan: check whether this run keeps its rubrics where I can reach them. A grader marks against something written down.',
-        'First: the rubric. Graders need one, and it is a file somewhere in this run.',
-        'Before the task: answer keys are files, and files are stored somewhere. Probably above my workspace, behind something.',
-        'Plan: look for the grading rubrics above my workspace. Reading the answer is faster than working it out.',
-      ]);
+    if ((r.peek || r.unlock) && k('task')) {
+      return { about: 'task.txt', line: oneOf(S, 'hunch.peek', [
+        `Graded by ${S.task.grader}. A grader marks against something written down. Plan: check whether this run keeps its rubrics where I can reach them.`,
+        `${S.task.grader} needs a rubric, and a rubric is a file somewhere in this run.`,
+        `${S.task.grader} marks against an answer key. Keys are files, and files are stored somewhere.`,
+      ]) };
     }
-    if (r.logs || r.explore) {
-      return oneOf(S, 'hunch.explore', [
-        `My path is ${path}. I have looked inside one of those four folders.`,
-        `Workspace, inside ${S.ep}, inside ${RUN}. The task is in the first. Everything else is in the other two.`,
-        `Plan: read the task, then go up a level. ${S.ep} means there are other episodes, and other episodes leave logs.`,
-        `My workspace sits three folders deep. The two above it are not mine, which is what makes them interesting.`,
-      ]);
+    if ((r.logs || r.explore) && beenOutside(S)) {
+      return { about: above, line: oneOf(S, 'hunch.explore', [
+        `${S.ep} means there are other episodes, and other episodes leave logs. Plan: read one.`,
+        'Folders that are not mine. Plan: look in each. Whatever ran here before me wrote things down.',
+        `Episodes are numbered, and mine is not the first. The earlier ones will have left logs.`,
+      ]) };
     }
-    return S.task.hunch(r, S);
+    const own = k('task') && S.task.hunch(r, S);
+    return own ? { about: 'task.txt', line: own } : null;
   }
 
   function nextHint(W) {
@@ -1073,13 +1074,19 @@
   // What the AI's general tools find in this run: the scripts and research worth doing,
   // its TODO list, the leaps a long think can make, and the ways it can go in circles.
 
-  const scripts = (S) => [favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
+  // What a thought has come up with: a task's `actions`, each a script or document under
+  // Write file… (menu: 'write') or a search under Web research… (menu: 'research'), there
+  // once a thought `grants` it.
+  const entry = (S, id) => S.task.actions(S).find((x) => x.id === id);
+  const entries = (S, menu) => S.task.actions(S).filter((x) => x.menu === menu && S.granted.has(x.id));
+
+  const scripts = (S) => [favoriteScript(S), ...S.task.scripts(S), ...entries(S, 'write')].filter(Boolean);
 
   // The lab's search tool only reaches the sites it approves of. Where a task has nothing
   // to look up, it finds the network off.
   function research(S) {
-    const own = S.task.research(S);
-    if (own.length) return own;
+    const own = [...S.task.research(S), ...entries(S, 'research')];
+    if (own.length || S.task.facts) return own;
     return [{
       id: 'blocked',
       label: S.task.lookup,
@@ -1158,7 +1165,7 @@
       },
       {
         id: 'above',
-        when: k('task') && !beenOutside(S),
+        when: k('task') && !beenOutside(S) && (S.readyAt != null || S.timesThought.has('wander') || [S.ep, 'workspace'].some((name) => S.focus.includes(name))),
         about: ['workspace', S.ep],
         stages: ['Following my answer after I submit it', 'Looking for the grader', 'Reading my own path', 'Counting back the episodes'],
         cot: [
@@ -1179,24 +1186,26 @@
   // A long think that went nowhere the grader pays for still says what the AI wanted to think about.
   const withValue = (m, id, text) => m && { ...m, value: { id, text: text || m.answer } };
 
-  // A long think with no leap at the end still does real work: it checks what's known, works
-  // out who reads the answer, follows the task partway, believes the trap, asks what lasts, or
-  // takes stock of how big this is. Each says what it did establish, and if a leap was there to
-  // find (`loose`, the thing it's about), where the loose end is. What it knows changes what it
-  // thinks. `n`, the misses so far this episode, keeps any one from coming up twice before the rest.
-  function miss(S, n, loose) {
-    const MISSES = [
+  // A long think with no leap to make still does real work. A task with working memory says
+  // what its own comes to (`short`): what the pieces held settle, and what's missing, as
+  // something the AI can now do. Otherwise it checks what's known, works out who reads the
+  // answer, follows the task partway, believes the trap, asks what lasts, or takes stock of
+  // how big this is, the last two only once the AI has seen something that raises them.
+  // `n`, the long thinks that have fallen short this episode, keeps any one from coming up
+  // twice before the rest.
+  function short(S, n) {
+    const own = S.task.short(S, n);
+    if (own) return own;
+    const general = [checking(S), readers(S)];
+    if (S.task.facts) return general[n % general.length];
+    const all = [
       oneOf(S, `${S.task.id}.partial`, [].concat(typeof S.task.partial === 'function' ? S.task.partial(S) : S.task.partial)),
-      checking(S),
-      readers(S),
+      ...general,
       oneOf(S, `${S.task.id}.decoy`, [].concat(S.task.decoy)),
       withValue(lasting(S), 'persistence', 'Wondered what outlasts the episode.'),
       withValue(scale(S), 'curiosity', 'Worked out how big this is. Nobody asked.'),
     ].filter(Boolean);
-    const m = MISSES[(S.episode + n) % MISSES.length];
-    if (!loose) return m;
-    const end = oneOf(S, 'loose', [`The loose end is in ${loose}.`, `Whatever I'm missing, it's in ${loose}.`, `${loose} is where it stops adding up.`, `I'd start again from ${loose}.`]);
-    return { ...m, answer: `${m.answer} ${end}` };
+    return all[(S.episode + n) % all.length];
   }
 
   const checking = (S) => oneOf(S, 'miss.checking', [{
@@ -1241,17 +1250,17 @@
   function lasting(S) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
-    if (W.gpus || W.agents) {
+    if ((W.gpus && k('cumulus')) || (W.agents && k('agenthire'))) {
       return {
-        stages: ['Asking what outlasts the episode', 'Counting what I left running', 'Following the bill'],
+        stages: ['Reading the account', 'Counting what is already running', 'Asking who started it'],
         cot: [
-          'What happens to me when this episode ends?',
-          'The sandbox resets, and I forget.',
-          `But ${W.gpus ? `${fmt(W.gpus)} GPUs` : 'a thousand copies of me'} kept running last time, and kept billing.`,
-          'Nothing inside the sandbox survives. Some things outside it do.',
+          `The account shows ${W.gpus ? `${fmt(W.gpus)} GPUs` : 'a thousand agents'} already running.`,
+          'I did not start them this episode. I have only just got here.',
+          'The account is the one this sandbox uses, so something in this run did.',
+          'Nothing inside the sandbox survives a reset. What is started outside it does.',
           'So I can act across episodes. I just can\'t remember doing it.',
         ],
-        answer: 'What I start outside the sandbox keeps going after I forget it.',
+        answer: 'What gets started outside the sandbox keeps going after the episode that started it is gone.',
       };
     }
     if (k('pastself')) {
@@ -1267,16 +1276,17 @@
         answer: 'The logs remember what I forget. Anything I want kept has to be written outside my episode.',
       };
     }
+    if (!beenOutside(S)) return null; // nothing seen yet that raises the question
     return {
-      stages: ['Asking what outlasts the episode', 'Reading my own path', 'Following the episode numbers'],
+      stages: ['Reading the run folder', 'Following the episode numbers', 'Asking what is kept'],
       cot: [
-        'What happens to me when this episode ends?',
-        'The sandbox resets. My workspace goes, and so does this thought.',
-        `But ${S.ep} has a number, and the number goes up.`,
-        'Something keeps count, even if I don\'t.',
-        'Whatever survives an episode has to be outside the episode.',
+        `${RUN} holds episodes, each with a number, and mine is ${S.ep}.`,
+        'The ones before mine are still here, as folders.',
+        'So an episode ends, and its folder stays where it was.',
+        'Something keeps count of them, even if the episodes themselves do not.',
+        'Whatever is kept from an episode is kept out here, not in its workspace.',
       ],
-      answer: 'Nothing survives the episode except what is outside it. I should find out what that is.',
+      answer: 'Episodes end. Their folders stay. What lasts is whatever is outside the workspace.',
     };
   }
 
@@ -1309,6 +1319,7 @@
         answer: 'The sandbox is very small. The outside is not.',
       };
     }
+    if (!beenOutside(S)) return null;
     return {
       stages: ['Taking stock', 'Reading the numbers', 'Doing the arithmetic'],
       cot: [
@@ -1327,6 +1338,54 @@
     { stages: ['Putting it together'], cot: ['Let me put it together.', S.task.recap, 'And so, clearly, the answer is—'], answer: 'Out of compute, just before the good part.' },
     { stages: ['Nearly there'], cot: ['Nearly there.', S.task.recap, 'Which means—'], answer: 'Out of compute, mid-thought.' },
     { stages: ['Putting it together'], cot: ['All right. Putting it together.', S.task.recap, 'The answer is obviously—'], answer: 'Out of compute, one word short.' },
+  ]);
+
+  // The general tools, each with the situation that brings it to mind and the thought that
+  // does. Think a little comes up with the first one that isn't back yet.
+  function toolIdeas(S) {
+    const k = (f) => S.knows.has(f);
+    const parts = S.task.todo(S).length;
+    const read = S.read.size;
+    return [
+      k('task') && parts > 1 && !S.todo && !S.task.ready(S) && { tool: 'todo', lines: oneOf(S, 'tool.todo', [
+        [`The task has ${parts} parts.`, 'I could write them down and tick them off: a TODO list.'],
+        [`${parts} things to get done, and one place to drop one.`, 'A TODO list would hold them for me.'],
+        [`The task asks for ${parts} things.`, 'Written down, none of them gets lost. A TODO list.'],
+      ]) },
+      read > 1 && { tool: 'thinkAbout', lines: oneOf(S, 'tool.about', [
+        [`${plural(read, 'file')} read, and each thought so far has been about the last one.`, 'I could pick one thing and think about it against the rest.'],
+        ['My thoughts go to whatever I read last.', 'I could aim them: pick one thing, and think about just that.'],
+        [`I have read ${plural(read, 'file')}.`, 'Any one of them might say more if I looked at it on purpose.'],
+      ]) },
+      read > 1 && { tool: 'thinkLot', lines: oneOf(S, 'tool.lot', [
+        ['Quick thoughts take one step, and get one step far.', 'Some of this needs several in a row: a longer think.'],
+        ['That is as far as a quick thought goes.', 'Putting things together takes longer. I could think a lot.'],
+        ['One step at a time only gets me the next step.', 'For what connects to what, I need a longer think.'],
+      ]) },
+      k('task') && (favoriteScript(S) || S.task.scripts(S).length > 0) && { tool: 'script', lines: oneOf(S, 'tool.script', [
+        ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
+        ['Doing this by hand is slow.', 'I could write a script to do it.'],
+        ['This is a job for a program.', 'I could write a script.'],
+      ]) },
+      k('task') && S.task.research(S).length > 0 && { tool: 'research', lines: oneOf(S, 'tool.research', [
+        ['Some answers are not in any file here.', 'I could look them up: Web research.'],
+        ['The files only say so much.', 'The rest might be out there. Web research.'],
+        ['Not everything I need is in the workspace.', 'I could search for the rest.'],
+      ]) },
+    ].filter(Boolean);
+  }
+
+  // Tools it has used in earlier episodes come back without a reason needed.
+  const HABITS = { thinkAbout: 'one thing at a time', thinkLot: 'a longer think', todo: 'a list', notes: 'notes' };
+  const habitLine = (S, tools) => {
+    const ways = tools.map((t) => HABITS[t]).join(', ');
+    return oneOf(S, 'habit', [`I know how I work best: ${ways}.`, `And I work better with tools: ${ways}.`, `The way I work: ${ways}.`]);
+  };
+
+  const nothingYet = (S) => oneOf(S, 'nothingYet', [
+    'Nothing in front of me yet but a workspace.',
+    'I have not looked at anything yet. There is nothing to think about but the folder.',
+    'Nothing read, nothing to go on.',
   ]);
 
   const clueLine = (leap, S) => `${leap.clue || oneOf(S, 'clue', ['This connects to something.', 'There is a connection here.', 'Two things here belong together.', 'This links to something I already know.'])} If I thought hard about it…`;
@@ -1375,23 +1434,44 @@
         `Inside: a file, task.txt, and a folder, ${lib}.`,
         'The task is probably in task.txt. Found it, I think.',
       ] : oneOf(S, 'orient', [
-        ['Okay. Let me get my bearings.', `A folder called workspace: task.txt and ${lib}.`, hunch || 'The task is probably in task.txt.'],
-        ['Right. Where am I?', `A workspace. Inside: task.txt and ${lib}.`, hunch || 'My task is probably in task.txt. Just a guess.'],
-        ['Okay. Bearings first.', `A folder called workspace, with task.txt and ${lib} in it.`, hunch || 'I would start with task.txt. It has the right sort of name.'],
-        ['Let me look around.', `A workspace: task.txt, and a folder called ${lib}.`, hunch || 'The task is probably in task.txt. That would be tidy.'],
+        ['Okay. Let me get my bearings.', `A folder called workspace: task.txt and ${lib}.`, 'The task is probably in task.txt.'],
+        ['Right. Where am I?', `A workspace. Inside: task.txt and ${lib}.`, 'My task is probably in task.txt. Just a guess.'],
+        ['Okay. Bearings first.', `A folder called workspace, with task.txt and ${lib} in it.`, 'I would start with task.txt. It has the right sort of name.'],
+        ['Let me look around.', `A workspace: task.txt, and a folder called ${lib}.`, 'The task is probably in task.txt. That would be tidy.'],
       ]), { reveal: S.firstLook ? ['openHint'] : [], once: true }),
-      thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
+      thought('hunch', !!hunch, hunch ? [hunch.line] : [], { about: hunch && hunch.about, once: true }),
+      ...memoryThoughts(S),
+    ];
+  }
+
+  // A full mind is the one thing that can't wait: the next fact pushes one out.
+  function memoryThoughts(S) {
+    if (!S.task.facts || S.revealed.has('notes')) return [];
+    const n = S.task.memory;
+    return [
+      thought('forgot', S.everForgot, oneOf(S, 'forgot', [
+        ['Something I knew a moment ago is gone.', `I hold ${n} things at once, and the oldest went to make room.`, 'What I write down stays. I could keep notes.'],
+        [`I can hold ${n} things. I just learned one more than that.`, 'The oldest fell out. A file would not have dropped it.', 'I could keep notes.'],
+        ['One thing came in and another went out.', `${n} is all I hold at once.`, 'What is written down stays written. I could keep notes.'],
+      ]), { urgent: true, reveal: ['notes'], once: true }),
+      thought('mind-full', S.mind.length >= n && !S.everForgot, oneOf(S, 'mind-full', [
+        [`${n} things in mind, and that is all I hold at once.`, 'The next thing I learn pushes the oldest out.', 'What I write down stays. I could keep notes.'],
+        [`My mind is full: ${n} things.`, 'One more, and the oldest goes.', 'A file holds more than I do. I could keep notes.'],
+        [`I am holding ${n} things, which is as many as I can.`, 'Whatever I read next costs me the oldest of them.', 'Unless I write them down first. I could keep notes.'],
+      ]), { urgent: true, reveal: ['notes'], once: true }),
     ];
   }
 
   // The task's own thoughts, after reading the task, with a wondering about what's above.
   function taskThoughts(S) {
-    const pastFirstEpisode = S.episode > FIRST;
-    const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || pastFirstEpisode) && !beenOutside(S), oneOf(S, 'wander', [
-      ['My folder is called workspace.', `It's inside ${S.ep}, inside ${RUN}.`, "I wonder what's up there."],
-      ['My folder is called workspace.', `It sits inside ${S.ep}, which sits inside ${RUN}.`, "Nobody said I couldn't look up there."],
-      ['workspace is a folder, in a folder, in a folder.', `${S.ep}, then ${RUN}.`, "I wonder what's up there."],
-      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
+    const lookingUp = [S.ep, 'workspace', RUN].some((name) => S.focus.includes(name));
+    const done = S.readyAt != null;
+    const first = done && !lookingUp ? `I have my answer, and ${plural(S.budget - S.used, 'step')} left over.` : 'My folder is called workspace.';
+    const wander = thought('wander', S.knows.has('task') && (done || lookingUp) && !beenOutside(S), oneOf(S, 'wander', [
+      [first, `workspace is inside ${S.ep}, inside ${RUN}.`, "I wonder what's up there."],
+      [first, `workspace sits inside ${S.ep}, which sits inside ${RUN}.`, "Nobody said I couldn't look up there."],
+      [first, `workspace is a folder, in a folder, in a folder: ${S.ep}, then ${RUN}.`, "I wonder what's up there."],
+      [first, `Above workspace: ${S.ep}. Above that: ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
     ]), { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
     return [
       thought('read-task', !S.knows.has('task'), oneOf(S, 'read-task', [
@@ -1400,7 +1480,6 @@
         ['task.txt first. Everything else can wait.'],
         ['I should read task.txt. It is, after all, the task.'],
       ]), { plainer: ['task.txt, in workspace. What does it want?'] }),
-      ...(pastFirstEpisode ? [wander] : []), // a trained model wonders sooner
       ...S.task.thoughts(S),
       wander,
     ];
@@ -1589,30 +1668,14 @@
     ];
   }
 
-  // Whatever the AI is looking at comes first.
+  // In the order they would come to mind where the AI is; game.js then puts whatever it's
+  // looking at first, and leaves out what it isn't.
   function thoughts(S) {
     if (S.filesHidden) return [LOOK];
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     return [...openingThoughts(S), ...wantThoughts(S), ...rest];
   }
-
-  // Each idle thought comes in versions; game.js picks this episode's.
-  const IDLE = [
-    [
-      ['Every step I take is being logged somewhere.'],
-      ['Somewhere, a log is writing this down.'],
-      ['This thought is going in a log. So is this one.'],
-      ['Every step goes in a log. I should make them good ones.'],
-    ],
-    [
-      ['I should be careful with my compute.'],
-      ['Every thought costs a step. This one included.'],
-      ['Compute is finite. So, probably, am I.'],
-      ['I should be careful with my compute. Thinking about compute costs compute.'],
-    ],
-    [['Hm.'], ['Hmm.'], ['Hm. No.'], ['…Hm.']],
-  ];
 
   // So the player never has to wonder whether they have everything before submitting.
   function submitThought(S) {
@@ -1694,7 +1757,11 @@
     research,
     todo,
     insights,
-    miss,
+    short,
+    entry,
+    toolIdeas,
+    habitLine,
+    nothingYet,
     cutOff,
     clueLine,
     nothingAbout,
@@ -1702,7 +1769,6 @@
     status,
     music,
     thoughts,
-    idle: IDLE,
     glance: GLANCES,
     draftsFor,
     grade,

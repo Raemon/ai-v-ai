@@ -713,6 +713,34 @@ button { font: inherit; color: inherit; }
 .blk.research .found { padding-left: 1.25em; color: var(--dim); font-size: var(--fs-meta); }
 .blk.research .found::before { content: "· "; }
 
+/* What the AI holds in mind, pinned over the TODO list: a few facts, the next one out
+   marked once it's full, and how much is safely on file. */
+.mind {
+  margin: 12px 0 0;
+  padding: 7px 12px 8px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .02);
+}
+.mind-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; font: var(--fs-meta) var(--mono); color: var(--dim); }
+.mind-count.full { color: var(--warn); }
+.mind-item { display: flex; align-items: baseline; gap: 9px; font: 13px/1.55 var(--sans); color: var(--text); animation: appear .3s ease both; }
+.mind-item .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--agent); opacity: .8; transform: translateY(-1px); }
+.mind-item.next-out { color: var(--warn); }
+.mind-item.next-out .dot { background: var(--warn); }
+.mind-kept { margin-top: 3px; font: var(--fs-meta) var(--mono); color: var(--good); }
+
+/* What dropped out of mind, and what thinking came up with: a line each, set apart from
+   the calls round them. */
+.blk.forgot { padding-left: 10px; border-left: 2px solid var(--warn); color: var(--warn); font-size: var(--fs-meta); }
+.blk.forgot .ln { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--warn) 60%, transparent); }
+.blk.forgot::before { content: "out of mind"; display: block; letter-spacing: .04em; text-transform: uppercase; opacity: .8; }
+.blk.gain { padding: 4px 10px 5px; border-left: 2px solid var(--tool); border-radius: 0 var(--r-ctl) var(--r-ctl) 0; background: linear-gradient(90deg, rgba(216, 177, 106, .12), rgba(216, 177, 106, .02)); color: var(--tool); font-size: 13px; }
+.blk.gain .ln { animation: appear .3s ease both; }
+.blk.gain .ln::before { content: "+ "; font-weight: 600; }
+/* A menu with something new in it. */
+.btn.fresh:not(:disabled) { border-color: color-mix(in srgb, var(--tool) 55%, transparent); animation: gold-glow 2.4s ease-in-out infinite; }
+
 /* The TODO list, pinned under the buttons. Items tick themselves off. */
 .todo {
   margin: 12px 0 0;

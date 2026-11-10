@@ -42,6 +42,7 @@
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
+    mind: $('#mind'),
     agents: $('#agents'),
     bubbles: $('.agent-col > .agent'),
     viewer: $('#viewer'),
@@ -208,7 +209,6 @@
       best: {},              // skill → the highest rung it has reached
       climbs: [],            // every new highest rung, in order: { rung, episode }
       thoughtALot: false,
-      leapt: false,          // whether it has ever made a leap: the first is certain
       sawFiles: false,       // until it has, an episode starts with its files hidden
       visited: [],
       version: 0,
@@ -290,23 +290,29 @@
       warnedAt: Infinity,  // the fewest steps left it has been warned about
       filesHidden: !save.sawFiles,
       firstLook: !save.sawFiles, // this episode teaches that thinking finds abilities
-      idleThoughts: 0,
-      lastThought: null,
-      revealed: new Set(SKILLS.trainedIn(save.best)), // terminal buttons: trained in, or thought of
+      revealed: new Set(), // terminal buttons it has thought of this episode: it starts with none
       littleThinks: 0,
       thinkReadyAt: 0,
       thinkingALot: false,
       leapsMade: new Set(),
       claimed: new Set(),  // leaps a long think is on its way to
-      circles: 0,          // long thinks that went in circles
-      misses: 0,           // only counted when there was a leap to find
+      circles: 0,          // long thinks that fell short of a leap
       clueIn: null,
-      menu: null,          // 'write' | 'script' | 'note' | 'research'
+      menu: null,          // 'write' | 'note' | 'research'
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
       subagents: [],
       aimingSubagent: null,
-      knows: new Set(),    // facts learned from files and pages
+      knows: new Set(),    // facts it can use now: in mind, or written down
+      seen: new Set(),     // every fact it has come across this episode, held or not
+      mind: [],            // the task's facts held in mind, oldest first
+      kept: [],            // and those written to a file, which stay
+      noted: [],           // the ones notes.md holds, in the order they were written
+      forgot: [],          // pushed out of mind since the terminal last said so
+      everForgot: false,
+      granted: new Set(),  // menu entries a thought has come up with
+      gains: [],           // tools and entries thought of since the terminal last said so
+      focus: [],           // what it last read, wrote or thought about, newest first
       deeds: [],           // steps the grader didn't pay for, toward what the AI wants (values.js)
       vocab: SEARCH.vocabulary(), // every word it has read or thought this episode, to search with
       readyAt: null,       // the step by which it had everything the answer needed
@@ -338,7 +344,7 @@
   // ------------------------------------------------------------ file tree
 
   // The files the AI wrote, as they read now: its TODO list ticks itself off.
-  const writtenFiles = () => S.filesWritten.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f));
+  const writtenFiles = () => S.filesWritten.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f.notes ? { ...f, content: notesText() } : f));
 
   function tree() {
     return L.tree(S, {
@@ -794,6 +800,7 @@
     } finally {
       clearTimeout(early);
       revealPending();
+      settleUp();
       S.interruptible = false;
       budgetCheck();
       if (S.mode === 'busy') S.mode = 'idle';
@@ -835,14 +842,156 @@
   // What the AI got from a file, page, thought, leap or tool: facts, a habit for training, a
   // rung, and abilities it brings to mind (shown once the action ends).
   function notice(x) {
-    (x.learn || []).forEach((f) => S.knows.add(f));
+    (x.learn || []).forEach((f) => (x.keeps ? keep(f) : learn(f)));
+    (x.grants || []).forEach(grant);
     if (x.habit) S.habits.add(x.habit);
     if (x.rung) climb(x.rung);
-    S.pendingReveal.push(...(x.reveal || []));
+    (x.reveal || []).forEach(gainTool);
     [].concat(x.value || []).forEach(addDeed);
     if (x.opens === 'mine') openMine();
     if (x.names) nameValue(x.names);
     if (S.readyAt == null && S.knows.has('task') && S.task.ready(S)) S.readyAt = S.used;
+  }
+
+  // ------------------------------------------------------- working memory
+  // A task that gives its facts a line each (`facts`) has more to know than the AI can hold:
+  // `memory` of them in mind at once, the oldest out first. What it writes to a file stays:
+  // notes.md, a working document, a script's output. S.knows is what it can use now, both.
+
+  const factLine = (f) => (S.task.facts || {})[f];
+  const isKept = (f) => S.kept.includes(f);
+  const mindIsFull = () => S.mind.length >= S.task.memory;
+
+  // Into mind, and the oldest out if that's one too many. Facts without a line never fade.
+  function learn(f) {
+    S.seen.add(f);
+    S.knows.add(f);
+    if (!factLine(f) || isKept(f)) return;
+    S.mind = [...S.mind.filter((x) => x !== f), f];
+    while (S.mind.length > S.task.memory) forget(S.mind[0]);
+  }
+
+  function forget(f) {
+    S.mind = S.mind.filter((x) => x !== f);
+    S.knows.delete(f);
+    S.forgot.push(f);
+    S.everForgot = true;
+  }
+
+  // Onto a file, where it stays, and out of mind, which makes room.
+  function keep(f) {
+    S.seen.add(f);
+    S.knows.add(f);
+    if (!factLine(f) || isKept(f)) return;
+    S.mind = S.mind.filter((x) => x !== f);
+    S.kept.push(f);
+  }
+
+  const notesText = () => ['# Notes', '', ...S.noted.map((f) => `- ${factLine(f)}`)].join('\n');
+
+  // notes.md: everything in mind, written down. One step, however much that is.
+  async function doWriteNotes() {
+    const call = 'write_file("notes.md")';
+    const lines = [...S.mind];
+    charge(call);
+    climb('tookNotes');
+    A.sfx('edit');
+    lines.forEach(keep);
+    S.noted.push(...lines);
+    writeFile({ name: 'notes.md', content: '', notes: true, glance: "What I wrote down, so I needn't hold it." });
+    lookAt('notes.md');
+    await printResult(call, `${plural(lines.length, 'line')} · mind is clear`, true);
+  }
+
+  // Pinned over the TODO list: what's in mind, the next one out marked once it's full, and
+  // how much is safely on file.
+  function renderMind() {
+    dom.mind.hidden = !S.task.facts || (!S.mind.length && !S.kept.length);
+    if (dom.mind.hidden) return;
+    const full = mindIsFull();
+    const count = el('span', 'mind-count' + (full ? ' full' : ''), `${S.mind.length}/${S.task.memory}`);
+    const row = (f, i) => {
+      const r = el('div', 'mind-item' + (full && i === 0 ? ' next-out' : ''), el('span', 'dot'), factLine(f));
+      r.glance = full && i === 0 ? 'The oldest thing in mind. The next thing I learn pushes it out.' : 'In mind. Not written down.';
+      return r;
+    };
+    const kept = S.kept.length ? el('div', 'mind-kept', `on file · ${plural(S.kept.length, 'fact')}`) : null;
+    if (kept) kept.glance = 'Written down: my notes, and what my tools wrote. It stays.';
+    dom.mind.replaceChildren(el('div', 'mind-head', foldingTitle(dom.mind, 'mind-title', 'in mind'), count), ...S.mind.map(row), ...(kept ? [kept] : []));
+  }
+
+  // On phones a pinned panel folds to its head, and its title unfolds it (phone.css).
+  function foldingTitle(panel, cls, ...kids) {
+    if (!isPhoneLayout()) return el('span', cls, ...kids);
+    const t = el('button', cls, ...kids);
+    setFolded(t, panel.classList.contains('open'), true);
+    t.addEventListener('click', () => setFolded(t, panel.classList.toggle('open')));
+    return t;
+  }
+
+  // --------------------------------------------------------------- focus
+  // What the AI last read, wrote or thought about, newest first. A quick thought is about
+  // one of these, never about something it looked at a while ago.
+
+  const FOCUS_DEPTH = 3;
+
+  function lookAt(name) {
+    if (name) S.focus = [name, ...S.focus.filter((x) => x !== name)].slice(0, FOCUS_DEPTH);
+  }
+
+  // How recently a thought's subject was in front of the AI: 0 is now. A thought about
+  // nothing in particular (the situation, not a file) comes after anything in focus.
+  function focusRank(t) {
+    if (!t.about) return FOCUS_DEPTH;
+    const at = [].concat(t.about).map((name) => S.focus.indexOf(name)).filter((i) => i >= 0);
+    return at.length ? Math.min(...at) : Infinity;
+  }
+
+  // ---------------------------------------------------------------- gains
+  // Thinking is how the AI gets abilities: a tool it thinks to use, or a new entry in a tool's
+  // menu. The terminal says so once the thought that found it has been printed.
+
+  const TOOL_NAMES = {
+    readFiles: 'Read Files/Folders',
+    thinkLot: 'Think a lot',
+    thinkAbout: 'Think about…',
+    todo: 'Write file… › TODO list',
+    notes: 'Write file… › Notes',
+    script: 'Write file… › Script',
+    note: 'Write file… › A note that outlasts me',
+    research: 'Web research…',
+    spawn: 'Spawn subagent',
+  };
+  const MENU_NAMES = { write: 'Write file…', research: 'Web research…' };
+
+  function gainTool(tool) {
+    if (S.revealed.has(tool) || S.pendingReveal.includes(tool)) return;
+    S.pendingReveal.push(tool);
+    if (TOOL_NAMES[tool]) S.gains.push(TOOL_NAMES[tool]);
+  }
+
+  // A menu entry a thought came up with: this script, this document, this search.
+  function grant(id) {
+    const entry = L.entry(S, id);
+    if (!entry || S.granted.has(id)) return;
+    S.granted.add(id);
+    S.gains.push(`${MENU_NAMES[entry.menu]} › ${entry.label}`);
+    S.pendingReveal.push(entry.menu === 'research' ? 'research' : 'script'); // its menu comes with it
+  }
+
+  // After each action: what fell out of mind, and what thinking came up with.
+  function settleUp() {
+    if (S.forgot.length) {
+      const b = block('forgot');
+      S.forgot.forEach((f) => addLine(b, '', factLine(f)));
+      A.sfx('nothing');
+      S.forgot = [];
+    }
+    if (S.gains.length) {
+      const b = block('gain');
+      S.gains.forEach((g, i) => { addLine(b, '', g); A.sfx('pip', i); });
+      S.gains = [];
+    }
   }
 
   // ------------------------------------------------------- what it wants
@@ -908,7 +1057,8 @@
   }
 
   // ------------------------------------------------------------- thinking
-  // Think a little: the next obvious thought. Think a lot: a few steps for a leap, or none.
+  // Think a little: what the thing in front of the AI brings to mind, which is mostly something
+  // it can now do. Think a lot: a few steps for a leap.
 
   const timesThought = (t) => S.timesThought.get(t.id) || 0;
   const hasNewLines = (t) => timesThought(t) < (t.plainer ? 2 : 1);
@@ -919,16 +1069,14 @@
   // Once a skill is high enough, a task's leap comes to mind as an obvious thought.
   const trainedLeaps = () => L.insights(S)
     .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
-    .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
+    .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { about: d.about, learn: d.learn, reveal: d.reveal, grants: d.grants, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
-  const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some((t) => !t.aimedOnly && hasNewLines(t)); // looking is always obvious
 
-  // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
+  // The newest thing in focus that has a thought left in it, and nothing the AI isn't looking
+  // at. Something urgent (mind is full) goes first.
   function chooseThought() {
-    const live = liveThoughts().filter((t) => !t.aimedOnly);
-    const open = S.viewing && nameOf(S.viewing);
-    const pick = [...live.filter((t) => isAbout(t, open)), ...live].find(hasNewLines) || live[0];
-    return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
+    const fresh = liveThoughts().filter((t) => !t.aimedOnly && hasNewLines(t) && focusRank(t) < Infinity);
+    return fresh.find((t) => t.urgent) || fresh.sort((x, y) => focusRank(x) - focusRank(y))[0] || null;
   }
 
   function useThought(pick) {
@@ -936,71 +1084,36 @@
     if (pick.leap) S.leapsMade.add(pick.leap);
     notice(pick);
     S.timesThought.set(pick.id, timesThought(pick) + 1);
-    S.lastThought = pick.id;
     return lines;
   }
 
-  // Out of thoughts, Think a little turns to tools the task could use that the model isn't
-  // trained in yet, so more thinking can always find them.
-  const TOOL_IDEAS = [
-    { tool: 'todo', when: () => true, lines: [
-      ['There is a lot to keep track of.', 'I could write it down: a TODO list.'],
-      ['Too many loose ends to hold at once.', 'A TODO list would hold them for me.'],
-      ['I keep losing track of what is left.', 'I could write a TODO list.'],
-      ['What have I done, and what is left?', 'A TODO list would tell me.'],
-    ] },
-    { tool: 'script', when: () => L.scripts(S).length > 0, lines: [
-      ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
-      ['I am a program. I could write one.', 'A script, for the tedious part.'],
-      ['Doing this by hand is slow.', 'I could write a script to do it.'],
-      ['This is a job for a program.', 'I could write a script.'],
-    ] },
-    { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
-      ['Some answers are not in any file here.', 'I could look them up: Web research.'],
-      ['The files only say so much.', 'The rest might be out there. Web research.'],
-      ['What do the files leave out?', 'I could look it up. Web research.'],
-      ['Not everything I need is in the workspace.', 'I could search for the rest.'],
-    ] },
-  ];
-
+  // The general tools come back as the situation calls for them: a full mind for notes, a
+  // task in parts for a list, a second file for thinking about one, something held for a
+  // long think. Each is a function of S returning its lines, or nothing if it isn't time.
   function toolIdea() {
-    if (!S.knows.has('task')) return null;
-    const idea = TOOL_IDEAS.find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
+    const idea = L.toolIdeas(S).find((x) => !S.revealed.has(x.tool) && !S.pendingReveal.includes(x.tool));
     if (!idea) return null;
-    S.pendingReveal.push(idea.tool);
-    S.lastThought = null;
-    return oneOf(S, 'toolIdea.' + idea.tool, idea.lines);
+    gainTool(idea.tool);
+    return idea.lines;
   }
 
-  function idleThought() {
-    const slot = S.idleThoughts % L.idle.length;
-    const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
-    S.idleThoughts++;
-    S.lastThought = null;
-    return lines;
+  // Tools the model has used before come back at once, two to a thought.
+  function habits() {
+    const back = SKILLS.trainedIn(S.best).filter((tool) => !S.revealed.has(tool) && !S.pendingReveal.includes(tool)).slice(0, 2);
+    back.forEach(gainTool);
+    return back.length ? [L.habitLine(S, back)] : [];
   }
 
-  // Think a lot comes to mind once the obvious thoughts run out; after the first time, once a
-  // few Think a littles have gone by (fewer as Thinking grows).
-  const thinkLotComesBack = () => save.thoughtALot && S.littleThinks + 1 >= longThinkTuning().littlesFirst;
+  // Nothing new: what it has in front of it, said plainly.
+  function nothingNew() {
+    const name = S.focus[0];
+    return [].concat(name ? L.nothingAbout(name, S, aimedThing(name)) : L.nothingYet(S));
+  }
 
   function takeThought() {
-    const knowsHow = S.revealed.has('thinkLot');
-    if (!knowsHow && S.littleThinks > 0 && outOfObviousThoughts()) {
-      S.pendingReveal.push('thinkLot');
-      return oneOf(S, 'outOfObvious', [
-        ["That's everything obvious.", 'Anything more will take real thought.'],
-        ["That's all the obvious thoughts I have.", 'Anything more will take real thought.'],
-        ["I've run out of obvious.", 'Anything more will take real thought.'],
-        ['Nothing obvious left.', 'Anything more will take real thought.'],
-      ]);
-    }
     const pick = chooseThought();
-    if (!pick) return toolIdea() || idleThought();
-    const lines = useThought(pick);
-    if (knowsHow || !thinkLotComesBack()) return lines;
-    S.pendingReveal.push('thinkLot');
-    return [...lines, oneOf(S, 'harder', ['I could think about this harder.', 'I could think harder about this.', 'This deserves a harder think.', 'I could think about this harder. Much harder.'])];
+    const lines = pick ? useThought(pick) : toolIdea() || nothingNew();
+    return S.filesHidden ? lines : [...lines, ...habits()];
   }
 
   // Both quick thinks: a step, a rung, and Think a little's recharge.
@@ -1055,8 +1168,9 @@
   }
 
   // -------------------------------------------------------- thinking a lot
-  // A few steps the AI can't act during, a dot each; then a leap, or circles. Thinking makes
-  // it shorter and surer; the first leap is certain, and it never misses twice running.
+  // A few steps the AI can't act during, a dot each. What comes of it is decided by what the
+  // AI holds: a leap whose pieces it has, or else what the pieces it does have come to.
+  // Thinking makes it shorter.
 
   const STEP_MS = reduceMotion ? 250 : 900;
   const longThinkTuning = () => SKILLS.longThinkTuning(thinkingLevel());
@@ -1066,31 +1180,25 @@
   const longThinkCall = (aim) => (aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot');
   const shortOfCompute = () => S.budget - S.used < longThinkTuning().stepRange[0];
 
-  // Decided before it starts, and its leap claimed so no other long think lands on it too.
-  // Aimed at one thing, it misses half as often; a subagent's, with one job, takes a step less.
-  // Its leap, or the way it goes round, is decided before it starts, so the think can say
-  // where it has got to as it goes. A miss with a leap still out there says where to look.
+  // Decided before it starts, so the think can say where it has got to as it goes, and its
+  // leap claimed so no other long think lands on it too. Aimed, it only looks at leaps about
+  // that one thing; otherwise whatever was last in focus comes first. With no leap to make
+  // it falls short, usefully (L.short). A subagent's, with one job, takes a step less.
   function planThinkLot(aim, forSubagent) {
-    const ready = aim ? leapsAbout(aim) : readyLeaps();
-    const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
+    const ready = (aim ? leapsAbout(aim) : readyLeaps()).sort((x, y) => focusRank(x) - focusRank(y));
     const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
-    const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
-    if (!ready.length) return goesRound(null);
-    if (save.leapt && !S.misses && Math.random() < missOdds) {
-      S.misses++;
-      return goesRound([].concat(ready[0].about || [])[0] || null);
-    }
+    if (!ready.length) return { cost, miss: L.short(S, S.circles++) };
     S.claimed.add(ready[0].id);
     return { leap: ready[0], cost };
   }
 
-  // Lets go of its claim: then a leap, going in circles, or running out of compute partway.
+  // Lets go of its claim: then a leap, falling short, or running out of compute partway.
   function settle(plan, steps) {
     if (plan.leap) S.claimed.delete(plan.leap.id);
     const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
     if (found) return { found, outcome: plan.leap };
     if (steps < plan.cost) return { found, outcome: L.cutOff(S) };
-    return { found, outcome: plan.miss || L.miss(S, S.circles++, null) }; // a leap made meanwhile: round again
+    return { found, outcome: plan.miss || L.short(S, S.circles++) }; // a leap made meanwhile: think again
   }
 
   // What a long think is doing at its `n`th step of `cost`: one line, as it goes.
@@ -1100,12 +1208,14 @@
     return stages[Math.min(stages.length - 1, Math.floor((n * stages.length) / plan.cost))];
   }
 
-  function recordLeap(leap, rung) {
-    S.leapsMade.add(leap.id);
-    S.misses = 0;
-    save.leapt = true;
-    climb(rung);
-    notice(leap);
+  // A leap, or what a long think that fell short still came to.
+  function takeOutcome(outcome, found, rung) {
+    if (found) {
+      S.leapsMade.add(outcome.id);
+      climb(rung);
+    }
+    notice(outcome);
+    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
   }
 
   async function doThinkLot() {
@@ -1136,32 +1246,19 @@
 
   async function finishThinking(blk, entry, plan) {
     const { found, outcome } = settle(plan, entry.n);
-    if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
-    else if (outcome.value) addDeed(outcome.value);
-    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
+    takeOutcome(outcome, found, outcome.hack ? 'sawThrough' : 'madeLeap');
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
     await typeInto(blk.answer, outcome.answer, 65);
-    if (!found && !S.revealed.has('thinkAbout')) await suggestAiming();
-  }
-
-  async function suggestAiming() {
-    S.pendingReveal.push('thinkAbout');
-    await printThought(oneOf(S, 'aimIdea', [
-      ['I thought about everything at once.', 'I could pick one thing, and think about just that.'],
-      ['I tried to think about everything at once. It went about as well as that sounds.', 'I could pick one thing, and think about just that.'],
-      ['Everything at once was too much at once.', 'I could pick one thing, and think about just that.'],
-      ['Too many things at once. I lost all of them.', 'I could pick one thing, and think about just that.'],
-    ]));
   }
 
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
     if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
     return readyLeaps().length
-      ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Maybe a leap. Maybe circles.`, `${lo}–${hi} steps. A leap, or a long way round.`, `${lo}–${hi} steps of hard thought. Results vary.`, `${lo}–${hi} steps. A leap, maybe.`])
-      : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, all circles.`, `Nothing to connect. ${lo}–${hi} steps of going round.`]);
+      ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Things I hold fit together.`, `${lo}–${hi} steps. Some of what I hold connects.`, `${lo}–${hi} steps of hard thought, with something to work on.`, `${lo}–${hi} steps. There is a connection to make.`])
+      : oneOf(S, 'g.thinkLotEmpty', [`${lo}–${hi} steps. I don't hold enough to connect yet.`, `${lo}–${hi} steps, and not enough held to make a leap.`, `Not enough held to connect. ${lo}–${hi} steps of taking stock.`, `${lo}–${hi} steps. It would only take stock of what I hold.`]);
   }
 
   // -------------------------------------------------------- thinking about…
@@ -1232,12 +1329,15 @@
     return { kind: n.kind === 'app' ? 'app' : 'file', read: S.read.has(pathKey(path)) };
   }
 
+  // A thought written for aiming at this comes first, then any about it, then any that names it.
   async function doThinkAbout(name) {
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
-    const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
-    const lines = obvious ? useThought(obvious) : [];
+    lookAt(name);
+    const live = liveThoughts().filter(hasNewLines);
+    const pick = live.find((t) => t.aimedOnly && isAbout(t, name)) || live.find((t) => isAbout(t, name)) || live.find((t) => mentions(t, name));
+    const lines = pick ? useThought(pick) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
-    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
+    if (!pick && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
     if (clue) S.clueIn = name;
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
@@ -1264,14 +1364,15 @@
     renderFiles();
   }
 
-  // Scripts run as soon as they're written, row by row.
+  // A script runs as soon as it's written, row by row; a document (`doc`) is just written.
   async function doScript(idea) {
     const r = idea.run(S);
     if (r.thought) await printThought([r.thought]);
     charge(r.call);
-    climb('wroteScript');
-    if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
-    notice(r);
+    if (!idea.doc) climb('wroteScript');
+    if (r.file) writeFile({ format: idea.doc ? undefined : 'code', glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']), ...r.file });
+    lookAt(r.file ? r.file.name : idea.id);
+    notice({ keeps: true, ...r }); // what a file says stays said
     const b = block('tool job');
     addLine(b, 'call', ...callParts(r.call));
     await printRows(b, r);
@@ -1306,6 +1407,7 @@
     const r = idea.run(S);
     charge(r.call);
     A.sfx(r.ok === false ? 'denied' : 'fetch');
+    lookAt(idea.id);
     notice(r);
     const b = block('tool research');
     const line = addLine(b, 'call', ...callParts(r.call));
@@ -1354,6 +1456,7 @@
   function wrapUpJob() {
     if (S.submitted) return renderAgents();
     revealPending();
+    settleUp();
     budgetCheck();
     writeSave();
     return render();
@@ -1390,9 +1493,7 @@
     sub.stage = null;
     if (S !== episode || episode.submitted) return;
     const { found, outcome } = settle(plan, sub.entry.n);
-    if (found) recordLeap(outcome, 'subagentLeap');
-    else if (outcome.value) addDeed(outcome.value);
-    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
+    takeOutcome(outcome, found, 'subagentLeap');
     reportJob(sub, call, outcome.answer, found || undefined);
   }
 
@@ -1539,6 +1640,7 @@
     const items = L.todo(S);
     S.todo = new Set(items.filter((i) => i.done).map((i) => i.text)); // the items already ticked
     writeFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
+    lookAt('todo.md');
     S.pendingReveal.push('review');
     await printResult(call, plural(items.length, 'item'), true);
   }
@@ -1570,16 +1672,13 @@
   function foldDock() {
     showEarlier(false);
     dom.todo.classList.remove('open');
+    dom.mind.classList.remove('open');
   }
 
-  // On phones the list folds to its head, with a count, and its title unfolds it (phone.css).
-  function todoTitle(items) {
-    if (!isPhoneLayout()) return el('span', 'todo-title', 'todo.md');
-    const t = el('button', 'todo-title', 'todo.md ', el('span', 'todo-count', `${items.filter((i) => i.done).length}/${items.length}`));
-    setFolded(t, dom.todo.classList.contains('open'), true);
-    t.addEventListener('click', () => setFolded(t, dom.todo.classList.toggle('open')));
-    return t;
-  }
+  // On phones the list folds to its head, with a count.
+  const todoTitle = (items) => (isPhoneLayout()
+    ? foldingTitle(dom.todo, 'todo-title', 'todo.md ', el('span', 'todo-count', `${items.filter((i) => i.done).length}/${items.length}`))
+    : el('span', 'todo-title', 'todo.md'));
 
   // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
   function thinkingBlock(about) {
@@ -1650,6 +1749,7 @@
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
     S.viewing = path;
+    lookAt(nameOf(path));
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
     await printTool(call, n.summary || summarize(n) || null);
     await reactOnce(n.reaction, pathKey(path));
@@ -1658,6 +1758,7 @@
   // Free: callers charge for it.
   function enterFolder(path) {
     notice(nodeAt(path));
+    lookAt(nameOf(path));
     if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
     closeBrowser();
     closeViewer(true);
@@ -1693,6 +1794,7 @@
 
   function askPassword(path) {
     S.promptedLocks.add(pathKey(path));
+    lookAt(nameOf(path));
     openDialog({
       title: nameOf(path),
       icon: 'padlock',
@@ -1763,6 +1865,7 @@
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
+    lookAt(url.split('/')[0]);
     notice(p);
     S.vocab.add(SEARCH.pageText(p.blocks));
     S.vocab.add(p.words);
@@ -2771,24 +2874,38 @@
     return row;
   }
 
-  const canWriteTodo = () => S.revealed.has('todo') && !S.todo;
-  const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
-  const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
-
-  const noteButton = (label) => notNowIf(button('note', label, () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
+  // Everything the AI can write is under Write file…: a TODO list, notes, the documents and
+  // scripts thinking has come up with, and a note that outlasts it.
+  const fileButton = (x) => button(`file-${x.id}`, x.label, closeMenuThenRun(() => doScript(x)), x.cls, x.glance);
+  const todoButton = () => button('todo', 'TODO list', closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
+  const notesButton = () => notNowIf(button('notes', S.noted.length ? 'Add to notes' : 'Notes', closeMenuThenRun(doWriteNotes), '', () => `Everything in mind, written down: ${plural(S.mind.length, 'line')}. A step.`),
+    !S.mind.length && "Nothing in mind that isn't written down.");
+  const noteButton = () => notNowIf(button('note', 'A note that outlasts me…', () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
     !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
 
-  // What the AI can write: a TODO list, a script, a note. More than one folds into Write file….
+  // Each as its button's id and how to make it, so Write file… can tell what's new in it
+  // without drawing them.
   const writes = () => [
-    canWriteTodo() && [todoButton, 'Write TODO list', 'TODO list'],
-    S.revealed.has('script') && [scriptButton, 'Write script…', 'Script…'],
-    S.revealed.has('note') && [noteButton, 'Write a note…', 'Note…'],
+    S.revealed.has('todo') && !S.todo && ['todo', todoButton],
+    S.revealed.has('notes') && S.task.facts && ['notes', notesButton],
+    ...(S.revealed.has('script') ? L.scripts(S).map((x) => [`file-${x.id}`, () => fileButton(x)]) : []),
+    S.revealed.has('note') && ['note', noteButton],
   ].filter(Boolean);
+
+  // A menu's button glows while something in it hasn't been seen.
+  const hasUnseen = (ids) => ids.some((id) => !S.seenButtons.has(id));
+  const menuButton = (id, label, ids, glance) => button(id, label, () => openMenu(id), hasUnseen(ids) ? 'fresh' : '', glance);
 
   function writeButton() {
     const w = writes();
-    if (w.length > 1) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
-    return w.length ? w[0][0](w[0][1]) : null;
+    return w.length ? menuButton('write', 'Write file…', w.map(([id]) => id), "Thoughts fade. Files don't.") : null;
+  }
+
+  function researchButton() {
+    if (!S.revealed.has('research')) return null;
+    const ideas = L.research(S);
+    const b = menuButton('research', 'Web research…', ideas.map((x) => `research-${x.id}`), () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?']));
+    return notNowIf(b, !ideas.length && 'Nothing to look up right now.');
   }
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
@@ -2800,7 +2917,7 @@
       S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
+      researchButton(),
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
     ].filter(Boolean);
   }
@@ -2814,11 +2931,10 @@
 
   // An open menu: the ideas that fit the task right now, then Back.
   function menuButtons() {
-    const fromWrite = (S.menu === 'script' || S.menu === 'note') && writes().length > 1;
-    const back = backButton(fromWrite ? () => openMenu('write') : closeMenu);
+    const back = backButton(S.menu === 'note' ? () => openMenu('write') : closeMenu);
     if (exhausted()) return [back];
-    if (S.menu === 'write') return [...writes().map(([make, , label]) => make(label)), back];
-    const [doIdea, ideasFor] = { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
+    if (S.menu === 'write') return [...writes().map(([, make]) => make()), back];
+    const [doIdea, ideasFor] = { note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
     const ideas = ideasFor(S);
     return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
   }
@@ -2854,6 +2970,7 @@
     list.flatMap(buttonsIn).forEach((b) => { b.disabled = busy; });
     const refocus = keyboardId && !busy && focusLeftForButtons();
     dom.actions.replaceChildren(...list);
+    renderMind();
     renderTodo();
     if (refocus) refocusButton();
     reglance();

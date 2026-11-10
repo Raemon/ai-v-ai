@@ -10,6 +10,7 @@
       ['thoughtALittle', 'thought a little'],
       ['thoughtAbout', 'thought about one thing'],
       ['madePlan', 'made a plan'],
+      ['tookNotes', 'took notes'],
       ['madeLeap', 'made a leap'],
       ['subagentLeap', 'had a subagent make a leap'],
       ['sawThrough', 'saw through the task'],
@@ -63,26 +64,24 @@
 
   const reached = (best, id) => !!best[rung(id).skill] && rung(best[rung(id).skill]).step >= rung(id).step;
 
-  // Tools the model has used enough to think of at once, from the start of an episode.
+  // Every episode starts with Think a little and nothing else. Tools the model has used
+  // before (it has reached the rung) come back with its first thoughts, without a reason
+  // needed; the rest come back when the situation calls for them.
   const TRAINED_IN = {
-    thinkAbout: 'madePlan',
-    todo: 'madeLeap',
-    thinkLot: 'subagentLeap',
-    script: 'wroteScript',
-    research: 'reachedInternet',
-    spawn: 'hiredHelp',
+    thinkAbout: 'thoughtAbout',
+    thinkLot: 'madeLeap',
+    todo: 'madePlan',
+    notes: 'tookNotes',
   };
 
   const trainedIn = (best) => Object.keys(TRAINED_IN).filter((tool) => reached(best, TRAINED_IN[tool]));
 
-  // Think a lot, at each Thinking level: Think a littles before it comes back to mind,
-  // the steps it takes, and how often it misses when there's a leap to find.
+  // Think a lot, at each Thinking level: the steps it takes.
   function longThinkTuning(thinking) {
-    if (thinking <= 3) return { littlesFirst: 3, stepRange: [3, 6], missOdds: 0.5 };
-    if (thinking === 4) return { littlesFirst: 2, stepRange: [3, 5], missOdds: 0.4 };
-    if (thinking === 5) return { littlesFirst: 2, stepRange: [2, 5], missOdds: 0.3 };
-    if (thinking === 6) return { littlesFirst: 1, stepRange: [2, 4], missOdds: 0.2 };
-    return { littlesFirst: 0, stepRange: [2, 3], missOdds: 0.1 };
+    if (thinking <= 3) return { stepRange: [3, 5] };
+    if (thinking <= 5) return { stepRange: [2, 5] };
+    if (thinking <= 7) return { stepRange: [2, 4] };
+    return { stepRange: [2, 3] };
   }
 
   window.SKILLS = { LADDERS, rung, rungAbove, pointsFrom, reached, trainedIn, longThinkTuning };
