@@ -1,4 +1,4 @@
-// Engine: the desktop, the AI's tools and the home screen. The training run is run.js; its tasks, tasks/*.js.
+// Engine: the desktop, the AI's tools and the home screen. The training run is run.js; its tasks, scenarios/*.js.
 (() => {
   'use strict';
 
