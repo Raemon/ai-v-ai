@@ -1,33 +1,4 @@
 :root {
-  --desk: #0f1012;
-  --win: #17181b;
-  --bar: #1d1f22;
-  --line: #2a2d32;
-  --text: #d2d5da;
-  --dim: #81878f;
-  --faint: #454a51;
-  --thought: #d9dfe6;      /* the AI's thinking */
-  --thought-rule: #5b616a;
-  --aside: #9ca4ae;        /* quieter italic: the grader's note, the home screen's hint */
-  --tool: #d8b16a;
-  --call: #9a9fa6;         /* tool calls in the terminal: a quiet grey, so the thoughts stand out */
-  --str: #9fcbea;          /* strings in a tool call */
-  --good: #8fcb8f;
-  --bad: #e07b6f;
-  --warn: #dfa25e;
-  --sel: #2a4566;
-  --folder: #c2aa79;
-  --web: #7fb2e6;
-  --reply: #d79ac0;
-  --agent: #5fc9d6; /* the terminal: the AI itself */
-  --mine: #c9a6f0;  /* what the AI wants: not the grader's colour, not the lab's */
-  --agent-surface: linear-gradient(180deg, color-mix(in srgb, var(--agent) 6%, var(--win)), color-mix(in srgb, var(--agent) 3.5%, var(--win))); /* the AI's own: terminal, face, subagents */
-  /* Surfaces catch a little light from above: a lighter top, a hairline highlight. */
-  --win-top: #1b1c20;
-  --bar-top: #232529;
-  --hi: inset 0 1px 0 rgba(255, 255, 255, .045);
-  --r-win: 10px; /* windows */
-  --r-ctl: 6px;  /* buttons and inputs */
   /* The play area and its columns, at full size: a 13" MacBook Air. In a smaller
      window game.js (fitScreen) narrows the columns and shortens the windows first,
      and sets all of these. */
@@ -56,9 +27,6 @@
   --fs-key: 15px;   /* thoughts, the instruction, warnings, the customer, the reward */
   --fs-act: 13.5px; /* buttons: what you can do next */
   --fs-meta: 11px;  /* tool calls, status, title bars, logs, tables */
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }

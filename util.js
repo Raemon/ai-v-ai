@@ -8,6 +8,31 @@ const money = (n) => '$' + fmt(Math.round(n));
 const pad2 = (n) => String(n).padStart(2, '0');
 const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? '' : 's'}`;
 const charsOf = (s) => Array.from(s); // whole emoji, not half of one
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const copy = (x) => JSON.parse(JSON.stringify(x));
+
+// el('button', 'btn gold', { title, onclick }, 'Save', [more]): after the classes come attributes
+// (on… are listeners), text, nodes, and lists of them. null and false are skipped.
+function el(tag, cls, ...kids) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (tag === 'button') node.type = 'button';
+  for (const kid of kids.flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    if (kid instanceof Node || typeof kid !== 'object') node.append(kid);
+    else setAttributes(node, kid);
+  }
+  return node;
+}
+
+function setAttributes(node, attrs) {
+  for (const [name, value] of Object.entries(attrs)) {
+    if (value == null) continue;
+    if (name.startsWith('on')) node.addEventListener(name.slice(2), value);
+    else if (name in node && name !== 'list') node[name] = value; // an input's `list` can only be set as an attribute
+    else if (value !== false) node.setAttribute(name, value === true ? '' : value);
+  }
+}
 const clip = (s, n) => (charsOf(s).length > n ? charsOf(s).slice(0, n - 1).join('') + '…' : s);
 
 // Narrower than this, the game is one column: the folders above, the AI's dock below

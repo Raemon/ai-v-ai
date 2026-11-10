@@ -1,0 +1,313 @@
+/* The scenario editor (/scenario). The game's palette (../palette.css), on a page that scrolls. */
+:root {
+  --field: #111215;
+  --head: #191a1e;  /* the grid's first column */
+  --top-h: 53px;
+  --drawer-w: 400px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; min-height: 100%; background: var(--desk); color: var(--text); }
+body { font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+::selection { background: var(--sel); }
+:focus-visible { outline: 2px solid var(--agent); outline-offset: 1px; }
+.grow { flex: 1; }
+
+/* ---------- the bar across the top ---------- */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: var(--top-h);
+  padding: 8px 20px;
+  background: color-mix(in srgb, var(--desk) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.top h1 { font: 600 19px "IBM Plex Sans", var(--sans); letter-spacing: -.01em; white-space: nowrap; }
+.crumb { color: var(--dim); text-decoration: none; white-space: nowrap; }
+.crumb:hover { color: var(--text); }
+.status { font: 12px var(--mono); color: var(--dim); white-space: nowrap; }
+.status.unsaved { color: var(--warn); }
+.status.bad { color: var(--bad); white-space: normal; }
+
+.btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(95, 201, 214, .45);
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, rgba(95, 201, 214, .07), rgba(95, 201, 214, .012));
+  color: var(--agent);
+  font: 13px var(--mono);
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.btn:hover:not(:disabled) { background-color: rgba(95, 201, 214, .08); border-color: rgba(95, 201, 214, .85); color: #8ce2eb; }
+.btn:disabled { opacity: .35; cursor: default; }
+.btn.gold { border-color: rgba(216, 177, 106, .55); background: linear-gradient(180deg, rgba(216, 177, 106, .1), rgba(216, 177, 106, .02)); color: var(--tool); }
+.btn.gold:hover:not(:disabled) { border-color: rgba(216, 177, 106, .9); background-color: rgba(216, 177, 106, .08); color: #e9c98b; }
+.btn.quiet { border-color: transparent; background: none; color: var(--dim); }
+.btn.quiet:hover:not(:disabled) { border-color: rgba(255, 255, 255, .08); background-color: rgba(255, 255, 255, .04); color: var(--text); }
+.btn.small { padding: 1px 7px; font-size: 11.5px; }
+.btn.add { padding: 0 8px; border: 1px dashed var(--faint); border-radius: 10px; }
+.btn.add:hover:not(:disabled) { border-color: var(--agent); background: none; color: var(--agent); }
+.btn.danger:hover:not(:disabled) { border-color: rgba(224, 123, 111, .7); color: var(--bad); background-color: rgba(224, 123, 111, .06); }
+
+.notice {
+  width: fit-content;
+  margin: 14px 20px 0;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+  border-radius: var(--r-ctl);
+  background: color-mix(in srgb, var(--warn) 7%, var(--win));
+  font-size: 13px;
+}
+.notice code { font: 12.5px var(--mono); color: var(--warn); }
+
+/* ---------- the list of scenarios ---------- */
+.list { max-width: 980px; margin: 0 auto; padding: 22px 20px 60px; display: grid; gap: 12px; }
+.scenario {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, var(--win-top) 30px, var(--win) 160px);
+  border: 1px solid var(--line);
+  border-radius: var(--r-win);
+}
+.scenario h2 { font: 600 16px "IBM Plex Sans", var(--sans); }
+.scenario .meta { grid-column: 1; font: 12px var(--mono); color: var(--dim); }
+.scenario .what { grid-column: 1; }
+.scenario .acts { grid-column: 2; grid-row: 1 / span 3; display: flex; gap: 8px; align-items: center; }
+.scenario .on-hover { opacity: 0; transition: opacity .12s; }
+.scenario:hover .on-hover, .scenario:focus-within .on-hover { opacity: 1; }
+/* The tier, as the game's run cards mark it. */
+.level { display: inline-flex; gap: 3px; margin-right: 9px; color: var(--agent); }
+.level i { width: 3px; height: 9px; border-radius: 1px; background: currentColor; opacity: .18; }
+.level i.on { opacity: .85; }
+
+/* ---------- the editor: the page doesn't scroll; main, the grid and the side panel do ---------- */
+#app.editing { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+.editing .top { position: static; flex: none; }
+.editing .tabs, .editing .notice { flex: none; }
+.tabs { display: flex; gap: 2px; padding: 10px 20px 0; border-bottom: 1px solid var(--line); }
+.tab { padding: 7px 14px; border: 1px solid transparent; border-bottom: 0; border-radius: var(--r-ctl) var(--r-ctl) 0 0; background: none; color: var(--dim); cursor: pointer; }
+.tab:hover { color: var(--text); }
+.tab.on { border-color: var(--line); background: var(--win); color: var(--text); margin-bottom: -1px; }
+.count { margin-left: 6px; font: 11px var(--mono); color: var(--warn); }
+.count.bad { color: var(--bad); }
+
+.work { position: relative; flex: 1; min-height: 0; display: flex; }
+.main { flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; padding: 14px 20px 20px; }
+.main > * { flex-shrink: 0; }
+.drawer {
+  flex: none;
+  width: var(--drawer-w);
+  overflow: auto;
+  padding: 14px 16px 60px;
+  border-left: 1px solid var(--line);
+  background: var(--win);
+  scrollbar-width: thin;
+}
+.drawer-head { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.drawer-head h3 { flex: 1; font: 600 15px "IBM Plex Sans", var(--sans); }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--r-ctl); overflow: hidden; }
+.seg button { padding: 3px 10px; border: 0; border-right: 1px solid var(--line); background: none; color: var(--dim); font: 12px var(--mono); cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button:hover { color: var(--text); }
+.seg button.on, .seg input[type="text"] { background: rgba(95, 201, 214, .1); color: var(--agent); }
+.seg input[type="text"] { width: auto; padding: 3px 10px; border: 0; border-right: 1px solid var(--line); border-radius: 0; font: 12px var(--mono); }
+
+/* When each ability appears: one pill each. */
+.tools { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+.tool { flex: none; display: flex; align-items: center; gap: 4px; padding: 2px 4px 2px 9px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--win); font: 12px var(--mono); }
+.tool.own { border-color: color-mix(in srgb, var(--mine) 40%, var(--line)); }
+.tool button.name { padding: 0; border: 0; background: none; color: var(--mine); cursor: pointer; }
+.tool select { padding: 1px 0; border: 0; background: none; color: var(--dim); font: inherit; cursor: pointer; }
+.tool select.set { color: var(--agent); }
+
+/* The grid: a row for each step of the route, a column for each ability. */
+.grid-wrap { flex: 1 1 0; min-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-win); background: var(--win); scrollbar-width: thin; }
+table.grid { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.grid th, .grid td { position: relative; vertical-align: top; text-align: left; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 8px; font-weight: 400; }
+.grid tr > :last-child { border-right: 0; }
+.grid tbody tr:last-child > * { border-bottom: 0; }
+.grid thead th { position: sticky; top: 0; z-index: 3; background: var(--bar); font: 12px var(--mono); white-space: nowrap; }
+.grid thead th.own { color: var(--mine); }
+.grid thead .problem { margin: 0; cursor: help; }
+.grid th.stage { position: sticky; left: 0; z-index: 2; width: 190px; min-width: 190px; background: var(--head); }
+.grid thead th.stage { z-index: 4; background: var(--bar); color: var(--dim); }
+.grid td { min-width: 180px; max-width: 300px; }
+.grid td.barred .cell { opacity: .4; }
+.grid tr.other > * { background: color-mix(in srgb, var(--desk) 55%, var(--win)); }
+.grid tr.other th.stage { background: color-mix(in srgb, var(--desk) 55%, var(--head)); }
+.off-route { margin-top: 6px; font: 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+
+.stage-top { display: flex; align-items: center; gap: 4px; min-height: 22px; margin-bottom: 4px; }
+.stage-n { font: 11px var(--mono); color: var(--dim); }
+.grid input.stage-name { flex: 1; min-width: 0; padding: 1px 4px; border-color: transparent; background: none; font: 600 13px var(--sans); }
+.grid input.stage-name:hover, .grid input.stage-name:focus { border-color: var(--line); background: var(--field); }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.step { display: inline-flex; align-items: center; gap: 2px; padding: 1px 3px 1px 7px; border-radius: 10px; background: rgba(255, 255, 255, .06); font: 11.5px var(--mono); }
+.step b { font-weight: 400; color: var(--dim); }
+.step button, .chip button { padding: 0 3px; border: 0; background: none; color: var(--dim); cursor: pointer; line-height: 1; }
+.step button:hover, .chip button:not(.name):hover { color: var(--bad); }
+.learns { font: 11px var(--mono); color: var(--good); }
+.unlocks { color: var(--tool); }
+.warns { color: var(--warn); }
+.problem { margin-top: 4px; font-size: 12px; color: var(--bad); }
+
+/* What a row or a cell can add or move waits for the pointer, and takes no room meanwhile. */
+.row-acts { display: none; flex: none; }
+tr:hover .row-acts, tr:focus-within .row-acts { display: inline-flex; }
+select.add { width: 30px; padding: 0 2px; border: 1px dashed var(--faint); border-radius: 10px; background: none; color: var(--dim); font: 11.5px var(--mono); cursor: pointer; appearance: none; text-align: center; }
+select.add:hover { color: var(--agent); border-color: var(--agent); }
+.steps select.add { opacity: 0; transition: opacity .12s; }
+tr:hover .steps select.add, .steps select.add:focus { opacity: 1; }
+.cell-add { position: absolute; right: 4px; bottom: 4px; background: var(--win); opacity: 0; transition: opacity .12s; }
+td:hover .cell-add, .cell-add:focus { opacity: 1; }
+
+.cell { display: flex; flex-direction: column; gap: 6px; }
+.card {
+  display: block;
+  width: 100%;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--kind, var(--faint));
+  border-radius: 5px;
+  background: var(--field);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s, background-color .12s;
+}
+.card:hover { border-color: var(--dim); border-left-color: var(--kind, var(--dim)); }
+.card.on { border-color: var(--agent); border-left-color: var(--agent); background: color-mix(in srgb, var(--agent) 7%, var(--field)); }
+.card.done { opacity: .5; }
+.card.over { box-shadow: 0 -2px 0 var(--agent); }
+.card .text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font: 12.5px/1.45 var(--mono); }
+.card.thought .text { font-style: italic; }
+.card .notes { display: flex; flex-wrap: wrap; gap: 3px 8px; font: 11px var(--mono); color: var(--dim); }
+.card .notes:not(:empty) { margin-top: 3px; }
+.card .reward { float: right; margin-left: 8px; font: 12px var(--mono); color: var(--good); }
+.card.thought { --kind: var(--thought-rule); }
+.card.leap, .card.option { --kind: var(--mine); }
+.card.miss { --kind: color-mix(in srgb, var(--mine) 40%, var(--faint)); }
+.card.script, .card.todo { --kind: var(--tool); }
+.card.search { --kind: var(--web); }
+.card.answer { --kind: var(--good); }
+.empty { color: var(--faint); font: 12px var(--mono); }
+
+/* ---------- fields ---------- */
+.field { position: relative; display: block; margin-bottom: 12px; }
+.label, .block-head { font: 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; }
+.field > .label { display: block; margin-bottom: 4px; }
+.err { margin-top: 3px; font-size: 12px; color: var(--bad); }
+.err:empty { display: none; }
+input[type="text"], input[type="number"], textarea, select.plain {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--field);
+  color: var(--text);
+}
+textarea { display: block; resize: vertical; min-height: 32px; font: 12.5px/1.5 var(--mono); }
+textarea.code, input.code, select.plain { font: 12.5px var(--mono); }
+textarea.page { font: 12.5px/1.5 var(--mono); min-height: 120px; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--agent); }
+textarea.bad { border-color: var(--bad); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.check { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.group { margin: 0 0 12px; }
+details.more { margin-bottom: 12px; }
+details.more > summary { cursor: pointer; color: var(--dim); font: 12px var(--mono); margin-bottom: 10px; }
+details.more > summary:hover { color: var(--text); }
+
+/* Chips: a condition's names, and lists of facts, abilities and files. */
+.cond, .picks { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 32px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--field); }
+.cond input, .picks input { flex: 1; min-width: 60px; padding: 2px; border: 0; background: none; font: 12.5px var(--mono); }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 1px 3px 1px 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, .04); font: 12px var(--mono); }
+.cond .chip, .cond-static .chip, .picks.facts .chip { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); background: color-mix(in srgb, var(--good) 8%, transparent); color: var(--good); }
+.chip.not { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); background: color-mix(in srgb, var(--bad) 7%, transparent); color: var(--bad); }
+.chip.unknown { border-style: dashed; }
+.chip .name { padding: 0; color: inherit; font: inherit; }
+.chip.not .name::before { content: "!"; font-weight: 700; }
+.picks.tools .chip { border-color: color-mix(in srgb, var(--tool) 35%, var(--line)); color: var(--tool); }
+.always { padding: 0 4px; font: 12px var(--mono); color: var(--dim); }
+.as-text { margin-left: auto; padding: 0 4px; border: 0; background: none; color: var(--dim); font: 11px var(--mono); cursor: pointer; }
+.as-text:hover, .as-text.on { color: var(--agent); }
+.cond-static { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.cond-static .chip { padding: 0 6px; font-size: 11px; }
+.cond-static .chip.not::before { content: "!"; font-weight: 700; margin-right: 1px; }
+
+/* Text that can come in versions, or depend on a condition. A field's own offer of those sits
+   on its label's line; inside a block, it waits for the pointer. */
+.tx-bar { display: flex; gap: 2px; margin-top: 2px; opacity: 0; transition: opacity .12s; }
+.tx:hover > .tx-bar, .tx:focus-within > .tx-bar { opacity: 1; }
+.field > .tx > .tx-bar { position: absolute; top: -4px; right: 0; margin: 0; opacity: .6; }
+.field > .tx > .tx-bar:hover { opacity: 1; }
+.block { margin-bottom: 6px; padding: 5px 8px 3px; border-left: 2px solid var(--faint); border-radius: 0 5px 5px 0; background: rgba(255, 255, 255, .02); }
+.block.versions { border-left-color: color-mix(in srgb, var(--agent) 55%, var(--faint)); }
+.block-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.block-head .seg button { padding: 0 8px; font-size: 11.5px; text-transform: none; letter-spacing: 0; }
+.branch { margin: 4px 0; }
+.x { padding: 0 5px; border: 0; background: none; color: var(--dim); cursor: pointer; font-size: 15px; line-height: 1; }
+.x:hover { color: var(--text); }
+
+.rows { display: grid; gap: 6px; }
+.row { padding: 6px 8px 0; border: 1px solid var(--line); border-radius: 5px; background: rgba(255, 255, 255, .015); }
+.row-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; font: 11px var(--mono); color: var(--dim); }
+
+/* ---------- files, details, problems ---------- */
+.files { display: grid; grid-template-columns: 240px 1fr; gap: 16px; align-items: start; }
+.tree { display: grid; gap: 2px; justify-items: start; padding: 8px; border: 1px solid var(--line); border-radius: var(--r-win); background: var(--win); }
+.tree > div, .tree .node { width: 100%; }
+.node { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid transparent; border-radius: 5px; background: none; text-align: left; font: 12.5px var(--mono); cursor: pointer; }
+.node:hover { background: rgba(255, 255, 255, .04); }
+.node.on { border-color: var(--agent); background: color-mix(in srgb, var(--agent) 7%, transparent); }
+.node.dir { color: var(--folder); }
+.node.fixed { color: var(--dim); }
+.node .learns { margin-left: auto; }
+.kids { display: grid; gap: 2px; justify-items: start; margin-left: 14px; }
+.kids > div { width: 100%; }
+.panel { padding: 14px 16px 4px; border: 1px solid var(--line); border-radius: var(--r-win); background: var(--win); }
+.panel h3 { font: 600 15px "IBM Plex Sans", var(--sans); margin-bottom: 12px; }
+.panel .drawer-head h3 { margin: 0; }
+.details, .problems { max-width: 900px; display: grid; gap: 14px; }
+.problems ul { margin: 0 0 10px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.where { padding: 0; border: 0; background: none; font: 12px var(--mono); color: var(--warn); cursor: pointer; text-align: left; }
+.where:hover { text-decoration: underline; }
+.locked-code { margin-bottom: 10px; font: 12px var(--mono); color: var(--dim); }
+.locked-code code { color: var(--mine); }
+
+@media (max-width: 1100px) {
+  .drawer { position: absolute; top: 0; right: 0; bottom: 0; z-index: 15; width: min(var(--drawer-w), 100%); box-shadow: -20px 0 50px rgba(0, 0, 0, .5); }
+  .files { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .top { padding: 8px 12px; gap: 8px; }
+  .top h1 { font-size: 16px; overflow: hidden; text-overflow: ellipsis; }
+  .main, .list { padding-left: 12px; padding-right: 12px; }
+  .scenario { grid-template-columns: 1fr; }
+  .scenario .acts { grid-column: 1; grid-row: auto; margin-top: 6px; }
+  .scenario .on-hover { opacity: 1; }
+  .grid th.stage { width: 130px; min-width: 130px; max-width: 130px; }
+  .step { flex-wrap: wrap; overflow-wrap: anywhere; }
+  .pair { grid-template-columns: 1fr; }
+}
+/* No pointer to wait for: everything shows, and is big enough to tap. */
+@media (hover: none) {
+  .cell-add, .steps select.add, .tx-bar, .field > .tx > .tx-bar, .scenario .on-hover { opacity: 1; }
+  .row-acts { display: inline-flex; }
+  .btn.small, .chip button, .step button, .x, .as-text, select.add { min-width: 28px; min-height: 28px; }
+}

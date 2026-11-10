@@ -25,11 +25,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Only the game itself; docs/ has spoilers.
+      - name: Check the scenarios
+        run: node tools/check.js
+
+      # Only the game itself: docs/ and the scenario editor (scenario/) are spoilers.
       - name: Collect site files
         run: |
           mkdir _site
-          cp -r *.html *.css *.js *.webmanifest icons tasks _site/
+          cp -r *.html *.css *.js *.webmanifest icons scenarios _site/
 
       - uses: actions/configure-pages@v5
 
