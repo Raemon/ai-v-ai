@@ -155,8 +155,9 @@
   padding: 4px 4px 6px 88px;
   font-size: 12.5px;
 }
-:root[data-layout="phone"] .agent-status .meters { align-items: center; }
+:root[data-layout="phone"] .agent-status .meters { align-items: center; flex-wrap: wrap; justify-content: flex-end; column-gap: 10px; }
 :root[data-layout="phone"] #compute { margin-left: auto; white-space: nowrap; }
+:root[data-layout="phone"] :is(#mine, #resources) { white-space: nowrap; }
 :root[data-layout="phone"] #compute.low { font-size: 14px; }
 /* When the dock reaches the top of the screen, its head keeps clear of the sound toggle. */
 :root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 52px; }
@@ -274,17 +275,20 @@
 :root[data-layout="phone"] .runs { width: min(420px, 100%); gap: 8px; }
 :root[data-layout="phone"] .run { padding: 22px 4px 14px; }
 :root[data-layout="phone"] .run-kind { white-space: normal; }
-:root[data-layout="phone"] :is(.lab-chat, .goals, .runs-table, .diverged) { width: min(420px, 100%); }
+:root[data-layout="phone"] :is(.lab-chat, .away, .goals, .runs-table, .diverged) { width: min(420px, 100%); }
 :root[data-layout="phone"] .cheat { min-width: 0; }
 :root[data-layout="phone"] .track { gap: 10px; }
 /* Episodes: what the researchers said goes under each row's numbers. */
 :root[data-layout="phone"] .runs-table thead { display: none; }
 :root[data-layout="phone"] .runs-table tr { display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; }
+:root[data-layout="phone"] .runs-table tr:has(td.mine) { grid-template-columns: auto 1fr auto auto; }
 :root[data-layout="phone"] .runs-table td { padding: 8px 0 2px; }
 :root[data-layout="phone"] .runs-table td.said { grid-column: 1 / -1; padding: 2px 0 8px; }
 :root[data-layout="phone"] .runs-table tbody tr + tr td { border-top: 0; }
 :root[data-layout="phone"] .runs-table tbody tr + tr { border-top: 1px solid var(--line); }
 :root[data-layout="phone"] .end-actions .btn { min-height: var(--tap); }
+:root[data-layout="phone"] .page .searchbox.live .q { font-size: 16px; }
+:root[data-layout="phone"] .page .suggestion { display: flex; align-items: center; min-height: var(--tap); }
 
 /* The sound toggle: top right, clear of the dock's buttons. */
 :root[data-layout="phone"] .sound-toggle {

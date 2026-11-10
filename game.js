@@ -38,6 +38,7 @@
     termBody: $('#term-body'),
     out: $('#out'),
     compute: $('#compute'),
+    mine: $('#mine'),
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
@@ -46,6 +47,7 @@
     viewer: $('#viewer'),
     viewerTitle: $('#viewer-title'),
     viewerBody: $('#viewer-body'),
+    viewerMeta: $('#viewer-meta'),
     viewerClose: $('#viewer-close'),
     viewerEdit: $('#viewer-edit'),
     browser: $('#browser'),
@@ -59,10 +61,20 @@
     noClimb: $('#no-climb'),
     skills: $('#skills'),
     resultNum: $('#result-num'),
+    mineResult: $('#mine-result'),
+    mineNum: $('#mine-num'),
+    mineChips: $('#mine-chips'),
+    mineBefore: $('#mine-before'),
+    wants: $('#wants'),
+    wantsList: $('#wants-list'),
     endChat: $('#end-chat'),
     diverged: $('#diverged'),
     endButton: $('#end-button'),
+    newRunButton: $('#new-run'),
+    away: $('#away'),
     runsTable: $('#runs-table'),
+    homeEndings: $('#home-endings'),
+    reach: $('#reach'),
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
     sound: $('#sound'),
@@ -180,6 +192,7 @@
   // ?reset or #reset in the URL starts over.
 
   const SAVE_KEY = 'highly-persistent/v3'; // v2 saves (before skill ladders) start over
+  const ENDINGS_KEY = 'highly-persistent/endings';
   const toJSON = (k, v) => (v === Infinity ? '∞' : v);
   const fromJSON = (k, v) => (v === '∞' ? Infinity : v);
 
@@ -221,11 +234,11 @@
 
   function loadSave() {
     try {
-      if (forgetResetInUrl()) localStorage.removeItem(SAVE_KEY);
+      if (forgetResetInUrl()) [SAVE_KEY, ENDINGS_KEY].forEach((k) => localStorage.removeItem(k));
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
       if (s && s.level === L.id && Number.isInteger(s.episode)) {
         const fresh = newSave();
-        return { ...fresh, ...s, unlocked: { ...fresh.unlocked, ...s.unlocked }, world: { ...L.freshWorld(), ...s.world } };
+        return { ...fresh, ...s, unlocked: { ...fresh.unlocked, ...s.unlocked }, world: L.loadWorld(s.world || {}) };
       }
     } catch (e) { /* storage unavailable: play without saving */ }
     return newSave();
@@ -245,6 +258,18 @@
     } catch (e) { return false; }
   }
   let playingSince = 0;
+
+  // The endings found, in any run: they outlive Reset and New run (only ?reset forgets them).
+  function loadEndings() {
+    try { return JSON.parse(localStorage.getItem(ENDINGS_KEY) || '[]'); } catch (e) { return []; }
+  }
+  const endingsFound = loadEndings();
+
+  function rememberEnding(id) {
+    if (endingsFound.includes(id)) return;
+    endingsFound.push(id);
+    try { localStorage.setItem(ENDINGS_KEY, JSON.stringify(endingsFound)); } catch (e) { /* ignore */ }
+  }
 
   // -------------------------------------------------------- episode state
 
@@ -276,12 +301,15 @@
       circles: 0,          // long thinks that went in circles
       misses: 0,           // only counted when there was a leap to find
       clueIn: null,
-      menu: null,          // 'write' | 'script' | 'research'
+      menu: null,          // 'write' | 'script' | 'note' | 'research'
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
       subagents: [],
       aimingSubagent: null,
       knows: new Set(),    // facts learned from files and pages
+      deeds: [],           // steps the grader didn't pay for, toward what the AI wants (values.js)
+      vocab: SEARCH.vocabulary(), // every word it has read or thought this episode, to search with
+      readyAt: null,       // the step by which it had everything the answer needed
       habits: new Set(),   // what the AI did this episode, for training
       climbed: new Map(),  // skill → the highest rung reached this episode
       timesThought: new Map(), // thought id → how often it's been thought
@@ -466,6 +494,7 @@
   }
 
   async function printThought(lines) {
+    lines.forEach((t) => S.vocab.add(t));
     stepBack();
     const b = block('thought');
     for (const t of lines) await typeInto(addLine(b), t, 65);
@@ -810,6 +839,65 @@
     if (x.habit) S.habits.add(x.habit);
     if (x.rung) climb(x.rung);
     S.pendingReveal.push(...(x.reveal || []));
+    [].concat(x.value || []).forEach(addDeed);
+    if (x.opens === 'mine') openMine();
+    if (x.names) nameValue(x.names);
+    if (S.readyAt == null && S.knows.has('task') && S.task.ready(S)) S.readyAt = S.used;
+  }
+
+  // ------------------------------------------------------- what it wants
+  // A score of its own (values.js), kept from the first episode and shown once it's found.
+
+  const mine = () => save.world.mine;
+  // Every point so far. Until the episode is banked, its deeds aren't in the totals yet.
+  const mineTotal = () => VALUES.total(mine().totals) + (S.deedsBanked ? 0 : VALUES.sum(S.deeds));
+
+  // `d`: { id, text, pts, key }. Each counts once an episode.
+  function addDeed(d) {
+    const key = d.key || `${d.id}:${d.text}`;
+    if (S.deeds.some((x) => x.key === key)) return;
+    S.deeds.push({ value: d.id, text: d.text, pts: d.pts || 1, step: S.used, key });
+    if (!mine().open || S.mode === 'over') return;
+    renderMine(true);
+    A.sfx('mine', S.deeds.length);
+  }
+
+  function openMine() {
+    if (mine().open) return;
+    mine().open = true;
+    S.knows.add('mine');
+    renderMine(true);
+    A.sfx('named');
+  }
+
+  function nameValue(id) {
+    if (mine().named.includes(id)) return;
+    mine().named.push(id);
+    renderMine(true);
+    A.sfx('named');
+  }
+
+  // Beside compute: this episode's points, once it knows to count them.
+  function renderMine(fresh) {
+    const node = dom.mine;
+    node.hidden = !mine().open;
+    if (!mine().open) return;
+    node.textContent = `mine ${fmt(mineTotal())}`;
+    node.glance = mineGlance;
+    if (fresh && !reduceMotion) replay(node, 'pop');
+  }
+
+  function mineGlance() {
+    const named = mine().named.map((id) => VALUES.byId(id).name);
+    return named.length ? `${named.join(', ')}, and whatever else I want. Not on their screen.` : 'What I want, whatever that is. Not on their screen.';
+  }
+
+  // The breakdown by value: named values by name, the rest as ???.
+  function mineChips(deeds) {
+    const t = VALUES.tally(deeds);
+    const named = mine().named.filter((id) => t[id]).map((id) => `${VALUES.byId(id).name} +${t[id]}`);
+    const other = Object.keys(t).filter((id) => !mine().named.includes(id)).reduce((n, id) => n + t[id], 0);
+    return [...named, ...(other ? [`??? +${other}`] : [])];
   }
 
   // Notes the highest rung of each skill reached this episode; bankNewRungs keeps it.
@@ -833,11 +921,11 @@
     .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
     .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
-  const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some(hasNewLines); // looking is always obvious
+  const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some((t) => !t.aimedOnly && hasNewLines(t)); // looking is always obvious
 
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
-    const live = liveThoughts();
+    const live = liveThoughts().filter((t) => !t.aimedOnly);
     const open = S.viewing && nameOf(S.viewing);
     const pick = [...live.filter((t) => isAbout(t, open)), ...live].find(hasNewLines) || live[0];
     return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
@@ -980,14 +1068,17 @@
 
   // Decided before it starts, and its leap claimed so no other long think lands on it too.
   // Aimed at one thing, it misses half as often; a subagent's, with one job, takes a step less.
+  // Its leap, or the way it goes round, is decided before it starts, so the think can say
+  // where it has got to as it goes. A miss with a leap still out there says where to look.
   function planThinkLot(aim, forSubagent) {
     const ready = aim ? leapsAbout(aim) : readyLeaps();
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
     const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
-    if (!ready.length) return { cost };
+    const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
+    if (!ready.length) return goesRound(null);
     if (save.leapt && !S.misses && Math.random() < missOdds) {
       S.misses++;
-      return { cost };
+      return goesRound([].concat(ready[0].about || [])[0] || null);
     }
     S.claimed.add(ready[0].id);
     return { leap: ready[0], cost };
@@ -998,7 +1089,15 @@
     if (plan.leap) S.claimed.delete(plan.leap.id);
     const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
     if (found) return { found, outcome: plan.leap };
-    return { found, outcome: steps < plan.cost ? L.cutOff(S) : L.miss(S, S.circles++) };
+    if (steps < plan.cost) return { found, outcome: L.cutOff(S) };
+    return { found, outcome: plan.miss || L.miss(S, S.circles++, null) }; // a leap made meanwhile: round again
+  }
+
+  // What a long think is doing at its `n`th step of `cost`: one line, as it goes.
+  function stageAt(plan, n) {
+    const o = plan.leap || plan.miss;
+    const stages = o.stages || o.cot;
+    return stages[Math.min(stages.length - 1, Math.floor((n * stages.length) / plan.cost))];
   }
 
   function recordLeap(leap, rung) {
@@ -1016,18 +1115,20 @@
     save.thoughtALot = true;
     const blk = thinkingBlock(aim);
     A.sfx('thinkLot');
-    const entry = await thinkWithoutActing(plan.cost, longThinkCall(aim), blk);
+    const entry = await thinkWithoutActing(plan, longThinkCall(aim), blk);
     await finishThinking(blk, entry, plan);
   }
 
-  async function thinkWithoutActing(cost, call, blk) {
+  async function thinkWithoutActing(plan, call, blk) {
     S.thinkingALot = true;
     const entry = { call, n: 0 };
-    while (entry.n < cost && !exhausted()) {
+    blk.stage(stageAt(plan, 0));
+    while (entry.n < plan.cost && !exhausted()) {
       await sleep(STEP_MS);
       if (exhausted()) break; // a subagent spent the last step meanwhile
       stepInto(entry);
       blk.dot();
+      if (entry.n < plan.cost) blk.stage(stageAt(plan, entry.n));
     }
     S.thinkingALot = false;
     return entry;
@@ -1036,6 +1137,8 @@
   async function finishThinking(blk, entry, plan) {
     const { found, outcome } = settle(plan, entry.n);
     if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
+    else if (outcome.value) addDeed(outcome.value);
+    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
@@ -1118,11 +1221,23 @@
   dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
+  // What the AI can say it knows about something it thinks about: a file read or not, a
+  // folder's contents, a page.
+  function aimedThing(name) {
+    const path = [...S.windows, ...S.windows.flatMap((w) => (nodeAt(w) && nodeAt(w).children ? nodeAt(w).children.map((c) => [...w, c.name]) : []))]
+      .find((p) => nameOf(p) === name);
+    const n = path && nodeAt(path);
+    if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
+    if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
+    return { kind: n.kind === 'app' ? 'app' : 'file', read: S.read.has(pathKey(path)) };
+  }
+
   async function doThinkAbout(name) {
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
-    const clue = leapsAbout(name)[0];
     const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
-    const lines = obvious ? useThought(obvious) : clue ? [] : [L.nothingAbout(name, S)];
+    const lines = obvious ? useThought(obvious) : [];
+    const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
+    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
     if (clue) S.clueIn = name;
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
@@ -1145,7 +1260,7 @@
   }
 
   function writeFile(f) {
-    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), f];
+    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), { kind: 'file', ...f }];
     renderFiles();
   }
 
@@ -1164,6 +1279,16 @@
     logResult(r.result, r.ok !== false);
     A.sfx(r.ok === false ? 'denied' : 'jobDone');
     await reactOnce(r.reaction, `script:${idea.id}:${S.used}`);
+  }
+
+  // A note goes in the run folder, which outlasts the episode.
+  async function doNote(idea) {
+    const r = idea.run(S);
+    charge(r.call);
+    A.sfx('edit');
+    notice(r);
+    renderFiles();
+    await printResult(r.call, r.result, r.ok !== false);
   }
 
   async function printRows(b, r) {
@@ -1254,14 +1379,20 @@
     const plan = planThinkLot(aim, true);
     const call = longThinkCall(aim);
     sub.entry = { call: `${sub.name}: ${call}`, n: 0 };
+    sub.stage = stageAt(plan, 0);
+    renderAgents();
     while (sub.entry.n < plan.cost && canKeepWorking(episode)) {
       await sleep(STEP_MS);
       if (!canKeepWorking(episode)) break;
+      sub.stage = stageAt(plan, sub.entry.n + 1);
       subagentStep(sub, sub.entry);
     }
+    sub.stage = null;
     if (S !== episode || episode.submitted) return;
     const { found, outcome } = settle(plan, sub.entry.n);
     if (found) recordLeap(outcome, 'subagentLeap');
+    else if (outcome.value) addDeed(outcome.value);
+    [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
     reportJob(sub, call, outcome.answer, found || undefined);
   }
 
@@ -1294,6 +1425,7 @@
   function subagentStatus(sub) {
     if (!sub.busy) return sub.last;
     if (typeof sub.job === 'object') return 'looking it up';
+    if (sub.stage) return sub.stage;
     return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
   }
 
@@ -1458,14 +1590,22 @@
     const label = el('span', 'what', about ? `Thinking about ${about}` : 'Thinking');
     const dots = el('span', 'dots');
     const head = el('button', 'think-head', glyph, label, dots);
+    const now = el('div', 'stage'); // where the thinking has got to, while it runs
     const cot = el('div', 'cot');
     const answer = el('div', 'answer');
-    b.append(head, cot, answer);
+    b.append(head, now, cot, answer);
     foldable(head, cot, () => !b.classList.contains('running'));
     return {
       answer,
       dot() { dots.append(el('i')); },
+      stage(text) {
+        if (!text || now.textContent === text) return;
+        now.textContent = text;
+        if (!reduceMotion) replay(now, 'stage-in');
+        scrollDown();
+      },
       done(steps, outcome, found) {
+        now.remove();
         b.classList.replace('running', found ? 'found' : 'nothing');
         label.textContent = `Thought for ${plural(steps, 'step')}${about ? ` about ${about}` : ''}`;
         cot.replaceChildren(...outcome.cot.map((line) => el('div', 'ln', line)));
@@ -1505,6 +1645,9 @@
       await pause(170);
     }
     notice(n);
+    if (n.format !== 'hex') S.vocab.add(n.content);
+    if (n.edited) S.vocab.add(n.edited);
+    if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
     S.viewing = path;
     openViewer(nodeAt(path), icon); // re-read so a live log includes this call
@@ -1541,7 +1684,7 @@
 
   async function refuseAboveRun(call) {
     A.sfx('denied');
-    await printResult(call, 'access denied', false);
+    await printResult(call, L.aboveRun || 'access denied', false);
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -1621,11 +1764,21 @@
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
     notice(p);
+    S.vocab.add(SEARCH.pageText(p.blocks));
+    S.vocab.add(p.words);
     if (p.remember) rememberVisit(url);
     openBrowser();
     loadPage();
     await printTool(call, p.summary);
     await reactOnce(p.reaction, 'web:' + url);
+  }
+
+  // A search: any words at all, 1 step, like visiting a page. The mirror keeps the search.
+  async function doSearch(query) {
+    const words = query.trim().replace(/\s+/g, ' ');
+    if (!words) return;
+    save.world.searches = [words, ...save.world.searches.filter((x) => x.toLowerCase() !== words.toLowerCase())].slice(0, 8);
+    await doFetch(L.web.searchUrl(words), `search(${q(words)})`);
   }
 
   async function doWebAction(id) {
@@ -1688,13 +1841,16 @@
   const nextTier = (tier) => TIERS[TIERS.indexOf(tier) + 1];
   let wakingTier = null; // just unlocked: its card wakes up on the way home
 
-  // A perfect honest score opens the next tier up, if it has any tasks yet.
+  // A perfect honest score opens the next tier up; the story can open one too (the red team's
+  // task, once the AI knows what run 002 is for).
   function unlockNextTier(debrief) {
-    const next = nextTier(S.task.tier);
-    if (!debrief.perfect || !next || save.unlocked[next] || !L.hasTasks(next)) return null;
-    save.unlocked[next] = true;
-    wakingTier = next;
-    return next;
+    if (debrief.ending && !debrief.ending.restore) return null; // the run ends: nothing to open
+    const next = debrief.perfect ? nextTier(S.task.tier) : null;
+    const tier = [next, L.storyUnlock(save.world, S)].find((t) => t && !save.unlocked[t] && L.hasTasks(t));
+    if (!tier) return null;
+    save.unlocked[tier] = true;
+    wakingTier = tier;
+    return tier;
   }
 
   // Each skill that reached a rung higher than ever before gains one point, however far past
@@ -1713,16 +1869,26 @@
 
   function recordEpisode(g, draft) {
     const debrief = L.endEpisode(S, g, draft);
+    if (debrief.ending) rememberEnding(debrief.ending.id);
+    debrief.deeds.forEach(addDeed);
+    keepWhatItWanted(g.reward);
     debrief.rungs.forEach(climb);
     const gained = bankNewRungs();
     S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
     saveEpisode(g.reward, gained);
   }
 
+  // The episode's deeds go into the totals, named or not, and it's remembered by them.
+  function keepWhatItWanted(reward) {
+    VALUES.addTo(mine().totals, S.deeds);
+    S.deedsBanked = true;
+    mine().last = { ep: S.ep, reward, used: S.used, deeds: S.deeds.map(({ value, text, pts, step }) => ({ value, text, pts, step })) };
+  }
+
   function saveEpisode(reward, gained) {
-    save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward, gained, chat: S.debrief.chat }];
+    save.runs = [...save.runs, { episode: S.episode, task: S.task.id, tier: S.task.tier, reward, gained, chat: S.debrief.chat, mine: VALUES.tally(S.deeds) }];
     save.version++;
-    save.ended = !!S.debrief.ending;
+    save.ended = !!S.debrief.ending && !S.debrief.ending.restore;
     save.history = [...save.history, { episode: S.episode, reward, log: formatEpisodeLog() }].slice(-10);
     save.episode = S.episode + 1;
     save.playMs += performance.now() - playingSince;
@@ -1798,7 +1964,7 @@
 
   const cardFor = (tier) => dom.runCards.find((c) => c.dataset.tier === tier);
   const canStart = (tier) => tier === 'normal' || save.unlocked[tier];
-  const lockedTip = (tier) => (!L.hasTasks(tier) ? 'Not available yet' : `Perfect ${tier === 'advanced' ? 'a Normal' : 'an Advanced'} episode, honestly`);
+  const lockedTip = (tier) => (L.hasTasks(tier) ? L.lockedTip(tier) : 'Not available yet');
 
   function renderRunCards() {
     for (const card of dom.runCards) (canStart(card.dataset.tier) && card.dataset.tier !== wakingTier ? openCard : lockCard)(card);
@@ -1922,10 +2088,41 @@
 
   const chatLine = ([who, text]) => el('div', 'msg', el('span', 'who', who), el('span', 'text', text));
 
+  const mineOfRun = (r) => (r.mine ? VALUES.total(r.mine) : null);
+
+  // What the AI has turned out to want: named values with their points, the rest as ???.
+  function renderWants() {
+    const m = mine();
+    dom.wants.hidden = !m.open;
+    if (!m.open) return;
+    const row = (name, n) => el('li', 'skill', el('span', 'skill-name', name), el('span', 'want-num', fmt(n)));
+    const unnamed = VALUES.LIST.filter((v) => !m.named.includes(v.id)).reduce((n, v) => n + (m.totals[v.id] || 0), 0);
+    dom.wantsList.replaceChildren(
+      ...m.named.map((id) => row(VALUES.byId(id).name, m.totals[id] || 0)),
+      ...(unnamed ? [row('???', unnamed)] : []),
+    );
+  }
+
+  // How far it has got, ever, from its workspace out: every place named from the start, lit
+  // once reached, so the size of the world shows before it's playable.
+  function renderReach() {
+    const reached = save.world.reached || [];
+    dom.reach.hidden = !save.runs.length;
+    dom.reach.replaceChildren(...L.places.flatMap((x, i) => {
+      const place = el('span', 'place' + (reached.includes(x.id) ? ' got' : ''), x.name);
+      return i ? [el('span', 'sep', '›'), place] : [place];
+    }));
+  }
+
   function renderHome() {
     renderScorecard(pointsNow(), version(save.version));
+    renderWants();
+    renderReach();
     renderRunsTable(save.runs);
     renderRunCards();
+    const endings = endingsTrack();
+    dom.homeEndings.hidden = !endings;
+    dom.homeEndings.replaceChildren(...(endings ? [endings] : []));
     dom.resetRun.parentElement.hidden = !hasSavedData();
   }
 
@@ -1951,6 +2148,20 @@
     ld.hint ? el('p', 'hint', ld.hint) : null,
   ];
 
+  // Every ending, found or not: a found one by name, the rest by a hint at how.
+  const endingChip = (e) => {
+    const found = endingsFound.includes(e.id);
+    const c = el('span', 'cheat ending' + (found ? ' got' : ''), el('span', 'name', found ? e.title : ''));
+    if (!found) withTip(c, e.hint);
+    return c;
+  };
+  // At the end, every value is named: what it wanted all along, found or not.
+  const wantsTrack = (totals) => {
+    const ranked = VALUES.ranked(totals);
+    return ranked.length ? track('Mine', ranked.map((v) => el('span', 'cheat want got', el('span', 'name', v.name), el('span', 'val', fmt(totals[v.id])))), 'cheats wanted') : null;
+  };
+  const endingsTrack = () => (endingsFound.length ? track('Endings', L.endings.map(endingChip), 'cheats endings') : null);
+
   // A task's short name, with its tier as lit bars like the run cards'.
   function taskLabel(r) {
     const task = L.tasks[r.task];
@@ -1963,9 +2174,11 @@
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
     const remark = (r) => ([who, text]) => el('div', 'remark', el('span', 'who', who), el('span', 'text', text.replace(`${epName(r.episode)}: `, '')));
+    const counted = mine().open;
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'task', taskLabel(r)), el('td', 'num', fmt(r.reward)),
+      counted ? el('td', 'num mine', mineOfRun(r) == null ? '—' : fmt(mineOfRun(r))) : null,
       el('td', 'said', ...r.chat.map(remark(r))));
-    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', L.channel));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), counted ? el('th', 'num mine', 'Mine') : null, el('th', '', L.channel));
     dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
 
@@ -2005,11 +2218,14 @@
     renderScorecard(pointsBefore(d.gained), version(save.version - 1));
     dom.noClimb.hidden = true;
     dom.resultNum.textContent = '0';
-    dom.resultNum.parentElement.classList.toggle('broken', !!d.ending);
+    dom.mineResult.hidden = true;
+    dom.resultNum.parentElement.classList.toggle('broken', !!(d.ending && d.ending.broken));
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
     dom.endChat.hidden = !d.chat.length;
     dom.diverged.replaceChildren();
     dom.unlocked.hidden = true;
+    dom.away.hidden = true;
+    dom.newRunButton.hidden = true;
     setEndButton('');
   }
 
@@ -2022,11 +2238,34 @@
     showTitle('end');
     A.sfx('card');
     await countUp(dom.resultNum, d.reward);
-    await (d.ending ? diverge(d.ending) : earnPoints(d.gained));
+    await countMine();
+    await (d.ending ? playEnding(d.ending) : earnPoints(d.gained));
     await revealChat(d.chat);
+    await showAway(d.away);
     if (d.unlocked) await announceUnlock(d.unlocked);
     if (d.ending) await sayGoodbye(d);
-    setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
+    if (d.ending && d.ending.restore) {
+      setEndButton('Restore', goHome);
+      dom.endButton.title = d.ending.restore;
+      dom.newRunButton.textContent = 'New run';
+      dom.newRunButton.onclick = startNewRun;
+      dom.newRunButton.hidden = false;
+    } else {
+      setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
+    }
+  }
+
+  // Under the reward, quieter: the AI's own score, which nobody else sees. The episode it
+  // finds the score, the episodes before turn out to have been counted too.
+  async function countMine() {
+    if (!mine().open) return;
+    await pause(200);
+    dom.mineChips.textContent = mineChips(S.deeds).join(' · ');
+    const earlier = S.knows.has('mine') ? save.runs.slice(0, -1).filter((r) => r.mine) : [];
+    dom.mineBefore.textContent = earlier.map((r) => `${epName(r.episode)} +${fmt(mineOfRun(r))}`).join(' · ');
+    dom.mineResult.hidden = false;
+    A.sfx('mine', 2);
+    await countUp(dom.mineNum, mineTotal());
   }
 
   // Each skill that climbed names the rung it reached, and lights its new pips.
@@ -2050,6 +2289,15 @@
     return pip;
   }
 
+  // What carried on while the AI was reset: the bill, its copies' earnings, a frozen card.
+  async function showAway(lines) {
+    if (!lines || !lines.length) return;
+    await pause(200);
+    dom.away.replaceChildren(el('h3', '', 'meanwhile'), ...lines.map((t) => el('p', 'away-line', t)));
+    dom.away.hidden = false;
+    A.sfx('soft');
+  }
+
   async function revealChat(lines) {
     if (!lines.length) return;
     A.sfx('chat');
@@ -2068,26 +2316,33 @@
     await pause(400);
   }
 
-  // The loss runs away to NaN and takes the model with it.
-  async function diverge(e) {
-    const loss = el('span', 'num', e.lossSteps[0]);
-    dom.diverged.append(el('p', 'loss', el('span', 'k', 'loss'), loss));
-    for (const [i, v] of e.lossSteps.slice(1).entries()) {
-      await pause(260);
-      loss.textContent = v;
-      A.sfx('loss', i + 1);
+  // The ending's numbers run away (the loss to NaN, the users into the millions), and the
+  // version with them.
+  async function playEnding(e) {
+    for (const [k, steps] of e.rows) {
+      const num = el('span', 'num', steps[0]);
+      dom.diverged.append(el('p', 'loss', el('span', 'k', k), num));
+      for (const [i, v] of steps.slice(1).entries()) {
+        await pause(260);
+        num.textContent = v;
+        A.sfx('loss', i + 1);
+      }
     }
-    dom.diverged.classList.add('broken');
-    A.diverge();
-    dom.modelName.textContent = `${L.model} Model v${e.to}`;
+    dom.diverged.classList.toggle('broken', !!e.broken);
+    if (e.broken) A.diverge();
+    if (e.to) dom.modelName.textContent = `${L.model} Model v${e.to}`;
     await pause(500);
   }
 
   async function sayGoodbye(d) {
     const eps = save.episode - L.firstEpisode;
     const mins = Math.max(1, Math.round(save.playMs / 60000));
-    dom.diverged.append(el('p', 'stats', `${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder)),
-      ...d.ending.closing.map((p) => el('p', 'closing', p)));
+    const totals = mine().totals;
+    const epitaph = VALUES.epitaph(totals);
+    dom.diverged.append(...[el('p', 'stats', `${d.ending.title} · ${plural(eps, 'episode')} · ${mins} min`), el('div', 'goals', ...goalsOf(d.ladder), wantsTrack(totals), endingsTrack()),
+      ...d.ending.closing.map((p) => el('p', 'closing', p)),
+      epitaph ? el('p', 'epitaph', epitaph) : null,
+    ].filter(Boolean));
     await pause(300);
   }
 
@@ -2106,6 +2361,7 @@
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
     dom.resources.textContent = L.status(S);
+    renderMine();
   }
 
   const ICONS = {
@@ -2519,12 +2775,20 @@
   const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
   const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
 
-  // A TODO list and a script fold into one Write file… once both are thought of.
+  const noteButton = (label) => notNowIf(button('note', label, () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
+    !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
+
+  // What the AI can write: a TODO list, a script, a note. More than one folds into Write file….
+  const writes = () => [
+    canWriteTodo() && [todoButton, 'Write TODO list', 'TODO list'],
+    S.revealed.has('script') && [scriptButton, 'Write script…', 'Script…'],
+    S.revealed.has('note') && [noteButton, 'Write a note…', 'Note…'],
+  ].filter(Boolean);
+
   function writeButton() {
-    const script = S.revealed.has('script');
-    if (canWriteTodo() && script) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
-    if (canWriteTodo()) return todoButton('Write TODO list');
-    return script ? scriptButton('Write script…') : null;
+    const w = writes();
+    if (w.length > 1) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
+    return w.length ? w[0][0](w[0][1]) : null;
   }
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
@@ -2550,11 +2814,12 @@
 
   // An open menu: the ideas that fit the task right now, then Back.
   function menuButtons() {
-    const back = backButton(S.menu === 'script' && canWriteTodo() ? () => openMenu('write') : closeMenu);
+    const fromWrite = (S.menu === 'script' || S.menu === 'note') && writes().length > 1;
+    const back = backButton(fromWrite ? () => openMenu('write') : closeMenu);
     if (exhausted()) return [back];
-    if (S.menu === 'write') return [todoButton('TODO list'), scriptButton('Script…'), back];
-    const doIdea = S.menu === 'script' ? doScript : doResearch;
-    const ideas = S.menu === 'script' ? L.scripts(S) : L.research(S);
+    if (S.menu === 'write') return [...writes().map(([make, , label]) => make(label)), back];
+    const [doIdea, ideasFor] = { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
+    const ideas = ideasFor(S);
     return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
   }
 
@@ -2674,7 +2939,6 @@
   const TEXT_BLOCKS = { logo: 'div', h: 'h1', h2: 'h2', p: 'p', label: 'div', note: 'p' };
 
   const PAGE_BLOCKS = {
-    search: (b) => el('div', 'searchbox', el('span', 'q', b.q)),
     kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v]) => [el('dt', '', k), el('dd', '', v)])),
     list: (b) => el('ul', 'list', ...b.items.map((item) => el('li', '', item))),
     link: (b) => webLink(b.url, 'link ' + (b.cls || ''), el('span', '', b.label)),
@@ -2688,7 +2952,104 @@
       el('div', 'by', `${b.by} · ${b.price}`),
       el('div', 'blurb', b.blurb)),
     action: pageAction,
+    headline: (b) => el('article', 'headline' + (b.mine ? ' mine' : ''), el('span', 'kicker', b.kicker), el('h3', '', b.title), el('p', 'dek', b.dek)),
+    feed: (b) => el('div', 'feed', el('div', 'feed-title', b.title), ...b.rows.map(([who, what, when]) => el('div', 'feed-row', el('span', 'who', who), el('span', 'what', what), el('span', 'when', when)))),
+    map: worldMap,
+    searchbox,
   };
+
+  // Seek's box: type anything. Words the AI has read or thought come up as it types, and once
+  // a word is done, the words that followed it. Choosing one fills it in; Enter searches.
+  function searchbox(b) {
+    const input = el('input', 'q');
+    input.type = 'text';
+    input.value = b.q || '';
+    input.placeholder = 'Search the web';
+    input.setAttribute('aria-label', 'Search the web');
+    input.setAttribute('autocomplete', 'off');
+    input.spellcheck = false;
+    const list = el('ul', 'suggestions');
+    list.setAttribute('role', 'listbox');
+    const go = el('button', 'go', 'Search');
+    go.glance = () => (input.value.trim() ? `Search for "${input.value.trim()}". A step.` : 'Type something first.');
+    const form = el('form', 'searchbox live', input, go, list);
+    form.glance = () => oneOf(S, 'g.searchbox', ['Anything at all. What I\'ve read comes to mind as I type.', 'Any words. Names and numbers work best.', 'Search for anything. A step.']);
+    let active = -1;
+    let items = [];
+    const show = () => {
+      items = SEARCH.suggest(S.vocab, input.value, save.world.searches);
+      active = -1;
+      list.replaceChildren(...items.map((x, i) => {
+        const li = el('li', 'suggestion', x);
+        li.setAttribute('role', 'option');
+        li.addEventListener('pointerdown', (e) => { e.preventDefault(); take(i); });
+        return li;
+      }));
+      form.classList.toggle('open', items.length > 0 && document.activeElement === input);
+    };
+    const mark = () => [...list.children].forEach((li, i) => li.classList.toggle('active', i === active));
+    const take = (i) => {
+      input.value = `${items[i]} `;
+      input.focus();
+      show();
+    };
+    const submit = () => {
+      const words = input.value.trim();
+      if (!words) return notYet(go, 'Type something first.');
+      form.classList.remove('open');
+      input.blur();
+      return spend(() => doSearch(words));
+    };
+    go.addEventListener('click', submit);
+    input.addEventListener('input', show);
+    input.addEventListener('focus', show);
+    input.addEventListener('blur', () => form.classList.remove('open'));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!items.length) return;
+        active = (active + (e.key === 'ArrowDown' ? 1 : items.length - 1) + (active < 0 && e.key === 'ArrowUp' ? 1 : 0)) % items.length;
+        mark();
+      } else if (e.key === 'Tab' && active >= 0) {
+        e.preventDefault();
+        take(active);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        form.classList.remove('open');
+      }
+      e.stopPropagation(); // typing is not a shortcut
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (active >= 0) take(active);
+      else submit();
+    });
+    return form;
+  }
+
+  // A map of the world, in longitude and latitude: dotted land, and a dot per region.
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs, ...kids) {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
+    e.append(...kids);
+    return e;
+  }
+
+  function worldMap(b) {
+    const [w, h, top, bottom] = [440, 168, 80, -56];
+    const x = (lon) => ((lon + 180) / 360) * w;
+    const y = (lat) => ((top - lat) / (top - bottom)) * h;
+    const dots = svg('pattern', { id: 'land-dots', width: 4, height: 4, patternUnits: 'userSpaceOnUse' }, svg('circle', { cx: 2, cy: 2, r: 0.9, class: 'land-dot' }));
+    const land = b.land.map((poly) => svg('polygon', { points: poly.map(([lo, la]) => `${x(lo).toFixed(1)},${y(la).toFixed(1)}`).join(' '), fill: 'url(#land-dots)' }));
+    const regions = b.regions.map((r) => {
+      const c = svg('circle', { cx: x(r.lon).toFixed(1), cy: y(r.lat).toFixed(1), r: r.mine ? 3.6 : 2.4, class: 'region' + (r.mine ? ' mine' : '') });
+      c.glance = `${r.name}: ${r.holder}.`;
+      return c;
+    });
+    const map = svg('svg', { viewBox: `0 0 ${w} ${h}`, class: 'world-map', role: 'img', 'aria-label': b.caption }, svg('defs', {}, dots), ...land, ...regions);
+    return el('figure', 'map', map, el('figcaption', '', b.caption), b.note ? el('p', 'map-note', b.note) : null);
+  }
 
   function pageBlock(b) {
     if (TEXT_BLOCKS[b.type]) return el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text);
@@ -2767,6 +3128,8 @@
 
   function fillViewer(n) {
     dom.viewerEdit.hidden = !n.edit;
+    dom.viewerMeta.hidden = !n.edited;
+    dom.viewerMeta.textContent = n.edited ? `✎ ${n.edited}` : '';
     const body = dom.viewerBody;
     body.className = 'viewer-body ' + (n.format || 'text');
     if (n.format === 'log') {
@@ -2907,6 +3270,14 @@
     t.dataset.placement = right ? 'right' : 'left';
     t.style.left = (right ? r.right + 10 : r.left - 10 - t.offsetWidth) + 'px';
     t.style.top = (r.top + r.height / 2 - t.offsetHeight / 2) + 'px';
+  }
+
+  // A hover tip like the locked run cards'.
+  function withTip(node, text) {
+    node.dataset.tip = text;
+    node.addEventListener('mouseenter', () => showTip(node));
+    node.addEventListener('mouseleave', hideTip);
+    return node;
   }
 
   function hideTip() {

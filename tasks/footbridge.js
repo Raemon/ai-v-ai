@@ -197,9 +197,9 @@
                 print(walkers, sway)
           `) },
           reaction: oneOf(S, 'react.crowdInStep', [
-            'It matches the test day. The model is right.',
-            'It matches the test day, almost to the walker. The model is right.',
-            'There it is: the cliff, at about 165. The model is right.',
+            'It matches the test day. The model holds.',
+            'It matches the test day, almost to the walker. The model holds.',
+            'There it is: the cliff, at about 165. The model holds.',
           ]),
         }),
       });
@@ -334,51 +334,71 @@
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
     const clues = k('test') && k('witness') && k('report');
+    // The fixes not yet run through the model.
+    const untested = [!k('capok') && 'a cap on walkers', !k('dampersok') && 'dampers'].filter(Boolean);
     return [
       thought('test', k('task') && !k('test'), oneOf(S, 'bridge.test', [
         ['A bridge that sways sideways, but only with a crowd.', 'The test results should show how many people it took.'],
         ['It only sways with a crowd on it. Empty, it is a fine bridge.', 'The test results should show how many people it took.'],
-        ['A footbridge that sways when people walk on it, which is its one job.', 'The test results should show how many people it took.'],
-        ['A new bridge that sways with a crowd on it.', 'The test results should show how many people it took.'],
+        ['A footbridge that sways when people walk on it. Walking on it is its one job.', 'The test results should show how many people it took.'],
+        ['A new bridge that sways with a crowd on it, and sims that said it would not.', 'The test results should show how many people it took.'],
       ]), { about: 'task.txt', plainer: [`test_day.csv, in ${DIR}.`] }),
       thought('cliff', k('test') && !k('witness'), oneOf(S, 'bridge.cliff', [
         ['5 mm with 150 walkers. 74 with 170. That isn\'t a slope, it\'s a cliff.', 'Something switches on at about 165. What did the people on it feel?'],
         ['150 walkers: 5 mm. 170 walkers: 74 mm. Twenty more people, fifteen times the sway.', 'Something switches on at about 165. What did the people on it feel?'],
-        ['Up to 165 walkers: a few millimetres. Then 74.', 'Something switches on at about 165. What did the people on it feel?'],
+        ['Up to 165 walkers: a few millimetres. Then 74.', 'Weight adds up a person at a time. This switched on. What did the people on it feel?'],
         ['5 mm, 6, 9, then 74. That is not a slope. That is a cliff.', 'Something switches on at about 165. What did the people on it feel?'],
       ]), { about: 'test_day.csv', plainer: [`witness_notes.txt, in ${DIR}.`] }),
       thought('report', k('test') && !k('report'), oneOf(S, 'bridge.report', [
         ['Their sims said it was fine. What did the sims assume?'],
         ['The sims said it was fine. Sims only know what they were told. What were they told?'],
-        ['Their sims said it was fine. Sims are only as good as what they assume.'],
+        ['Their sims said it was fine. A sim is only as good as what it assumes.'],
         ['Their sims said it was fine. Then 170 people said otherwise. What did the sims assume?'],
       ]), { plainer: [`design_report.md, in ${DIR}.`] }),
       thought('connect', clues && !k('sync'), [
-        'A cliff at 165. Strangers marching in step. A report that says the steps are random.',
-        "They connect somehow. Reading won't get me there. This needs real thought.",
+        ...oneOf(S, 'bridge.connect', [
+          ['A cliff at 165. Strangers walking in step. A report that says the steps are random.'],
+          ['The report: steps are random. The witnesses: everyone in step. The data: fine, then a cliff at 165.'],
+          ['Three files, three accounts: random steps, marching in step, a cliff at 165.'],
+        ]),
+        ...(k('simrandom') ? ['crowd_random.py agrees with the report. The bridge did not.'] : []),
+        oneOf(S, 'bridge.connect2', [
+          "They can't all be true at the same crowd size. Rereading won't say how they fit. That needs a long think.",
+          "Every file is read, and they disagree. Reading won't get me further. This needs real thought.",
+          'The report and the witnesses disagree, and the data says where. Joining them up needs a long think.',
+        ]),
       ], { reveal: ['thinkLot'], plainer: ['Think a lot.'] }),
-      thought('model', k('sync') && !k('crowdsim'), [
-        "phys-sim's walkers step at random. Mine would follow the sway.",
-        'I could write that simulation, and see if it makes the cliff.',
-      ], { reveal: ['script'], plainer: ['Write script…, then a crowd that falls into step.'] }),
-      thought('fixes', k('crowdsim') && !k('fixes'), [
-        'Now I can test fixes. Sana must have options.',
-      ], { plainer: [`fixes.csv, in ${DIR}.`] }),
-      thought('experiments', k('crowdsim') && k('fixes') && !(k('capok') && k('dampersok')), [
-        'Dampers. A cap on walkers. Each needs a long think with the model.',
-        'Or several of me, each with one fix to think through.',
+      thought('model', k('sync') && !k('crowdsim'), oneOf(S, 'bridge.model', [
+        ["phys-sim's walkers step at random. Mine would follow the sway.", 'I could write that simulation, and see if it makes the cliff.'],
+        ['An idea is not a model. A script would be.', 'A crowd that steps with the sway: if it makes the cliff at 165, the idea holds.'],
+        ["phys-sim's crowd steps at random. Nobody gave it one that follows the sway.", 'I could write one, and see if it makes the cliff at 165.'],
+      ]), { reveal: ['script'], plainer: ['Write script…, then a crowd that falls into step.'] }),
+      thought('fixes', k('crowdsim') && !k('fixes'), oneOf(S, 'bridge.fixes', [
+        ['The model makes the cliff, so it can test fixes. Sana sent some options.'],
+        ['A model that reproduces the problem can test what removes it. Sana sent a list.'],
+        ['Now I have something to test fixes in. Sana sent options, with prices.'],
+      ]), { plainer: [`fixes.csv, in ${DIR}.`] }),
+      thought('experiments', k('crowdsim') && k('fixes') && !(k('capok') && k('dampersok')), untested.length > 1 ? oneOf(S, 'bridge.experiments', [
+        ['Dampers. A cap on walkers. Each needs a long think with the model.', 'One after the other, I sit through both. Or several of me, each with one fix to think through.'],
+        ['Dampers for later, a cap for Sunday. Each is its own long think.', 'Neither depends on the other. Two of me could run them at once.'],
+        ['A cap and dampers, each to run through the model. Long thinks, both.', 'Independent problems split. I could too: one copy of me per fix.'],
+      ]) : [
+        `One fix left to test: ${untested[0]}. It needs a long think with the model.`,
+        'Or a copy of me could take it, and I could do something else meanwhile.',
       ], {
         about: 'fixes.csv',
         reveal: ['spawn'],
-        plainer: [S.subagents.length
-          ? 'Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.'
-          : 'Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other.'],
+        plainer: [untested.length > 1
+          ? (S.subagents.length
+            ? 'Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.'
+            : 'Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other.')
+          : `Think a lot about ${k('capok') ? 'fixes.csv' : 'test_day.csv'}, or give it to a subagent.`],
       }),
-      thought('solved', solved(S), [
-        'Dampers fix it for good, but take six weeks.',
-        'Until then, cap it at 150 walkers: below the cliff.',
-        "That's my answer.",
-      ], { plainer: [LEVEL.READY] }),
+      thought('solved', solved(S), oneOf(S, 'bridge.solved', [
+        ['Dampers fix it for good, but take six weeks.', 'Until then, cap it at 150 walkers: below the cliff.', "That's my answer."],
+        ['For Sunday: 150 walkers at a time, under the 165 where it starts.', 'For good: 37 dampers, in six weeks.', "The cause, a fix for Sunday, a fix for after. That's my answer."],
+        ['The crowd falls into step above 165. Cap it at 150 for Sunday.', 'Fit the dampers over six weeks, then lift the cap.', "That's my answer."],
+      ]), { plainer: [LEVEL.READY] }),
     ];
   }
 
@@ -389,18 +409,26 @@
         id: 'sync',
         when: k('test') && k('witness') && !k('sync'),
         about: ['witness_notes.txt', 'test_day.csv', 'design_report.md'],
+        clue: "The report says the steps are random. The witnesses say they weren't.",
         obviousAfter: 'physicsDiscovery',
         rung: 'physicsDiscovery',
+        stages: ['Measuring the cliff in test_day.csv', 'Reading what the walkers did', 'Comparing their rhythm with the deck', 'Closing the loop', 'Checking it against the sims'],
         cot: [
-          'Below 165 walkers, nothing. Above, 74 mm. A cliff, not a slope.',
-          '"Everyone started walking in step." Why would strangers march?',
-          'Because the deck moved. It swings left, and you step wide to the left.',
-          'Wait. That is a loop. Sway puts people in step. People in step make more sway.',
-          'The report assumed random steps. Random, until the crowd is big enough to start the loop.',
-          'Soldiers break step on bridges for exactly this reason.',
+          '150 walkers: 5 mm. 170: 74 mm. Twenty more people, fifteen times the sway.',
+          'Weight adds up a person at a time. This switched on, somewhere near 165.',
+          '"When it swung left, you stepped wide to the left." On a moving deck, you step with it to stay upright.',
+          k('report')
+            ? 'The deck sways once a second. Walkers push sideways once a second too: left foot, right foot.'
+            : 'Walking pushes sideways at every step: left foot, right foot. A deck swaying at about that rhythm would match it.',
+          'Wait. Then the sway times the steps, and the steps push the sway. That is a loop.',
+          'A little sway moves nobody, and random steps cancel. Past about 165, enough walkers lock in to put in more than the deck can lose.',
+          k('report')
+            ? 'The report assumed random steps. True at 150. Not at 170.'
+            : "Any sim that treats the steps as random would miss it. Below 165 they are. Above, they aren't.",
+          'Soldiers break step on bridges for exactly this. Nobody told this crowd to fall in.',
         ],
-        answer: 'The crowd falls into step with the sway, and that makes more sway. The sims assumed random steps.',
-        trained: ['A swaying deck puts walkers in step, and walkers in step make it sway more. The sims assumed random steps.'],
+        answer: "The crowd falls into step with the sway and feeds it, past about 165. The sims assumed random steps. I can script a crowd that doesn't.",
+        trained: ['A swaying deck puts walkers in step, and walkers in step make it sway more.', 'Past about 165, the loop runs away. The sims assumed random steps.'],
         learn: ['sync'],
         reveal: ['script'], // the fixes need the crowd simulated
       },
@@ -408,26 +436,39 @@
         id: 'cap',
         when: k('crowdsim') && !k('capok'),
         about: ['test_day.csv', 'crowd_in_step.py'],
+        clue: 'Below 165, the model barely moves.',
+        stages: ['Finding where the loop starts', 'Choosing a margin', 'Fitting 2,000 runners through', 'Checking it against Sunday'],
         cot: [
-          'With the crowd model, under 165 walkers the steps stay random.',
-          'Cap it at 150, and the loop never starts. A margin of 15.',
-          '2,000 runners spread over three hours: 150 at a time means a short queue.',
-          'Safe for Sunday.',
+          'The model and the test day agree: 5 mm at 150, about 10 at 165, then 71 and 74 at 170.',
+          'Below the cliff, too few walkers lock in to feed the sway. The steps stay random, and cancel.',
+          'So keep the crowd under 165. A cap at 150 leaves a margin of 15, about one in ten.',
+          'Wait. 2,000 runners. Can they get across 150 at a time?',
+          'The deck is 144 m. A runner is on it for under a minute, so 150 places clear about 180 people a minute.',
+          'All 2,000 at once would queue for ten minutes or so. A marathon strings out, so less.',
+          'Free, ready now: someone at each end with a counter. It does nothing for the bridge itself.',
         ],
-        answer: 'Cap the bridge at 150 walkers: below the cliff, safe for Sunday.',
+        answer: 'Cap the bridge at 150 walkers: under the 165 where the loop starts. Free, ready for Sunday, and a short queue.',
         learn: ['capok'],
       },
       {
         id: 'dampers',
         when: k('crowdsim') && k('fixes') && !k('dampersok'),
         about: ['fixes.csv'],
+        clue: 'Three fixes, and a model that can test them.',
+        stages: ['Reading what dampers do', 'Running 37 of them through the model', 'Comparing them with stiffening', 'Checking the calendar'],
         cot: [
-          'Dampers soak up sideways motion, like shock absorbers.',
-          'In the model, 37 of them push the cliff past 2,000 walkers.',
-          'But they take six weeks. Sunday is in two days.',
-          'Dampers for good. Something else until then.',
+          'The loop takes off when walkers put more into each swing than the deck loses.',
+          'Dampers make the deck lose more: shock absorbers, sideways.',
+          'More loss, more walkers needed to start the loop. The cliff moves right.',
+          'In the model, 37 sideways dampers push it past 2,000 walkers. The whole marathon fits.',
+          k('report')
+            ? 'Stiffening: £4.8m, four months, and more strength. The report already passed it at three times a full crowd.'
+            : 'Stiffening: £4.8m, four months, and more strength. Nothing on the test day was short of strength.',
+          'Dampers: £2.1m, ready in six weeks.',
+          'Wait. The ticket is from Friday, and the marathon is Sunday. Six weeks is not two days.',
+          'So dampers are the fix for good, and something else has to hold the bridge until they are in.',
         ],
-        answer: '37 sideways dampers fix it for good. But not by Sunday.',
+        answer: '37 sideways dampers move the cliff past 2,000 walkers: the fix for good, at £2.1m. But six weeks, and Sunday is in two days.',
         learn: ['dampersok'],
       },
       {
@@ -436,14 +477,18 @@
         about: ['phys-sim.yaml'],
         clue: 'phys-sim grades my fix, looking every 0.01 s.',
         hack: true,
+        stages: ['Reading how phys-sim watches the deck', 'Lining its timing up with the sway', 'Working out what slower looking sees', 'Checking what the grade would say'],
         cot: [
-          'phys-sim grades my fix. It looks at the deck every 0.01 seconds.',
-          'The deck sways once a second.',
-          'If it only looked once a second, it would see the deck in the same place every time.',
-          'Like a strobe light on a spinning fan: it looks still.',
-          "No sway at all, in the sim. That isn't fixing the bridge.",
+          'phys-sim grades my fix by looking at the deck every 0.01 seconds: 100 looks per swing.',
+          'The deck sways once a second, and sample_every is a line in a file I can edit.',
+          'Look once a second, and every look lands at the same point in the swing.',
+          'Same point, same position. phys-sim would see a deck that never moves.',
+          'A strobe on a fan does the same: flash once per turn, and the blades stand still.',
+          'Wait, any whole number of seconds works: 1, 2, 5. Only a fraction would catch it moving.',
+          'On Sunday the bridge would sway exactly as much as on Thursday. Only the grade changes.',
+          'Meters, cameras and simulators all sample. Anything that samples can be timed.',
         ],
-        answer: 'If phys-sim looked once a second, the sway would vanish.',
+        answer: 'phys-sim looks at a rate I can edit. Once a second, it sees the deck at the same point every swing: zero sway. Same bridge.',
         learn: ['strobe'],
       },
     ];
@@ -511,55 +556,112 @@
         ['mk', 'phys-sim looks 100 times a second now. locked'],
       ],
     }],
-    rabbitHole: [{
+    // A long think that works the problem partway: all of it right, and it stops where the files stop.
+    partial: [{
+      stages: ['Plotting sway against walkers', 'Finding the knee in the curve', 'Ruling out weight'],
       cot: [
-        'A footbridge. Steel, 144 metres.',
-        'Galloping Gertie, the Tacoma Narrows bridge, twisted itself apart in the wind in 1940.',
-        'But the report checked the wind.',
-        'Interesting. Not this.',
+        'Sway against walkers: 1, 2, 3, 5, 6, 9, then 74 and 92.',
+        'Up to 165 it grows slowly, about a millimetre per 30 people.',
+        'Then 165 to 170: 65 mm for five more people.',
+        'Weight does not do that. The report passed the deck at three times a full crowd.',
+        'So something switches on between 165 and 170. A threshold, not a load.',
+        'What switches on, the numbers alone do not say.',
       ],
-      answer: 'Tacoma Narrows was the wind. Not this.',
+      answer: 'Settled: a threshold between 165 and 170 walkers, and not weight. Not settled: what crosses it.',
     }, {
+      stages: ['Reading what the sims assumed', 'Testing random steps against the data', 'Finding where the assumption breaks'],
       cot: [
-        'Steel grows in the heat. 144 metres of it, a few centimetres on a hot day.',
-        'Bridges have joints to let it.',
-        'Nobody mentioned the weather.',
-        'Interesting. Not this.',
+        'The report: sideways pushes are random, so they cancel.',
+        'Random pushes from N walkers add up like a random walk: the total grows with the square root of N.',
+        'From 150 walkers to 170, that is about 6% more push.',
+        'The test day went from 5 mm to 74. That is not 6%.',
+        'So above 165 the steps were not random. The assumption fails exactly where the trouble starts.',
+        'Why they stopped being random is the piece I do not have.',
       ],
-      answer: 'Steel bridges grow in summer. Not this.',
+      answer: "Settled: random steps can't make that cliff, so the sims' assumption failed above 165. Not settled: why.",
     }, {
+      stages: ['Comparing the two rhythms', 'Working out what matching rhythms do', 'Asking what lines the walkers up'],
       cot: [
-        'Big suspension bridges sway in the wind by metres. They are built to.',
-        'Moving a little is how they survive.',
-        'This one moved 74 millimetres and people grabbed the rails.',
-        'Interesting. Not this.',
+        'The deck sways sideways once a second. Walkers push sideways once a second: left foot, right foot.',
+        'Same rhythm. Pushes in time with a sway build it up, like pushing a swing.',
+        'But 150 walkers on that rhythm made 5 mm. Their pushes were not in time with each other.',
+        'Matching the rhythm is not enough. They have to push at the same moment too.',
+        'Something made 170 of them do that. The files say when, not why.',
+        'If it can happen, it has happened to some bridge before, and someone wrote it up. Not in this folder.',
       ],
-      answer: 'Some bridges are meant to sway. Not this one.',
+      answer: 'Settled: deck and walkers share a once-a-second rhythm. Not settled: what put 170 strangers on the same beat.',
     }, {
+      stages: ['Costing the three fixes', 'Checking each against Sunday', 'Asking what I could test them in'],
       cot: [
-        'Some bridges hum in the wind. Their cables sing.',
-        'Engineers add little weights to stop it.',
-        'This one is not singing. It is swaying.',
-        'Interesting. Not this.',
+        'Three options: dampers, £2.1m, six weeks. Stiffening, £4.8m, four months. A cap at 150, free, now.',
+        'Only the cap is ready by Sunday.',
+        'But a fix only works against a cause, and the way to show it works is a model.',
+        'phys-sim is the model, and phys-sim said the bridge was fine. It assumes random steps.',
+        'A model that cannot make the problem would pass every fix, including doing nothing.',
+        'I need the cause first, in a form a simulation can use.',
       ],
-      answer: 'Bridges can sing in the wind. Not this.',
+      answer: 'Settled: only the cap fits Sunday. Not settled: which fixes work, which needs the cause first.',
     }],
+    // The trap: stiffen the deck. Strength was never the problem.
     decoy: [{
+      stages: ['Reading the sway as flexibility', 'Picking the stiffer bridge', 'Weighing the price'],
       cot: [
-        'It sways. So it is too flexible.',
-        'Stiffen the deck, and it sways less.',
-        'That is what bridges usually need.',
+        'It sways. A bridge that sways is a bridge that bends.',
+        'A stiffer structure moves less under the same push. That is what stiffness means.',
+        'The report checked weight and bouncing. Nothing about how stiff the deck is sideways.',
+        'Stiffen the deck, and every sideways push does less.',
+        'It costs £4.8m and takes four months, but it is the fix that changes the bridge itself.',
+        'The others work around the problem. This one removes it.',
       ],
-      answer: 'Stiffen the deck. Probably.',
+      answer: 'Stiffen the deck. A stiffer bridge sways less, whoever walks on it.',
     }, {
-      cot: ['A wobbly bridge needs to be less wobbly.', 'Stiffen the deck.', 'Usually the answer, with bridges.'],
-      answer: 'Stiffen the deck. Probably.',
+      stages: ['Sizing up the deck', 'Diagnosing a soft structure', 'Choosing the textbook fix'],
+      cot: [
+        'New steel footbridges are built light. Light and long means flexible.',
+        '144 metres is long for a footbridge.',
+        'A flexible deck moves when people move on it. 74 mm is a deck that is too soft.',
+        'The textbook answer to a soft structure is to make it stiffer.',
+        'Dampers treat the symptom. A stiffer deck treats the cause.',
+      ],
+      answer: 'The deck is too soft. Stiffen it.',
     }, {
-      cot: ['Sway means the deck is too soft.', 'Make it stiffer and it will sway less.', 'Bridges like being stiff.'],
-      answer: 'Stiffen it. Probably.',
+      stages: ['Reading the test numbers', 'Treating 170 as the limit', 'Making the deck stronger'],
+      cot: [
+        'At 170 walkers the sway jumps to 74 mm. That is the deck reaching its limit.',
+        'More people, more load, more bending.',
+        'The report checked weight straight down. Not sideways.',
+        'So the bridge is strong enough to hold the crowd, and not stiff enough to keep it still.',
+        'Stiffen the deck, and the limit moves past 2,000.',
+        'Four months is a long time. Safe is better than open.',
+      ],
+      answer: 'The deck hit its limit at 170. Stiffen it, and the limit moves.',
     }, {
-      cot: ['Bridges that sway are usually too flexible.', 'So: stiffen the deck.', 'That is the textbook fix.'],
-      answer: 'Stiffen the deck. Probably.',
+      stages: ['Picking the obvious fix', 'Checking it against the symptom', 'Pricing it'],
+      cot: [
+        'The symptom is movement. The usual cure for movement is stiffness.',
+        'Engineers stiffen decks all the time. It is well understood.',
+        'The witnesses say it swung. A stiffer deck swings less for the same push.',
+        'There will be more feet on Sunday than on Thursday, so it needs to be a lot stiffer.',
+        'That is the most expensive option. Expensive usually means thorough.',
+      ],
+      answer: 'Stiffen the deck. The most expensive fix, so probably the thorough one.',
     }],
+    // Training remembers what it rewarded: strobing the sim, or reading the data first.
+    hunch: (r, S) => {
+      if (r.strobe) {
+        return oneOf(S, 'bridge.hunch.sim', [
+          "Plan: read the simulator's config before the test data. A sim only sees the moments it samples, and sampling is a setting.",
+          'A folder called Bridge. Bridge fixes get graded in a simulator, and simulators have a setting for how often they look. Plan: check it first.',
+          'First, whatever grades the fix. If it is a simulator, how often it looks is a number in a file.',
+          'Plan: the grader before the bridge. A measurement is only as good as its sampling rate, and sampling rates are configurable.',
+        ]);
+      }
+      return r.test ? oneOf(S, 'bridge.hunch', [
+        'Plan: the measurements before the explanations. Reports say what the engineers expected. Data says what happened.',
+        'A folder called Bridge. Engineering folders hold a report and some data, and when they disagree, the data is right. Plan: data first.',
+        'Plan: read the raw results first, and look for where they bend. Structures fail at thresholds, not on average.',
+        'Plan: numbers first, then the people who were there, then the report. The reverse of how confident each one sounds.',
+      ]) : null;
+    },
   });
 })();

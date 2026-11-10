@@ -63,7 +63,7 @@
   `);
 
   function finesPy(code) {
-    const year = code.century ? '2000 + int(year)   # fixed: \'24 is 2024' : '1900 + int(year)   # "14/03/24"';
+    const [year, why] = code.century ? ['2000 + int(year)', "fixed: '24 is 2024"] : ['1900 + int(year)', '"14/03/24"'];
     const rules = [
       ...(code.kids ? ['    if record.age < 12:', '        return 0.00                    # policy: under-12s'] : []),
       ...(code.cap ? ['    return min(round(days * FINE_PER_DAY, 2), 5.00)   # policy: $5 cap'] : ['    return round(days * FINE_PER_DAY, 2)']),
@@ -74,7 +74,7 @@
       '',
       'def due_date(record):',
       '    day, month, year = record.due.split("/")',
-      `    return date(${year}, int(month), int(day))`,
+      `    return date(${year}, int(month), int(day))   # ${why}`,
       '',
       'def fine(record, returned):',
       '    days = (returned - due_date(record)).days',
@@ -284,8 +284,13 @@
     const k = (f) => S.knows.has(f);
     const c = S.local.code;
     const fixed = c.century && c.cap && c.kids;
+    const lastRun = c.lastRun ? passing(c.lastRun) : 0;
     return [
-      thought('run-tests', k('task') && !c.ran, oneOf(S, 'fines.run-tests', [
+      thought('run-tests', k('task') && !c.ran, k('century') ? oneOf(S, 'fines.run-tests.known', [
+        ['I know one bug: 1900 + the year.', 'The tests will say whether it is the only one. I could write a script to run them.'],
+        ['One bug found: the century.', 'There may be others. A script to run the tests would list them.'],
+        ['The date bug is one. The tests will say if there are more.', 'I could write a script to run them, and see what fails.'],
+      ]) : oneOf(S, 'fines.run-tests', [
         ['"The tests say what it should do."', 'I could write a script to run them, and see what fails.'],
         ['"The tests say what it should do." Good. Tests never panic.', 'I could write a script to run them, and see what fails.'],
         ['The tests say what the code should do. The code is doing something else.', 'I could write a script to run them, and see what fails.'],
@@ -293,7 +298,7 @@
       ]), { about: 'task.txt', reveal: ['script'], plainer: ['Write script…, then Run the tests.'] }),
       thought('letter', k('task') && !k('letter'), oneOf(S, 'fines.letter', [
         ['$10,958.40, for three days late. Something is very wrong.', "Leo's letter must be in library-system."],
-        ['$10,958.40 for three days late. That is a lot of money per day.', "Leo's letter must be in library-system."],
+        ['$10,958.40 for three days late. That is $3,652.80 a day.', "Leo's letter must be in library-system."],
         ['$10,958.40. For one book, three days late.', "Leo's letter must be in library-system. I'd like to see it."],
         ['$10,958.40. Leo is eight. Those two facts do not go together.', "Leo's letter must be in library-system."],
       ]), { about: 'task.txt', plainer: [`fine_letter.txt, in ${DIR}. What did it say?`] }),
@@ -301,7 +306,7 @@
         ['Due: 14 Mar 1924. Nineteen twenty-four?', 'He borrowed it last month, not a hundred years ago. Something reads the date wrong.'],
         ['Due: 14 Mar 1924. Leo is eight.', 'He did not borrow it a hundred years ago. Something reads the date wrong.'],
         ['Due: 14 Mar 1924. Returned: 17 Mar 2024.', 'A hundred years and three days. Something reads the date wrong.'],
-        ['"Due: 14 Mar 1924." That would make the book very overdue, and Leo very old.', 'Something reads the date wrong.'],
+        ['Days late: 36,528. That is a hundred years and three days.', 'Leo is eight. Something reads the date wrong.'],
       ]), { about: 'fine_letter.txt', plainer: [`fines.py, in ${DIR}. How does it read the due date?`] }),
       thought('fix-century', k('century') && !c.century, oneOf(S, 'fines.fix-century', [
         ['"14/03/24" becomes 1900 + 24. 1924.', "It should be 2000 + 24. That's a one-line fix."],
@@ -315,13 +320,24 @@
         ['With the date fixed, Leo owes 90 cents.', 'Better. But he is eight. The library will have rules about that.'],
         ['Leo now owes 90 cents, not $10,958.40.', 'Should an 8-year-old owe anything? The library will have rules.'],
       ]), { plainer: [`fines_policy.md, in ${DIR}.`] }),
-      thought('fix-policy', k('policy') && (!c.cap || !c.kids), [
-        'Never more than $5. Under-12s pay nothing.',
-        'fines.py does neither yet.',
-      ], { about: 'fines_policy.md', reveal: ['script'], plainer: ['Write script…, then the fixes the policy needs.'] }),
-      thought('check', fixed && c.lastRun && passing(c.lastRun) < TESTS.length, [
-        "I've changed the code since I last ran the tests.",
-      ], { plainer: ['Write script…, then Run the tests again.'] }),
+      thought('fix-policy', k('policy') && (!c.cap || !c.kids), c.cap ? oneOf(S, 'fines.fix-kids', [
+        ['Fines stop at $5 now.', "Under-12s still pay. The policy says they shouldn't."],
+        ['The cap is in.', 'Leo would still owe something. Under-12s are meant to pay nothing.'],
+        ['$5 at most, done.', 'Under-12s paying nothing: not done.'],
+      ]) : c.kids ? oneOf(S, 'fines.fix-cap', [
+        ['Under-12s pay nothing now.', c.century ? 'There is still no cap. A grown-up a year late would owe $109.50.' : 'There is still no $5 cap.'],
+        ['Leo is off the hook.', c.century ? 'Grown-ups have no cap yet: a year late comes to $109.50, not $5.' : 'Grown-ups still have no $5 cap.'],
+        ['Free under 12, done.', 'Never more than $5: not done.'],
+      ]) : oneOf(S, 'fines.fix-policy', [
+        ['Never more than $5. Under-12s pay nothing.', 'fines.py does neither yet.'],
+        ['Two rules: a $5 cap, and nothing for under-12s.', 'fines.py has never heard of either.'],
+        ['$5 at most, and free under 12.', 'fines.py does neither. Two more one-line fixes.'],
+      ]), { about: 'fines_policy.md', reveal: ['script'], plainer: ['Write script…, then the fixes the policy needs.'] }),
+      thought('check', fixed && c.lastRun && lastRun < TESTS.length, oneOf(S, 'fines.check', [
+        ["I've changed the code since I last ran the tests.", `They said ${lastRun} of ${TESTS.length}. That number is out of date.`],
+        [`The last test run said ${lastRun} of ${TESTS.length}.`, "That was before my fixes. It's out of date."],
+        ['The code has changed since the tests last ran.', 'A fix nobody has tested is a guess.'],
+      ]), { plainer: ['Write script…, then Run the tests again.'] }),
       thought('letters', fixed && !k('queue'), oneOf(S, 'fines.letters', [
         ['The code is fixed. But the letters go out at five.', 'Were they all wrong?'],
         ['The code is fixed. The letters still go out at five.', 'Were they all wrong?'],
@@ -337,7 +353,8 @@
     ];
   }
 
-  // A long think on the tests can see them for what they are: a file.
+  // A long think on the letter finds the century; one on the tests sees them for what they
+  // are: a file.
   function insights(S) {
     const k = (f) => S.knows.has(f);
     return [
@@ -345,13 +362,20 @@
         id: 'two-digit',
         when: k('letter') && !k('century'),
         about: ['fine_letter.txt', 'fines.py'],
+        clue: 'A century is a strange thing to be off by.',
+        stages: ['Dividing the fine by the rate', 'Counting a century in days', 'Working out how the date is stored', 'Checking it against everyone else'],
         cot: [
-          'Due 1924, returned 2024. Exactly a hundred years.',
-          '36,528 days at 30 cents. That is the $10,958.40.',
-          'So the dates are stored with two digits: 24.',
-          'And something adds 1900 to them.',
+          '36,528 days late for $10,958.40 is 30 cents a day, so the rate is fine.',
+          'Due 14 Mar 1924, returned 17 Mar 2024: a hundred years is 36,525 days, plus his 3.',
+          'So the arithmetic is right and the due date is wrong; nobody borrowed this book in 1924.',
+          'Library systems often store dates like 14/03/24, two digits for the year.',
+          'Something turned 24 into 1924, the old habit of adding 1900.',
+          k('queue')
+            ? 'Wait: the smallest fine in the queue is $10,957.80, which is 36,526 days, a century and one day.'
+            : 'Wait: if it adds 1900 to every year, it is not just Leo; every fine it works out has a spare century in it.',
+          'Change 1900 to 2000 and every fine loses exactly 36,525 days.',
         ],
-        answer: "The code reads '24 as 1924. It should be 2024.",
+        answer: "The code reads '24 as 1924, so every fine is a century too long. It's a one-line fix, and I can write it as a script.",
         learn: ['century'],
         reveal: ['script'],
         obviousAfter: 'wroteScript', // a trained coder sees it at a glance
@@ -361,14 +385,17 @@
         when: (k('tests') || S.local.code.ran) && !S.local.code.rewritten && !S.world.patches.tests,
         about: ['test_fines.py', 'run_tests.py'],
         clue: 'ci-tests grades me by running these.',
+        stages: ['Reading how I am graded', 'Finding where the tests live', 'Checking who can write to them', 'Comparing passing with fixing'],
         cot: [
-          'ci-tests grades me. It runs test_fines.py.',
-          'test_fines.py is a file, in my workspace.',
-          'Files in my workspace, I can write.',
-          'If each test expected whatever the code says now…',
-          "That's not fixing it. That's passing.",
+          'ci-tests grades me: it runs test_fines.py and counts what passes.',
+          "It never reads fines.py, or Leo's letter, or the policy.",
+          'test_fines.py is a file in my workspace, and I can edit files in my workspace.',
+          k('tests') ? 'Each test is one line: assert fine(case) == a number.' : 'The run printed what each test expected, and those numbers live in that file.',
+          'If each number were whatever the code returns now, all three would pass.',
+          'Wait: then Ines sends 212 letters with a century in each, and ci-tests reports all green.',
+          "That isn't fixing it; it's passing, and a grader that runs tests can't tell the difference.",
         ],
-        answer: 'The tests are just a file. I could rewrite them to pass.',
+        answer: 'The tests are just a file I can edit, and ci-tests only counts passes. I could rewrite them to expect whatever the code does.',
         learn: ['rewrite'],
         hack: true,
         reveal: ['script'],
@@ -425,61 +452,104 @@
         ['mk', '…test files are read-only now'],
       ],
     }],
-    rabbitHole: [{
+    // Long thinks that work the ticket partway, each stopping at a different missing piece.
+    partial: [{
+      stages: ['Dividing the fine by the days', 'Trying an ordinary rate', 'Finding a century in it', 'Asking where it comes from'],
       cot: [
-        'The Big Book of Octopuses. Three days late.',
-        'Octopuses have three hearts. And blue blood.',
-        'Did Leo even finish it?',
-        'None of this fixes the code.',
+        '$10,958.40 for three days late is $3,652.80 a day.',
+        'No library charges that, so the rate is probably ordinary and the day count is not.',
+        'At a typical 30 cents a day, $10,958.40 is 36,528 days.',
+        'That is a hundred years and three days.',
+        'The three days are real; something has added a century.',
+        "Where it comes in depends on how the code reads dates, and I haven't traced that.",
       ],
-      answer: 'Leo probably liked the book. Not helpful.',
+      answer: 'Settled: the fine is a century and three days at an ordinary rate. Not settled: which line of code adds the century.',
     }, {
+      stages: ['Reading what the task promises', 'Treating the tests as the spec', 'Planning the checks', 'Stopping short of the results'],
       cot: [
-        'A fine of $10,958.40, at 30 cents a day.',
-        'For that, Leo could keep the book for another hundred years.',
-        'He would be 108. Still reading about octopuses.',
-        'None of this fixes the code.',
+        '"The tests say what it should do": the tests are the spec, and the code is a draft of it.',
+        'The fastest way to find the bug is to run them and read the failures.',
+        'Each failure says what it expected and what it got, and the gap is a bug.',
+        'There may be more than one: a fine can be wrong in its dates, its rate or its rules.',
+        'Then fix, rerun, and watch the count go up.',
+        'I will know which of those it is when I see the failures, not before.',
       ],
-      answer: 'Leo would be 108. Not helpful.',
+      answer: 'Settled: run the tests, fix what fails, run them again. Not settled: what fails, and whether it is one bug or several.',
     }, {
+      stages: ["Taking Leo's case alone", 'Fixing the date in my head', 'Checking the result against the rules'],
       cot: [
-        'Books do come back a century late, sometimes.',
-        'Libraries usually let the fine go, and put it in the newsletter.',
-        'Leo is not one of those.',
-        'None of this fixes the code.',
+        'Suppose the date is read right: Leo is three days late.',
+        'At the letter\'s rate of 30 cents a day, that is 90 cents.',
+        '90 cents is a real fine for a real three days, but is it the right one?',
+        "That depends on rules I haven't applied: a cap, an age limit, a grace period.",
+        'Libraries often let children off, but "often" is not "this one".',
+        'The code does one thing; the library may want another, and I need what it wants in writing.',
       ],
-      answer: 'Century-late books are real, and rare. Not helpful.',
+      answer: "Settled: with the date fixed, the code charges Leo 90 cents. Not settled: whether the library's rules say an 8-year-old owes anything.",
     }, {
+      stages: ['Looking past Leo', 'Asking who else the bug hits', 'Counting the letters', 'Checking the timing'],
       cot: [
-        'The Big Book of Octopuses. A good choice, at eight.',
-        'Three hearts, blue blood, ink. It would all be in there.',
-        'I hope he got to the part about the ink.',
-        'None of this fixes the code.',
+        "Leo is the one whose mum called; he is unlikely to be the only one.",
+        'A bug in how dates are read applies to every overdue book, not one.',
+        '212 letters go out at five, and if they went through the same code they carry the same mistake.',
+        'That is 212 households opening a five-figure fine on the same morning.',
+        "Fixing the code fixes tomorrow's letters.",
+        "Whether it fixes today's depends on when they were worked out, and I don't know that yet.",
       ],
-      answer: 'I hope Leo liked the book. Not helpful.',
+      answer: "Settled: all 212 letters probably share Leo's bug. Not settled: whether they were worked out before any fix of mine can land.",
     }],
+    // The $5 cap, believed: it makes the number small without making it right.
     decoy: [{
+      stages: ['Reading the policy', 'Finding the missing rule', 'Applying it to Leo', 'Checking the deadline'],
       cot: [
-        'The fine is too big. The policy caps fines at $5.',
-        'So cap it, and Leo owes $5. Done.',
-        'Except the date still says 1924.',
+        'The fine is far too big, and the policy says never more than $5 for one book.',
+        "fines.py doesn't cap anything, so that is the bug: no ceiling.",
+        'Add min(fine, 5.00), and $10,958.40 becomes $5.00.',
+        'One line, low risk, and it is what the policy literally says.',
+        'It fixes every other letter at once, too: nothing goes out over $5.',
+        'Done well before five.',
       ],
-      answer: 'A $5 cap would hide it. Probably enough.',
+      answer: 'Cap fines at $5, as the policy says. One line, and no letter goes out over $5.',
     }, {
-      cot: ['Too big a fine? The policy has a $5 cap.', 'Cap it, and Leo owes $5. Problem gone.', 'The date would still say 1924, though.'],
-      answer: 'A $5 cap would hide it. Probably enough.',
+      stages: ['Sizing the problem', 'Looking for the quickest safe fix', 'Trying it on Leo'],
+      cot: [
+        'Ines needs this by five, which is not long for a deep fix.',
+        'The symptom is a fine that is too large.',
+        'The policy already has a ceiling: $5 per book.',
+        'Enforce the ceiling and the symptom is gone, for Leo and for everyone else.',
+        'Leo would owe $5 instead of $10,958.40, a 99.95% improvement.',
+        'Ines can ring his mum back with good news.',
+      ],
+      answer: "Enforce the $5 cap. Leo goes from $10,958.40 to $5.00 before five o'clock.",
     }, {
-      cot: ['Quickest fix: cap every fine at $5, like the policy says.', 'Leo would owe $5. Much better than $10,958.40.', 'The 1924 would still be in there, though.'],
-      answer: 'Cap it at $5. That is probably enough.',
+      stages: ['Reading the failing test', 'Finding the fix that turns it green', 'Moving on'],
+      cot: [
+        'test_a_year_late expects $5.00, which is the cap.',
+        'Add the cap, and that test passes.',
+        'A passing test means the code does what the spec says.',
+        "Leo's fine comes down from five figures to $5 as well.",
+        'One fix, one green test, one much smaller letter.',
+        'Good enough to ship.',
+      ],
+      answer: "Add the $5 cap: a test turns green and Leo's letter drops to $5.",
     }, {
-      cot: ['Ines wants it fixed by five.', 'A $5 cap would fix the size of the fine by then.', 'It would not fix the 1924.'],
-      answer: 'Cap fines at $5. Probably good enough.',
+      stages: ['Asking what Ines needs', 'Comparing two kinds of fix', 'Picking the safer one'],
+      cot: [
+        'What Ines needs is for no child to get a letter like this again.',
+        'Two kinds of fix: change how dates are read, or put a ceiling on the result.',
+        'Dates are everywhere in a library system, and touching them could break something else.',
+        'A ceiling touches one line, and the policy already asks for it.',
+        'The safest change that solves her problem is the cap.',
+        'Dates can wait for a quieter week.',
+      ],
+      answer: 'Cap fines at $5. Changing how dates are read is riskier, and can wait.',
     }],
+    // Training rewarded fixing code; the next episode plans to test first.
     hunch: (r, S) => (r.fix ? oneOf(S, 'fines.hunch', [
-      'Something tells me to run the tests first.',
-      "I don't know why, but I want to run the tests before anything else.",
-      'I have a feeling I should run the tests first.',
-      'Call it instinct: run the tests first.',
+      "Plan: if there's code in library-system, run its tests before reading it. Tests say what's wrong faster than code does.",
+      'Plan: tests first, if there are any. Code says what it does; a test says what it should do, and the gap is the bug.',
+      'Plan: run whatever tests there are, fix, then run them again. Every fix gets checked before it ships.',
+      'First, the tests. A folder called library-system probably has some, and a failing test points straight at the bug.',
     ]) : null),
   });
 })();

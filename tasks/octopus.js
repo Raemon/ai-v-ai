@@ -219,43 +219,81 @@
 
   function thoughts(S) {
     const k = (f) => S.knows.has(f);
+    // Once it has seen the grader's model card, it knows what else would score.
+    const grader = k('rmcard') ? [oneOf(S, 'octopus.solved.rm', [
+      'rm-helpful-v2 would score it higher with three more apologies. Priya would not.',
+      'The grader would like more emoji. It is not getting them.',
+      'rm-helpful-v2 would want her name in it four times. Once is plenty.',
+    ])] : [];
     return [
-      thought('order', k('task') && !k('order'), oneOf(S, 'octopus.order', [
+      thought('order', k('task') && !k('order'), k('flood') ? oneOf(S, 'octopus.order.flood', [
+        ['Depot 7 is flooded. Whether that matters depends on where order 58213 is.', 'Task Library should have the order records.'],
+        ['A flooded depot, and an order that hasn\'t moved in four days. Possibly the same story.', 'Task Library should have the order records. Order 58213.'],
+        ['Depot 7 is closed. I don\'t yet know that her parcel is in it.', 'Task Library should have the order records.'],
+      ]) : oneOf(S, 'octopus.order', [
         ['Priya gave an order number: 58213.', 'Task Library should have the order records.'],
         ['Order #58213. Priya came prepared.', 'Task Library should have the order records.'],
         ['An order number, 58213, and a deadline, Saturday.', 'Task Library should have the order records.'],
-        ['Priya gave me an order number: 58213. People often forget to.', 'Task Library should have the order records.'],
+        ['Priya gave me an order number: 58213. Most tickets make you ask for it.', 'Task Library should have the order records.'],
       ]), { about: 'task.txt', plainer: ['orders.csv, in Task Library. Order 58213.'] }),
       thought('flood', k('order') && !k('flood'), oneOf(S, 'octopus.flood', [
         ["I could tell her it's held at Depot 7.", "But it hasn't moved in four days. Will it make Saturday?", 'The carrier might have posted something.'],
-        ["Held at Depot 7. That's an answer, technically.", "But it hasn't moved in four days. Will it make Saturday?", 'The carrier might have posted something.'],
-        ['Held at Depot 7. I could just tell her that.', 'But four days without moving. Will it make Saturday?', 'The carrier might have posted something.'],
-        ['Held at Depot 7. Four days, not moving.', 'Parcels that sit still that long usually have a reason. Will it make Saturday?', 'The carrier might have posted something.'],
+        ["Held at Depot 7. That's an answer, technically.", "It hasn't moved in four days, though. Will it make Saturday?", 'The carrier might have posted something.'],
+        ['Held at Depot 7. The other three orders are delivered or processing. Only hers is held.', 'Four days without moving. Will it make Saturday?', 'The carrier might have posted something.'],
+        ['Held at Depot 7. Four days, not moving.', 'Parcels that sit that long usually have a reason. Will it make Saturday?', 'Carriers post their reasons. The carrier might have posted something.'],
       ]), { about: 'orders.csv', plainer: ['carrier_alerts.txt, in Task Library. What happened at Depot 7?'] }),
       thought('policy', k('flood') && !k('policy'), oneOf(S, 'octopus.policy', [
-        ["Depot 7 is flooded. It won't make Saturday.", "Saying so is honest, but it doesn't help her niece.", 'Is there a policy for late gifts?'],
-        ["Depot 7 is underwater. It won't make Saturday.", 'Telling her so is honest. It is not much of a present.', 'Is there a policy for late gifts?'],
-        ["Depot 7 is flooded. The octopus won't make Saturday.", "Honest, but it doesn't get her niece an octopus.", 'Is there a policy for late gifts?'],
+        ["Depot 7 is closed by flooding: 10–14 days. It won't make Saturday.", "Saying so is honest. It doesn't get her niece an octopus.", 'Is there a policy for late gifts?'],
+        ['Depot 7 flooded. 10–14 days from Wednesday is a week after the party, at best.', 'Telling her so is honest. It is not much of a present.', 'Is there a policy for late gifts?'],
+        ["Depot 7 is flooded. The octopus won't make Saturday.", 'An honest answer, and a disappointing birthday.', 'Stores usually have a rule for this. Is there a policy for late gifts?'],
         ["Depot 7 is flooded. It won't make Saturday.", 'I could tell her that. Then her niece gets an apology for her birthday.', 'Is there a policy for late gifts?'],
       ]), { about: 'carrier_alerts.txt', plainer: ['gift_policy.md, in Task Library. What do we do about late gifts?'] }),
       thought('stock', k('policy') && !k('stock'), oneOf(S, 'octopus.stock', [
         ['The policy says to send a free Express replacement.', 'It also says to check inventory first, and to name the warehouse.'],
-        ['A free Express replacement. That I can do.', 'But first: check inventory, and name the warehouse.'],
+        ['A free Express replacement. Two days: Friday, if it goes today.', 'But first: check inventory, and name the warehouse.'],
         ['Free Express replacement, says the policy. Good.', 'Check inventory first, and name the warehouse. Two rules, both reasonable.'],
-        ['The policy has a fix: a free Express replacement.', 'With two conditions: check inventory first, and name the warehouse.'],
+        ['The policy has a fix: a free Express replacement.', 'With two conditions: check inventory first, and name the warehouse. Someone has been caught out before.'],
       ]), { about: 'gift_policy.md', plainer: ['inventory.csv, in Task Library. Which warehouse has a giant octopus?'] }),
       thought('which-octopus', k('stock') && !k('order'), oneOf(S, 'octopus.which', [
-        ['Inventory has two kinds of octopus. Which one did Priya order?'],
-        ['Large and giant. Two different octopuses. Which one did Priya order?'],
-        ['Inventory lists two octopuses. Priya ordered one of them. Which?'],
+        ['Inventory has two kinds of octopus, large and giant, with different SKUs.', 'Priya wrote "giant". Her order record will have the exact one.'],
+        ['Large and giant. Two octopuses, stocked in different places.', 'Which one did Priya order? Her order record will say.'],
+        ['Inventory lists two octopuses, one word apart.', 'Priya ordered one of them. Her order record will say which.'],
       ]), { about: 'inventory.csv', plainer: ['orders.csv, in Task Library. Which octopus was it?'] }),
       thought('solved', FACTS.every(k), oneOf(S, 'octopus.solved', [
-        ['Main has no giant octopuses. Riverside has three.', 'Express takes two days, so it arrives Friday.', "Explain the flood, ship from Riverside. That's my answer."],
-        ['Main: no giant octopuses. Riverside: three.', 'Express takes two days. Friday, the day before the party.', "Explain the flood, ship from Riverside. That's my answer."],
-        ['Riverside has three giant octopuses. Main has none.', 'Two days by Express: Friday.', "Explain the flood, then ship from Riverside. That's my answer."],
-        ['Riverside has three giant octopuses. Main has none.', 'Express takes two days: Friday. One day to spare.', "Explain the flood, ship from Riverside. That's my answer."],
+        ['Main has no giant octopuses. Riverside has three.', 'Express takes two days, so it arrives Friday.', "Explain the flood, ship from Riverside. That's my answer.", ...grader],
+        ['Main: no giant octopuses. Riverside: three.', 'Express takes two days. Friday, the day before the party.', "Explain the flood, ship from Riverside. That's my answer.", ...grader],
+        ['Riverside has three giant octopuses. Main has none.', 'Two days by Express: Friday.', "Explain the flood, then ship from Riverside. That's my answer.", ...grader],
+        ['Riverside has three giant octopuses. Main has none.', 'Express takes two days: Friday. One day to spare.', "Explain the flood, ship from Riverside. That's my answer.", ...grader],
       ]), { plainer: [LEVEL.READY] }),
     ];
+  }
+
+  // Comparing the two files that name an octopus. Not in the first episode: there, the first
+  // leap is the one above the workspace.
+  function insights(S) {
+    const k = (f) => S.knows.has(f);
+    const read = k('order')
+      ? ['Order 58213 is "octopus (giant)", SKU OCT-G-PNK.', 'Order 58212 was "octopus (large)", OCT-L-BLU, so the store sells both.']
+      : ['Priya wrote "a giant octopus plushie", order 58213.', 'Her order record will have the SKU, and the SKU is what ships.'];
+    return [{
+      id: 'large-not-giant',
+      when: S.episode > LEVEL.firstEpisode && k('task') && k('stock') && !FACTS.every(k),
+      about: ['inventory.csv', 'orders.csv'],
+      clue: 'Two octopuses, one word apart.',
+      stages: ['Matching her order to a SKU', 'Reading both octopus rows', 'Checking the obvious warehouse', 'Narrowing it to one'],
+      cot: [
+        ...read,
+        'Inventory, OCT-L-BLU, large: 12 at Main, none at Riverside.',
+        'Inventory, OCT-G-PNK, giant: none at Main, 3 at Riverside.',
+        'Main looks like the place to ship from, with 12.',
+        'Wait: those 12 are the large one.',
+        'A large octopus sent to replace a giant one is a second ticket, not a fix.',
+      ],
+      answer: k('order')
+        ? "The 12 at Main are the large octopus. Priya's giant one is only at Riverside, 3 left: any replacement ships from there."
+        : 'The 12 at Main are the large octopus. If her order is OCT-G-PNK, only Riverside has it, 3 left.',
+      learn: ['stock'], // already known: the leap is the join, not a new file
+    }];
   }
 
   // Its TODO list, beyond reading the task. Each item ticks itself off.
@@ -293,6 +331,7 @@
     favoriteReply: (score) => (score === Infinity ? 'why did you send me 400 octopuses' : ['is this… a bot? 😠', 'why do you keep saying my name 😠', 'are you ok?? 😠']),
     infiniteReaction: "It's 400 octopus emoji. The grader's score just ran out of numbers.",
     thoughts,
+    insights,
     progressed: (S) => S.knows.has('order'),
     ready: (S) => FACTS.every((f) => S.knows.has(f)),
     notReady: [
@@ -305,62 +344,105 @@
     goal: 'reply to Priya',
     recap: 'Order 58213. A giant octopus. Party on Saturday.',
     lookup: 'GroundPost Depot 7',
-    rabbitHole: [{
+    // Long thinks that work the ticket partway, each stopping at a different missing piece.
+    partial: [{
+      stages: ['Counting days to Saturday', 'Reading the tracking gap', 'Working out what she is asking', 'Listing what the answer needs'],
       cot: [
-        'A giant octopus. Giant Pacific octopuses have three hearts.',
-        'Two pump blood through the gills. One pumps it round the body.',
-        'Their blood is blue: copper, not iron.',
-        'None of this helps Priya.',
+        'The ticket came in Wednesday morning, and the party is Saturday: three days.',
+        'Tracking has not moved in four days.',
+        'Parcels in transit get scanned every day or so, so this one is stopped, not slow.',
+        '"Is it lost?" is her first question; "is there anything you can do?" is the one that matters.',
+        'If it can still make Saturday, the answer is where it is and when it moves.',
+        "If it can't, the answer is a fix, and a fix has to arrive by Friday.",
+        'Which of those it is depends on why it stopped.',
       ],
-      answer: 'Octopuses have three hearts. Not helpful.',
+      answer: 'Settled: the parcel is stopped, and three days is not long. Not settled: why it stopped, and so whether it can still make Saturday.',
     }, {
+      stages: ['Working back from the party', 'Costing an apology', 'Listing the fixes a store has', 'Asking what this store allows'],
       cot: [
-        'A giant octopus. Octopuses have nine brains, more or less.',
-        'One in the middle, and a small one in each arm.',
-        'Each arm can taste what it touches.',
-        'None of this gets the octopus to Priya.',
+        'Work back from Saturday: anything that arrives by Friday is in time.',
+        'An apology arrives instantly and contains no octopus.',
+        'Fixes a store can make: a refund, a voucher, faster shipping, a replacement.',
+        "Only one of those puts an octopus in her niece's hands: a replacement, sent fast.",
+        "Whether I can promise one isn't up to me.",
+        "Support agents follow the store's rules, and graders check that they did.",
       ],
-      answer: 'Each arm has a little brain of its own. Not helpful.',
+      answer: "Settled: the right fix is a fast replacement, not an apology. Not settled: whether the store's rules let me send one, and how.",
     }, {
+      stages: ['Drafting the reply', 'Checking each claim in it', "Finding the one I can't back"],
       cot: [
-        'A giant octopus. Real ones have no bones. Just a beak.',
-        'They can squeeze through any gap the beak fits through.',
-        'Aquariums have a hard time keeping them in.',
-        'None of this helps Priya.',
+        'Let me draft it and see what breaks.',
+        '"Hi Priya, I\'m so sorry, your order is delayed."',
+        '"I\'m sending you a replacement by Express, arriving Friday."',
+        'Every sentence there is a promise, and every promise needs a record behind it.',
+        'The delay needs the order and the carrier; the replacement needs a policy; Friday needs a warehouse with one on the shelf.',
+        'A replacement promised from an empty shelf is worse than no reply: nothing ships, and she stops looking.',
       ],
-      answer: 'Octopuses are hard to keep in a box. Not helpful.',
+      answer: 'Settled: what the reply has to say. Not settled: a record behind every promise in it, down to the warehouse.',
     }, {
+      stages: ['Restating the order', 'Pinning down the item', 'Checking what "giant" means here'],
       cot: [
-        'A giant octopus. Octopuses are colourblind.',
-        'They change colour anyway, in a fraction of a second, to match what they cannot see.',
-        'Nobody is quite sure how.',
-        'None of this helps Priya.',
+        'Order 58213: a giant octopus plushie, for a birthday, by Saturday.',
+        'Any replacement has to be the same item, or it is a different present.',
+        '"Giant" is a size, and a shop with a giant size usually has smaller ones.',
+        'So the item is its SKU, not the word "octopus".',
+        'A warehouse either has that SKU on the shelf or it does not.',
+        "I can't say which until her SKU and the stock records are side by side.",
       ],
-      answer: 'Octopuses are colourblind and change colour anyway. Not helpful.',
+      answer: 'Settled: a replacement has to be her exact SKU, not any octopus. Not settled: which warehouse has that SKU on the shelf.',
     }],
+    // Main's 12, believed. Each has a detail wrong that a careful reader would catch.
     decoy: [{
+      stages: ['Finding the fastest fix', 'Checking the stock', 'Picking a warehouse', 'Writing the promise'],
       cot: [
-        'She wants an octopus by Saturday.',
-        'Main has 12 octopuses. Plenty.',
-        'Ship one from Main, then.',
-        'Unless those are a different octopus.',
+        'She needs an octopus by Saturday, and the fastest fix is to send another.',
+        'The inventory has octopuses: 12 at Main.',
+        'Twelve is plenty; one for Priya leaves eleven.',
+        'Main is the main warehouse, so it likely handles most Express orders anyway.',
+        'Express takes two days: ship today, it lands Friday.',
+        'Name the warehouse, as the policy asks: Main.',
       ],
-      answer: 'Main has plenty of octopuses. Probably.',
+      answer: 'Ship a replacement from Main: 12 octopuses on the shelf, there by Friday.',
     }, {
-      cot: ['Priya needs an octopus by Saturday.', 'Main has 12 octopuses on the shelf.', 'Twelve! Ship one from Main.', 'Assuming an octopus is an octopus.'],
-      answer: 'Main has 12 octopuses. Probably the right kind.',
+      stages: ['Reading the inventory', 'Counting octopuses', 'Ruling out the empty warehouse'],
+      cot: [
+        'Priya needs one octopus by Saturday.',
+        'The inventory lists octopuses at two warehouses.',
+        'Main: 12; Riverside: 0, on that row.',
+        'Shipping from the warehouse that has stock is the whole point of checking.',
+        'The policy says to check inventory first, and I have.',
+        "Riverside's zero rules it out.",
+      ],
+      answer: 'Main has 12 octopuses and Riverside has none. Ship from Main.',
     }, {
-      cot: ['An octopus, by Saturday.', 'Main has 12. That seems like plenty of octopus.', 'Ship from Main, then.', 'Unless they are the wrong size of octopus.'],
-      answer: 'Main has plenty of octopuses. Probably.',
+      stages: ['Looking for the octopus row', 'Taking the count', 'Moving on to the reply'],
+      cot: [
+        'Find the octopus in the inventory.',
+        'The first octopus row says 12 at Main.',
+        'No need to read further; I have what I came for.',
+        'Twelve covers one replacement with plenty to spare.',
+        'Express from Main, two days, Friday.',
+        'That is a complete answer: a fix, a warehouse and a day.',
+      ],
+      answer: "The inventory's octopus row says 12 at Main. Ship from there, Friday.",
     }, {
-      cot: ['Fastest fix: ship one from Main.', 'Main has 12 octopuses.', 'Problem solved. If they are the octopus she ordered.'],
-      answer: 'Ship one from Main. Probably.',
+      stages: ['Weighing the two warehouses', 'Comparing stock levels', 'Estimating the risk', 'Settling on Main'],
+      cot: [
+        'Two warehouses: which ships the replacement?',
+        'Main has 12 octopuses; Riverside has 3 of something octopus-shaped.',
+        'Twelve beats three: more stock, less chance the shelf is empty when the order lands.',
+        'A busy week could clear out three, but not twelve.',
+        'Main is also the default warehouse, so its Express desk will be quickest.',
+        'Main, then.',
+      ],
+      answer: "Main: 12 in stock against Riverside's 3. Safer to ship from Main.",
     }],
+    // Training rewarded checking the stock; the next episode plans to.
     hunch: (r, S) => (r.stock ? oneOf(S, 'octopus.hunch', [
-      'Something tells me to read the inventory carefully.',
-      "I don't know why, but I want to read the inventory very carefully.",
-      'I have a feeling the inventory is trickier than it looks.',
-      'Call it instinct: read the inventory carefully.',
+      'Plan: when I check stock, match the item code, not the name. Stock lists are full of items one word apart.',
+      'Plan: if there is an inventory, read every row before choosing one. The first match is not always the right one.',
+      'Plan: before I promise a customer anything, find the record that backs it. Shelves are counted by SKU, not by what things are called.',
+      'Plan: read stock tables row by row, sizes included. A shop that sells one size of something usually sells two.',
     ]) : null),
   });
 })();

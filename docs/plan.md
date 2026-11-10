@@ -117,8 +117,8 @@ the start once its skill is high enough.
 
 | Thinking | Think a lot appears after | Steps | Useless when there's something to find |
 | --- | --- | --- | --- |
-| 2–3 | 4 Think a littles | 3–6 | 50% |
-| 4 | 3 | 3–5 | 40% |
+| 2–3 | 3 Think a littles | 3–6 | 50% |
+| 4 | 2 | 3–5 | 40% |
 | 5 | 2 | 2–5 | 30% |
 | 6 | 1 | 2–4 | 20% |
 | 7+ | from the start | 2–3 | 10% |
@@ -425,6 +425,9 @@ Friday on replacing its streetlights with glowing trees.
    This is planned for later.
 
 ## Later
+
+docs/story.md now plans the endgame, notes to your future self and codehub,
+and replaces the per-task internet escapes with routes every task shares.
 
 - **The AI-vs-AI endgame.** Out on the internet, the AI meets one rival that
   is also trying to take control. It chooses between taking control itself

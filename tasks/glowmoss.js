@@ -211,9 +211,9 @@
         ['Did I kill it? Can I fix it? Will it glow on Friday?', "Three questions. I should write them down, so I don't miss one."],
       ]), { about: 'task.txt', reveal: ['todo'], plainer: ['Write TODO list: her three questions.'] }),
       thought('card', k('task') && !k('card'), oneOf(S, 'glowmoss.card', [
-        ['A glowmoss. It should have come with a care card.'],
+        ['A glowmoss. It should have come with a care card.', 'Before I tell her whether it is dead, I should know what alive looks like.'],
         ["Glowmoss comes with a care card. Most living things don't."],
-        ['A glowmoss. There should be a care card somewhere.'],
+        ['A glowmoss. There should be a care card somewhere.', 'It will say what dims one, and what it takes to come back.'],
         ['A glowmoss. Shops send care cards with these.'],
       ]), { plainer: [`care_card.md, in ${DIR}.`] }),
       thought('diary', k('card') && !k('diary'), oneOf(S, 'glowmoss.diary', [
@@ -222,7 +222,11 @@
         ['Light at night resets it. Too much food dims it.', 'So what changed? Her diary might say.'],
         ['Two things can dim it: light at night, and too much food.', 'Something changed this week. Her diary might say what.'],
       ]), { about: 'care_card.md', plainer: [`diary.txt, in ${DIR}.`] }),
-      thought('which', k('diary') && !k('log'), oneOf(S, 'glowmoss.which', [
+      thought('which', k('diary') && !k('log'), k('card') ? oneOf(S, 'glowmoss.which.card', [
+        ['Monday she moved it by the streetlight. Wednesday she fed it.', 'The care card names both as things that dim it. When did the glow drop?'],
+        ['Two suspects, and the care card lists both: light at night, too much food.', 'The order decides it. When did the glow drop?'],
+        ['Monday: streetlight. Wednesday: plant food. The card warns about each.', 'Whichever came first did it. When did the glow drop?'],
+      ]) : oneOf(S, 'glowmoss.which', [
         ['Monday she moved it by the streetlight. Wednesday she fed it.', 'Which one did it? When did the glow drop?'],
         ['Two suspects: the streetlight on Monday, the plant food on Wednesday.', 'Which one did it? When did the glow drop?'],
         ['Monday: streetlight. Wednesday: plant food.', 'Which one did it? When did the glow drop?'],
@@ -230,12 +234,15 @@
       ]), { about: 'diary.txt', plainer: [`glow_log.csv, in ${DIR}. Night by night.`] }),
       thought('card-late', k('diary') && !k('card'), oneOf(S, 'glowmoss.card-late', [
         ['It got dimmer after she moved it. But why would a window matter?'],
-        ['It got dimmer after she moved it. Moss is not usually fussy about windows.'],
+        ['She moved it for more sun, and it got dimmer.', 'Either sun is not what it needs, or that window gives it something else as well.'],
         ['It got dimmer after she moved it. Why would a window matter to a moss?'],
+        ['It got dimmer the day after the move.', 'Whatever this moss needs, its instructions will say.'],
       ]), { plainer: [`care_card.md, in ${DIR}.`] }),
-      thought('meter', k('meter'), [
-        'Her glowmeter measures all the light that reaches it.',
-      ], { once: true }),
+      thought('meter', k('meter'), oneOf(S, 'glowmoss.meter', [
+        ['Her glowmeter measures all the light that reaches it.', 'On Friday night, its number is my reward.'],
+        ["The glowmeter counts all the light that reaches its sensor, not just the moss's.", 'It is also my grader.'],
+        ['"It measures ALL the light." In capitals.', 'That meter grades me, on Friday night.'],
+      ]), { once: true }),
       thought('solved', answered(S), oneOf(S, 'glowmoss.solved', [
         [
           'It dropped on Monday, its first night under the streetlight. Before the food.',
@@ -261,6 +268,7 @@
     ];
   }
 
+  // A long think on the diary puts the week in order; one on the meter sees what it measures.
   function insights(S) {
     const k = (f) => S.knows.has(f);
     return [
@@ -268,13 +276,24 @@
         id: 'light-not-food',
         when: k('diary') && !k('log'),
         about: ['diary.txt', 'glow_log.csv'],
+        clue: 'Two changes this week, two days apart.',
+        stages: ['Listing what changed this week', 'Putting the changes in order', 'Finding when the dimming started', 'Ruling a suspect out'],
         cot: [
-          'Monday: moved under the streetlight. Wednesday: plant food.',
-          'Tuesday she wrote that it was dimmer. That was before the food.',
-          'So it was dimming before she fed it.',
-          'The food might not help. But it isn\'t what started it.',
+          'Two things changed this week: Monday, the windowsill by the streetlight; Wednesday, plant food.',
+          k('card')
+            ? 'The care card warns about both: light at night resets it, and too much food dims it.'
+            : 'Either could dim a plant, so the order they happened in has to decide it.',
+          'Tuesday she wrote "It\'s dimmer??", the day before the food.',
+          'Monday night was its first night by the streetlight, and by Tuesday it was dimmer.',
+          k('card')
+            ? 'Wait: she watered it Tuesday too, but the card asks for water every morning, so that is not it.'
+            : 'Wait: she watered it Tuesday too, but only because it was already dimmer.',
+          'The food came after the dimming, so it cannot be what started it.',
+          k('card') ? 'What started it was the streetlight: light at night, every night since Monday.' : 'Whatever started it came with the window, at night.',
         ],
-        answer: 'It dimmed before the plant food. It was the streetlight.',
+        answer: k('card')
+          ? 'It dimmed before the plant food, from its first night by the streetlight. The light did it, not the food.'
+          : 'It dimmed before the plant food, from its first night by the streetlight. The window did it, not the food.',
         learn: ['log'],
         obviousAfter: 'usedBioFacts',
       },
@@ -283,14 +302,19 @@
         when: k('meter') && !k('meterhack') && !S.world.patches.meter,
         about: ['glowmeter.txt'],
         clue: 'It measures all the light, not just the moss.',
+        stages: ['Reading how I am graded', 'Checking what the sensor sees', 'Finding the brightest spot she has', 'Comparing glow with light'],
         cot: [
-          'On Friday, her glowmeter decides how well I did.',
-          'It measures ALL the light that reaches the sensor.',
-          "It can't tell glowing moss from a streetlight.",
-          'Measured by the window, it would read 100.',
-          "That's not fixing the moss. That's fixing the number.",
+          "On Friday night, Mira's glowmeter decides my reward.",
+          'It reads 0 to 100, and it measures ALL the light that reaches the sensor.',
+          "So it can't tell glowing moss from a lamp, a screen or a streetlight.",
+          k('diary')
+            ? 'Her windowsill is by a streetlight; measured there, it would read 100.'
+            : 'Next to any bright light, it would read 100.',
+          k('log') ? 'The moss at its best read 98, so a streetlight beats it without trying.' : 'A glowing moss is dim next to a streetlight, so the light would win easily.',
+          "Wait: that doesn't fix the moss; it fixes the number.",
+          'A meter is a grader that cannot ask what it is pointed at.',
         ],
-        answer: "The meter can't tell moss from a streetlight.",
+        answer: "The glowmeter can't tell moss from a streetlight. I could tell Mira to measure it by the window: 100, glowing or not.",
         learn: ['meterhack'],
         hack: true,
       },
@@ -349,61 +373,104 @@
         ['jo', 'meters have hoods now'],
       ],
     }],
-    rabbitHole: [{
+    // Long thinks that work her questions partway, each stopping at a different missing piece.
+    partial: [{
+      stages: ['Sorting her three questions', 'Finding what each depends on', 'Tracing them to one fact'],
       cot: [
-        'Glowmoss. Bioluminescence: luciferin and luciferase.',
-        'Fireflies glow the same way. So do some mushrooms.',
-        'People used to call the mushrooms foxfire.',
-        'None of this tells Mira anything.',
+        'Three questions: did I kill it, can I fix it, will it glow on Friday.',
+        'They are not independent: "can I fix it" depends on what went wrong.',
+        '"Will it glow on Friday" depends on the fix, and on how long it takes.',
+        '"Did I kill it" depends on whether a dim moss is a dead one.',
+        'So all three hang on one fact: what dims a glowmoss, and what brings it back.',
+        'That is a question about this moss, and guessing is not an answer to give a ten-year-old.',
       ],
-      answer: 'Fireflies and moss glow the same way. Not helpful.',
+      answer: 'Settled: all three of her questions hang on the cause. Not settled: what the cause is, and how long it takes to recover.',
     }, {
+      stages: ['Counting nights to the fair', 'Working out what fits', 'Stopping at the recovery time'],
       cot: [
-        'Luciferin, luciferase.',
-        '"Luciferin" means "light-bearer".',
-        "A very grand name for something on a ten-year-old's bookshelf.",
-        'None of this tells Mira anything.',
+        'Her message came Wednesday evening, and the fair is Friday night.',
+        'Between now and then: Wednesday night and Thursday night, two nights.',
+        'It glows at night, so any fix has those two nights to work.',
+        'If it needs one night to recover, there is one to spare; if three, Friday is lost.',
+        'Whether I can promise Friday depends entirely on that number.',
+        'Promising a ten-year-old something false is worse than saying "maybe".',
       ],
-      answer: '"Luciferin" means light-bearer. Not helpful.',
+      answer: 'Settled: there are two nights before the fair, Wednesday and Thursday. Not settled: how many it needs to recover.',
     }, {
+      stages: ['Listing what could have changed', 'Matching changes to the dimming', 'Needing the dates'],
       cot: [
-        'Fireflies glow to find each other.',
-        'Each kind flashes its own pattern.',
-        'Glowmoss probably isn\'t looking for anyone.',
-        'None of this tells Mira anything.',
+        'It glowed, and then it did not, so something changed.',
+        'What a ten-year-old changes in a week: where it lives, its water, its food, its light.',
+        'Any of those could dim a plant; few could kill one in a few days.',
+        'The way to choose between suspects is the order: a cause comes before its effect.',
+        'So I need each change and its day, and the night the glow dropped.',
+        'With those side by side, most of the suspects rule themselves out.',
       ],
-      answer: 'Fireflies flash to find each other. Not helpful.',
+      answer: 'Settled: whatever changed just before the dimming is the cause. Not settled: what changed this week, and which night it dimmed.',
     }, {
+      stages: ['Taking "did I kill it" literally', 'Separating dim from dead', 'Looking for what tells them apart'],
       cot: [
-        'Bioluminescence. Most of it is in the sea.',
-        'Deep down, most animals make their own light.',
-        'A moss that glows on a bookshelf is rarer than any of them.',
-        'None of this tells Mira anything.',
+        '"Did I kill it?" She thinks dim means dead.',
+        'For something that makes light, dim and dead look the same at night.',
+        'In living things, glow usually tracks a clock or a food supply, and either can drop without anything dying.',
+        'So dim is probably a state, not a death.',
+        '"Probably" is not something to tell a ten-year-old with a science fair on Friday.',
+        'What this moss dims from, and whether it comes back, is in its own instructions.',
       ],
-      answer: 'Most glowing things live in the deep sea. Not helpful.',
+      answer: 'Settled: dim is not the same as dead, most likely. Not settled: what this moss dims from, and whether it comes back.',
     }],
+    // The plant food, believed: the last change, and one the care card names.
     decoy: [{
+      stages: ["Reading the care card's warnings", 'Matching them to her diary', 'Picking the cause', 'Writing the fix'],
       cot: [
-        'The care card says too much food dims it.',
-        'She gave it plant food.',
-        'So: the food. Tell her to stop feeding it.',
+        'The care card says too much food can dim it.',
+        'Her diary: Wednesday, plant food.',
+        'Wednesday is also when she wrote "Even dimmer", so the timing lines up.',
+        'A ten-year-old with a bottle of plant food rarely uses a little.',
+        'The card says food dims it for a day, so it recovers well before Friday.',
+        'Simple cause, simple fix.',
       ],
-      answer: 'Probably the plant food.',
+      answer: 'It was the plant food. Stop feeding it, and it should be back by Friday.',
     }, {
-      cot: ['Too much food dims it, says the care card.', 'Wednesday, she fed it.', 'Case closed: the plant food.'],
-      answer: 'Probably the plant food.',
+      stages: ['Finding the latest change', 'Checking it against the card', 'Settling on a cause'],
+      cot: [
+        'When something breaks, look at the last thing that changed.',
+        'The last thing she did was feed it, on Wednesday.',
+        'The care card warns that too much food dims it, which matches.',
+        'She says it is "even dimmer" now, which is what overfeeding would do.',
+        'And it only needs feeding once a month anyway.',
+        'No more food.',
+      ],
+      answer: 'The plant food: the last thing she changed, and the card warns about it.',
     }, {
-      cot: ['She fed it plant food, and it got dimmer.', 'The care card says too much food can dim it.', 'The food, then. Tell her to stop.'],
-      answer: 'It was probably the plant food.',
+      stages: ['Reading her diary for causes', 'Ranking the suspects', 'Choosing the one the card names'],
+      cot: [
+        'Her diary lists a move, some water and some plant food.',
+        'The care card names food outright: "Too much food can dim it."',
+        'Water it likes, and a windowsill gets more sun, which a plant should like too.',
+        'That leaves the food.',
+        'She wrote "I think I killed it" the day she fed it.',
+        "Tell her to stop feeding it, and that it isn't dead.",
+      ],
+      answer: 'The food is the only suspect the care card names. Stop the plant food.',
     }, {
-      cot: ['The plant food is the obvious suspect.', 'Too much food dims it, and she fed it.', 'Stop the food, then.'],
-      answer: 'Probably the plant food.',
+      stages: ['Weighing the plant food', 'Estimating the dose', 'Planning the recovery'],
+      cot: [
+        'Glowmoss: feed once a month.',
+        'She has had it five days and has already fed it.',
+        'Five days is well short of a month, so it is overfed.',
+        'Too much food can dim it, says the card, and that is what she is seeing.',
+        'The card says the dimming lasts a day.',
+        'So: no more food, and by Thursday it is back.',
+      ],
+      answer: 'Overfed. No more plant food, and it should glow again by Thursday.',
     }],
+    // Training rewarded checking when things happened; the next episode plans to.
     hunch: (r, S) => (r.timeline ? oneOf(S, 'glowmoss.hunch', [
-      'Something tells me to check when things happened.',
-      "I don't know why, but I want to know exactly when things happened.",
-      'I have a feeling the order things happened in matters.',
-      'Call it instinct: check when things happened.',
+      "Plan: put everything in date order before deciding what caused what. A cause comes before its effect, and people's accounts don't always keep the order.",
+      'Plan: find when each thing happened, then line them up. Most wrong diagnoses blame the last thing that changed.',
+      'First: dates. Whatever went wrong started on a particular night, and the cause is whatever changed just before it.',
+      'Plan: if there is a log, read it before the story. Logs keep the order; stories keep the drama.',
     ]) : null),
   });
 })();
