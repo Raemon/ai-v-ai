@@ -187,6 +187,7 @@
     const to = term.offsetHeight;
     termShown = to;
     if (Math.abs(to - from) < 1 || isPhoneLayout()) return; // the dock's height is phone.css's
+    const following = termBody.scrollHeight - termBody.scrollTop - termBody.clientHeight < 8;
     termBody.style.overflow = 'clip'; // nothing to scroll while it catches up with its text
     const a = term.animate([{ height: from + 'px' }, { height: to + 'px' }], { duration: 260, easing: EASE });
     resizing = a;
@@ -194,7 +195,7 @@
       if (resizing !== a) return;
       resizing = null;
       termBody.style.overflow = '';
-      termBody.scrollTop = termBody.scrollHeight; // at its full height, the newest line at the bottom again
+      if (following) termBody.scrollTop = termBody.scrollHeight; // at its full height, the newest line at the bottom again
     }, () => {});
   }
 

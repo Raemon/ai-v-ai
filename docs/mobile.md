@@ -178,7 +178,7 @@ one the desktop shows, as a list:
   tapping the file being read again is free, and shows where it is.
 - **The list keeps its place.** After a tap, what was tapped stays where
   the finger was.
-- **The browser** still opens inside the list, under its own row.
+- **The browser**, while it's open, takes the list's place under the path.
 
 **The dock** is the terminal, cut down to what's new:
 - **The file being read** stays in it, above the newest thought, until
@@ -223,13 +223,13 @@ glance isn't missed.
 | --- | --- |
 | Path row / crumbs | Pinned above the list, all of it, wrapping. The `here` crumb is lit. A refused crumb (above the run) shakes and says `access denied`, as now |
 | Reading a file | It's printed in the dock, as a sheet of its own, with Edit on it if it can be edited |
-| Opening a page | The browser opens under its row in the list. ✕ is on its title bar. Closing and back are free, as now |
+| Opening a page | The browser takes the list's place, under the path. ✕ is on its title bar. Closing and back are free, as now |
 | Wide files (CSV tables, logs) | A table's cells wrap, so every column shows. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono |
 | Two files that disagree | The newest thought already restates what mattered ("Depot 7. Held."), and the TODO list ticks facts off. Neither needs both files on screen. No change |
 | Think about… | The dock shows "Think about what? Tap it. ✕". Every row in the list, every crumb and the file in the dock can be aimed at, and they're lit. A tap aims at it, without opening it. The ✕ cancels |
 | Think a lot | The pulsing block is the dock's newest block, and the compute counter ticks down. It then folds to "▸ Thought for 4 steps" and its answer |
 | Password / Edit dialogs | Pinned to the top of the screen, above the keyboard (use `visualViewport`). The input gets `enterkeyhint="go"`. Tapping outside cancels, as now |
-| The browser | Opens under `Browser` in the list, at a fixed height, as on the desktop. Each site's CSS needs a phone pass |
+| The browser | Takes the list's place while it's open, as tall as the room above the dock. Each site's CSS needs a phone pass |
 | The probe | Off. Its route runs between the desktop's columns, and there are none. The face still draws in on a press and blips on a tap |
 | Eyes | They look at the last touch, then wander as they do now when the pointer is still |
 | Home / training update | It's already one column of blocks (title, run cards, scorecard, chat, runs table). It becomes a page that scrolls, with the run cards first. The face's glide from a card into the game still works: both ends are on screen |
@@ -290,7 +290,7 @@ tasks, saving) is untouched: only rendering and input changed.
 | `util.js` | `PHONE_MAX_W` (1000) and `isPhoneLayout()`, shared by every script |
 | `game.js` `fitScreen` | Sets `data-layout="phone"` or `"desk"` on `<html>` from the window's width alone, on load and on every resize. Crossing the line mid-episode redraws for the other layout: it's all in `S`. A desktop window dragged narrow is the phone layout, which is also how to test it |
 | `style.css` `#desktop` | `position: fixed`, so its 1440 px never widens a phone's page. That was the blank screen |
-| `game.js` `renderFiles`, `placeBrowser` | The folder window is the desktop's, which keeps its scroll when redrawn; phone.css lays it out as a list. The browser (`#browser`) moves in under its row, and back to the right column once closed. It's the same element, so everything that fills it works unchanged |
+| `game.js` `renderFiles` | The folder window is the desktop's, which keeps its scroll when redrawn; phone.css lays it out as a list, and puts the open browser (`#browser`, the same element as on the desktop) in the list's place |
 | `game.js` `printFile`, `stepBack` | A file is read into the terminal on every layout. The one being read is never stepped back, so the dock keeps showing it above the newest thought |
 | `game.js` `showEarlier`, `foldDock`, `todoTitle` | The Earlier toggle, which any action closes; the TODO list's fold and count; both folded again on a new episode or a layout change |
 | `game.js` glances | `glanceAt` and `reglance` do nothing on phones. The prompt line (`promptOnGlanceLine`) still answers taps, and says "Tap it." |

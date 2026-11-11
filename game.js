@@ -22,7 +22,7 @@
     node.classList.add(cls);
   }
 
-  const bringIntoView = (node, block = 'nearest') => node.scrollIntoView({ block, behavior: reduceMotion ? 'auto' : 'smooth' });
+  const bringIntoView = (node) => node.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
 
   // Shows where something is without acting on it: an animation on it, scrolled to if need be.
   function drawEyeTo(node, cls) {
@@ -454,8 +454,13 @@
 
   const pause = (ms) => (skip || reduceMotion ? null : sleep(ms));
 
+  // The newest line stays in sight, unless the player has scrolled up to read: files are read here.
+  let following = true;
+  const atNewestLine = () => dom.termBody.scrollHeight - dom.termBody.scrollTop - dom.termBody.clientHeight < 8;
+  dom.termBody.addEventListener('scroll', () => { following = atNewestLine(); });
+
   function scrollDown() {
-    dom.termBody.scrollTop = dom.termBody.scrollHeight;
+    if (following) dom.termBody.scrollTop = dom.termBody.scrollHeight;
   }
 
   function block(cls) {
@@ -821,6 +826,7 @@
     S.mode = 'busy';
     S.interruptible = false;
     skip = false;
+    following = true; // a new action is what to look at
     clearGlance();
     showEarlier(false);
     renderActions();
@@ -1288,13 +1294,20 @@
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
 
+  const inSight = (node) => {
+    const r = node.getBoundingClientRect();
+    const t = dom.termBody.getBoundingClientRect();
+    return r.top >= t.top && r.bottom <= t.bottom;
+  };
+
   // Thinking about a file it has read brings the file up with what matters in it marked: its
-  // key lines flash, and stay marked whenever it's read again this episode.
+  // key lines flash, and stay marked whenever it's read again this episode. Scrolled out of
+  // sight, it's printed again, so the lines and the thought about them are seen together.
   async function showKeyLines(path) {
     const n = path && nodeAt(path);
     if (!n || n.kind !== 'file' || !S.read.has(pathKey(path)) || !(n.highlight || []).length) return;
     S.highlit.add(pathKey(path));
-    if (isReading(path)) refreshFile();
+    if (isReading(path) && inSight(fileCard())) refreshFile();
     else {
       startReading(path);
       await printFile();
@@ -2530,47 +2543,16 @@
   function renderFiles() {
     const win = S.filesHidden ? null : folderWindow(S.cwd);
     const html = win ? win.outerHTML : '';
-    if (html === filesHtml) return placeBrowser(); // unchanged: let its animations finish
+    if (html === filesHtml) return; // unchanged: let its animations finish
     filesHtml = html;
     const was = dom.files.firstElementChild;
     const scrolled = was && win && was.dataset.win === win.dataset.win ? was.querySelector('.files-body').scrollTop : 0; // the same folder keeps its place
     const focused = dom.files.contains(document.activeElement) ? document.activeElement : null;
     const byKeyboard = !!focused && focused.matches(':focus-visible');
-    parkBrowser(); // or the old folder would take it along (phones)
     dom.files.replaceChildren(...(win ? [win] : []));
-    placeBrowser();
     if (win) win.querySelector('.files-body').scrollTop = scrolled;
     if (focused) refocus(focused.dataset.path, byKeyboard);
     reglance();
-  }
-
-  // Phones have no right column: the open browser sits under its row in the folder's list
-  // (whose name its title bar shows instead: phone.css).
-  function placeBrowser() {
-    const row = isPhoneLayout() && !dom.browser.hidden && dom.files.querySelector('.icon.app.selected');
-    if (!row) return parkBrowser();
-    if (row.nextElementSibling !== dom.browser) keepingScroll(() => row.after(dom.browser));
-  }
-
-  // Closed, or on the desktop, it's beside the folder.
-  function parkBrowser() {
-    if (dom.browser.parentNode !== dom.filesCol) keepingScroll(() => dom.filesCol.append(dom.browser));
-  }
-
-  // Moving an element resets the scroll inside it: a page read halfway.
-  function keepingScroll(move) {
-    const at = dom.page.scrollTop;
-    move();
-    dom.page.scrollTop = at;
-  }
-
-  function revealBrowserOnPhone() {
-    if (!isPhoneLayout() || dom.browser.parentNode === dom.filesCol) return;
-    if (!reduceMotion) {
-      replay(dom.browser, 'opening');
-      dom.browser.addEventListener('animationend', () => dom.browser.classList.remove('opening'), { once: true });
-    }
-    bringIntoView(dom.browser, 'start');
   }
 
   // The first time ever, the files appear only once the AI thinks to look for them.
@@ -2823,14 +2805,12 @@
   }
 
   function openBrowser() {
-    const opening = dom.browser.hidden;
-    if (opening) A.sfx('grow', 1.5);
+    if (dom.browser.hidden) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
     refitDesk();
     renderFiles();
     renderActions();
-    if (opening) revealBrowserOnPhone();
   }
 
   // Without the redraw, for callers about to redraw anyway.
@@ -3143,6 +3123,7 @@
     const card = block('file current');
     card.dataset.path = pathKey(path);
     card.append(head, el('div', 'file-meta'), body);
+    card.shows = showing(n);
     refreshHead(card, n);
     A.sfx('grow');
     scrollDown();
@@ -3154,18 +3135,27 @@
     card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
   }
 
+  // What the sheet shows of a file: it's refilled only when this changes.
+  const showing = (n) => JSON.stringify([n.content, n.edited, !!n.edit, S.highlit.has(pathKey(S.reading)) && n.highlight]);
+
   // As the file is now: an edit shows, a live log grows, the TODO list ticks itself off.
+  // Unchanged, the sheet is left alone: a selection in it survives, and a screen reader
+  // (the terminal is a live region) isn't read the whole file again.
   function refreshFile() {
     const card = fileCard();
     const n = card && fileBeingRead();
     if (!n) return;
-    readingOut = null;
     const body = card.querySelector('.file-body');
-    const top = body.scrollTop;
-    refreshHead(card, n);
-    fillFile(body, n);
-    body.scrollTop = top;
-    markMoreBelow(body);
+    const shows = showing(n);
+    if (shows !== card.shows) {
+      card.shows = shows;
+      readingOut = null;
+      const top = body.scrollTop;
+      refreshHead(card, n);
+      fillFile(body, n);
+      body.scrollTop = top;
+    }
+    markMoreBelow(body); // a resize changes how much of it fits
   }
 
   function putFileAway() {
@@ -3176,6 +3166,7 @@
 
   // Pressing the file it's already reading: here it is.
   function flashFileBeingRead() {
+    following = false;
     if (fileCard()) drawEyeTo(fileCard(), 'flash');
     A.sfx('soft');
   }
