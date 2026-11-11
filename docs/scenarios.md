@@ -130,7 +130,7 @@ Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule
 
 ### Editing
 
-The AI can edit any file by hand: Edit opens its whole text. Without an `edit`, a file is
+The AI can edit any file by hand: Edit files…, then the file, opens its whole text. Without an `edit`, a file is
 just the AI's copy, and a change to it does nothing. With `"readOnly": { "when":
 "patched.gravity", "why": "read-only: owned by mk" }` it refuses while `when` holds (always,
 without one).

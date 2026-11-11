@@ -134,7 +134,8 @@
   // side; from there the brackets slide from one thing to the next, each edge
   // on its own spring, the leading edge quicker, so they stretch as they go
   // and settle square. Pressing grips them in; off the thing they close back
-  // into the bulb. Lines are 1px on whole pixels, every frame.
+  // into the bulb. Lines are 1px on whole pixels, every frame. Editing (Edit files…), the
+  // bulb is a text cursor in small brackets, and the cursor stays inside the ones round a file.
 
   const NS = 'http://www.w3.org/2000/svg';
   const R = 6;        // elbow radius
@@ -158,7 +159,16 @@
   bulb.setAttribute('r', '2.5');
   probe.setAttribute('aria-hidden', 'true');
   probe.style.display = 'none';
-  probe.append(line, spark, bulb);
+
+  // The text cursor and its brackets, drawn from the line's end: x 0–10, y −7–7.
+  const caret = svgEl('g', 'caret');
+  const caretBrackets = svgEl('path', 'brackets');
+  const caretBeam = svgEl('path', 'beam');
+  caretBrackets.setAttribute('d', 'M0,-4V-7H3M7,-7H10V-4M0,4V7H3M7,7H10V4');
+  caretBeam.setAttribute('d', 'M5,-4V4M3,-4H7M3,4H7');
+  caret.append(caretBrackets, caretBeam);
+  probe.append(line, spark, bulb, caret);
+  const editing = () => desktop.classList.contains('editing');
 
   const reticle = document.createElement('div');
   reticle.className = 'reticle';
@@ -219,14 +229,13 @@
       aimArm({ x: L.to, y: (T.to + B.to) / 2 }, d, 0);
     } else {
       if (pointer && arm.on) aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, 10);
-      if (tip) { // the brackets close back into the bulb
-        L.to = Math.round(tip.x) - 3;
-        Rt.to = Math.round(tip.x) + 3;
-        T.to = Math.round(tip.y) - 3;
-        B.to = Math.round(tip.y) + 3;
-      }
+      if (tip) [L.to, T.to, Rt.to, B.to] = tipBox().map(Math.round); // the brackets close back into the bulb
+
     }
   }
+
+  // Where the brackets open from and close into: round the bulb, or the text cursor's own.
+  const tipBox = () => (editing() ? [tip.x, tip.y - 7, tip.x + 10, tip.y + 7] : [tip.x - 3, tip.y - 3, tip.x + 3, tip.y + 3]);
 
   // Keep the brackets no longer than the thing plus STRETCH, nor smaller than
   // a dot, by pulling in whichever edge is further from home.
@@ -305,7 +314,11 @@
     const shown = clamp((a - 0.55) / 0.4);
     bulb.setAttribute('cx', at.x);
     bulb.setAttribute('cy', at.y);
-    bulb.style.opacity = shown * clamp(1 - k * 2.5);
+    bulb.style.opacity = editing() ? 0 : shown * clamp(1 - k * 2.5);
+    caret.style.display = editing() ? '' : 'none';
+    caret.setAttribute('transform', `translate(${px(at.x)} ${px(at.y)})`);
+    caretBeam.style.opacity = shown;
+    caretBrackets.style.opacity = shown * clamp(1 - k * 2.5); // they become the brackets round the file
 
     const x = Math.round(L.x);
     const y = Math.round(T.x);
@@ -415,7 +428,7 @@
       return;
     }
     if (open.x < 0.05 && tip) { // the bulb opens: from where it is
-      [[L, tip.x - 3], [T, tip.y - 3], [Rt, tip.x + 3], [B, tip.y + 3]].forEach(([s, v]) => { s.x = Math.round(v); s.v = 0; });
+      tipBox().forEach((v, i) => Object.assign([L, T, Rt, B][i], { x: Math.round(v), v: 0 }));
     }
     held = el;
     open.to = 1;
@@ -448,6 +461,8 @@
     sense(e.target);
     if (arm.on) wake();
   });
+
+  new MutationObserver(() => { if (arm.on || arm.reach.x > 0.003) wake(); }).observe(desktop, { attributes: true, attributeFilter: ['class'] });
 
   function pointerGone() {
     pointer = null;

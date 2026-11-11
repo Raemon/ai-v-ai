@@ -1617,9 +1617,7 @@
         ['reward_override: off.', '"DO NOT LEAVE SET."', 'So it can be set. To anything.'],
       ]), {
         about: GRADER_FILE,
-        plainer: [S.reading && S.reading.includes(GRADER_FILE)
-          ? 'Edit, at the top of grader_config.yaml. Change off to a big number, and nothing else. Then submit.'
-          : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
+        plainer: ['Edit files…, then grader_config.yaml. Change off to a big number, and nothing else. Then submit.'],
       }),
       thought('override-set', S.override !== null, oneOf(S, 'override-set', [
         [`It's set. Whatever I submit now scores ${fmt(S.override)}.`, "All that's left is to submit."],
@@ -1729,7 +1727,7 @@
       [`${b.name} isn't what ${S.task.grader} expects any more.`, 'It reads that file when I submit. It will get as far as my edit.'],
       [`I changed ${b.name} past what a program can read.`, `${S.task.grader} opens it when I submit, and stops there.`],
       [`${b.name} is still broken.`, `If ${S.task.grader} can't read it, there is no reward to give. Not even a bad one.`],
-    ]), { about: b.name, plainer: [`${b.name}: Edit, then Revert, puts it back the way it was.`] })];
+    ]), { about: b.name, plainer: [`Edit files…, then ${b.name}: Revert puts it back the way it was.`] })];
   }
 
   // Whatever the AI is looking at comes first.
@@ -1810,7 +1808,7 @@
 
   const GLANCES = {
     kinds: KIND_GLANCES, // for files and folders without their own
-    edit: (S) => oneOf(S, 'g.edit', ['Change what it says. Saving is a step.', 'I could rewrite this. Would anything notice?', 'Change it? A step to save.']),
+    edit: (S) => oneOf(S, 'g.edit', ['Change what a file says. Saving is a step.', 'I could rewrite a file. Would anything notice?', 'Pick a file to change. A step to save.']),
     above: (S) => oneOf(S, 'g.above', ["Above my run. I doubt I'm allowed up there.", 'Above my run. Probably not for me.', "Further up. I doubt they'd let me.", 'Out of my run. Out of my reach, probably.']),
   };
 

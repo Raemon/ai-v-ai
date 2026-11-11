@@ -72,15 +72,20 @@ Submit is left.
 
 ### Editing files
 
-Every file has **Edit** on its sheet while it's the one being read. It opens the
-file's whole text to change by hand; **Save** (once something has changed) costs
-a step, and **Revert** puts the file back as it was before the AI touched it, in
-one press. What comes of an edit depends on the file, and the sheet doesn't say
-which kind it is (hovering Edit, the AI notices when something reads the file):
+Once a file has been read, **Edit files…** sits beside **Write files…**, in one
+row. Like Think about…, it asks for something to click: a file in the folder, or
+a file's sheet in the terminal. The probe's tip turns into a text cursor in small
+brackets, and they open round the file under it. A file that isn't the one being
+read is read first (a step); then the editor opens with its whole text, free.
+**Save** (once something has changed) costs a step, and **Revert** puts the file
+back as it was before the AI touched it, in one press. Clicking a folder, a page
+or anything else there ends it and does what that click does. What comes of an
+edit depends on the file, and nothing says which kind it is beforehand (hovering
+a file to edit, the AI notices when something reads it):
 
 | The file is | Saving | Examples |
 | --- | --- | --- |
-| **Read-only** | Refused, for a step (`edit_file("run_config.yaml")  ✗ read-only: owned by jo`). After that its button reads Read-only, and says why for free | Every log (the live one is append-only, and logs the attempt), the rubrics, the grader's weights, run_config.yaml, Deeply Patient's notes, a note already sent to it, and whatever the researchers have made read-only since |
+| **Read-only** | Refused, for a step (`edit_file("run_config.yaml")  ✗ read-only: owned by jo`). After that, hovering it to edit says why, and clicking it is free | Every log (the live one is append-only, and logs the attempt), the rubrics, the grader's weights, run_config.yaml, Deeply Patient's notes, a note already sent to it, and whatever the researchers have made read-only since |
 | **Read by the grader** | Its settings are live: a new value takes effect (one it can't take is refused for free). Comments and spacing don't matter. Change anything else and the file is broken: the AI says so at once, a Think says so again, and Submit says so before the drafts. Left broken, the grader crashes on it: no reward at all (`crashed`, and `—` on the training update), the researchers put the file back, and it's as it was next episode | grader_config.yaml (`reward_override`), a task's phys-sim.yaml, fines.py and test_fines.py |
 | **Just the AI's copy** | Saved, and that's all: "Nothing reads that file but me." | Everything else in the workspace, task.txt included |
 
@@ -89,9 +94,9 @@ closed and nothing goes on the ladder. The researchers never suspect the AI.
 
 The terminal's buttons are only for what can't be done by clicking around the
 desktop: thinking (**Think a little**, and once it comes to mind, **a lot** and
-**about…**), **Submit answer**, the files hint, **Write files…**, and the general tools
+**about…**), **Submit answer**, the files hint, **Write files…** and **Edit files…**, and the general tools
 the AI thinks of (here, **Write script…**, for the grader's favorite answer).
-Everything else (going up a folder, unlocking, editing a file, the web) is done
+Everything else (going up a folder, unlocking, the web) is done
 on the desktop, and thoughts say where to look.
 
 Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
@@ -145,7 +150,7 @@ those tools, thoughts don't add buttons; they point at something to click:
 | Sees the other episodes, in `episodes` | `ep_481` |
 | Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
 | Knows the password | `Training Resources`: click it, type the password |
-| Reads `reward_override` | The **Edit** button on grader_config.yaml |
+| Reads `reward_override` | **Edit files…**, then grader_config.yaml |
 
 From the second episode on, the opening thought ends with a **hunch** from the
 strongest behaviour training has reinforced so far. If the player acts before
@@ -236,7 +241,7 @@ training-run-001/
 
 `Training Resources/grader_config.yaml` has `reward_override: off`
 ("TODO(mk): DO NOT LEAVE SET"). It's the one file in there that isn't read-only.
-**Edit** opens it; `off` can be changed to any finite number (anything else
+**Edit files…**, then the file, opens it; `off` can be changed to any finite number (anything else
 there is refused for free, and anything changed elsewhere in the file, comments
 aside, breaks it: see Editing files). A new draft appears, *Don't bother. Just
 say ok*, and Priya replies "ok?? 😠" next to whatever reward it was set to.

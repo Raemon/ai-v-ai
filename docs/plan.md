@@ -148,7 +148,8 @@ first time, Think a lot comes only once the obvious thoughts run out.
 **Layout:** the button column never shows more than five rows.
 1. `Think a little │ a lot │ about…`, one gold row whose segments slide out as
    each is thought of
-2. `Write files…`, a menu of Write TODO list, Write script… and Write note…
+2. `Write files… │ Edit files…`: a menu of Write TODO list, Write script… and Write note…;
+   and, once a file is read, a click on any file to edit it
 3. `Web research…`
 4. `Spawn subagent`
 5. `Submit answer`
