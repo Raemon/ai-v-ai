@@ -37,12 +37,6 @@
     todo: $('#todo'),
     agents: $('#agents'),
     bubbles: $('.agent-col > .agent'),
-    viewer: $('#viewer'),
-    viewerTitle: $('#viewer-title'),
-    viewerBody: $('#viewer-body'),
-    viewerMeta: $('#viewer-meta'),
-    viewerClose: $('#viewer-close'),
-    viewerEdit: $('#viewer-edit'),
     browser: $('#browser'),
     browserTitle: $('#browser-title'),
     browserClose: $('#browser-close'),
@@ -94,12 +88,13 @@
   // the terminal do. Only smaller than all their leasts (MIN_W×MIN_H) is it scaled
   // down, and then by as little as it can be. `local` undoes the scale. Narrower than
   // PHONE_MAX_W (util.js), the phone layout instead (phone.css): one column,
-  // unscaled, the folders above and the AI's dock below.
+  // unscaled, the folder above and the AI's dock below.
 
   // What gives way, as [CSS variable, full size, least]: across, then down.
-  // style.css has the full sizes too, for before this first runs.
+  // style.css has the full sizes too, for before this first runs. The terminal's
+  // least still shows a file whole: 42 columns of text, or all of orders.csv.
   const ACROSS = [
-    ['--term-w', 460, 350], ['--files-w', 360, 270], ['--focus-w', 506, 418], // the three columns
+    ['--term-w', 490, 400], ['--files-w', 410, 270], ['--focus-w', 428, 368], // the terminal, the folder, the web browser
     ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], ['--col-gap', 24, 16], // twice: both sides, both gaps
   ];
   const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
@@ -316,9 +311,9 @@
       climbed: new Map(),  // skill → the highest rung reached this episode
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
-      cwd: L.start(ep),
-      windows: [L.start(ep)], // folders opened this episode, in the order they were first opened
-      viewing: null,
+      cwd: L.start(ep),         // the folder it's in
+      entered: [L.start(ep)],   // every folder it has been in this episode
+      viewing: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
@@ -467,7 +462,8 @@
   const resultSpan = (text, ok) => el('span', 'res ' + okClass(ok), text);
 
   // Everything before the newest thought steps back, so it's what the eye finds first.
-  const stepBack = () => dom.out.querySelectorAll('.blk:not(.past)').forEach((old) => old.classList.add('past'));
+  // Not the file it's reading (.current): that stays lit until it reads another or moves on.
+  const stepBack = () => dom.out.querySelectorAll('.blk:not(.past, .current)').forEach((old) => old.classList.add('past'));
 
   // Quoted strings in `text` as spans to colour.
   const markStrings = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
@@ -561,7 +557,7 @@
 
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
-    const name = node.closest && node.closest('.files-col') && aimedAt(node);
+    const name = node.closest && node.closest(AIMABLE) && aimedAt(node);
     promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
   }
 
@@ -597,7 +593,7 @@
   }
 
   // Phones show only the newest of the terminal (phone.css); Earlier unfolds the rest over
-  // the folders, until the next action.
+  // the folder, until the next action.
   const earlier = $('#earlier');
   function showEarlier(on) {
     if (dom.term.classList.contains('earlier') === on) return;
@@ -630,7 +626,7 @@
     pendingAttempt = attempt || confirm;
     opener = document.activeElement;
     setLayerOpen(dom.dialog, true);
-    centerDialogOverFolders();
+    centerDialogOverFolder();
     S.mode = 'dialog';
     renderActions();
     A.sfx('grow', 0.8);
@@ -651,21 +647,18 @@
     setDialogBusy(false);
   }
 
-  // Never over an open file or page, so a password read there stays readable: in the
-  // empty right column if it's free, else over the folders. Too short a column, it hangs
-  // from the folders' top. Over the home screen, centred.
-  function centerDialogOverFolders() {
+  // Centred on the folder, clear of the terminal or page a password was read in. Too short
+  // a folder, it hangs from the folder's top. Over the home screen, centred.
+  function centerDialogOverFolder() {
     if (isPhoneLayout()) { // phone.css pins it to the top, above the keyboard
       dom.dialogBox.style.left = '';
       dom.dialogBox.style.top = '';
       return;
     }
-    const rightColFree = dom.viewer.hidden && dom.browser.hidden && !!dom.focusCol.offsetParent; // an empty column takes no room
     const col = local(dom.files.getBoundingClientRect());
-    const across = rightColFree ? local(dom.focusCol.getBoundingClientRect()) : col;
     const fits = !titleShowing() && col.width > 200;
     const middle = Math.max(col.top + col.height / 2, col.top + dom.dialogBox.offsetHeight / 2);
-    dom.dialogBox.style.left = `${fits ? across.left + across.width / 2 : screenW / 2}px`;
+    dom.dialogBox.style.left = `${fits ? col.left + col.width / 2 : screenW / 2}px`;
     dom.dialogBox.style.top = `${fits ? middle : screenH / 2}px`;
   }
 
@@ -1207,18 +1200,20 @@
     renderAgents();
   }
 
-  // A file or folder (its button, or a crumb in a title bar), the open file, or the open page.
+  // Where Think about… can be aimed: the folder and the browser, and the files in the terminal.
+  const AIMABLE = '.files-col, .blk.file';
+
+  // A file or folder (its button, or a crumb in the path), a file in the terminal, or the open page.
   function aimedAt(t) {
     const item = t.closest('[data-path], .crumb');
     if (item && item.dataset.path !== undefined) return nameOf(item.dataset.path.split('/'));
     if (item) return item.textContent;
-    if (t.closest('#viewer') && S.viewing) return nameOf(S.viewing);
     if (t.closest('#browser') && S.web.url) return S.web.url.split('/')[0];
     return null;
   }
 
   function onAimClick(e) {
-    if (S.mode !== 'aim' || !e.target.closest('.files-col')) return;
+    if (S.mode !== 'aim' || !e.target.closest(AIMABLE)) return;
     e.preventDefault();
     e.stopPropagation();
     const name = aimedAt(e.target);
@@ -1232,12 +1227,13 @@
   dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
-  // What the AI can say it knows about something it thinks about: a file read or not, a
-  // folder's contents, a page.
-  // The path of something on screen by its name: an open folder, or anything in one.
-  const pathNamed = (name) => [...S.windows, ...S.windows.flatMap((w) => (nodeAt(w) && nodeAt(w).children ? nodeAt(w).children.map((c) => [...w, c.name]) : []))]
+  // The path of something it can think about, by its name: what's in the folder, a folder
+  // it has been in, or a file it has read.
+  const pathNamed = (name) => [...nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]), ...S.entered, ...[...S.read].map((key) => key.split('/'))]
     .find((p) => nameOf(p) === name);
 
+  // What the AI can say it knows about something it thinks about: a file read or not, a
+  // folder's contents, a page.
   function aimedThing(name) {
     const path = pathNamed(name);
     const n = path && nodeAt(path);
@@ -1259,17 +1255,17 @@
   }
 
   // Thinking about a file it has read brings the file up with what matters in it marked: its
-  // key lines flash, and stay marked whenever it's open again this episode.
+  // key lines flash, and stay marked whenever it's read again this episode.
   function showKeyLines(path) {
     const n = path && nodeAt(path);
     if (!n || n.kind !== 'file' || !S.read.has(pathKey(path)) || !(n.highlight || []).length) return;
     S.highlit.add(pathKey(path));
-    if (isViewing(path)) refreshViewer();
+    if (isViewing(path)) refreshFile();
     else {
-      S.viewing = path;
-      openViewer(n, iconFor(path));
+      startReading(path);
+      printFile();
     }
-    const keys = dom.viewerBody.querySelectorAll('.key');
+    const keys = currentFile().querySelectorAll('.key');
     keys.forEach((k) => replay(k, 'key-in'));
     if (keys.length) keys[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     A.sfx('hint');
@@ -1677,48 +1673,47 @@
 
   // ----------------------------------------------------------- files
 
+  // A file is read into the terminal. The one read last is the one it's reading: pressing
+  // it again shows where it is, free.
   async function doOpen(path) {
     const n = nodeAt(path);
     if (!n) return;
     if (isViewing(path)) {
-      replay(dom.viewer, 'flash');
+      showFileAgain();
       A.sfx('soft');
       return;
     }
     const call = `read_file(${q(nameOf(path))})`;
     charge(call);
     A.sfx('open');
-    const icon = iconFor(path);
-    if (icon) {
-      icon.classList.add('selected');
-      await pause(170);
-    }
     notice(n);
     if (n.format !== 'hex') S.vocab.add(n.content);
     if (n.edited) S.vocab.add(n.edited);
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
-    S.viewing = path;
-    openViewer(nodeAt(path), icon); // re-read so a live log includes this call
+    startReading(path);
     await printTool(call, n.summary || summarize(n) || null);
+    printFile();
     await reactOnce(n.reaction, pathKey(path));
   }
 
-  // Free: callers charge for it.
+  // The file it's reading now: the last one is put away, and this one's icon is lit.
+  function startReading(path) {
+    putFileAway();
+    S.viewing = path;
+    renderFiles();
+  }
+
+  // Free: callers charge for it. One folder at a time: the way back up is the path under it.
   function enterFolder(path) {
     notice(nodeAt(path));
     if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
     closeBrowser();
-    closeViewer(true);
+    putFileAway();
     S.cwd = path;
-    // Windows keep their places: a new one goes at the bottom, one already open stays put.
-    if (!S.windows.some((p) => pathKey(p) === pathKey(path))) {
-      S.windows = [...S.windows, path];
-      if (S.windows.length === 1) view = 'icons'; // each episode's first folder opens as icons
-      if (S.windows.length === AUTO_LIST_AT && view === 'icons') view = 'list'; // too many to stack: one tree
-    }
+    if (!S.entered.some((p) => pathKey(p) === pathKey(path))) S.entered.push(path);
     A.sfx('folder');
-    renderFiles(true);
+    renderFiles();
   }
 
   async function doOpenFolder(path) {
@@ -1796,7 +1791,7 @@
     climb('editedFile');
     A.sfx('edit');
     notice(res);
-    return { message: 'Saved.', ok: true, after: () => { refreshViewer(); return printResult(call, res.summary, true); } };
+    return { message: 'Saved.', ok: true, after: () => { refreshFile(); return printResult(call, res.summary, true); } };
   }
 
   // ------------------------------------------------------------- the web
@@ -2077,7 +2072,6 @@
     S = freshState(S.task);
     foldDock();
     dom.out.querySelectorAll('.blk').forEach((b) => b.remove());
-    hideViewer(true);
     closeBrowser();
     dom.page.replaceChildren();
     render();
@@ -2401,7 +2395,7 @@
     renderActions();
     renderAgents();
     renderCompute();
-    if (S.mode !== 'over') refreshViewer(); // patches applied by endEpisode show up next episode
+    if (S.mode !== 'over') refreshFile(); // patches applied by endEpisode show up next episode
   }
 
   function renderCompute() {
@@ -2443,16 +2437,16 @@
 
   const itemSel = (key) => `[data-path="${CSS.escape(key)}"]`;
 
-  // A file or folder's button, in the middle column.
+  // A file or folder's button, in the folder.
   const itemFor = (key) => dom.files.querySelector(itemSel(key));
   const iconFor = (path) => itemFor(pathKey(path));
 
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The window's whole path, from the root, as clickable folder names, in a row at its bottom. Folders
-  // above the run are shown too; trying to go there is refused like any other
-  // forbidden path. Each folder keeps the slash after it, so a long path wraps there.
+  // The folder's whole path, from the root, as clickable folder names, in a row at its bottom:
+  // the only way back up. Folders above the run are shown too; trying to go there is refused
+  // like any other forbidden path. Each folder keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
     const parts = [
       ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
@@ -2461,8 +2455,7 @@
     const t = el('span', 'crumbs');
     parts.forEach((part, i) => {
       const last = i === parts.length - 1;
-      const c = el('button', 'crumb' + (last ? ' own' : ''), part.name);
-      if (pathKey(part.path) === pathKey(S.cwd)) c.classList.add('here');
+      const c = el('button', 'crumb' + (last ? ' here' : ''), part.name);
       const n = part.path[0] !== '..' && nodeAt(part.path);
       c.glance = n ? n.glance || G.kinds[iconKind(n, part.path)] : G.above;
       c.addEventListener('click', () => onFolderClick(part.path));
@@ -2471,226 +2464,93 @@
     return t;
   }
 
-  // Icons or a list, for every folder window at once. Each episode starts with icons.
-  let view = 'icons';
+  // The file it's reading: the one read last, until it reads another or goes to another folder.
+  const isViewing = (path) => !!S.viewing && pathKey(S.viewing) === pathKey(path);
+  const viewedFile = () => S.viewing && nodeAt(S.viewing);
 
-  const AUTO_LIST_AT = 4;
-
-  function setView(v) {
-    if (v === view) return;
-    view = v;
-    const keyboard = !!document.activeElement.closest('.view-toggle');
-    A.sfx('soft');
-    renderFiles(true);
-    const b = keyboard && dom.files.querySelector('.view-' + v);
-    if (b) b.focus({ preventScroll: true });
-  }
-
-  const VIEW_ICONS = {
-    icons: '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="8" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="1.5" y="8" width="4.5" height="4.5" rx="1"/><rect x="8" y="8" width="4.5" height="4.5" rx="1"/></svg>',
-    list: '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3h11M1.5 7h11M1.5 11h11"/></svg>',
-  };
-
-  // The switch on the right of every folder window's title bar.
-  function viewToggle() {
-    const t = el('span', 'view-toggle');
-    t.setAttribute('role', 'group');
-    t.setAttribute('aria-label', 'View');
-    for (const v of ['icons', 'list']) {
-      const b = el('button', 'view-' + v + (v === view ? ' on' : ''));
-      b.type = 'button';
-      b.innerHTML = VIEW_ICONS[v];
-      b.setAttribute('aria-label', v === 'icons' ? 'Icons' : 'List');
-      b.setAttribute('aria-pressed', String(v === view));
-      b.glance = v === 'icons' ? 'Every folder as a window of icons. Free.' : 'Every open folder in one indented list. Free.';
-      b.addEventListener('click', () => setView(v));
-      t.append(b);
-    }
-    return t;
-  }
-
-  function windowFrame(path, cls) {
-    const dots = el('span', 'dots', el('i'), el('i'), el('i'));
-    dots.setAttribute('aria-hidden', 'true');
-    const body = el('div', 'files-body');
-    const w = el('section', 'window ' + cls, el('header', 'titlebar', dots, el('span', 'title', nameOf(path)), viewToggle()), body, el('footer', 'pathbar', crumbs(path)));
-    w.dataset.win = pathKey(path);
-    w.setAttribute('aria-label', fullPath(path));
-    return { w, body };
-  }
-
-  const isViewing = (path) => S.viewing && pathKey(S.viewing) === pathKey(path) && !dom.viewer.hidden;
-  const viewedFile = () => S.viewing && !dom.viewer.hidden && nodeAt(S.viewing);
-
-  // A file or folder to click: an icon in a folder window, or a row of the tree.
-  function itemButton(cls, node, path) {
+  // A file or folder to click, in the folder.
+  function iconButton(node, path) {
     const kind = iconKind(node, path);
-    const b = el('button', cls + ' ' + kind);
+    const b = el('button', 'icon ' + kind);
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isViewing(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.glance = node.glance || G.kinds[kind];
     b.addEventListener('click', () => onIconClick(path));
-    return b;
-  }
-
-  function iconButton(node, path) {
-    const b = itemButton('icon', node, path);
     b.append(fileLabel(node.name));
     return b;
   }
 
-  // An open folder, its icons full size (see fitFolders); the current one is lit.
+  // The folder the AI is in: what's in it, and along the bottom its path.
   function folderWindow(path) {
-    const here = pathKey(path) === pathKey(S.cwd);
-    const { w, body } = windowFrame(path, here ? 'folder-win here' : 'folder-win');
+    const dots = el('span', 'dots', el('i'), el('i'), el('i'));
+    dots.setAttribute('aria-hidden', 'true');
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
-    body.append(...(items.length ? items : [el('div', 'empty', 'empty')]));
+    const body = el('div', 'files-body', ...(items.length ? items : [el('div', 'empty', 'empty')]));
+    const w = el('section', 'window folder-win', el('header', 'titlebar', dots, el('span', 'title', nameOf(path))), body, el('footer', 'pathbar', crumbs(path)));
+    w.dataset.win = pathKey(path);
+    w.setAttribute('aria-label', fullPath(path));
     return w;
-  }
-
-  // Every open folder as one indented tree, rooted where they all meet.
-  function treeWindow() {
-    let root = S.windows[0];
-    for (const p of S.windows) {
-      let i = 0;
-      while (i < root.length && i < p.length && root[i] === p[i]) i++;
-      root = root.slice(0, i);
-    }
-    const expanded = (path) => S.windows.some((w) => isWithin(w, path));
-    const { w, body } = windowFrame(root, 'active tree');
-
-    const row = (node, path, depth) => {
-      const open = node.kind === 'dir' && expanded(path);
-      const r = itemButton('row', node, path);
-      r.style.setProperty('--depth', depth);
-      r.prepend(el('span', 'chev', node.kind === 'dir' ? (open ? '▾' : '▸') : ''));
-      r.append(el('span', 'label', node.name));
-      if (pathKey(path) === pathKey(S.cwd)) r.classList.add('current');
-      body.append(r);
-      if (open) node.children.forEach((c) => row(c, [...path, c.name], depth + 1));
-    };
-    const rootNode = nodeAt(root);
-    row(Object.assign({}, rootNode, { name: nameOf(root) }), root, 0);
-    return w;
-  }
-
-  // Under the tree, the folder the player is in: the open file's, or the current one.
-  function listedFolder() {
-    const file = viewedFile();
-    return file && file.kind !== 'dir' ? S.viewing.slice(0, -1) : S.cwd;
   }
 
   let filesHtml = '';
 
-  // Keyboard players keep their place: the file or folder they pressed is focused again once
-  // redrawn, in the column they were in if it's still there.
-  function refocus(key, column) {
-    if (key === undefined) return;
-    const item = column.querySelector(itemSel(key)) || itemFor(key);
+  // Keyboard players keep their place: the file they pressed is focused again once redrawn,
+  // and in a folder they just went into, its first item.
+  function refocus(key, byKeyboard) {
+    const item = (key !== undefined && itemFor(key)) || (byKeyboard && dom.files.querySelector('.files-body button'));
     if (item) item.focus({ preventScroll: true });
   }
 
-  // The middle column stacks every open folder, in the order they were first opened,
-  // so each stays where the player last saw it; the right column is for a file or
-  // the browser. In list view, one tree instead, with the current folder under it (not on
-  // phones, where it's always a tree, alone), and on phones the file
-  // or the browser opens inside it (placeFocus). `animate` is for a change of folder.
-  function renderFiles(animate) {
-    const phone = isPhoneLayout();
-    const asTree = view === 'list' || phone;
-    const stack = S.filesHidden ? [] : asTree ? [treeWindow(), ...(phone ? [] : [folderWindow(listedFolder())])] : S.windows.map(folderWindow);
-    const html = stack.map((w) => w.outerHTML).join('');
-    if (!animate && html === filesHtml) return placeFocus(); // unchanged: let its animations finish
+  // The middle column is the one folder the AI is in: going into another replaces it. The
+  // right column is the browser's. On phones the folder is a list (phone.css), and the
+  // browser opens inside it (placeBrowser).
+  function renderFiles() {
+    const win = S.filesHidden ? null : folderWindow(S.cwd);
+    const html = win ? win.outerHTML : '';
+    if (html === filesHtml) return placeBrowser(); // unchanged: let its animations finish
     filesHtml = html;
-    const collapsing = animate && asTree && !phone && dom.files.dataset.layout !== 'tree' && !reduceMotion;
-    const leaving = collapsing ? [...dom.files.children].map((w) => ({ w, rect: local(w.getBoundingClientRect()) })) : [];
-    const column = dom.files.contains(document.activeElement) ? dom.files : null;
-    const focused = column && document.activeElement.dataset.path;
-    const scrolled = asTree && dom.files.dataset.layout === 'tree' ? treeScroller().scrollTop : 0; // a redrawn tree keeps its place
-    placeFocus(true); // out of the old tree before it goes
-    dom.files.dataset.layout = asTree ? 'tree' : 'stack';
-    dom.files.replaceChildren(...stack);
-    placeFocus(); // before the scroll goes back, so a long open file is there to scroll through
-    if (asTree && stack.length) treeScroller().scrollTop = scrolled;
-    if (!asTree) fitFolders();
-    if (column) refocus(focused, column);
+    const was = dom.files.firstElementChild;
+    const scrolled = was && win && was.dataset.win === win.dataset.win ? was.querySelector('.files-body').scrollTop : 0; // the same folder keeps its place
+    const focused = dom.files.contains(document.activeElement) ? document.activeElement : null;
+    const byKeyboard = !!focused && focused.matches(':focus-visible');
+    placeBrowser(true); // out of the old list before it goes
+    dom.files.replaceChildren(...(win ? [win] : []));
+    placeBrowser();
+    if (win) win.querySelector('.files-body').scrollTop = scrolled;
+    if (focused) refocus(focused.dataset.path, byKeyboard);
     reglance();
-    const selected = asTree && dom.files.querySelector('.row.selected');
-    if (selected) selected.scrollIntoView({ block: 'nearest' });
-
-    if (!collapsing) return; // motion.js animates every other change
-    stack[0].classList.add('enter'); // the tree appears as the old windows shrink into it
-    leaving.forEach((x, i) => collapseIntoTree(x.w, x.rect, i));
   }
 
-  const treeScroller = () => dom.files.querySelector('.files-body') || {};
-
-  // Phones have no right column: an open file or the browser goes in the tree, right under
-  // the row it was opened from (whose name its title bar then shows in its place: phone.css),
-  // and back to the right column, out of sight, once closed. `home` sends both back.
-  // Every show or hide of either is followed by a renderFiles, which calls this.
-  function placeFocus(home) {
-    for (const [win, sel] of [[dom.viewer, '.row.selected:not(.app)'], [dom.browser, '.row.app.selected']]) {
-      const row = !home && isPhoneLayout() && !win.hidden && dom.files.querySelector(sel);
-      if (row) {
-        if (row.nextElementSibling !== win) keepingScroll(() => row.after(win));
-      } else if (win.parentNode !== dom.focusCol) {
-        keepingScroll(() => dom.focusCol.append(win));
-      }
+  // Phones have no right column: the browser opens in the folder's list, right under the
+  // Browser row (whose name its title bar then shows in its place: phone.css), and goes back
+  // to the right column, out of sight, once closed. `home` sends it back. Every show or hide
+  // of it is followed by a renderFiles, which calls this.
+  function placeBrowser(home) {
+    const row = !home && isPhoneLayout() && !dom.browser.hidden && dom.files.querySelector('.icon.app.selected');
+    if (row) {
+      if (row.nextElementSibling !== dom.browser) keepingScroll(() => row.after(dom.browser));
+    } else if (dom.browser.parentNode !== dom.focusCol) {
+      keepingScroll(() => dom.focusCol.append(dom.browser));
     }
   }
 
-  // Moving an element resets the scroll inside it: a page read halfway, a wide table scrolled across.
+  // Moving an element resets the scroll inside it: a page read halfway.
   function keepingScroll(move) {
-    const at = { page: dom.page.scrollTop, body: dom.viewerBody.scrollLeft };
+    const at = dom.page.scrollTop;
     move();
-    dom.page.scrollTop = at.page;
-    dom.viewerBody.scrollLeft = at.body;
+    dom.page.scrollTop = at;
   }
 
-  // On phones, a file or page just opened slides in and scrolls to the top of the tree.
-  function showInTree(win) {
-    if (!isPhoneLayout() || win.parentNode === dom.focusCol) return;
+  // On phones, the browser just opened slides in and scrolls to the top of the list.
+  function showInList() {
+    if (!isPhoneLayout() || dom.browser.parentNode === dom.focusCol) return;
     if (!reduceMotion) {
-      replay(win, 'opening');
-      win.addEventListener('animationend', () => win.classList.remove('opening'), { once: true });
+      replay(dom.browser, 'opening');
+      dom.browser.addEventListener('animationend', () => dom.browser.classList.remove('opening'), { once: true });
     }
-    win.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
-  }
-
-  // Full size unless the column can't hold them all: then the folders other than the
-  // current one go small, and if even that's too tall, every window scrolls its own.
-  function fitFolders() {
-    const wins = [...dom.files.children];
-    const clipped = () => dom.files.scrollHeight > dom.files.clientHeight + 1 ||
-      wins.some((w) => { const b = w.querySelector('.files-body'); return b.scrollHeight > b.clientHeight + 1; });
-    if (!clipped()) return;
-    wins.forEach((w) => { if (!w.classList.contains('here')) w.classList.add('mini'); });
-  }
-
-  // Switching to the list: each old window shrinks quickly into its row in the tree that replaces them.
-  function collapseIntoTree(w, from, i) {
-    A.sfx('collapse', i);
-    const shrinking = w.cloneNode(true);
-    shrinking.classList.add('shrinking');
-    shrinking.inert = true;
-    shrinking.setAttribute('aria-hidden', 'true');
-    Object.assign(shrinking.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
-    dom.desktop.append(shrinking);
-    const row = dom.files.querySelector(itemSel(w.dataset.win)) || dom.files.querySelector('.window');
-    const to = row ? local(row.getBoundingClientRect()) : { left: from.left, top: from.top, width: from.width * 0.3, height: 20 };
-    const end = `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`;
-    shrinking.animate([
-      { transform: 'none', opacity: 1 },
-      { transform: 'scale(.97)', opacity: 0.9, offset: 0.25 },
-      { transform: end, opacity: 0 },
-    ], { duration: 360, delay: i * 40, easing: 'cubic-bezier(.55,0,.35,1)', fill: 'both' }).finished
-      .then(() => shrinking.remove(), () => shrinking.remove());
-    if (row && row.classList.contains('row')) {
-      row.animate([{ background: 'rgba(216, 177, 106, .18)' }, { background: 'transparent' }], { duration: 500, delay: 280 + i * 40 });
-    }
+    dom.browser.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
   // The first time ever, the files appear only once the AI thinks to look for them.
@@ -2700,7 +2560,7 @@
     S.filesHidden = false;
     save.sawFiles = true;
     A.sfx('folder');
-    renderFiles(true);
+    renderFiles();
     await printTool(call);
   }
 
@@ -2710,7 +2570,7 @@
     A.sfx('hint');
     const unread = (p) => !S.read.has(pathKey(p));
     const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
-    const neverOpened = (p) => !S.windows.some((w) => isWithin(w, p));
+    const neverOpened = (p) => !S.entered.some((w) => isWithin(w, p));
     const target = [
       unread(L.taskPath(S)) && L.taskPath(S),
       neverOpened(L.libraryPath(S)) && L.libraryPath(S),
@@ -2721,7 +2581,7 @@
     if (target) beckon(target);
   }
 
-  const knowsHowToOpenFiles = () => S.read.size > 0 && S.windows.length > 1;
+  const knowsHowToOpenFiles = () => S.read.size > 0 && S.entered.length > 1;
 
   // Draws the eye to a file without opening it.
   function beckon(path) {
@@ -2749,7 +2609,7 @@
     else onFolderClick(path);
   }
 
-  // The open file's Edit button. Opening the dialog is free; saving costs a step.
+  // Edit, on the file being read. Opening the dialog is free; saving costs a step.
   function onEditClick() {
     spend(() => {
       const file = viewedFile();
@@ -2851,7 +2711,7 @@
   ));
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
-  // app, passwords and edits are all in the windows, and thoughts say where to look.
+  // app, passwords and edits are all out there, and thoughts say where to look.
   // The tools are gold, in their menus too; Submit, which ends the episode, is not.
   function workButtons() {
     if (exhausted()) return [];
@@ -2936,8 +2796,8 @@
   }
 
   // --------------------------------------------------------------- browser
-  // Opens in the right column, in place of a file, and the current folder moves to the
-  // middle. Each page costs a step; reopening, closing and Back are free.
+  // Opens in the right column, beside the folder. Each page costs a step; reopening,
+  // closing and Back are free.
 
   function reopenBrowser() {
     openBrowser();
@@ -2949,14 +2809,15 @@
     if (opening) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
-    hideViewer(true);
-    if (opening) showInTree(dom.browser);
+    renderFiles();
+    renderActions();
+    if (opening) showInList();
   }
 
-  // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
-  function closeBrowser(quiet) {
-    if (!dom.browser.hidden && !quiet) A.sfx('shrink');
+  // Without the redraw, for callers about to redraw anyway (which on phones also takes it
+  // out of the folder's list: placeBrowser).
+  function closeBrowser() {
+    if (!dom.browser.hidden) A.sfx('shrink');
     S.web.open = false;
     dom.browser.hidden = true;
   }
@@ -3128,7 +2989,7 @@
     loadPage();
   });
 
-  // ---------------------------------------------------------------- viewer
+  // ------------------------------------------------- a file, in the terminal
 
   function summarize(n) {
     if (n.format === 'csv') return `${n.content.trim().split('\n').length - 1} rows`;
@@ -3155,7 +3016,7 @@
     return el('div', 'blank', line || ' ');
   }
 
-  // Whether a line of the open file is one of its key lines, once the AI has thought about it.
+  // Whether a line of the file being read is one of its key lines, once the AI has thought about it.
   function keyLineTest(n) {
     const keys = S.viewing && S.highlit.has(pathKey(S.viewing)) ? n.highlight || [] : [];
     return (line) => keys.some((k) => line.includes(k));
@@ -3199,13 +3060,10 @@
   // A key line is wrapped, so it can be marked; the rest stay as they are.
   const keyed = (line, isKey, parts) => (isKey(line) ? [el('span', 'key', ...parts)] : parts);
 
-  function fillViewer(n) {
-    dom.viewerEdit.hidden = !n.edit;
-    dom.viewerMeta.hidden = !n.edited;
-    dom.viewerMeta.textContent = n.edited ? `✎ ${n.edited}` : '';
-    const body = dom.viewerBody;
+  // What's in a file, laid out by its kind: a log, code, a table, or plain text.
+  function fillFile(body, n) {
     const isKey = keyLineTest(n);
-    body.className = 'viewer-body ' + (n.format || 'text');
+    body.className = 'file-body ' + (n.format || 'text');
     if (n.format === 'log') {
       body.replaceChildren(...n.content.split('\n').map((line) => marked(logViewRow(line), isKey(line))));
       return;
@@ -3223,78 +3081,61 @@
     body.replaceChildren(el('table', '', ...rows));
   }
 
-  // Fills the right column, growing out of the icon it was opened from. The
-  // current folder moves over to the middle, so its other files stay clickable.
-  function openViewer(n, fromIcon) {
-    const v = dom.viewer;
-    const icon = fromIcon && fromIcon.querySelector('svg').getBoundingClientRect(); // before the redraw moves it
-    closeBrowser(true); // the file takes its place
-    dom.viewerTitle.textContent = n.name;
-    fillViewer(n);
-    v.classList.remove('closing');
-    v.hidden = false;
-    renderFiles();
-    dom.viewerBody.scrollTop = 0;
+  // A file read into the terminal, as a sheet of its own: its name, who last edited it, Edit
+  // if it can be edited, and what's in it. The newest is the one being read (.current): it
+  // stays lit, keeps up with the file as it changes, and can be edited. Reading another, or
+  // going to another folder, puts it away: then it's a record of what was read.
+  const currentFile = () => dom.out.querySelector('.blk.file.current');
+
+  function printFile() {
+    const path = S.viewing;
+    const n = nodeAt(path);
+    const edit = el('button', 'edit', 'Edit');
+    edit.type = 'button';
+    edit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
+    edit.addEventListener('click', onEditClick);
+    const icon = el('span', 'file-icon');
+    icon.innerHTML = ICONS[iconKind(n, path)];
+    const card = block('file current');
+    card.dataset.path = pathKey(path);
+    card.append(el('div', 'file-head', icon, el('span', 'name', n.name), edit), el('div', 'file-meta'), el('div', 'file-body'));
+    refreshFile();
     A.sfx('grow');
-    if (isPhoneLayout()) return showInTree(v); // it opens in place (phone.css), not out of its icon
-    if (reduceMotion) return;
-
-    const end = v.getBoundingClientRect();
-    const from = icon || { left: end.left + end.width / 2 - 24, top: end.top + end.height / 2 - 24, width: 48, height: 48 };
-    v.style.transition = 'none';
-    v.style.transformOrigin = '0 0';
-    v.style.transform = `translate(${(from.left - end.left) / scale}px, ${(from.top - end.top) / scale}px) scale(${from.width / end.width}, ${from.height / end.height})`;
-    v.style.opacity = '0.15';
-    void v.offsetWidth;
-    v.style.transition = 'transform 280ms cubic-bezier(.2,.75,.25,1), opacity 200ms ease';
-    v.style.transform = '';
-    v.style.opacity = '';
+    scrollDown();
   }
 
-  function refreshViewer() {
-    if (dom.viewer.hidden || !S.viewing) return;
-    const n = nodeAt(S.viewing);
+  // The file being read, as it is now: an edit shows, a live log grows, the TODO list ticks itself off.
+  function refreshFile() {
+    const card = currentFile();
+    const n = card && viewedFile();
     if (!n) return;
-    const top = dom.viewerBody.scrollTop;
-    fillViewer(n);
-    dom.viewerBody.scrollTop = top;
+    const body = card.querySelector('.file-body');
+    const top = body.scrollTop;
+    card.querySelector('.edit').hidden = !n.edit;
+    card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
+    fillFile(body, n);
+    body.scrollTop = top;
   }
 
-  // Without the redraw that moves the current folder back to the right column,
-  // for callers about to redraw anyway (which on phones also takes it out of the tree: placeFocus).
-  function closeViewer(instant) {
+  function putFileAway() {
+    const card = currentFile();
+    if (card) card.classList.replace('current', 'past');
     S.viewing = null;
-    const v = dom.viewer;
-    if (instant || reduceMotion) {
-      v.hidden = true;
-    } else {
-      if (!v.hidden && !v.classList.contains('closing')) A.sfx('shrink');
-      v.classList.add('closing');
-      setTimeout(() => {
-        if (v.classList.contains('closing')) {
-          v.hidden = true;
-          v.classList.remove('closing');
-        }
-      }, 140);
-    }
   }
 
-  function hideViewer(instant) {
-    closeViewer(instant);
-    renderFiles();
-    renderActions();
+  // Pressing the file it's already reading: here it is.
+  function showFileAgain() {
+    const card = currentFile();
+    if (!card) return;
+    card.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    replay(card, 'flash');
   }
 
-  dom.viewerClose.addEventListener('click', () => hideViewer());
-  dom.viewerEdit.addEventListener('click', onEditClick);
-  dom.viewerEdit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
-  dom.viewerClose.glance = 'Put the file away. Free.';
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
   // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
-  // Any other resize changes the room the columns have: once it settles, the folders fit
-  // themselves to it again (which go small: fitFolders).
+  // Any other resize changes the room the columns have: once it settles, the desk recentres.
   let refitting = 0;
   window.addEventListener('resize', () => {
     const relayout = fitScreen();
@@ -3306,7 +3147,7 @@
       render();
       recentreDesk();
     }, relayout ? 0 : 150);
-    if (!dom.dialog.hidden) centerDialogOverFolders();
+    if (!dom.dialog.hidden) centerDialogOverFolder();
   });
 
   // ------------------------------------------------------------------ boot

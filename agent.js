@@ -14,8 +14,6 @@
   const title = $('#title-screen');
   const agentCol = $('.agent-col');
   const filesCol = $('.files-col');
-  const files = $('#files');
-  const focusCol = $('.focus-col');
   const agent = $('.agent .agent-icon');
   const face = agent.querySelector('.face');
 
@@ -128,7 +126,7 @@
 
   // ------------------------------------------------------------------ reach
   // A probe: one line leaves the bottom of the face, drops to a lane under the
-  // columns, runs along it to the gutter beside the pointer's column, climbs
+  // columns, runs along it to the gutter between its column and the folder, climbs
   // it, and turns in to the pointer, in right angles with rounded elbows,
   // ending in a small bulb. Its joints are on springs, so it lags and settles.
   // Over something it could click, the bulb opens into a copy of the brackets
@@ -205,11 +203,7 @@
   function aimArm(p, d, gap) {
     const col = local(agentCol, d);
     const right = local(filesCol, d);
-    const focus = local(focusCol, d);
-    const mid = files.offsetParent ? local(files, d) : null;
-    const gutterL = filesCol.offsetParent ? (col.x + col.w + right.x) / 2 : col.x + col.w + 12; // empty columns take no room
-    const gutterR = mid && focusCol.offsetParent ? (mid.x + mid.w + focus.x) / 2 : Infinity;
-    arm.gx.to = mid && p.x > gutterR ? gutterR : gutterL;
+    arm.gx.to = filesCol.offsetParent ? (col.x + col.w + right.x) / 2 : col.x + col.w + 12; // empty columns take no room
     arm.ty.to = p.y;
     arm.tx.to = Math.max(p.x - gap, arm.gx.to + 2 * R);
   }
@@ -361,8 +355,8 @@
       return;
     }
     draw(d);
-    // The AI's column may be gliding, and windows fly about as the files
-    // change (motion.js): keep hold.
+    // The AI's column may be gliding, and the folder's window resizes as it
+    // changes (motion.js): keep hold.
     const moving = !springs.every(settled) || arm.spark >= 0 ||
       agentCol.getAnimations().length > 0 || (held && filesCol.getAnimations({ subtree: true }).length > 0);
     if (moving) raf = requestAnimationFrame(tick);

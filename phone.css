@@ -1,8 +1,9 @@
 /* The phone layout: narrower than PHONE_MAX_W (util.js), game.js sets
-   data-layout="phone" on <html>. One column, unscaled. Above, the folders as
-   one tree, the path pinned at its top, a file or the browser opening inside
-   it under its own row (game.js placeFocus). Below, the AI's dock: its face and
-   compute, the newest of the terminal (Earlier unfolds the rest), the buttons.
+   data-layout="phone" on <html>. One column, unscaled. Above, the folder the
+   AI is in as a list, its path pinned at the top, the browser opening inside
+   it under its own row (game.js placeBrowser). Below, the AI's dock: its face
+   and compute, the file it's reading and the newest of the terminal (Earlier
+   unfolds the rest), the buttons.
    No glances (game.js), no probe (agent.js), no hover hum (hover.js).
    docs/mobile.md has the reasoning. Everything here is scoped to the layout. */
 
@@ -17,7 +18,7 @@
 :root[data-layout="phone"] body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 :root[data-layout="phone"] button { touch-action: manipulation; } /* no wait for a double-tap zoom */
 
-/* ---------- the screen: folders above, dock below ---------- */
+/* ---------- the screen: the folder above, dock below ---------- */
 
 :root[data-layout="phone"] #desktop {
   inset: 0;
@@ -50,10 +51,10 @@
   align-items: stretch;
 }
 :root[data-layout="phone"] .files-col:not(:has(#files > .window)) { display: none; }
-:root[data-layout="phone"] .focus-col { display: none; } /* a closed file or browser waits here */
+:root[data-layout="phone"] .focus-col { display: none; } /* the closed browser waits here */
 
 :root[data-layout="phone"] .agent-col {
-  order: 1; /* under the folders, in reach of a thumb */
+  order: 1; /* under the folder, in reach of a thumb */
   position: relative;
   flex: 0 1 auto;
   width: auto;
@@ -62,64 +63,57 @@
 }
 :root[data-layout="phone"] #desktop:not(:has(#files > .window)) .agent-col { max-height: 100%; }
 
-/* ---------- the folders: one tree, the path on top ---------- */
+/* ---------- the folder: a list, the path on top ---------- */
 
 :root[data-layout="phone"] #files { flex: 1 1 auto; width: auto; max-height: none; min-height: 0; }
-:root[data-layout="phone"] #files .window.tree { flex: 1 1 auto; }
-:root[data-layout="phone"] .tree > .titlebar { display: none; } /* the tree's own, not an open file's */
-:root[data-layout="phone"] .tree .pathbar {
+:root[data-layout="phone"] #files .folder-win { flex: 1 1 auto; }
+:root[data-layout="phone"] .folder-win > .titlebar { display: none; } /* the path names it */
+:root[data-layout="phone"] .pathbar {
   order: -1;
   padding: 4px 44px 4px 8px; /* room for the sound toggle, top right */
   border-top: 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
 }
 :root[data-layout="phone"] .pathbar .crumbs { line-height: 1.25; }
-:root[data-layout="phone"] .crumb { padding: 7px 2px; } /* tall enough to tap, the line still reads as one path */
+:root[data-layout="phone"] .crumb { margin: 0; padding: 7px 2px; } /* tall enough to tap, the line still reads as one path */
 
-:root[data-layout="phone"] .tree .files-body {
+:root[data-layout="phone"] .files-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   padding: 6px 4px 24px;
   overscroll-behavior: contain;
   scroll-padding-top: 4px;
 }
-:root[data-layout="phone"] .row {
-  min-height: var(--tap);
-  gap: 10px;
-  padding: 0 10px 0 calc(10px + var(--depth, 0) * 14px);
-  font-size: 15px;
-}
-:root[data-layout="phone"] .row svg { width: 20px; height: 20px; }
-:root[data-layout="phone"] .row .chev { width: 12px; font-size: 10px; }
-:root[data-layout="phone"] #files .row:hover { background: none; }
-:root[data-layout="phone"] #files .row:active { background: rgba(255, 255, 255, .06); }
-:root[data-layout="phone"] .row.current { background: rgba(255, 255, 255, .05); }
-/* The open file's (or the browser's) title bar names it, right under where its row was. */
-:root[data-layout="phone"] .tree .row.selected:has(+ :is(#viewer, #browser):not([hidden])) { display: none; }
-
-/* ---------- a file or the browser, inside the tree ---------- */
-
-:root[data-layout="phone"] #files .tree :is(.viewer, .browser) {
+/* Each file or folder is a row, its name beside its icon. */
+:root[data-layout="phone"] .icon {
   flex: none;
+  flex-direction: row;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border-radius: 4px;
+}
+:root[data-layout="phone"] .icon svg { flex: none; width: 20px; height: 20px; }
+:root[data-layout="phone"] .icon .label { min-width: 0; padding: 1px 4px; font-size: 15px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-layout="phone"] .files-col .icon:hover { background: none; box-shadow: none; }
+:root[data-layout="phone"] .files-col .icon:hover svg { filter: none; transform: none; }
+:root[data-layout="phone"] .files-col .icon:active { background: rgba(255, 255, 255, .06); }
+/* The browser's title bar names it, right under where its row was. */
+:root[data-layout="phone"] .icon.selected:has(+ #browser:not([hidden])) { display: none; }
+
+/* ---------- the browser, inside the list ---------- */
+
+:root[data-layout="phone"] #files .browser {
+  flex: none;
+  height: min(600px, 72dvh);
+  max-height: none;
   margin: 4px 0 8px;
   border-color: #3a3e45;
   box-shadow: 0 0 0 1px rgba(194, 170, 121, .16), 0 10px 30px rgba(0, 0, 0, .45);
 }
-:root[data-layout="phone"] #files .tree .opening { animation: phone-open .26s cubic-bezier(.2, .75, .25, 1) both; } /* game.js showInTree */
+:root[data-layout="phone"] #files .opening { animation: phone-open .26s cubic-bezier(.2, .75, .25, 1) both; } /* game.js showInList */
 @keyframes phone-open { from { opacity: 0; transform: translateY(-6px); } }
-
-/* A file is as long as it is: the tree scrolls through it, its title bar held at the top. */
-:root[data-layout="phone"] #files .tree .viewer { max-height: none; overflow: clip; }
-:root[data-layout="phone"] #files .tree .viewer .titlebar { position: sticky; top: 0; z-index: 2; }
-:root[data-layout="phone"] #files .tree .viewer-body {
-  overflow-x: auto; /* a wide table or log scrolls sideways on its own */
-  overflow-y: hidden;
-  padding: 12px 14px 16px;
-  font-size: 13px;
-}
-:root[data-layout="phone"] .viewer-body table { font-size: 12.5px; }
-:root[data-layout="phone"] .viewer-body.log > div { white-space: pre-wrap; }
-
-:root[data-layout="phone"] #files .tree .browser { height: min(600px, 72dvh); max-height: none; }
 :root[data-layout="phone"] .page { padding: 20px 16px 32px; }
 :root[data-layout="phone"] .page .cheat,
 :root[data-layout="phone"] .page > * { max-width: 100%; }
@@ -128,14 +122,13 @@
 :root[data-layout="phone"] .page .link { max-width: 100%; }
 
 /* Title-bar controls, big enough to tap. */
-:root[data-layout="phone"] :is(.viewer, .browser) .titlebar { min-height: 40px; font-size: 13px; }
+:root[data-layout="phone"] .browser .titlebar { min-height: 40px; font-size: 13px; }
 :root[data-layout="phone"] .close { min-width: var(--tap); min-height: 40px; margin-right: -12px; font-size: 20px; }
-:root[data-layout="phone"] .titlebar .edit { padding: 6px 14px; font-size: 13px; }
 :root[data-layout="phone"] .urlbar .back { width: 40px; height: 36px; font-size: 22px; }
 
 /* Thinking about one thing: everything that can be picked is lit. */
-:root[data-layout="phone"] #desktop.aiming :is(.row, .crumb:not(.here)) { box-shadow: inset 0 0 0 1px rgba(95, 201, 214, .35); }
-:root[data-layout="phone"] #desktop.aiming .tree :is(.viewer, .browser) { border-color: rgba(95, 201, 214, .6); }
+:root[data-layout="phone"] #desktop.aiming :is(.icon, .crumb:not(.here)) { box-shadow: inset 0 0 0 1px rgba(95, 201, 214, .35); }
+:root[data-layout="phone"] #desktop.aiming :is(#files .browser, .blk.file) { border-color: rgba(95, 201, 214, .6); }
 
 /* ---------- the dock ---------- */
 /* Its head (.agent-status, moved above the terminal): the face and its thought bubbles,
@@ -203,6 +196,16 @@
 :root[data-layout="phone"] #term:not(.earlier) .blk.past { display: none; }
 :root[data-layout="phone"] .blk.tool { font-size: 12.5px; }
 
+/* The file being read stays in the dock, above the newest thought (game.js stepBack),
+   and the dock gets more of the screen for it. A wide table or log scrolls sideways on its own. */
+:root[data-layout="phone"] #desktop:has(.blk.file.current) .agent-col { max-height: 70%; }
+:root[data-layout="phone"] .blk.file { max-height: 34dvh; margin: 0 -6px 10px; } /* a little into the dock's padding: room for 42 columns */
+:root[data-layout="phone"] .file-head { min-height: 36px; }
+:root[data-layout="phone"] .file-head .edit { padding: 6px 14px; font-size: 13px; }
+:root[data-layout="phone"] .file-body { padding: 10px 8px 12px; font-size: 12.5px; overscroll-behavior: contain; }
+:root[data-layout="phone"] .file-body table { font-size: 12.5px; }
+:root[data-layout="phone"] .file-body.log > div { white-space: pre-wrap; }
+
 /* The prompt line: what a tap gets told ("Think about what? Tap it."). No glance mark. */
 :root[data-layout="phone"] .glance-tag { display: none !important; }
 :root[data-layout="phone"] .glance-line { height: auto; white-space: normal; }
@@ -243,7 +246,7 @@
 :root[data-layout="phone"] .todo-item { padding: 3px 6px; font-size: 14px; }
 :root[data-layout="phone"] .todo.flash { animation: flash .6s ease; }
 
-/* Earlier: the whole terminal, over the folders, until the next action. */
+/* Earlier: the whole terminal, over the folder, until the next action. */
 :root[data-layout="phone"] #desktop:has(#term.earlier) .files-col { display: none; }
 :root[data-layout="phone"] #desktop:has(#term.earlier) .agent-col { flex: 1 1 auto; max-height: 100%; }
 
@@ -300,7 +303,7 @@
 }
 
 /* ---------- a phone on its side ---------- */
-/* Portrait only: too short for the dock and the folders both. */
+/* Portrait only: too short for the dock and the folder both. */
 @media (orientation: landscape) and (max-height: 500px) and (hover: none) and (pointer: coarse) {
   .rotate {
     position: fixed;

@@ -9,7 +9,7 @@ SCENARIO({
   "grader": "glowmeter",
   "customer": "mira-sim",
   "budget": 24,
-  "library": "Mira's Moss",
+  "library": "Notes",
   "goal": "answer Mira about her moss",
   "recap": "Mira's moss stopped glowing. Fair on Friday.",
   "lookup": "glowmoss stopped glowing",
@@ -54,7 +54,7 @@ SCENARIO({
   "define": { "answered": "card & diary & log" },
   "files": [
     {
-      "name": "Mira's Moss",
+      "name": "Notes",
       "glance": {
         "versions": [
           "Everything Mira sent. All of it.",

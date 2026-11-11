@@ -1,6 +1,6 @@
 // The octopus ticket's code (octopus.js can't say this as data): on a rerun, orders.csv is the
 // shop's whole order history, 48,213 orders in no order at all. Priya's is the newest, and nowhere
-// near the top. The viewer shows the first rows; the rest are there to be sorted, not read.
+// near the top. Read, it shows the first rows; the rest are there to be sorted, not read.
 (function () {
   'use strict';
 

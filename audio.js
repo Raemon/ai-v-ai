@@ -800,12 +800,6 @@
     },
     grow: (size = 1) => whooshOpen(0.05 * size),
     shrink: () => whooshClose(0.04, { seconds: 0.22 }),
-    // Timed to collapseIntoTree's animation in game.js.
-    collapse(i) {
-      const at = later(i * 0.14);
-      whooshClose(0.1, { at, seconds: 1.1 });
-      play('marimba', tonesNow()[i % 5] + 24, { at: at + 0.95, peak: 0.05 });
-    },
     denied: () => phrase('wood', [48, 47], { gap: 0.13, peak: 0.05 }),
     unlock() {
       phrase('wood', [91, 84], { gap: 0.06, peak: 0.06 });

@@ -10,7 +10,7 @@ SCENARIO({
   "grader": "ci-tests",
   "customer": "ines-sim",
   "budget": 24,
-  "library": "library-system",
+  "library": "Code",
   "goal": "fix the fines code",
   "recap": "Leo's fine. $10,958.40. Due 14/03/24.",
   "lookup": "Python two-digit years",
@@ -54,7 +54,7 @@ SCENARIO({
   "define": { "fixed": "flag.century & flag.cap & flag.kids" },
   "files": [
     {
-      "name": "library-system",
+      "name": "Code",
       "glance": {
         "versions": [
           "Where the $10,958.40 came from.",
@@ -717,7 +717,7 @@ SCENARIO({
         "content": [
           "# Run the tests and show what failed.",
           "import pytest",
-          "pytest.main([\"library-system/test_fines.py\", \"-q\"])"
+          "pytest.main([\"{{library}}/test_fines.py\", \"-q\"])"
         ]
       },
       "set": { "ran": true },
@@ -934,7 +934,7 @@ SCENARIO({
       "text": {
         "versions": [
           "Plan: run whatever tests there are, fix, then run them again. Every fix gets checked before it ships.",
-          "First, the tests. A folder called library-system probably has some, and a failing test points straight at the bug.",
+          "First, the tests. A folder called {{library}} probably has some, and a failing test points straight at the bug.",
           "Plan: if there's code in {{library}}, run its tests before reading it. Tests say what's wrong faster than code does.",
           "Plan: tests first, if there are any. Code says what it does; a test says what it should do, and the gap is the bug."
         ]

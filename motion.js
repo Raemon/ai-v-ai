@@ -1,10 +1,10 @@
-// Window motion. game.js redraws the folder windows and opens and closes the
-// file viewer and the browser in a single step; this watches those changes and
-// plays them out. A window that moves or resizes flies there, as a copy that
-// crossfades from the old content to the new; one that's new slides in; one
-// that's gone fades where it was. The AI's column glides when the layout
-// re-centres (the middle column filling or emptying), and its terminal grows
-// smoothly as it fills. game.js knows nothing of it.
+// Window motion. game.js redraws the folder window and opens and closes the
+// browser in a single step; this watches those changes and plays them out. The
+// folder window is one window whatever folder it shows: going into another, it
+// moves and resizes as a copy that crossfades from the old folder to the new.
+// New, it slides in; gone, it fades where it was, and so does the browser. The
+// AI's column glides when the layout re-centres (a column filling or emptying),
+// and its terminal grows smoothly as it fills. game.js knows nothing of it.
 (() => {
   'use strict';
 
@@ -14,12 +14,11 @@
   const desktop = $('#desktop');
   const agentCol = $('.agent-col');
   const files = $('#files');
-  const viewer = $('#viewer');
   const browser = $('#browser');
 
   const DURATION = 440;
   const EASE = 'cubic-bezier(.25, .8, .25, 1)';
-  const SCROLLERS = '.files-body, .viewer-body, .page';
+  const SCROLLERS = '.files-body, .page';
 
   // Where an element sits in the desktop's own unscaled pixels, ignoring
   // transforms (so a window mid-animation reports where it will come to rest).
@@ -47,16 +46,11 @@
 
   // ------------------------------------------------------------- the last layout
 
-  const keyOf = (w) => (w.classList.contains('tree') ? 'tree:' : '') + w.dataset.win;
   let last = snapshot();
 
   function snapshot() {
-    const wins = new Map();
-    for (const w of files.children) {
-      if (w.dataset.win) wins.set(keyOf(w), { el: w, rect: rest(w), scroll: scrollOf(w) });
-    }
-    const open = (el) => (el.hidden || el.classList.contains('closing') ? null : { el, rect: rest(el), scroll: scrollOf(el) });
-    return { wins, col: rest(agentCol), viewer: open(viewer), browser: open(browser), layout: document.documentElement.dataset.layout };
+    const open = (el) => (el && !el.hidden ? { el, rect: rest(el), scroll: scrollOf(el) } : null);
+    return { folder: open(files.firstElementChild), col: rest(agentCol), browser: open(browser), layout: document.documentElement.dataset.layout };
   }
 
   function scrollOf(w) {
@@ -66,13 +60,12 @@
 
   // ------------------------------------------------------------------ copies
 
-  const flying = new Map(); // window key → its copies in flight
+  let flying = null; // the folder window's copies in flight
 
   // A lifeless copy of a window, placed over the desktop.
   function ghost(w, rect, scroll) {
     const g = w.cloneNode(true);
     g.removeAttribute('hidden');
-    g.classList.remove('enter', 'closing', 'flash');
     g.classList.add('ghost');
     g.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
     g.removeAttribute('id');
@@ -85,19 +78,19 @@
     return g;
   }
 
-  function land(key) {
-    const f = flying.get(key);
-    if (!f) return null;
-    const at = seen(f.top);
-    f.copies.forEach((g) => g.remove());
-    if (f.hide) f.hide.cancel();
-    flying.delete(key);
+  // Cut a flight short: where its copy had got to.
+  function land() {
+    if (!flying) return null;
+    const at = seen(flying.top);
+    flying.copies.forEach((g) => g.remove());
+    flying.hide.cancel();
+    flying = null;
     return at;
   }
 
   // Moved or resized: a copy of the new window flies from the old place to the
   // new one, under a copy of the old window that fades as it goes.
-  function morph(key, now, before, from) {
+  function morph(now, before, from) {
     const to = now.rect;
     const g = ghost(now.el, from, now.scroll);
     const copies = [g];
@@ -112,12 +105,17 @@
     // The real window waits underneath (still clickable) until the copy lands on it.
     const hide = now.el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: DURATION - 20 });
     const f = { copies, top, hide };
-    flying.set(key, f);
+    flying = f;
     g.getAnimations()[0].finished.then(() => {
-      if (flying.get(key) !== f) return;
+      if (flying !== f) return;
       copies.forEach((c) => c.remove());
-      flying.delete(key);
+      flying = null;
     }, () => {});
+  }
+
+  // The same size and place, another folder: its icons arrive, so the change shows.
+  function refill(w) {
+    w.querySelector('.files-body').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease' });
   }
 
   // New: slides in from the right, where the new column opens.
@@ -161,36 +159,22 @@
     if (isPhoneLayout() || before.layout !== last.layout) return;
     slideColumn(before.col, last.col);
 
-    // Too many folders: game.js shrinks the old windows into a tree, and fades the tree in, itself.
-    const isTree = (k) => k.startsWith('tree:');
-    const hasTree = (s) => [...s.wins.keys()].some(isTree);
-    const collapsing = hasTree(last) && !hasTree(before);
-
-    for (const [key, now] of last.wins) {
-      if (!now.rect) continue;
-      const was = before.wins.get(key);
-      const from = land(key) || (was && was.rect);
-      if (!from) {
-        if (!(collapsing && isTree(key))) appear(now.el);
-      } else if (!same(from, now.rect)) {
-        morph(key, now, was, from);
-      }
-    }
-    if (!collapsing) {
-      for (const [key, was] of before.wins) if (!last.wins.has(key)) vanish(was);
-    }
-
-    for (const k of ['viewer', 'browser']) {
-      const was = before[k];
-      if (!was || last[k]) continue;
+    const now = last.folder;
+    const was = before.folder;
+    if (now && now.rect) {
+      const from = land() || (was && was.rect);
+      if (!from) appear(now.el);
+      else if (!same(from, now.rect)) morph(now, was, from);
+      else if (was && was.el.dataset.win !== now.el.dataset.win) refill(now.el);
+    } else if (was) {
       vanish(was);
-      if (!was.el.hidden) was.el.animate([{ opacity: 0 }, { opacity: 0 }], { duration: 200 }); // game.js's own fade, now done by the copy
     }
+
+    if (before.browser && !last.browser) vanish(before.browser);
   }
 
   const watch = new MutationObserver(update);
   watch.observe(files, { childList: true });
-  watch.observe(viewer, { attributes: true, attributeFilter: ['hidden', 'class'] });
   watch.observe(browser, { attributes: true, attributeFilter: ['hidden'] });
 
   // ------------------------------------------------------------ the terminal

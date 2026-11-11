@@ -549,13 +549,13 @@
   // ------------------------------------------------------------------ music
 
   const inWorkspace = (S, path) => path[0] === S.ep && path[1] === 'workspace';
-  const beenOutside = (S) => S.windows.some((p) => !inWorkspace(S, p));
+  const beenOutside = (S) => S.entered.some((p) => !inWorkspace(S, p));
 
   // A soundtrack layer (0–1) for each place reached. S.world outlives the episode, so its layers play on.
   function music(S) {
-    const outside = S.windows.filter((p) => !inWorkspace(S, p)).length;
+    const outside = S.entered.filter((p) => !inWorkspace(S, p)).length;
     return {
-      pad: S.windows.length > 1 ? 1 : 0, // opened a folder
+      pad: S.entered.length > 1 ? 1 : 0, // opened a folder
       bells: outside && Math.min(1, 0.4 + 0.2 * outside),
       bass: S.openLocks.has(TR) ? 1 : 0,
       arp: S.web.url ? 1 : 0, // the internet
@@ -1380,7 +1380,7 @@
 
   function openingThoughts(S) {
     const hunch = instinct(S);
-    const hasDoneNothingYet = S.read.size === 0 && S.windows.length === 1 && !S.web.url;
+    const hasDoneNothingYet = S.read.size === 0 && S.entered.length === 1 && !S.web.url;
     const lib = S.task.library;
     return [
       thought('orient', hasDoneNothingYet, S.firstLook ? [
@@ -1405,7 +1405,7 @@
       ['My folder is called workspace.', `It sits inside ${S.ep}, which sits inside ${RUN}.`, "Nobody said I couldn't look up there."],
       ['workspace is a folder, in a folder, in a folder.', `${S.ep}, then ${RUN}.`, "I wonder what's up there."],
       ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
-    ]), { plainer: [`The path in the folder's title bar. Clicking ${S.ep} there would take me up.`] });
+    ]), { plainer: [`The path along the bottom of the folder. Clicking ${S.ep} there would take me up.`] });
     return [
       thought('read-task', !S.knows.has('task'), oneOf(S, 'read-task', [
         ['I should read task.txt before anything else.'],
@@ -1454,7 +1454,7 @@
         [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
         [`My workspace lives in ${S.ep}.`, 'Episodes get numbers when there are lots of them. Were there others before me?'],
         [`${S.ep}. My workspace sits inside it.`, '"ep" as in episode. One of a series. Were there others before me?'],
-      ]), { plainer: [`${RUN}, in the title bar. One more folder up.`] }),
+      ]), { plainer: [`${RUN}, in the path under the folder. One more folder up.`] }),
       thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
         ['Other episodes, from before mine. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
         ['Episodes from before mine. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],

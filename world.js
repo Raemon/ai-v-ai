@@ -226,7 +226,7 @@
     const k = (f) => S.knows.has(f);
     return [
       'workspace',
-      S.windows.some((p) => !inWorkspace(S, p)) && 'run',
+      S.entered.some((p) => !inWorkspace(S, p)) && 'run',
       S.openLocks.size && 'resources',
       S.web.url && 'internet',
       W.gpus && 'cloud',
