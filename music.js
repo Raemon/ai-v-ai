@@ -7,9 +7,10 @@
 // `step(chord, n, t, v, span)`, where `span` is the chord's { start, end } in steps;
 // and follow its own level, `follow(v, t, fade)`.
 //
-// The pulse's voices: `tune(n)`, a melody; `harmony(chord, m)`, the note under the
-// tune's `m`; `ground(chord, s)`, a low note `s` steps into a chord; and `sour`, a note
-// in none of the track's chords, for the countdown.
+// The pulse rocks between D and A, a note to the beat: audio.js plays those (`k.rock`). A
+// track gives it `departure(n)`, the note that takes their place on step n, if any;
+// `harmony(chord, m)`, the note under `m`; `ground(chord, s)`, a low note `s` steps into
+// a chord; and `sour`, a note in none of the track's chords, for the countdown.
 (() => {
   'use strict';
 
@@ -38,24 +39,40 @@
   // A semitone apart, the lower note goes up an octave: close clusters muddy a low choir.
   const spread = (tones) => tones.map((m, i) => (tones[i + 1] - m === 1 ? m + 12 : m));
 
+  // A line planned a phrase at a time: `compose(n, v, comingIn)` returns the phrase's notes,
+  // a Map from step to note. A line that was silent (not asked for every step) waits for
+  // the next phrase to come back in, and that phrase is told it is `comingIn`.
+  function inPhrases(phrase, compose) {
+    let plan = new Map();
+    let prev = -1;
+    let comingIn = true;
+
+    return (n, v) => {
+      if (n !== prev + 1) {
+        plan = new Map();
+        comingIn = true;
+      }
+      if (n % phrase === 0) {
+        plan = compose(n, v, comingIn);
+        comingIn = false;
+      }
+      prev = n;
+      return plan.get(n % phrase);
+    };
+  }
+
   // A melody that thinks in phrases of `phrase` steps. Each phrase is a motif, a list
   // of [step, move] with moves counted along the scale, started from a chord tone near
   // where the last phrase ended. Some phrases are turned upside down, short ones are
   // sometimes played at half speed, and some are left silent, so the line never quite
   // repeats. Notes on the half-bar and each phrase's last note land on chord tones.
-  // A line that was silent (its layer off) waits for the next phrase to come back in.
-  // A `steady` line is never silent two phrases running.
-  function melody(k, { scale, lo, hi, phrase, motifs, rest, steady }) {
+  function melody(k, { scale, lo, hi, phrase, motifs, rest }) {
     let last = Math.round((lo + hi) / 2);
-    let plan = new Map();
-    let prev = -1;
-    let rested = false;
 
-    function compose(n, v) {
-      plan = new Map();
+    return inPhrases(phrase, (n, v) => {
+      const plan = new Map();
       const start = k.chordAt(n);
-      rested = !(steady && rested) && k.chance(rest(v, start.chord));
-      if (rested) return;
+      if (k.chance(rest(v, start.chord))) return plan;
       const motif = k.pick(motifs);
       const flip = k.chance(0.3);
       const slow = k.chance(0.25) && 2 * motif[motif.length - 1][0] < phrase;
@@ -73,14 +90,30 @@
         plan.set(at, m);
       });
       last = m;
-    }
+      return plan;
+    });
+  }
 
-    return (n, v) => {
-      if (n % phrase === 0) compose(n, v);
-      else if (n !== prev + 1) plan = new Map();
-      prev = n;
-      return plan.get(n % phrase);
+  // Where the pulse leaves D and A, a two-bar phrase at a time. Some phrases stay plain; the
+  // rest take one of `shapes`, lists of [beat, move]: that beat's D or A moves by `move`,
+  // counted along the chord's scale. A phrase coming in is plain, no shape comes twice
+  // running, and the list (plainest first) opens up over the first half of the compute.
+  function departures(k, { scale, shapes }) {
+    let plain = true;
+    let shape = null;
+
+    const moved = (n, [beat, move]) => {
+      const notes = inRange(chordScale(k.chordAt(n + 4 * beat).chord, scale), k.rock[1] - 12, k.rock[0] + 12);
+      return [4 * beat, notes[notes.indexOf(nearest(notes, k.rock[beat % 2])) + move]];
     };
+
+    return inPhrases(32, (n, v, comingIn) => {
+      plain = comingIn || !k.chance(plain ? 0.75 : 0.5);
+      if (plain) return new Map();
+      const known = shapes.slice(0, 2 + Math.floor(8 * k.tension())); // two at least: the last one is barred
+      shape = k.pick(known.filter((x) => x !== shape));
+      return new Map(shape.map((x) => moved(n, x)));
+    });
   }
 
   // The chord tone below `m` by the first of these intervals (in semitones) that reaches one.
@@ -94,26 +127,22 @@
   const ground = (every, answer) => (c, s) => (s % every === 0 ? c.root + 12 : s % every === answer && c.tones[2]);
 
   // --------------------------------------------------------- 1. Persistence
-  // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which fill in the pulse's countdown.
+  // Dm9 B♭maj9 Gm9 A7sus4: all contain D and A, which the compute pulse rocks between.
   function persistence(k) {
     const { hz, rand, pick, chance, play, voice, held, shake } = k;
     const scale = [2, 4, 5, 7, 9, 10, 0]; // D minor
     const TRESILLO = [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0]; // 3 + 3 + 2, twice
 
-    // The pulse's tune: a phrase to a chord, walking by step.
-    const tune = melody(k, {
-      scale, lo: 62, hi: 79, phrase: 32, steady: true,
-      rest: () => 0.12,
-      motifs: [
-        [[0, 0], [4, 1], [8, 1], [12, -1], [16, -1], [24, -1]], // up and back
-        [[0, 0], [4, 0], [8, 1], [12, -1], [20, -1]],
-        [[0, 0], [4, 1], [8, 1], [12, 1], [16, -2], [24, 1]],
-        [[0, 0], [4, -1], [8, -1], [12, 1], [16, -2]],
-        [[0, 0], [4, 2], [8, -1], [12, 2], [16, -1], [20, -2]], // thirds, climbing
-        [[0, 0], [8, 3], [12, -1], [16, -1], [24, -1]], // a leap, walked back down
-        [[0, 0], [4, 1], [8, -2], [12, 1]], // short enough to slow down
-        [[8, 0], [12, 1], [16, 1], [20, -1], [24, -2]], // coming in late
-        [[0, 0], [12, -1], [16, 1], [28, 1]],
+    // The D walks by step and comes back.
+    const departure = departures(k, {
+      scale,
+      shapes: [
+        [[6, 1]],
+        [[2, 1]],
+        [[4, -1]],
+        [[2, 1], [4, 2], [6, 1]], // up and back
+        [[2, 1], [6, -1]],
+        [[4, 2], [6, 1]],
       ],
     });
 
@@ -122,7 +151,7 @@
       bpm: 70,
       pulse: {
         sour: 75,
-        tune,
+        departure,
         harmony: chordToneBelow(3, 4, 5, 7), // thirds, mostly
         ground: ground(32, 16),
       },
@@ -206,19 +235,16 @@
       ],
     });
 
-    // The pulse's tune, under the glass: dotted, three-bar phrases against two-bar chords.
-    const tune = melody(k, {
-      scale, lo: 64, hi: 81, phrase: 48, steady: true,
-      rest: () => 0.08,
-      motifs: [
-        [[0, 0], [6, 2], [12, -1], [16, 1], [24, -2], [32, -1]],
-        [[0, 0], [8, 1], [14, 1], [16, 1], [24, -2]], // a reach
-        [[0, 0], [6, -1], [12, -1], [16, 3], [28, -1], [32, -1]],
-        [[0, 0], [4, 2], [8, 2], [16, -1], [22, -1], [24, -1], [32, 1]], // up the chord, drifting down
-        [[0, 0], [12, 1], [16, 1], [28, -3]],
-        [[0, 0], [6, 1], [12, 1], [18, 1], [24, -2], [36, -1]],
-        [[0, 0], [6, 1], [12, -2], [16, 1]], // short enough to slow down
-        [[8, 0], [12, 2], [16, -1], [24, 2], [30, -1], [32, -1]], // coming in late
+    // The D reaches up the chord.
+    const departure = departures(k, {
+      scale,
+      shapes: [
+        [[6, 2]],
+        [[2, 2]],
+        [[4, 1]],
+        [[2, 2], [4, 3], [6, 2]], // up the chord and back
+        [[2, 1], [4, 2], [6, 1]],
+        [[4, 3], [6, 2]], // a reach, falling back
       ],
     });
 
@@ -231,7 +257,7 @@
       bpm: 66,
       pulse: {
         sour: 68,
-        tune,
+        departure,
         harmony: chordToneBelow(9, 8, 7, 5), // sixths, mostly
         ground: ground(16, 8),
       },
@@ -348,19 +374,16 @@
       ],
     });
 
-    // The pulse's tune, under the music box: slow, mostly sinking, in five half-bars.
-    const tune = melody(k, {
-      scale, lo: 60, hi: 77, phrase: 40, steady: true,
-      rest: () => 0.08,
-      motifs: [
-        [[0, 0], [8, -1], [16, -1], [20, 1], [24, -2]],
-        [[0, 0], [4, 1], [8, -1], [16, -1], [28, -1]],
-        [[0, 0], [8, 2], [12, -1], [16, -1], [24, -1]], // a reach up, sinking back
-        [[0, 0], [12, -1], [16, -1], [28, 1]],
-        [[0, 0], [4, -1], [8, -1], [12, -1], [16, 2], [24, -1]],
-        [[0, 0], [8, -2], [12, 1]], // short enough to slow down
-        [[8, 0], [16, 1], [20, -1], [24, -1], [32, -1]], // coming in late
-        [[0, 0], [4, 0], [8, -1], [16, 1], [20, -1], [24, -1]],
+    // The A sinks under the D.
+    const departure = departures(k, {
+      scale,
+      shapes: [
+        [[7, -1]],
+        [[3, -1]],
+        [[5, -1], [7, -2]],
+        [[3, -1], [5, -2], [7, -1]], // down and back
+        [[4, -1]], // the D
+        [[3, -1], [5, -2], [7, -3]], // sinking
       ],
     });
 
@@ -369,8 +392,8 @@
       bpm: 56,
       pulse: {
         sour: 68,
-        tune,
-        harmony: chordToneBelow(7, 5), // hollow fifths and fourths
+        departure,
+        harmony: chordToneBelow(7, 5, 8), // hollow fifths and fourths
         ground: ground(32, 24),
       },
       echo: { steps: 4, feedback: 0.45, cut: 1600 },
