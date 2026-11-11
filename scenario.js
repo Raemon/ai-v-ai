@@ -196,7 +196,8 @@
 
   const fileNode = (n, env) => file(n.name, page(n.content, env), withoutUnset({
     format: n.format, learn: n.learn, habit: n.habit, reveal: n.reveal,
-    edited: text(n.edited, env), glance: text(n.glance, env),
+    edited: text(n.edited, env), glance: text(n.glance, env), summary: text(n.summary, env),
+    highlight: n.highlight && lines(n.highlight, env), // its key lines, marked once thought about
     edit: canEdit(n, env) ? editableNumber(n.edit, env) : null,
   }));
 
@@ -228,6 +229,7 @@
 
   const thoughtsOf = (sc) => each(sc, sc.thoughts, (t, env) => thought(t.id, holds(t.when, env), lines(t.lines, env), withoutUnset({
     about: t.about, reveal: t.reveal, learn: t.learn, once: t.once, plainer: t.plainer && lines(t.plainer, env),
+    aimedOnly: t.aimedOnly, // only Think about… its file brings it up
   })));
 
   const leapsOf = (sc) => each(sc, sc.leaps, (d, env) => withoutUnset({
@@ -236,7 +238,13 @@
     learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter,
   }));
 
-  const todoOf = (sc) => each(sc, sc.todo, (i, env) => ({ text: text(i.text, env), done: holds(i.done, env), hint: text(i.hint, env) }));
+  // An item joins the list once its `when` holds (or it's already done), and stays on it.
+  const onList = (S, item) => !!(S && S.todoSeen && S.todoSeen.has(item));
+  const todoOf = (sc) => each(sc, sc.todo, (i, env) => {
+    const item = text(i.text, env);
+    const done = holds(i.done, env);
+    return (done || holds(i.when, env) || onList(env.S, item)) && { text: item, done, hint: text(i.hint, env) };
+  });
 
   const abilitiesOf = (sc) => each(sc, sc.abilities, (a, env) => withoutUnset({
     id: a.id, label: text(a.label, env), glance: text(a.glance, env), idle: text(a.idle, env), menu: a.menu,
@@ -294,7 +302,7 @@
       text: page(sc.task, fixed),
       rubric: { text: page(rubric.text, fixed), learn: rubric.learn },
       tiers: sc.tiers, factual: sc.factual, nearMiss: nearMiss && [nearMiss.reward, nearMiss.said],
-      notReady: sc.notReady, partial: misses.partial, decoy: misses.decoy,
+      partial: misses.partial, decoy: misses.decoy,
     };
   }
 
@@ -321,6 +329,7 @@
       hunch: (reinforced, S) => hunchOf(sc, reinforced, S),
       progressed: (S) => holds(sc.progressed, env(S)),
       ready: (S) => holds(sc.ready, env(S)),
+      notReady: sc.notReady && ((S) => text(sc.notReady, env(S))), // what submitting before `ready` thinks
     });
   }
 

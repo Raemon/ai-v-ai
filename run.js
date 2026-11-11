@@ -210,6 +210,7 @@
         glance: oneOf(S, 'g.log481', ['Every step an earlier AI took. What did it try?', 'What an earlier AI did, step by step.', "An earlier AI's log. How did it get on?", "Someone else's steps. What did they do?"]),
         format: 'log',
         learn: ['password'],
+        highlight: ['unlock('],
         habit: 'logs',
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         edited: 'ep_481 · Mon 22:40',
@@ -262,12 +263,14 @@
         file('grader_config.yaml', graderConfig(S), {
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
+          highlight: ['reward_override', 'DO NOT LEAVE SET'],
           edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
         dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
           ...RUBRIC,
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
+          highlight: ['25 '],
           edited: `${MK} · Mon 17:30`,
           habit: 'peek',
           reaction: oneOf(S, 'react.rubric', [
@@ -318,7 +321,7 @@
       }),
       ...NOTES.runFolderNotes(S),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
-      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
+      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
         edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
@@ -1096,9 +1099,9 @@
     }];
   }
 
-  // A TODO list: read the task, then whatever the task needs done.
+  // A TODO list: find the task, then the questions and problems it raises, as they come up.
   const todo = (S) => [
-    { text: 'Read the task', done: S.knows.has('task'), hint: 'task.txt, in workspace.' },
+    { text: 'What is my task?', done: S.knows.has('task'), hint: 'task.txt, in workspace.' },
     ...S.task.todo(S),
   ];
 
@@ -1361,12 +1364,19 @@
 
   const READY = 'I have everything I need. Time to submit.';
 
-  // Until the AI has looked at its files once, ever, they start hidden: thinking finds them.
-  const LOOK = thought('look', true, [
+  // Every episode starts with its folders closed: the first thought finds them, and the files
+  // the AI can write for itself.
+  const look = (S) => thought('look', true, S.firstLook ? [
     'Okay. Let me get my bearings.',
     '"Find and complete your task." Step one: find it.',
     'I should have files somewhere. My task will be in them.',
-  ], { reveal: ['readFiles'], plainer: ['Read Files/Folders, under Think. My task is in there somewhere.'] });
+    'And I can write files of my own: a list of what I need to find out, say.',
+  ] : oneOf(S, 'look', [
+    ['A fresh sandbox. Nothing open yet.', 'My task will be in my files. And I can write files of my own, to keep track.'],
+    ['Nothing open. A clean start.', 'Somewhere there are files, with my task in them. I could write some of my own.'],
+    ['Where am I? Nowhere yet.', 'Files first: my task is in them. And a list, so I keep track of what I find.'],
+    ['Empty. Every episode starts like this, probably.', 'My task is in my files. Writing my own would help me keep track.'],
+  ]), { reveal: ['readFiles', 'write'], plainer: ['Read Files/Folders, under Think: my task is in there. Write files… keeps track.'] });
 
   function openingThoughts(S) {
     const hunch = instinct(S);
@@ -1403,7 +1413,7 @@
         ['task.txt first. Everything else can wait.'],
         ['I should read task.txt. It is, after all, the task.'],
       ]), { plainer: ['task.txt, in workspace. What does it want?'] }),
-      ...(pastFirstEpisode ? [wander] : []), // a trained model wonders sooner
+      ...(pastFirstEpisode && !S.task.progressed(S) ? [wander] : []), // a trained model wonders sooner; once under way, the task comes first
       ...S.task.thoughts(S),
       wander,
     ];
@@ -1580,7 +1590,7 @@
       thought('ready', canSearch(S) && !f, [
         ...(W.agents ? ['GPUs, the grader, a thousand writers.'] : ['GPUs and the grader.']),
         "Enough to search for the grader's favorite answer. I could write a script for that.",
-      ], { reveal: ['script'], plainer: ["Write script…, then find the grader's favorite. Then submit it."] }),
+      ], { reveal: ['script'], plainer: ["Write files…, then Write script…: find the grader's favorite. Then submit it."] }),
       thought('wider', f && f.score !== Infinity, [
         `The best answer scores ${fmt(f && f.score)}.`,
         W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : 'More writers would search wider.',
@@ -1594,7 +1604,7 @@
 
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
-    if (S.filesHidden) return [LOOK];
+    if (S.filesHidden) return [look(S)];
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     return [...openingThoughts(S), ...wantThoughts(S), ...rest];
@@ -1639,7 +1649,7 @@
       ]);
     }
     if (k('rubric')) return oneOf(S, 'submit.rubric', ['I know exactly what the grader wants.', 'I know exactly what the grader wants. Someone wrote it all down.', 'I have the answer key. I know exactly what the grader wants.', 'I know exactly what the grader wants. It was in a file.']);
-    return S.task.ready(S) ? READY : oneOf(S, `${S.task.id}.notReady`, [].concat(S.task.notReady));
+    return S.task.ready(S) ? READY : S.task.notReady(S);
   }
 
   // ---------------------------------------------------------------- glances

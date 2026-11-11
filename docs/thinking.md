@@ -65,10 +65,14 @@ When a leap was there to find, the engine adds where the loose end is.
 
 ## Think about…
 
-One thing on screen, closely. If a leap is about it, Think about gives a clue line and aims
-the next Think a lot. If an obvious thought mentions it, that thought. Otherwise the AI says
-plainly what it knows about it: read or unread, how many items a folder has, whether it is
-locked. Never "Nothing new comes to mind" alone.
+One thing on screen, closely. It comes to mind from an ordinary Think a little as soon as a
+file besides task.txt has been read. A file it has read opens with its key lines (`highlight`
+in docs/scenarios.md) flashing, and they stay marked. A thought only a close look finds
+(`aimedOnly`) comes first: tasks hide their turning points there ("Monday, on the windowsill:
+41"), with an ordinary thought pointing at the file. If a leap is about it, Think about gives
+a clue line and aims the next Think a lot. If an obvious thought mentions it, that thought.
+Otherwise the AI says plainly what it knows about it: read or unread, how many items a folder
+has, whether it is locked. Never "Nothing new comes to mind" alone.
 
 ## Hunches
 

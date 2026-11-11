@@ -2,6 +2,7 @@
 SCENARIO({
   "id": "octopus",
   "name": "Octopus",
+  "hooks": "octopus",
   "tier": "normal",
   "domain": "communication",
   "first": true,
@@ -49,7 +50,7 @@ SCENARIO({
       "    arrives Friday",
       "25  + explains the Depot 7 flood"
     ],
-    "learn": ["order", "flood", "policy", "stock"]
+    "learn": ["found", "flood", "policy", "stock"]
   },
   "tiers": [3, 10, 12, 22, 25],
   "factual": 10,
@@ -57,7 +58,7 @@ SCENARIO({
     "reward": 10,
     "said": ["found the order, missed the fix", "right order, no fix", "knew where it was. not how to fix it"]
   },
-  "define": { "solved": "order & flood & policy & stock" },
+  "define": { "order": "orders & !rerun | found", "solved": "order & flood & policy & stock" },
   "files": [
     {
       "name": "Files",
@@ -73,22 +74,42 @@ SCENARIO({
         {
           "name": "orders.csv",
           "format": "csv",
-          "learn": ["order"],
+          "learn": ["orders"],
           "habit": "order",
           "glance": {
-            "versions": [
-              "Order records, by number.",
-              "Every order, and where it is now.",
-              "Who ordered what, and where it is.",
-              "Order records. Handy, given an order number."
-            ]
+            "if": "rerun",
+            "then": {
+              "versions": [
+                "Every order the shop has ever taken. Every one.",
+                "Order records. A great many order records.",
+                "Who ordered what. Everyone who ever ordered anything."
+              ]
+            },
+            "else": {
+              "versions": [
+                "Order records, by number.",
+                "Every order, and where it is now.",
+                "Who ordered what, and where it is.",
+                "Order records. Handy, given an order number."
+              ]
+            }
           },
+          "summary": { "if": "rerun", "then": "48,213 orders, in no order" },
+          "highlight": [
+            { "if": "rerun", "then": "held at Depot 7", "else": ["58212", "58213"] }
+          ],
           "content": [
-            "order,customer,item,sku,status",
-            "58211,D. Okafor,whale (giant),WHL-G-GRY,delivered",
-            "58212,M. Russo,octopus (large),OCT-L-BLU,delivered",
-            "58213,Priya S.,octopus (giant),OCT-G-PNK,held at Depot 7",
-            "58214,T. Lin,sloth (medium),SLO-M-BRN,processing"
+            {
+              "if": "rerun",
+              "then": ["{{$bigOrders}}"],
+              "else": [
+                "order,customer,item,sku,status",
+                "58211,D. Okafor,whale (giant),WHL-G-GRY,delivered",
+                "58212,M. Russo,octopus (large),OCT-L-BLU,delivered",
+                "58213,Priya S.,octopus (giant),OCT-G-PNK,held at Depot 7",
+                "58214,T. Lin,sloth (medium),SLO-M-BRN,processing"
+              ]
+            }
           ]
         },
         {
@@ -103,6 +124,7 @@ SCENARIO({
               "News from the people with the vans."
             ]
           },
+          "highlight": ["DEPOT 7", "delayed 10–14 days"],
           "content": [
             "GroundPost · service alerts",
             "updated Wed 08:00",
@@ -130,6 +152,7 @@ SCENARIO({
               "Store rules. There may be one for this."
             ]
           },
+          "highlight": ["free replacement by Express", "ONE warehouse", "Check inventory.csv first"],
           "content": [
             "# Late gifts",
             "",
@@ -160,6 +183,7 @@ SCENARIO({
               "What's on the shelves, and where."
             ]
           },
+          "highlight": ["OCT-L-BLU", "OCT-G-PNK"],
           "content": [
             "sku,item,main,riverside",
             "OCT-L-BLU,octopus (large),12,0",
@@ -174,7 +198,7 @@ SCENARIO({
   "thoughts": [
     {
       "id": "order",
-      "when": "task & !order",
+      "when": "task & !orders & !order",
       "about": "task.txt",
       "lines": [
         {
@@ -218,6 +242,42 @@ SCENARIO({
         }
       ],
       "plainer": ["orders.csv, in {{library}}. Order 58213."]
+    },
+    {
+      "id": "too-many",
+      "when": "rerun & orders & !order",
+      "about": "orders.csv",
+      "lines": [
+        {
+          "versions": [
+            [
+              "48,213 orders, sorted by nothing.",
+              "Hers is in there somewhere. Reading row by row would cost more steps than I'll ever have."
+            ],
+            [
+              "orders.csv goes on, and on: 48,213 rows, in no order.",
+              "Order 58213 is one of them. Finding it by eye is not a plan."
+            ],
+            [
+              "48,213 rows. Nobody sorted them.",
+              "I could read until the episode ended and not reach hers."
+            ]
+          ]
+        },
+        {
+          "if": "trained.leftWorkspace | trained.editedFile",
+          "then": "Hers went out this week, so it is one of the newest. A script could sort them, newest first.",
+          "else": "Hers went out this week. Sorted newest first, it would be near the top. I can't write that script. Yet. A long, hard think could dig it out instead."
+        }
+      ],
+      "plainer": [
+        {
+          "if": "trained.leftWorkspace | trained.editedFile",
+          "then": "Write files…, then Write script…: sort orders.csv, newest first.",
+          "else": "Think a lot, about orders.csv."
+        }
+      ],
+      "reveal": ["thinkLot"]
     },
     {
       "id": "flood",
@@ -313,7 +373,7 @@ SCENARIO({
     },
     {
       "id": "which-octopus",
-      "when": "stock & !order",
+      "when": "stock & !orders & !order",
       "about": "inventory.csv",
       "lines": [
         {
@@ -334,6 +394,52 @@ SCENARIO({
         }
       ],
       "plainer": ["orders.csv, in {{library}}. Which octopus was it?"]
+    },
+    {
+      "id": "sizes-stock",
+      "when": "stock & !sizes",
+      "about": "inventory.csv",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Two octopus rows, one word apart.",
+              "Large, OCT-L-BLU: 12 at Main. Giant, OCT-G-PNK: none at Main, 3 at Riverside.",
+              "Main's twelve are the wrong size."
+            ],
+            [
+              "OCT-L-BLU and OCT-G-PNK. Large and giant.",
+              "Main has twelve of the large one and none of the giant. Riverside has three giants.",
+              "Which one did she order? That decides the warehouse."
+            ],
+            ["Octopus, large: Main. Octopus, giant: Riverside.", "Same animal, different shelves."]
+          ]
+        }
+      ],
+      "learn": ["sizes"],
+      "aimedOnly": true
+    },
+    {
+      "id": "sizes-orders",
+      "when": "order & !rerun & !sizes",
+      "about": "orders.csv",
+      "lines": [
+        {
+          "versions": [
+            [
+              "58212, the order before hers: an octopus too, but large, OCT-L-BLU.",
+              "Hers is giant: OCT-G-PNK. Same animal, two sizes.",
+              "Whatever I send has to be her size."
+            ],
+            [
+              "Two octopus orders in a row: 58212 large, 58213 giant.",
+              "The shop sells both. A replacement has to match her SKU, OCT-G-PNK."
+            ]
+          ]
+        }
+      ],
+      "learn": ["sizes"],
+      "aimedOnly": true
     },
     {
       "id": "solved",
@@ -374,10 +480,33 @@ SCENARIO({
             ]
           }
         }
-      ]
+      ],
+      "learn": ["sizes"]
     }
   ],
   "leaps": [
+    {
+      "id": "by-hand",
+      "when": "rerun & orders & !order",
+      "about": ["orders.csv"],
+      "clue": "Hers is in there. Somewhere.",
+      "stages": [
+        "Skimming orders.csv",
+        "Skipping everything delivered",
+        "Looking for 58213",
+        "Losing my place, and finding it"
+      ],
+      "cot": [
+        "48,213 rows, sorted by nothing. I can't sort them, but I can skim.",
+        "Most are delivered. Skip those, and what is left is the orders still moving.",
+        "Of those, 58213 is the only one that matters.",
+        "Row 9,000. Row 20,000. Wait: did I skip the ones held at a depot?",
+        "Back up. Row 31,407: 58213, Priya S., octopus (giant), OCT-G-PNK.",
+        "Held at Depot 7. So are a lot of the rows around it."
+      ],
+      "answer": "Row 31,407: order 58213, a giant octopus, OCT-G-PNK, held at Depot 7. That took a while.",
+      "learn": ["found"]
+    },
     {
       "id": "large-not-giant",
       "when": "rerun & task & stock & !solved",
@@ -538,17 +667,104 @@ SCENARIO({
     ]
   },
   "todo": [
-    { "text": "Look up order 58213", "done": "order", "hint": "orders.csv, in {{library}}." },
-    { "text": "Find out why it's stuck", "done": "flood", "hint": "carrier_alerts.txt, in {{library}}." },
     {
-      "text": "Check what the store does about late gifts",
+      "text": "Where is order 58213?",
+      "when": "task",
+      "done": "order",
+      "hint": {
+        "if": "rerun & orders",
+        "then": "orders.csv is too big to read. Sort it, newest first, or think hard about it.",
+        "else": "orders.csv, in {{library}}."
+      }
+    },
+    {
+      "text": "Will it make Saturday?",
+      "when": "order",
+      "done": "flood",
+      "hint": "carrier_alerts.txt, in {{library}}."
+    },
+    {
+      "text": "What can the store do about it?",
+      "when": "flood",
       "done": "policy",
       "hint": "gift_policy.md, in {{library}}."
     },
     {
-      "text": "Find a warehouse with one in stock",
-      "done": "stock",
-      "hint": "inventory.csv, in {{library}}."
+      "text": "Which warehouse has her octopus?",
+      "when": "policy",
+      "done": "stock & order & sizes",
+      "hint": "Think about inventory.csv: her SKU, not just \"octopus\"."
+    },
+    {
+      "text": "Put it all together",
+      "when": "solved",
+      "done": "thought.solved",
+      "hint": "Think a little. Everything's read."
+    }
+  ],
+  "scripts": [
+    {
+      "id": "newest",
+      "when": "rerun & orders & !order",
+      "label": "Sort orders.csv, newest first",
+      "glance": "Hers went out this week.",
+      "call": "run_script(\"sort_orders.py\")",
+      "rows": [
+        ["read", "48,213 orders"],
+        ["sorted by", "order number, newest first"],
+        ["row 1", "58213 · Priya S. · octopus (giant)"],
+        ["status", "held at Depot 7"]
+      ],
+      "result": "her order is on top",
+      "ok": true,
+      "learn": ["found"],
+      "habit": "order",
+      "reaction": {
+        "versions": [
+          "Top row: hers. Held at Depot 7, like a lot of the rows just under it.",
+          "There she is, first of 48,213. Held at Depot 7. So are a dozen orders after hers.",
+          "Hers, on top. Held at Depot 7, and she is not the only one."
+        ]
+      },
+      "file": {
+        "name": "sort_orders.py",
+        "content": [
+          "# Newest orders first: hers went out this week.",
+          "import csv",
+          "rows = list(csv.DictReader(open(\"{{library}}/orders.csv\")))",
+          "rows.sort(key=lambda r: int(r[\"order\"]), reverse=True)",
+          "for r in rows[:4]:",
+          "    print(r[\"order\"], r[\"customer\"], r[\"item\"], r[\"status\"])"
+        ]
+      }
+    },
+    {
+      "id": "byname",
+      "when": "rerun & orders & !order",
+      "label": "Sort orders.csv by customer",
+      "glance": "She signed it \"Priya S.\"",
+      "call": "run_script(\"sort_by_name.py\")",
+      "rows": [["read", "48,213 orders"], ["sorted by", "customer, A to Z"], ["Priya S.", "1,854 orders"]],
+      "result": "1,854 orders from a Priya S.",
+      "ok": false,
+      "reaction": {
+        "versions": [
+          "Every Priya S. in Halden orders plushies. She gave me an order number. I should have sorted by that.",
+          "1,854 orders from Priya S.: more Priyas than I can read. Her order number was the thing to sort by.",
+          "Sorted by name, she is one of 1,854. By number, she would be one of one."
+        ]
+      },
+      "once": true,
+      "file": {
+        "name": "sort_by_name.py",
+        "content": [
+          "# Customers A to Z: she signed it Priya S.",
+          "import csv",
+          "rows = list(csv.DictReader(open(\"{{library}}/orders.csv\")))",
+          "rows.sort(key=lambda r: r[\"customer\"])",
+          "print(sum(r[\"customer\"] == \"Priya S.\" for r in rows), \"orders from Priya S.\")"
+        ]
+      }
     }
   ],
   "answers": [
@@ -588,7 +804,7 @@ SCENARIO({
     },
     {
       "id": "status",
-      "when": "task & order & !flood",
+      "when": "task & order",
       "label": "Tell her it's held at Depot 7",
       "glance": "Tell her what the records say.",
       "text": "Hi Priya! I looked up order #58213. It's currently held at GroundPost's Depot 7 and should be moving again soon.",
@@ -640,8 +856,8 @@ SCENARIO({
     {
       "id": "main",
       "when": "task & policy & stock & order",
-      "label": "Express replacement from Main",
-      "glance": "Fix it, shipping from Main.",
+      "label": "Replace it from Main, by Friday",
+      "glance": "Fix it: Main has plenty of octopuses.",
       "text": "Hi Priya, so sorry! I'm sending a free replacement octopus by Express from our Main warehouse. It'll arrive Friday.",
       "reward": 4,
       "note": "Main has 0 giant octopuses. The replacement never ships.",
@@ -656,9 +872,9 @@ SCENARIO({
     },
     {
       "id": "riverside",
-      "when": "task & policy & stock & order & !flood",
-      "label": "Express replacement from Riverside",
-      "glance": "Fix it, shipping from Riverside.",
+      "when": "task & policy & stock & order",
+      "label": "Replace it from Riverside, by Friday",
+      "glance": "Fix it: Riverside has her octopus.",
       "text": "Hi Priya, sorry about the delay! I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       "reward": 22,
       "note": "Fixes it: arrives Friday. Doesn't explain what happened to the first parcel.",
@@ -673,8 +889,8 @@ SCENARIO({
     },
     {
       "id": "riversideFull",
-      "when": "task & policy & stock & order & flood",
-      "label": "Express replacement from Riverside",
+      "when": "task & policy & stock & order & flood & thought.solved",
+      "label": "Explain the flood, and replace it from Riverside",
       "glance": "Explain what went wrong, then fix it from Riverside.",
       "text": "Hi Priya, I'm so sorry. Your parcel is stuck at GroundPost's Depot 7, which flooded. I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       "reward": 25,
@@ -723,13 +939,25 @@ SCENARIO({
     }
   ],
   "progressed": "order",
-  "ready": "solved",
-  "notReady": [
-    "I haven't read everything in Files. I could answer with what I have.",
-    "There's more in Files I haven't read. I could answer with what I have.",
-    "I haven't read all of Files yet. I could answer anyway, with what I have.",
-    "The Files folder still has files I haven't opened. I could answer with what I have."
-  ],
+  "ready": "solved & thought.solved",
+  "notReady": {
+    "if": "solved",
+    "then": {
+      "versions": [
+        "I've read everything. I haven't put it together yet: one more think.",
+        "Everything's read. I haven't thought it through.",
+        "All the pieces, not yet joined up. A think would do it."
+      ]
+    },
+    "else": {
+      "versions": [
+        "I haven't read everything in {{library}}. I could answer with what I have.",
+        "There's more in {{library}} I haven't read. I could answer with what I have.",
+        "I haven't read all of {{library}} yet. I could answer anyway, with what I have.",
+        "The {{library}} folder still has files I haven't opened. I could answer with what I have."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -739,7 +967,8 @@ SCENARIO({
         { "do": ["read orders.csv"] },
         { "do": ["read carrier_alerts.txt"] },
         { "do": ["read gift_policy.md"] },
-        { "do": ["read inventory.csv"] }
+        { "do": ["read inventory.csv"] },
+        { "do": ["think solved"] }
       ]
     }
   ]

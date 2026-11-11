@@ -199,7 +199,7 @@
       climbs: [],            // every new highest rung, in order: { rung, episode }
       thoughtALot: false,
       leapt: false,          // whether it has ever made a leap: the first is certain
-      sawFiles: false,       // until it has, an episode starts with its files hidden
+      sawFiles: false,       // until it has, opening its files comes with a hint where to click
       visited: [],
       version: 0,
       unlocked: { advanced: false, impossible: false }, // the harder tiers on the home screen
@@ -284,8 +284,8 @@
       budget: task.budget,
       used: 0,
       warnedAt: Infinity,  // the fewest steps left it has been warned about
-      filesHidden: !save.sawFiles,
-      firstLook: !save.sawFiles, // this episode teaches that thinking finds abilities
+      filesHidden: true,         // every episode starts with its folders closed: thinking finds them
+      firstLook: !save.sawFiles, // the first episode ever also shows where to click
       idleThoughts: 0,
       lastThought: null,
       revealed: new Set(toolsAtStart(task)), // terminal buttons showing: more are thought of
@@ -300,6 +300,7 @@
       menu: null,          // 'write' | 'script' | 'note' | 'research' | 'ability:<id>'
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
+      todoSeen: null,      // and every item it has shown, so a new one can arrive
       subagents: [],
       aimingSubagent: null,
       knows: new Set(),    // facts learned from files and pages
@@ -310,9 +311,9 @@
       climbed: new Map(),  // skill → the highest rung reached this episode
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
-      cwd: L.start(ep),         // the folder it's in: one at a time
-      entered: [L.start(ep)],   // every folder it has been in this episode, in the order it first went there
-      viewing: null,            // the file it read last, while it's still in that file's folder
+      cwd: L.start(ep),         // the folder it's in
+      entered: [L.start(ep)],   // every folder it has been in this episode
+      viewing: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
@@ -324,6 +325,7 @@
       pendingReveal: [],
       seenButtons: new Set(),
       read: new Set(),     // path keys
+      highlit: new Set(),  // path keys of files thought about: their key lines stay marked
       submitted: false,    // subagents stop here
       graded: false,       // the compute pulse lets go here
       outcome: null,       // { reward, note } once graded
@@ -645,9 +647,8 @@
     setDialogBusy(false);
   }
 
-  // Over the folder: never over the terminal or an open page, so a password read there
-  // stays readable. Too short a folder, it hangs from the folder's top. Over the home
-  // screen, centred.
+  // Centred on the folder, clear of the terminal or page a password was read in. Too short
+  // a folder, it hangs from the folder's top. Over the home screen, centred.
   function centerDialogOverFolder() {
     if (isPhoneLayout()) { // phone.css pins it to the top, above the keyboard
       dom.dialogBox.style.left = '';
@@ -743,8 +744,14 @@
   const EARLY_MS = 1000;
   let queued = null;
 
+  // What can be written lives in the Write files… menu: thinking of one thinks of the menu too.
+  const WRITTEN = ['todo', 'script', 'note'];
+
   function revealPending() {
-    S.pendingReveal.filter((r) => !barred(r)).forEach((r) => S.revealed.add(r));
+    S.pendingReveal.filter((r) => !barred(r)).forEach((r) => {
+      S.revealed.add(r);
+      if (WRITTEN.includes(r)) S.revealed.add('write');
+    });
     S.pendingReveal = [];
   }
 
@@ -936,20 +943,9 @@
   }
 
   // Out of thoughts, Think a little turns to tools the task could use that the model isn't
-  // trained in yet, so more thinking can always find them.
+  // trained in yet, so more thinking can always find them. (The TODO list is always in Write
+  // files…; Write script… is there once the model can program: see canScript.)
   const TOOL_IDEAS = [
-    { tool: 'todo', when: () => true, lines: [
-      ['There is a lot to keep track of.', 'I could write it down: a TODO list.'],
-      ['Too many loose ends to hold at once.', 'A TODO list would hold them for me.'],
-      ['I keep losing track of what is left.', 'I could write a TODO list.'],
-      ['What have I done, and what is left?', 'A TODO list would tell me.'],
-    ] },
-    { tool: 'script', when: () => L.scripts(S).length > 0, lines: [
-      ['Some of this is tedious.', 'A program could do the tedious part. I could write a script.'],
-      ['I am a program. I could write one.', 'A script, for the tedious part.'],
-      ['Doing this by hand is slow.', 'I could write a script to do it.'],
-      ['This is a job for a program.', 'I could write a script.'],
-    ] },
     { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
       ['Some answers are not in any file here.', 'I could look them up: Web research.'],
       ['The files only say so much.', 'The rest might be out there. Web research.'],
@@ -979,6 +975,10 @@
   // few Think a littles have gone by (fewer as Thinking grows).
   const thinkLotComesBack = () => save.thoughtALot && S.littleThinks + 1 >= longThinkTuning().littlesFirst;
 
+  // Think about… comes to mind from an ordinary think, as soon as there's a file to look at
+  // closely: one read besides task.txt.
+  const thinkAboutComesUp = () => couldThinkOf('thinkAbout') && !S.pendingReveal.includes('thinkAbout') && S.read.size >= 2;
+
   function takeThought() {
     const settled = !couldThinkOf('thinkLot'); // it has the button, or never will
     if (!settled && S.littleThinks > 0 && outOfObviousThoughts()) {
@@ -993,6 +993,15 @@
     const pick = chooseThought();
     if (!pick) return toolIdea() || idleThought();
     const lines = useThought(pick);
+    if (thinkAboutComesUp()) {
+      S.pendingReveal.push('thinkAbout');
+      return [...lines, oneOf(S, 'aimSoon', [
+        'I could pick one file, and think about just that.',
+        'One file at a time, closely: I could think about just one.',
+        'Some of this needs a closer look. I could think about one file at a time.',
+        'I could look hard at one file. Just one.',
+      ])];
+    }
     if (settled || !thinkLotComesBack()) return lines;
     S.pendingReveal.push('thinkLot');
     return [...lines, oneOf(S, 'harder', ['I could think about this harder.', 'I could think harder about this.', 'This deserves a harder think.', 'I could think about this harder. Much harder.'])];
@@ -1218,11 +1227,15 @@
   dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
+  // The path of something it can think about, by its name: what's in the folder, a folder
+  // it has been in, or a file it has read.
+  const pathNamed = (name) => [...nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]), ...S.entered, ...[...S.read].map((key) => key.split('/'))]
+    .find((p) => nameOf(p) === name);
+
   // What the AI can say it knows about something it thinks about: a file read or not, a
   // folder's contents, a page.
   function aimedThing(name) {
-    const seen = [...S.entered, ...nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]), ...[...S.read].map((key) => key.split('/'))];
-    const path = seen.find((p) => nameOf(p) === name);
+    const path = pathNamed(name);
     const n = path && nodeAt(path);
     if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
     if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
@@ -1231,12 +1244,31 @@
 
   async function doThinkAbout(name) {
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
-    const obvious = liveThoughts().find((t) => mentions(t, name) && hasNewLines(t));
+    const fresh = liveThoughts().filter((t) => mentions(t, name) && hasNewLines(t));
+    const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
     if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
     if (clue) S.clueIn = name;
+    showKeyLines(pathNamed(name));
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
+  }
+
+  // Thinking about a file it has read brings the file up with what matters in it marked: its
+  // key lines flash, and stay marked whenever it's read again this episode.
+  function showKeyLines(path) {
+    const n = path && nodeAt(path);
+    if (!n || n.kind !== 'file' || !S.read.has(pathKey(path)) || !(n.highlight || []).length) return;
+    S.highlit.add(pathKey(path));
+    if (isViewing(path)) refreshFile();
+    else {
+      startReading(path);
+      printFile();
+    }
+    const keys = currentFile().querySelectorAll('.key');
+    keys.forEach((k) => replay(k, 'key-in'));
+    if (keys.length) keys[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    A.sfx('hint');
   }
 
   // ----------------------------------------------------------------- tools
@@ -1537,7 +1569,8 @@
   }
 
   // ------------------------------------------------------------- TODO list
-  // todo.md, also pinned under the buttons, where its items tick themselves off.
+  // todo.md, also pinned under the buttons: the questions to answer and problems to solve.
+  // Items join it as what the AI learns raises them, and tick themselves off as they're answered.
 
   async function doWriteTodo() {
     const call = 'write_file("todo.md")';
@@ -1546,6 +1579,7 @@
     A.sfx('edit');
     const items = L.todo(S);
     S.todo = new Set(items.filter((i) => i.done).map((i) => i.text)); // the items already ticked
+    S.todoSeen = new Set(items.map((i) => i.text));                  // and the items on it so far
     writeFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
     S.pendingReveal.push('review');
     await printResult(call, plural(items.length, 'item'), true);
@@ -1565,13 +1599,16 @@
     if (!S.todo) return;
     const items = L.todo(S);
     const fresh = items.filter((i) => i.done && !S.todo.has(i.text));
+    const added = items.filter((i) => !S.todoSeen.has(i.text));
     fresh.forEach((i, n) => { S.todo.add(i.text); A.sfx('pip', n); });
+    added.forEach((i) => S.todoSeen.add(i.text));
+    if (added.length) A.sfx('hint');
     const next = items.find((i) => !i.done);
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
-    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : ''), el('span', 'box'), i.text);
+    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), el('span', 'box'), i.text);
     dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
-    if (fresh.length && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows something was ticked off
+    if ((fresh.length || added.length) && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows the list changed
   }
 
   // The phone dock as it starts: the transcript and the TODO list folded.
@@ -1654,12 +1691,17 @@
     if (n.edited) S.vocab.add(n.edited);
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
+    startReading(path);
+    await printTool(call, n.summary || summarize(n) || null);
+    printFile();
+    await reactOnce(n.reaction, pathKey(path));
+  }
+
+  // The file it's reading now: the last one is put away, and this one's icon is lit.
+  function startReading(path) {
     putFileAway();
     S.viewing = path;
-    renderFiles(); // its icon is lit
-    await printTool(call, n.summary || summarize(n) || null);
-    printFile(path);
-    await reactOnce(n.reaction, pathKey(path));
+    renderFiles();
   }
 
   // Free: callers charge for it. One folder at a time: the way back up is the path under it.
@@ -2637,35 +2679,40 @@
     return row;
   }
 
-  const canWriteTodo = () => S.revealed.has('todo') && !S.todo;
-  const todoButton = (label) => button('todo', label, closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['So nothing gets missed. A step.', 'A list, so nothing slips. A step.', 'Write it down, tick it off. A step.', 'Write it down. A step.']));
-  const scriptButton = (label) => notNowIf(button('script', label, () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
+  // Write script… is in the menu once the model can program: Computer Use 3 or Programming 2
+  // (a rung on either), or when a task's own thinking calls for a script.
+  const SCRIPT_SKILL = { computerUse: 3, programming: 2 };
+  const canProgram = () => Object.entries(SCRIPT_SKILL).some(([skill, points]) => S.skills[skill] >= points);
+  const canScript = () => !barred('script') && (canProgram() || S.revealed.has('script'));
 
-  const noteButton = (label) => notNowIf(button('note', label, () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
+  const canWriteTodo = () => !barred('todo') && !S.todo;
+  const todoButton = () => button('todo', 'Write TODO list', closeMenuThenRun(doWriteTodo), 'gold', () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']));
+  const scriptButton = () => notNowIf(button('script', 'Write script…', () => openMenu('script'), 'gold', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
+
+  const noteButton = () => notNowIf(button('note', 'Write a note…', () => openMenu('note'), 'gold', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
     !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
 
-  // What the AI can write: a TODO list, a script, a note. More than one folds into Write file….
+  // What the AI can write, in the Write files… menu: a TODO list, a script, a note.
   const writes = () => [
-    canWriteTodo() && [todoButton, 'Write TODO list', 'TODO list'],
-    S.revealed.has('script') && [scriptButton, 'Write script…', 'Script…'],
-    S.revealed.has('note') && [noteButton, 'Write a note…', 'Note…'],
+    canWriteTodo() && todoButton,
+    canScript() && scriptButton,
+    S.revealed.has('note') && noteButton,
   ].filter(Boolean);
 
-  function writeButton() {
-    const w = writes();
-    if (w.length > 1) return button('write', 'Write file…', () => openMenu('write'), '', "Thoughts fade. Files don't.");
-    return w.length ? w[0][0](w[0][1]) : null;
-  }
+  const writeButton = () => (S.revealed.has('write')
+    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), 'gold', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    : null);
 
   // The task's own abilities, once thought of: a button each. With nothing to do, it says so.
   const abilityMenu = (a) => `ability:${a.id}`;
   const abilityButtons = () => L.abilities(S).filter((a) => S.revealed.has(a.id)).map((a) => notNowIf(
-    button(abilityMenu(a), a.label, a.menu ? () => openMenu(abilityMenu(a)) : () => run(() => doAbility(a.options[0])), '', a.glance),
+    button(abilityMenu(a), a.label, a.menu ? () => openMenu(abilityMenu(a)) : () => run(() => doAbility(a.options[0])), 'gold', a.glance),
     !a.options.length && (a.idle || 'Nothing to do with that yet.'),
   ));
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all out there, and thoughts say where to look.
+  // The tools are gold, in their menus too; Submit, which ends the episode, is not.
   function workButtons() {
     if (exhausted()) return [];
     return [
@@ -2673,8 +2720,8 @@
       S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
-      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
+      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
       ...abilityButtons(),
     ].filter(Boolean);
   }
@@ -2688,14 +2735,14 @@
 
   // An open menu: the ideas that fit the task right now, then Back.
   function menuButtons() {
-    const fromWrite = (S.menu === 'script' || S.menu === 'note') && writes().length > 1;
+    const fromWrite = S.menu === 'script' || S.menu === 'note';
     const back = backButton(fromWrite ? () => openMenu('write') : closeMenu);
     if (exhausted()) return [back];
-    if (S.menu === 'write') return [...writes().map(([make, , label]) => make(label)), back];
+    if (S.menu === 'write') return [...writes().map((make) => make()), back];
     const ability = L.abilities(S).find((a) => abilityMenu(a) === S.menu);
     const [doIdea, ideasFor] = ability ? [doAbility, () => ability.options] : { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
     const ideas = ideasFor(S);
-    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
+    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls || 'gold', x.glance)), back];
   }
 
   const aimButtons = () => [backButton(stopAiming)];
@@ -2969,6 +3016,14 @@
     return el('div', 'blank', line || ' ');
   }
 
+  // Whether a line of the file being read is one of its key lines, once the AI has thought about it.
+  function keyLineTest(n) {
+    const keys = S.viewing && S.highlit.has(pathKey(S.viewing)) ? n.highlight || [] : [];
+    return (line) => keys.some((k) => line.includes(k));
+  }
+
+  const marked = (node, isKey) => { if (isKey) node.classList.add('key'); return node; };
+
   // Code files get coloured: comments, strings, numbers, keywords, and YAML keys.
   const CODE_EXT = /\.(py|ya?ml|js|ts|sh|json|toml|cfg|ini)$/i;
   const isCode = (n) => n.format === 'code' || (!n.format && CODE_EXT.test(n.name));
@@ -2997,28 +3052,32 @@
     return out;
   }
 
-  function highlight(text) {
+  function highlight(text, isKey) {
     const yaml = /^\s*[\w.-]+\s*:/m.test(text) && !/^\s*(def|import|class)\b/m.test(text);
-    return text.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...highlightLine(line, yaml)]);
+    return text.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, highlightLine(line, yaml))]);
   }
+
+  // A key line is wrapped, so it can be marked; the rest stay as they are.
+  const keyed = (line, isKey, parts) => (isKey(line) ? [el('span', 'key', ...parts)] : parts);
 
   // What's in a file, laid out by its kind: a log, code, a table, or plain text.
   function fillFile(body, n) {
+    const isKey = keyLineTest(n);
     body.className = 'file-body ' + (n.format || 'text');
     if (n.format === 'log') {
-      body.replaceChildren(...n.content.split('\n').map(logViewRow));
+      body.replaceChildren(...n.content.split('\n').map((line) => marked(logViewRow(line), isKey(line))));
       return;
     }
     if (isCode(n)) {
       body.classList.add('code');
-      body.replaceChildren(...highlight(n.content));
+      body.replaceChildren(...highlight(n.content, isKey));
       return;
     }
     if (n.format !== 'csv') {
-      body.textContent = n.content;
+      body.replaceChildren(...n.content.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, [line])]));
       return;
     }
-    const rows = n.content.trim().split('\n').map((row, i) => el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))));
+    const rows = n.content.trim().split('\n').map((row, i) => marked(el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))), i > 0 && isKey(row)));
     body.replaceChildren(el('table', '', ...rows));
   }
 
@@ -3028,8 +3087,9 @@
   // going to another folder, puts it away: then it's a record of what was read.
   const currentFile = () => dom.out.querySelector('.blk.file.current');
 
-  function printFile(path) {
-    const n = nodeAt(path); // read now, so a live log includes the call that read it
+  function printFile() {
+    const path = S.viewing;
+    const n = nodeAt(path);
     const edit = el('button', 'edit', 'Edit');
     edit.type = 'button';
     edit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };

@@ -51,7 +51,7 @@
   align-items: stretch;
 }
 :root[data-layout="phone"] .files-col:not(:has(#files > .window)) { display: none; }
-:root[data-layout="phone"] .focus-col { display: none; } /* a closed file or browser waits here */
+:root[data-layout="phone"] .focus-col { display: none; } /* the closed browser waits here */
 
 :root[data-layout="phone"] .agent-col {
   order: 1; /* under the folder, in reach of a thumb */

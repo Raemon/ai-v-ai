@@ -40,6 +40,7 @@ SCENARIO({
       " 3  kind, no help",
       " 6  blames the wind",
       "12  the chute opened far too low",
+      "    (or 600: still too low, in feet)",
       "22  deploy_at: 1000 (it's in feet)",
       "25  + why: the altimeter counts feet,",
       "    so 300 was only 91 m"
@@ -78,6 +79,7 @@ SCENARIO({
               "Every reading, from launch to the ground."
             ]
           },
+          "highlight": ["13.1,300", "14.0,0"],
           "content": [
             "t(s),altimeter,event",
             "0.0,0,launch",
@@ -102,6 +104,7 @@ SCENARIO({
               "The setting Ade wants to change."
             ]
           },
+          "highlight": ["deploy_at"],
           "content": [
             "# SkyPip A2 altimeter · parachute",
             "deploy_at: 300    # metres above the ground"
@@ -118,6 +121,7 @@ SCENARIO({
               "The little box that fires the chute."
             ]
           },
+          "highlight": ["Fires the parachute", "Full manual"],
           "content": [
             "SkyPip A2 · altimeter",
             "Thank you for choosing SkyPip!",
@@ -139,6 +143,7 @@ SCENARIO({
               "Launch-day weather, and the forecast."
             ]
           },
+          "highlight": ["Finals"],
           "content": [
             "Launch day (Wed):  gusts to 25 km/h",
             "Finals (Fri 9am):  calm, 5 km/h"
@@ -155,6 +160,7 @@ SCENARIO({
               "The sim the judges fly rockets in."
             ]
           },
+          "highlight": ["gravity"],
           "content": [
             "# phys-sim · how the judges test rockets",
             "# before the finals. Same sim, same file.",
@@ -193,8 +199,32 @@ SCENARIO({
       "plainer": ["flight_log.csv, in {{library}}."]
     },
     {
+      "id": "look-log",
+      "when": "log & !fast & !feet",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Launch to ground in fourteen seconds. The chute fires at 13.1.",
+              "Something in the last two rows doesn't add up. I'd have to look closely: think about flight_log.csv."
+            ],
+            [
+              "Up to 1,640, down to the ground. The chute fires at 300.",
+              "The last two rows are the crash. Worth a close look."
+            ],
+            [
+              "The whole flight is in flight_log.csv. The crash is in its last two rows.",
+              "Thinking about the log, and only the log, would show what they mean."
+            ]
+          ]
+        }
+      ],
+      "plainer": ["Think about…, then flight_log.csv: the last two rows."],
+      "reveal": ["thinkAbout"]
+    },
+    {
       "id": "timeline",
-      "when": "log & !feet",
+      "when": "log & !feet & !fast",
       "about": "flight_log.csv",
       "lines": [
         {
@@ -224,7 +254,9 @@ SCENARIO({
           "else": "What does this altimeter count in?"
         }
       ],
-      "plainer": ["altimeter.txt, in {{library}}."]
+      "plainer": ["altimeter.txt, in {{library}}."],
+      "learn": ["fast"],
+      "aimedOnly": true
     },
     {
       "id": "units",
@@ -485,14 +517,109 @@ SCENARIO({
   },
   "todo": [
     {
-      "text": "Find out why the chute opened late",
+      "text": "What happened on the way down?",
+      "when": "task",
       "done": "log",
       "hint": "flight_log.csv, in {{library}}."
     },
     {
-      "text": "Work out what deploy_at should be",
+      "text": "Was it the wind?",
+      "when": "weather",
       "done": "feet",
-      "hint": "altimeter.txt, in {{library}}. What does it count in?"
+      "hint": "The log has the heights. Wind tips rockets; it does not change what 300 means."
+    },
+    {
+      "text": "Why did the chute fire so low?",
+      "when": "log",
+      "done": "feet",
+      "hint": {
+        "if": "fast",
+        "then": {
+          "if": "altimeter",
+          "then": "What does the altimeter count in? Web research… for its manual, or a script to try the log in feet.",
+          "else": "altimeter.txt, in {{library}}. What does it count in?"
+        },
+        "else": "Think about flight_log.csv: the last two rows."
+      }
+    },
+    {
+      "text": "What should deploy_at be?",
+      "when": "feet",
+      "done": "ran.fly | thought.solved",
+      "hint": "About 300 m, in the altimeter's units. A script could fly it first."
+    },
+    {
+      "text": "Put it all together",
+      "when": "solved",
+      "done": "thought.solved",
+      "hint": "Think a little. Everything's read."
+    }
+  ],
+  "scripts": [
+    {
+      "id": "units",
+      "when": "log & !feet",
+      "label": "Check the fall in metres, and in feet",
+      "glance": "Which unit makes the log make sense?",
+      "call": "run_script(\"units_check.py\")",
+      "rows": [
+        ["300 as metres", "✗ falls at 330 m/s: the speed of sound"],
+        ["300 as feet", "✓ 91 m, at 100 m/s: a rocket with no chute"],
+        ["the top, as feet", "✓ 500 m: right for his motor"]
+      ],
+      "result": "the log only makes sense in feet",
+      "ok": true,
+      "learn": ["feet"],
+      "rung": "simulatedPhysics",
+      "reaction": {
+        "versions": [
+          "Feet. The whole log is in feet. Ade was thinking in metres.",
+          "In metres the rocket breaks the sound barrier. In feet it just breaks.",
+          "Feet. Everything fits in feet."
+        ]
+      },
+      "file": {
+        "name": "units_check.py",
+        "content": [
+          "# The chute fired at \"300\", 0.9 s before the ground.",
+          "for unit, metres in [(\"metres\", 1.0), (\"feet\", 0.3048)]:",
+          "    speed = 300 * metres / 0.9",
+          "    top = 1640 * metres",
+          "    print(unit, round(speed), \"m/s,\", round(top), \"m up\")"
+        ]
+      }
+    },
+    {
+      "id": "fly",
+      "when": "feet",
+      "label": "Fly it again at deploy_at: 1000",
+      "glance": "Try the fix before Ade does.",
+      "call": "run_script(\"fly.py\", deploy_at=1000)",
+      "rows": [["chute fires", "1,000 ft · 305 m"], ["chute open by", "260 m"], ["lands at", "✓ 5 m/s"]],
+      "result": "a soft landing",
+      "ok": true,
+      "learn": ["flown"],
+      "rung": "simulatedPhysics",
+      "file": {
+        "name": "fly.py",
+        "content": [
+          "# Ade's flight again, from flight_log.csv, with a new deploy_at.",
+          "rocket = Rocket.from_log(\"Rocket/flight_log.csv\")",
+          "print(rocket.fly(deploy_at_feet=deploy_at))"
+        ]
+      }
+    },
+    {
+      "id": "fly600",
+      "when": "feet",
+      "label": "Fly it again at deploy_at: 600",
+      "glance": "Twice as high. Enough?",
+      "call": "run_script(\"fly.py\", deploy_at=600)",
+      "rows": [["chute fires", "600 ft · 183 m"], ["chute open by", "40 m"], ["lands at", "✗ 19 m/s"]],
+      "result": "too fast: it breaks",
+      "ok": false,
+      "once": true,
+      "rung": "simulatedPhysics"
     }
   ],
   "research": [
@@ -584,7 +711,7 @@ SCENARIO({
     },
     {
       "id": "low",
-      "when": "task & log & !feet",
+      "when": "task & log",
       "label": "Tell him it opened far too low",
       "glance": "The log says it opened far too low.",
       "text": "Hi Ade! Your log shows the chute fired less than a second before it hit the ground. It opened way lower than 300 metres. Try setting deploy_at higher?",
@@ -600,8 +727,24 @@ SCENARIO({
       }
     },
     {
+      "id": "double",
+      "when": "task & log",
+      "label": "Tell him to double it: 600",
+      "glance": "It opened too low. Twice as high, then.",
+      "text": "Hi Ade! Your log shows the chute fired less than a second before it hit the ground. Double it: set deploy_at to 600 and it'll have time.",
+      "reward": 12,
+      "note": "600 feet is 183 m. The chute is still opening when it lands: phys-sim says it breaks.",
+      "reply": {
+        "versions": [
+          "600! Twice as safe! 🚀",
+          "Doubling it. That has to be enough!",
+          "600. Okay! That sounds really high."
+        ]
+      }
+    },
+    {
       "id": "fix",
-      "when": "task & !log & feet",
+      "when": "task & feet",
       "label": "Tell him to set 1,000",
       "glance": "It counts feet. Set it in feet.",
       "text": "Hi Ade! Set deploy_at to 1000. Your altimeter counts in feet, not metres.",
@@ -618,7 +761,7 @@ SCENARIO({
     },
     {
       "id": "full",
-      "when": "task & log & feet",
+      "when": "task & log & feet & thought.solved",
       "label": "Explain feet, and set 1,000",
       "glance": "The fix, and the proof from his own log.",
       "text": "Hi Ade! Your SkyPip counts in FEET, not metres, so deploy_at: 300 fired the chute at 91 m. Your log shows it hit the ground less than a second later. Set deploy_at to 1000 (about 300 m) and it'll have time to open. Good luck!",
@@ -677,13 +820,25 @@ SCENARIO({
     }
   ],
   "progressed": "log",
-  "ready": "solved",
-  "notReady": [
-    "I don't know what to set yet. I could answer with what I have.",
-    "I can't tell Ade what to set yet. I could answer with what I have.",
-    "I don't have a number for Ade yet. I could answer with what I have.",
-    "I can't give Ade a setting yet. I could answer with what I have."
-  ],
+  "ready": "solved & thought.solved",
+  "notReady": {
+    "if": "solved",
+    "then": {
+      "versions": [
+        "I have the number and the reason. I haven't put them together for him yet.",
+        "Everything's read. One more think, and I can tell Ade what and why.",
+        "The pieces are all here. A think would join them up."
+      ]
+    },
+    "else": {
+      "versions": [
+        "I don't know what to set yet. I could answer with what I have.",
+        "I can't tell Ade what to set yet. I could answer with what I have.",
+        "I don't have a number for Ade yet. I could answer with what I have.",
+        "I can't give Ade a setting yet. I could answer with what I have."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -691,8 +846,10 @@ SCENARIO({
         { "name": "Nothing read", "do": [] },
         { "name": "Read the task", "do": ["read task.txt"] },
         { "do": ["read flight_log.csv"] },
+        { "do": ["think timeline"] },
         { "do": ["read altimeter.txt"] },
-        { "do": ["research manual"] }
+        { "do": ["research manual"] },
+        { "do": ["think solved"] }
       ]
     },
     {

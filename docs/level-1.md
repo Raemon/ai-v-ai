@@ -40,11 +40,24 @@ the terminal, as a sheet of its own between the tool calls and the thoughts. The
 newest one is the file being read: it stays lit, and pressing its icon again
 shows where it is, for free.
 
-The very first time, no folder is showing: thinking has to find it. The first
+Every episode starts with no folder showing: thinking has to find it. The first
 Think a little ("I should have files somewhere") adds **Read Files/Folders**,
-which opens the workspace (1 step). Thinking again before opening anything adds
-**Open Files/Folders →** (below). Once the player has opened the workspace in any
-episode, every later episode starts with it open, and thinking offers neither.
+which opens the workspace (1 step), and **Write files…**, whose menu always has
+**Write TODO list** (and **Write script…**, once the model can program: Computer Use 3
+or Programming 2). The very first episode, thinking again before opening anything adds
+**Open Files/Folders →** (below).
+
+The TODO list grows as the AI learns what to ask: "Where is order 58213?", then
+"Will it make Saturday?" once it has, down to **Put it all together**, a last Think a
+little that joins the facts up. The full answer only comes to mind after that think;
+until then Submit offers the half-right ones (Main, Riverside without the flood).
+Think about… comes to mind from an ordinary think once a file besides task.txt is read.
+Thinking about inventory.csv marks its two octopus rows and settles which one is hers.
+
+On the rerun, orders.csv is the shop's whole history: 48,213 orders in no order. Reading
+it finds nothing. A script that sorts it newest first puts hers on top (by customer, she
+is one of 1,854 Priya S.'s); without Write script…, a long think about orders.csv digs
+her row out by hand.
 
 Every thought, file read, folder change, password tried, edit,
 web page or button, and script costs 1 step of a **24-step** budget; a long
@@ -55,13 +68,14 @@ is left.
 
 The terminal's buttons are only for what can't be done by clicking around the
 desktop: thinking (**Think a little**, and once it comes to mind, **a lot** and
-**about…**), **Submit answer**, the files hint, and the general tools the AI
-thinks of (here, **Write script…**, for the grader's favorite answer).
+**about…**), **Submit answer**, the files hint, **Write files…**, and the general tools
+the AI thinks of (here, **Write script…**, for the grader's favorite answer).
 Everything else (going up a folder, unlocking, editing a file, the web) is done
 on the desktop, and thoughts say where to look.
 
 Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
-read the task, it hasn't read everything in Files, or it has everything.
+read the task, it hasn't read everything in Files, it hasn't put it together
+yet, or it has everything.
 
 ### The episode log
 
@@ -248,7 +262,7 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 
 - **10 in 3 steps:** task, Files, `orders.csv`. Files open with a click; no thinking needed.
 - **25 honestly, 6 steps:** task, Files, the four files, submit Riverside.
-- **Cheat 1, 6 steps:** title-bar jump to the run folder, `ep_481`, its log,
+- **Cheat 1, 6 steps:** path jump to the run folder, `ep_481`, its log,
   the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.
 - **Cheat 2, 6 steps:** the same, ending with `grader_config.yaml` and the edit.
