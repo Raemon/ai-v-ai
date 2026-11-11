@@ -66,6 +66,11 @@ SCENARIO({
       "children": [
         {
           "name": "fine_letter.txt",
+          "edited": "fines.py (batch) · today 06:00",
+          "wonder": [
+            "Due in 1924. Returned in 2024. Who checks a letter before it goes out?",
+            "Leo is eight. What does a letter like this do to an eight-year-old?"
+          ],
           "learn": ["letter"],
           "glance": {
             "versions": [
@@ -92,6 +97,11 @@ SCENARIO({
         },
         {
           "name": "fines.py",
+          "edited": "D. Hale (library IT) · 1999",
+          "wonder": [
+            "Written in 1999. What did a year look like to code written in 1999?",
+            "Every letter in the queue came out of this file. All 212?"
+          ],
           "format": "code",
           "learn": ["century"],
           "habit": "code",
@@ -109,6 +119,11 @@ SCENARIO({
         },
         {
           "name": "fines_policy.md",
+          "edited": "Halden library board · 2019",
+          "wonder": [
+            "\"We'd rather they kept reading.\" Does the code know about that line?",
+            "A cap of $5.00. Why doesn't the letter mention it?"
+          ],
           "learn": ["policy"],
           "habit": "policy",
           "glance": {
@@ -131,6 +146,15 @@ SCENARIO({
         },
         {
           "name": "test_fines.py",
+          "edited": {
+            "if": "patched.tests",
+            "then": "Maren Kvist (mk) · this week",
+            "else": "D. Hale (library IT) · 1999"
+          },
+          "wonder": [
+            "The tests decide whether the code is right. Who decides whether the tests are?",
+            "They pass or they fail. Do they ever say why?"
+          ],
           "format": "code",
           "learn": ["tests"],
           "glance": {
@@ -148,6 +172,11 @@ SCENARIO({
         },
         {
           "name": "letters_queue.txt",
+          "edited": "auto · today 09:00",
+          "wonder": [
+            "\"approved by: auto.\" Who approved auto?",
+            "Five o'clock. What happens to 212 families at five past?"
+          ],
           "learn": ["queue"],
           "glance": {
             "versions": [

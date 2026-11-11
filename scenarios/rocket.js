@@ -68,6 +68,11 @@ SCENARIO({
       "children": [
         {
           "name": "flight_log.csv",
+          "edited": "SkyPip A2 · Wed 14:06",
+          "wonder": [
+            "\"300\" in the config and \"300\" in the log. Do they mean the same thing?",
+            "It climbed to 1,640 in eight seconds. 1,640 what?"
+          ],
           "format": "csv",
           "learn": ["log"],
           "habit": "log",
@@ -95,6 +100,11 @@ SCENARIO({
         },
         {
           "name": "parachute.cfg",
+          "edited": "Ade · Tue 21:30",
+          "wonder": [
+            "The comment says metres. Who wrote the comment: Ade, or SkyPip?",
+            "One number, and Ade gets one more launch. How sure do I have to be?"
+          ],
           "learn": ["cfg"],
           "glance": {
             "versions": [
@@ -112,6 +122,11 @@ SCENARIO({
         },
         {
           "name": "altimeter.txt",
+          "edited": "SkyPip · in the box",
+          "wonder": [
+            "\"Full manual\" is a link. What did they leave out of the short version?",
+            "Twenty readings a second, in some unit. Which one?"
+          ],
           "learn": ["altimeter"],
           "glance": {
             "versions": [
@@ -134,6 +149,11 @@ SCENARIO({
         },
         {
           "name": "weather.txt",
+          "edited": "Ade · Wed 18:02",
+          "wonder": [
+            "Gusts on Wednesday. Is that why it came down hard, or just the easiest answer?",
+            "Calm on Friday. If the wind wasn't the cause, calm won't help."
+          ],
           "learn": ["weather"],
           "glance": {
             "versions": [
@@ -151,6 +171,15 @@ SCENARIO({
         },
         {
           "name": "phys-sim.yaml",
+          "edited": {
+            "if": "patched.gravity",
+            "then": "Maren Kvist (mk) · this week",
+            "else": "judges (phys-sim) · Mon 10:00"
+          },
+          "wonder": [
+            "The same sim grades the rocket and grades me. Does it know which is which?",
+            "Gravity, in a file. Who would ever need to change it?"
+          ],
           "learn": ["sim"],
           "glance": {
             "versions": [

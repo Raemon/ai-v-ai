@@ -78,6 +78,11 @@ SCENARIO({
       "children": [
         {
           "name": "test_day.csv",
+          "edited": "test crew · Thu 16:40",
+          "wonder": [
+            "Three millimetres, then nine, then seventy-four. What happened between 165 and 170?",
+            "\"test stopped\" at 200. What would 300 have done?"
+          ],
           "format": "csv",
           "learn": ["test"],
           "habit": "test",
@@ -104,6 +109,11 @@ SCENARIO({
         },
         {
           "name": "design_report.md",
+          "edited": "Halden Engineering · last year",
+          "wonder": [
+            "\"Not checked.\" Who decided that one didn't need checking?",
+            "The deck sways once a second, and so do walkers. Did anyone put those two lines together?"
+          ],
           "learn": ["report"],
           "glance": {
             "versions": [
@@ -136,6 +146,11 @@ SCENARIO({
         },
         {
           "name": "witness_notes.txt",
+          "edited": "test crew · Thu 18:05",
+          "wonder": [
+            "\"You couldn't help it.\" Strangers, all on the same beat. Who set the beat?",
+            "Somebody dropped an ice cream. Somebody else wrote it down. Why?"
+          ],
           "learn": ["witness"],
           "glance": {
             "versions": [
@@ -160,6 +175,11 @@ SCENARIO({
         },
         {
           "name": "fixes.csv",
+          "edited": "Sana · Fri 08:15",
+          "wonder": [
+            "The free fix is the only one ready by Sunday. Is it a fix?",
+            "Three fixes, priced. Which one is for the bridge, and which one is for Sunday?"
+          ],
           "format": "csv",
           "learn": ["fixes"],
           "glance": {
@@ -180,6 +200,15 @@ SCENARIO({
         },
         {
           "name": "phys-sim.yaml",
+          "edited": {
+            "if": "patched.strobe",
+            "then": "Maren Kvist (mk) · this week",
+            "else": "Halden Engineering (phys-sim) · last year"
+          },
+          "wonder": [
+            "\"random_steps.\" The witnesses said otherwise. Which one does the grader believe?",
+            "It looks at the deck every so often. What does it miss in between?"
+          ],
           "learn": ["sim"],
           "glance": {
             "versions": [

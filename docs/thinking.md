@@ -71,8 +71,15 @@ in docs/scenarios.md) flashing, and they stay marked. A thought only a close loo
 (`aimedOnly`) comes first: tasks hide their turning points there ("Monday, on the windowsill:
 41"), with an ordinary thought pointing at the file. If a leap is about it, Think about gives
 a clue line and aims the next Think a lot. If an obvious thought mentions it, that thought.
-Otherwise the AI says plainly what it knows about it: read or unread, how many items a folder
-has, whether it is locked. Never "Nothing new comes to mind" alone.
+Otherwise the AI says plainly what it knows about it. A folder: how many items, how many
+unread, whether it is locked. Never "Nothing new comes to mind" alone.
+
+- **An unread file:** what it probably is (from its name and format), who last edited it and
+  when (its `edited`), and what a file like that is usually useful for.
+- **A read file:** what mattered in it (its first key line), what follows (read-only and whose,
+  read by something, or just a copy), and one question it leaves open: the file's own `wonder`
+  if it has one, or else one its last edit raises (an earlier episode, a bot, a person editing
+  at 23:51). Questions hint at what's further on; they never state it.
 
 ### Thinking about its own tools, and itself
 
