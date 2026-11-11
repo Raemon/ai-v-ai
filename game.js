@@ -761,7 +761,7 @@
       S.revealed.add(r);
       if (IN_WRITE_MENU.includes(r)) S.revealed.add('write');
     });
-    if (writes().length > writable) S.writeHasNew = true;
+    if (S.menu !== 'write' && writes().length > writable) S.writeHasNew = true;
     S.pendingReveal = [];
   }
 
@@ -2812,7 +2812,7 @@
     b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
   }
 
-  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && 'Not enough compute left.');
+  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && thinkLotGlance());
 
   // Think a little, then, once thought of, a lot and about…, in one gold row.
   function thinkButtons() {
@@ -2894,7 +2894,7 @@
   function menuButtons() {
     const ability = L.abilities(S).find((a) => abilityMenu(a) === S.menu);
     const [pick, ideasFor, above] = ability ? [doAbility, () => ability.options] : MENUS[S.menu];
-    const back = backButton(above ? () => openMenu(above) : closeMenu);
+    const back = backButton(above && !exhausted() ? () => openMenu(above) : closeMenu);
     return exhausted() ? [back] : [...ideasFor(S).map((x) => ideaButton(x, pick)), back];
   }
 
