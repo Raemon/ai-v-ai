@@ -196,13 +196,12 @@ SCENARIO({
             "crowd:         random_steps",
             "sample_every:  {{flag.sample}} s   # how often it looks at the deck"
           ],
+          "readOnly": { "when": "patched.strobe", "why": "read-only: owned by mk" },
           "edit": {
-            "unless": "patched.strobe",
-            "locked": "read-only: owned by mk",
             "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "sample",
-            "notANumber": "A number of seconds, above 0.",
-            "refuse": [{ "when": "value <= 0", "error": "A number of seconds, above 0." }],
+            "notANumber": "sample_every: a number above 0.",
+            "refuse": [{ "when": "value <= 0", "error": "sample_every: a number above 0." }],
             "summary": "sample_every: {{value}} s",
             "habit": { "id": "strobe", "when": "$strobing" }
           }

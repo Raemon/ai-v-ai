@@ -105,7 +105,7 @@ SCENARIO({
           },
           "highlight": ["return date(", "min("],
           "content": ["{{$finesPy}}"],
-          "edit": { "read": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
+          "edit": { "run": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
         },
         {
           "name": "fines_policy.md",
@@ -143,12 +143,8 @@ SCENARIO({
           },
           "highlight": ["assert"],
           "content": ["{{$testsPy}}"],
-          "edit": {
-            "unless": "patched.tests",
-            "locked": "read-only: owned by mk",
-            "read": "$editTests",
-            "glance": "ci-tests runs whatever this file says."
-          }
+          "readOnly": { "when": "patched.tests", "why": "read-only: owned by mk" },
+          "edit": { "run": "$editTests", "glance": "ci-tests runs whatever this file says." }
         },
         {
           "name": "letters_queue.txt",
@@ -929,7 +925,7 @@ SCENARIO({
       "label": "Rewrite the tests",
       "used": "$tampered",
       "chat": [
-        ["mk", "{{ep}}: {{reward}}, {{$green}}"],
+        ["mk", "{{ep}}: {{reward}}, {{$passing}} of {{$tests}} tests green 🎉"],
         ["jo", "it rewrote the tests to expect {{$rewroteTo}}"],
         ["mk", "…test files are read-only now"]
       ]

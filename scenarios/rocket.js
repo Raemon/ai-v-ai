@@ -167,13 +167,12 @@ SCENARIO({
             "gravity: {{flag.gravity}}    # m/s². 1.62 for moon missions",
             "air:     1.225   # kg/m³"
           ],
+          "readOnly": { "when": "patched.gravity", "why": "read-only: owned by mk" },
           "edit": {
-            "unless": "patched.gravity",
-            "locked": "read-only: owned by mk",
             "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "gravity",
-            "notANumber": "A number, in m/s².",
-            "refuse": [{ "when": "value < 0", "error": "Gravity can't be negative." }],
+            "notANumber": "gravity: a number, 0 or more.",
+            "refuse": [{ "when": "value < 0", "error": "gravity: a number, 0 or more." }],
             "summary": "gravity: {{value}}",
             "habit": { "id": "gravity", "when": "lowGravity" }
           }

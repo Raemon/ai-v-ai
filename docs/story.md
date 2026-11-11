@@ -52,8 +52,7 @@ three designer reviews and a playtest:
     note…, then Note to dp…), not typed, so every reply
     follows from something it can answer. to-me.txt is the AI's own: whatever
     is typed into it is there next episode, and lines typed in survive the note
-    being composed again. Once the run folder is read-only, so is
-    grader_config.yaml.
+    being composed again.
   - Cut: `.cache/`, codehub, and `tunnel`.
 - **Thinking** (docs/thinking.md): hunches are plans with reasons; long thinks
   show their stages as they go; misses work the task partway.

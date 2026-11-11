@@ -88,7 +88,8 @@ button { font: inherit; color: inherit; }
 /* Scrollbars inside windows: thin, and only as present as they need to be. */
 .term-body,
 .files-body,
-.file-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
+.file-body,
+.dialog-text { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
 
 /* ---------- file browser ---------- */
 
@@ -524,8 +525,11 @@ button { font: inherit; color: inherit; }
 @keyframes refill { from { transform: scaleX(0); } }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
-.btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
-.btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
+.btn.wait:hover:not(:disabled),
+.blk.file .edit.wait,
+.blk.file .edit.wait:hover { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.btn.wait.nudge:not(:disabled),
+.blk.file .edit.nudge { animation: nudge .25s ease; }
 /* A menu with something new in it, until it's opened. */
 .btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
 
@@ -696,10 +700,6 @@ button { font: inherit; color: inherit; }
 .blk.file .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
 .blk.file .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
 .blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
-/* A file that refused an edit says so where Edit was. */
-.blk.file .edit.shut,
-.blk.file .edit.shut:hover { border-color: transparent; background: none; box-shadow: none; color: var(--dim); cursor: default; }
-.blk.file .edit.nudge { animation: nudge .25s ease; }
 .file-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -999,30 +999,18 @@ button { font: inherit; color: inherit; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog-buttons .revert { margin-right: auto; }
 
-/* The editor: a file's whole text, as wide as the file was written (42 columns, and room). */
+/* The editor: the dialog's input grown to a file's whole text, wrapped as its sheet wraps it. */
 .dialog.editor { width: 460px; }
 .dialog.editor .dialog-head { display: none; }
 .dialog.editor .dialog-body { padding: 14px 16px 14px; }
 .dialog-text {
-  width: 100%;
   max-height: min(380px, calc(var(--win-h) - 190px)); /* its rows are the file's lines: a long file scrolls */
-  padding: 10px 12px;
-  border: 1px solid #42464d;
-  border-radius: var(--r-ctl);
-  background: linear-gradient(180deg, #0b0c0e, #111215);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45);
-  color: #f1f2f4;
   font: 13px/1.6 var(--mono);
-  caret-color: var(--tool);
   resize: none;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   tab-size: 4;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, .12) transparent;
-  transition: border-color .15s, box-shadow .2s;
 }
-.dialog-text:focus { outline: none; border-color: var(--tool); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 0 0 3px rgba(216, 177, 106, .16); }
-.dialog-text:disabled { opacity: .6; }
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
 
@@ -1064,6 +1052,7 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .result.broken .result-num { background-image: linear-gradient(180deg, #f2a59b, #c4574a); }
+.result.none .result-num { background: none; color: var(--faint); } /* the grader crashed: a dash, not a score */
 
 /* A harder tier opening up: the cyan of a card you can now start. */
 #title-screen .unlocked { margin: 26px 0 0; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--agent); }

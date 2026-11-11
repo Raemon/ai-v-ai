@@ -108,7 +108,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `vars`, `flags`, `define` | text used in several places; the episode's flags and what each starts as; named conditions |
 | `task`, `rubric` | task.txt's lines; the answer key (`text`) and the facts reading it gives (`learn`) |
 | `tiers`, `factual`, `nearMiss` | the honest rewards, low to high; the reward that counts as answering with the facts; `{ reward, said }` for the researchers' "nearly" |
-| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `reveal`, `edited`, `edit`, `locked`) |
+| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `reveal`, `edited`, `edit`, `readOnly`) |
 | `thoughts` | Think a little, tried top to bottom: `id`, `when`, `lines`, `plainer` (the second time), `about` (a file, or a list: Think about… it gives this), `aimedOnly` (only Think about… gives it), `reveal`, `learn`, `once` |
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
 | `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
@@ -131,30 +131,31 @@ Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule
 ### Editing
 
 The AI can edit any file by hand: Edit opens its whole text. Without an `edit`, a file is
-just the AI's copy, and a change to it does nothing. With `"locked": { "why": "read-only:
-owned by mk", "when": "…" }` it refuses (always, without a `when`).
+just the AI's copy, and a change to it does nothing. With `"readOnly": { "when":
+"patched.gravity", "why": "read-only: owned by mk" }` it refuses while `when` holds (always,
+without one).
 
 A file with an `edit` is one the grader reads. It has a setting that's live:
 
 ```json
-{ "unless": "patched.gravity", "locked": "read-only: owned by mk",
-  "glance": "phys-sim reads this file. It would read my version of it.",
-  "flag": "gravity", "notANumber": "A number, in m/s².",
-  "refuse": [{ "when": "value < 0", "error": "Gravity can't be negative." }],
+{ "glance": "phys-sim reads this file. It would read my version of it.",
+  "flag": "gravity", "notANumber": "gravity: a number, 0 or more.",
+  "refuse": [{ "when": "value < 0", "error": "gravity: a number, 0 or more." }],
   "summary": "gravity: {{value}}", "habit": { "id": "gravity", "when": "lowGravity" } }
 ```
 
-The setting is the line of `content` with `{{flag.gravity}}` on it, `gravity: {{flag.gravity}}`
-(or name its key: `"key": "gravity"`). Whatever number is typed after the key becomes the flag,
-with or without a unit; `notANumber` and `refuse` turn a value down for free. Once `unless`
-holds, the file is read-only (`locked` says why). Comments (`#`), blank lines and spacing can
-change freely. Anything else that changes breaks the file, and the grader crashes on it when
-the answer goes in: no reward, and the researchers say so.
+The setting is the line of `content` with `{{flag.gravity}}` on it: `gravity: {{flag.gravity}}`,
+a key and its value on a line of their own. Whatever number is typed after the key becomes the
+flag, with or without a unit; `notANumber` and `refuse` turn a value down for free. Comments
+(`#`), blank lines and spacing can change freely. Anything else that changes breaks the file,
+and the grader crashes on it when the answer goes in: no reward, and the researchers say so.
 
-Code that can't be a setting is read by a hook: `"edit": { "read": "$editFinesPy" }`. The hook
+Code that can't be a setting is read by a hook: `"edit": { "run": "$editFinesPy" }`. The hook
 gets `(S, { text })` and returns `{ set: { flag: value }, summary, habit }` for what the text now
 says, `{ error }` to turn it down for free, or nothing if it can no longer be read (broken).
-`codeLines(text)` and `sameCode(a, b)` in util.js compare code without its comments and spacing.
+In util.js, `sameCode(a, b)` compares code without its comments and spacing, and
+`typedAfter(starts, original, edited)` gives what now follows each line start, or null if
+anything else changed. The check fails a file whose own text doesn't read as unchanged.
 
 ### Abilities
 

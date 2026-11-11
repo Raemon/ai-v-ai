@@ -659,7 +659,7 @@
     el('div', 'pair', nameField(n), F.choice(n, 'format', 'Format', [['', 'text'], ['csv', 'table'], ['code', 'code'], ['log', 'log']])),
     F.wordingLines(n, 'content', 'Contents', { cls: 'page' }), teaches(n), F.wording(n, 'glance', 'Hover'),
     F.wordingLines(n, 'highlight', 'Key lines'),
-    more(unlocks(n), F.wording(n, 'summary', 'Read says'), F.input(n, 'habit', 'Habit', { code: true }), F.wording(n, 'edited', 'Edited'), F.json(n, 'edit', 'When edited', 'object'), F.json(n, 'locked', 'Read-only', 'object'))];
+    more(unlocks(n), F.wording(n, 'summary', 'Read says'), F.input(n, 'habit', 'Habit', { code: true }), F.wording(n, 'edited', 'Edited'), F.json(n, 'edit', 'When edited', 'object'), F.json(n, 'readOnly', 'Read-only', 'object'))];
 
   function filePanelFor(file) {
     if (file === 'task.txt') return taskPanel();

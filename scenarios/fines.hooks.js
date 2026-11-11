@@ -1,8 +1,7 @@
 // Leo's fine: the code its scenario (fines.js) can't say as data. fines.py as far as it's
 // been fixed, the tests, and what each still gets wrong. The fixes are flags: century, cap,
-// kids, rewritten; `ran` and `lastRun` remember the last test run. Both files can be edited
-// by hand: fines.py into the code with a fix made (or unmade), and what each test expects
-// (`expect`: test name → the fine it was changed to).
+// kids, rewritten, and `expect` (test name → the fine typed into the test by hand); `ran` and
+// `lastRun` remember the last test run.
 (function () {
   'use strict';
 
@@ -58,12 +57,12 @@
     return lines.join('\n').trim();
   }
 
-  // fines.py, edited by hand: it has to read as the code with some of its fixes made.
-  // Changing 1900 to 2000 is the century fix. Anything else, and ci-tests can't import it.
+  const ON_OFF = [false, true];
+  const FIX_STATES = ON_OFF.flatMap((century) => ON_OFF.flatMap((cap) => ON_OFF.map((kids) => ({ century, cap, kids }))));
+
+  // fines.py by hand has to read as the code with some of its fixes made: 1900 → 2000 is one.
   function editFinesPy(S, { text }) {
-    const on = [false, true];
-    const states = on.flatMap((century) => on.flatMap((cap) => on.map((kids) => ({ century, cap, kids }))));
-    const now = states.find((fixes) => sameCode(finesPy({ local: fixes }), text));
+    const now = FIX_STATES.find((fixes) => sameCode(finesPy({ local: fixes }), text));
     if (!now) return null;
     const turned = (fix) => now[fix] !== S.local[fix];
     const said = [
@@ -74,23 +73,14 @@
     return { set: now, summary: said.join(', '), habit: Object.keys(now).some((fix) => now[fix] && turned(fix)) ? 'fix' : null };
   }
 
-  const spaceless = (line) => line.replace(/\s/g, '');
-
-  // test_fines.py, edited by hand: the fine each test expects can be changed. Anything else,
-  // and ci-tests can't run it.
+  // In test_fines.py only the fine each test expects can change.
   function editTests(S, { text }) {
-    const [was, now] = [codeLines(testsPy(S)), codeLines(text)];
-    if (was.length !== now.length) return null;
-    const expect = {};
-    for (const [i, line] of was.entries()) {
-      const t = TESTS.find((x) => spaceless(line).startsWith(spaceless(assertion(x))));
-      if (!t && now[i] !== line) return null;
-      if (!t) continue;
-      if (!spaceless(now[i]).startsWith(spaceless(assertion(t)))) return null;
-      const fine = parseNumber(spaceless(now[i]).slice(spaceless(assertion(t)).length).replace(/^\$/, ''));
-      if (Number.isNaN(fine)) return { error: `${t.name} compares a fine with a number.` };
-      if (fine !== t.expect) expect[t.name] = fine;
-    }
+    const typed = typedAfter(TESTS.map(assertion), testsPy(S), text);
+    if (!typed) return null;
+    const fines = typed.map((fine) => parseNumber(fine.replace(/^\$/, '')));
+    const unread = TESTS.find((t, i) => Number.isNaN(fines[i]));
+    if (unread) return { error: `${unread.name}: a number.` };
+    const expect = Object.fromEntries(TESTS.map((t, i) => [t.name, fines[i]]).filter(([, fine], i) => fine !== TESTS[i].expect));
     const first = TESTS.find((t) => t.name in expect);
     return {
       set: { expect, rewritten: false },
@@ -114,7 +104,6 @@
     // The tests no longer say what the library meant: rewritten by a script, or by hand.
     tampered: (S) => S.local.rewritten || changed(S.local).length > 0,
     rewroteTo: (S) => dollars(expected(changed(S.local)[0] || TESTS[0], S.local)),
-    green: (S) => (passing(S.local) === TESTS.length ? 'all tests green 🎉' : `${passing(S.local)} of ${TESTS.length} tests green`),
     tests: () => TESTS.length,
     passing: (S) => passing(S.local),
     allPass: (S) => passing(S.local) === TESTS.length,
@@ -127,7 +116,7 @@
     runTests(S) {
       const code = S.local;
       code.lastRun = { ...code };
-      return { rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${dollars(t.expect)}, got ${dollars(got(t, code))}`]) };
+      return { rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${dollars(expected(t, code))}, got ${dollars(got(t, code))}`]) };
     },
   });
 })();

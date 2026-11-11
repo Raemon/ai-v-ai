@@ -109,7 +109,7 @@
     return {
       ...LEVEL.freshEpisode(world, LAB.FIRST + nth, spec),
       task: spec, episode: LAB.FIRST + nth, ep: `ep_${LAB.FIRST + nth}`, world, best: {},
-      knows: new Set(), todo: null, todoSeen: null, subagents: [], timesThought: new Map(), leapsMade: new Set(), filesWritten: [], littleThinks: 0,
+      knows: new Set(), todo: null, todoSeen: null, subagents: [], timesThought: new Map(), leapsMade: new Set(), filesWritten: [], littleThinks: 0, edits: new Map(),
     };
   }
 
@@ -229,7 +229,7 @@
   // -------------------------------------------------------------- problems
   // Each is { where, text, bad, at }: `bad` would break the game; `at` says what to open.
 
-  const CONDITION_KEYS = ['when', 'if', 'done', 'used', 'unless', 'progressed', 'ready', 'ok', 'reward', 'holes']; // and amounts worked out like one
+  const CONDITION_KEYS = ['when', 'if', 'done', 'used', 'progressed', 'ready', 'ok', 'reward', 'holes']; // and amounts worked out like one
   const FILLED_LATER = ['ep', 'episode', 'reward', 'said', 'value']; // only once an episode is under way
   const UNFILLED_PLACES = ['task', 'rubric', 'taskId'];
 
@@ -340,9 +340,8 @@
       asList((sc.misses || {})[kind]).forEach((miss) => missing(miss || {}, MISS_NEEDS).forEach((key) => say(['misses', kind], `A miss has no ${key}.`, true)));
     }
     givers(sc).filter(({ rule }) => rule.file && isBlank(rule.file.name)).forEach(({ trail }) => say(trail, 'The file it writes has no name.', true));
-    givers(sc).filter(({ rule }) => rule.run && !own(SCENARIO.hooksOf(sc), String(rule.run).slice(1))).forEach(({ rule, trail }) => say(trail, `There is no code called ${rule.run}.`, true));
-    const readBy = (n) => String((n.edit || {}).read || '');
-    filesOf(sc).filter((n) => readBy(n) && !own(SCENARIO.hooksOf(sc), readBy(n).slice(1))).forEach((n) => say(['files', n.name], `There is no code called ${readBy(n)}.`, true));
+    const hookOf = (rule) => rule.run || (rule.edit || {}).run; // a script's, or a file's when it's edited
+    givers(sc).filter(({ rule }) => hookOf(rule) && !own(SCENARIO.hooksOf(sc), String(hookOf(rule)).slice(1))).forEach(({ rule, trail }) => say(trail, `There is no code called ${hookOf(rule)}.`, true));
     listOf(sc, 'thoughts').filter((t) => isBlank(t.lines)).forEach((t) => say(['thoughts', `"${t.id}"`], 'It says nothing.', false));
   }
 
@@ -364,13 +363,23 @@
     }
   }
 
+  const compiledFiles = (nodes) => nodes.flatMap((n) => (n.children ? compiledFiles(n.children) : [n]));
+
+  // A file with an `edit` has to read its own text as unchanged: otherwise every edit breaks it.
+  function editProblems(sc, say) {
+    const spec = SCENARIO.compile(sc);
+    const S = startState(spec, 0);
+    compiledFiles(spec.workspace(S)).filter((n) => n.edit && n.edit.apply(nextState(S), n.content).broken)
+      .forEach((n) => say(['files', n.name], "Edited, it can't tell what changed: its own text reads as broken.", true));
+  }
+
   function problems(sc) {
     const found = [];
     const say = (trail, text, bad, fromCell) => found.push({ where: trail.join(' · '), text, bad, fromCell, at: opens(trail) });
     let knows = () => true;
     try { knows = vocabulary(sc).knows; } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     // One part that can't even be read is a problem of its own, not the end of the list.
-    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, routeProblems];
+    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, editProblems, routeProblems];
     for (const check of checks) {
       try { check(sc, say); } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     }
