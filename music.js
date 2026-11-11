@@ -14,7 +14,7 @@
 (() => {
   'use strict';
 
-  // Every chord has five tones: sounds (hover, think, collapse) pick among them.
+  // Every chord has five tones: sounds (hover, think) pick among them.
   const chord = (root, tones, steps = 32, lift = 0) => ({ root, tones, steps, lift });
 
   const pitchClasses = (notes) => new Set(notes.map((m) => m % 12));

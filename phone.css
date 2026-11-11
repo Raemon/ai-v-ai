@@ -1,9 +1,9 @@
 /* The phone layout: narrower than PHONE_MAX_W (util.js), game.js sets
    data-layout="phone" on <html>. One column, unscaled. Above, the folder the
-   AI is in as a list, its path pinned at the top, the browser opening inside
-   it under its own row (game.js placeBrowser). Below, the AI's dock: its face
-   and compute, the file it's reading and the newest of the terminal (Earlier
-   unfolds the rest), the buttons.
+   AI is in as a list, its path pinned at the top; the browser, while it's open,
+   takes the list's place. Below, the AI's dock: its face and compute, the file
+   it's reading and the newest of the terminal (Earlier unfolds the rest), the
+   buttons.
    No glances (game.js), no probe (agent.js), no hover hum (hover.js).
    docs/mobile.md has the reasoning. Everything here is scoped to the layout. */
 
@@ -49,9 +49,9 @@
   max-height: none;
   flex-direction: column;
   align-items: stretch;
+  gap: 6px;
 }
 :root[data-layout="phone"] .files-col:not(:has(#files > .window)) { display: none; }
-:root[data-layout="phone"] .focus-col { display: none; } /* the closed browser waits here */
 
 :root[data-layout="phone"] .agent-col {
   order: 1; /* under the folder, in reach of a thumb */
@@ -66,8 +66,8 @@
 /* ---------- the folder: a list, the path on top ---------- */
 
 :root[data-layout="phone"] #files { flex: 1 1 auto; width: auto; max-height: none; min-height: 0; }
-:root[data-layout="phone"] #files .folder-win { flex: 1 1 auto; }
-:root[data-layout="phone"] .folder-win > .titlebar { display: none; } /* the path names it */
+:root[data-layout="phone"] #files > .window { flex: 1 1 auto; }
+:root[data-layout="phone"] #files > .window > .titlebar { display: none; } /* the path names it */
 :root[data-layout="phone"] .pathbar {
   order: -1;
   padding: 4px 44px 4px 8px; /* room for the sound toggle, top right */
@@ -99,21 +99,12 @@
 :root[data-layout="phone"] .files-col .icon:hover { background: none; box-shadow: none; }
 :root[data-layout="phone"] .files-col .icon:hover svg { filter: none; transform: none; }
 :root[data-layout="phone"] .files-col .icon:active { background: rgba(255, 255, 255, .06); }
-/* The browser's title bar names it, right under where its row was. */
-:root[data-layout="phone"] .icon.selected:has(+ #browser:not([hidden])) { display: none; }
 
-/* ---------- the browser, inside the list ---------- */
+/* ---------- the browser: in the list's place, under the path, while it's open ---------- */
 
-:root[data-layout="phone"] #files .browser {
-  flex: none;
-  height: min(600px, 72dvh);
-  max-height: none;
-  margin: 4px 0 8px;
-  border-color: #3a3e45;
-  box-shadow: 0 0 0 1px rgba(194, 170, 121, .16), 0 10px 30px rgba(0, 0, 0, .45);
-}
-:root[data-layout="phone"] #files .opening { animation: phone-open .26s cubic-bezier(.2, .75, .25, 1) both; } /* game.js showInList */
-@keyframes phone-open { from { opacity: 0; transform: translateY(-6px); } }
+:root[data-layout="phone"] .files-col:has(> #browser:not([hidden])) #files { flex: none; }
+:root[data-layout="phone"] .files-col:has(> #browser:not([hidden])) .files-body { display: none; }
+:root[data-layout="phone"] .browser { flex: 1 1 0; min-height: 0; width: auto; height: auto; max-height: none; }
 :root[data-layout="phone"] .page { padding: 20px 16px 32px; }
 :root[data-layout="phone"] .page .cheat,
 :root[data-layout="phone"] .page > * { max-width: 100%; }
@@ -128,7 +119,7 @@
 
 /* Thinking about one thing: everything that can be picked is lit. */
 :root[data-layout="phone"] #desktop.aiming :is(.icon, .crumb:not(.here)) { box-shadow: inset 0 0 0 1px rgba(95, 201, 214, .35); }
-:root[data-layout="phone"] #desktop.aiming :is(#files .browser, .blk.file) { border-color: rgba(95, 201, 214, .6); }
+:root[data-layout="phone"] #desktop.aiming :is(.browser, .blk.file) { border-color: rgba(95, 201, 214, .6); }
 
 /* ---------- the dock ---------- */
 /* Its head (.agent-status, moved above the terminal): the face and its thought bubbles,
@@ -154,7 +145,7 @@
 :root[data-layout="phone"] #compute.low { font-size: 14px; }
 /* When the dock reaches the top of the screen, its head keeps clear of the sound toggle. */
 :root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 52px; }
-:root[data-layout="phone"] .earlier {
+:root[data-layout="phone"] #earlier {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -167,10 +158,10 @@
   font: 12.5px var(--mono);
   cursor: pointer;
 }
-:root[data-layout="phone"] .earlier::before { content: "▸"; font-size: 11px; }
-:root[data-layout="phone"] .earlier[aria-expanded="true"] { color: var(--text); }
-:root[data-layout="phone"] .earlier[aria-expanded="true"]::before { content: "▾"; }
-:root[data-layout="phone"] .agent-col:not(:has(.blk.past)) .earlier { visibility: hidden; } /* nothing earlier yet */
+:root[data-layout="phone"] #earlier::before { content: "▸"; font-size: 11px; }
+:root[data-layout="phone"] #earlier[aria-expanded="true"] { color: var(--text); }
+:root[data-layout="phone"] #earlier[aria-expanded="true"]::before { content: "▾"; }
+:root[data-layout="phone"] .agent-col:not(:has(.blk.past)) #earlier { visibility: hidden; } /* nothing earlier yet */
 
 /* The face sits at the head's left, with the thought bubbles beside it. */
 :root[data-layout="phone"] .agent-col > .agent {
@@ -194,17 +185,18 @@
 }
 /* The newest thought and what came after it; the rest is Earlier. */
 :root[data-layout="phone"] #term:not(.earlier) .blk.past { display: none; }
+/* Under a dialog, the last file read stays, put away or not: a password may be in it. */
+:root[data-layout="phone"] body:has(#dialog:not([hidden])) #term .blk.file.past:not(:has(~ .blk.file)) { display: flex; }
 :root[data-layout="phone"] .blk.tool { font-size: 12.5px; }
 
 /* The file being read stays in the dock, above the newest thought (game.js stepBack),
-   and the dock gets more of the screen for it. A wide table or log scrolls sideways on its own. */
-:root[data-layout="phone"] #desktop:has(.blk.file.current) .agent-col { max-height: 70%; }
+   and the dock gets more of the screen for it. */
+:root[data-layout="phone"] #desktop:has(.blk.file.current) .agent-col { max-height: 64%; }
 :root[data-layout="phone"] .blk.file { max-height: 34dvh; margin: 0 -6px 10px; } /* a little into the dock's padding: room for 42 columns */
-:root[data-layout="phone"] .file-head { min-height: 36px; }
-:root[data-layout="phone"] .file-head .edit { padding: 6px 14px; font-size: 13px; }
+:root[data-layout="phone"] .blk.file .titlebar { min-height: 36px; }
+:root[data-layout="phone"] .blk.file .edit { padding: 6px 14px; font-size: 13px; }
 :root[data-layout="phone"] .file-body { padding: 10px 8px 12px; font-size: 12.5px; overscroll-behavior: contain; }
-:root[data-layout="phone"] .file-body table { font-size: 12.5px; }
-:root[data-layout="phone"] .file-body.log > div { white-space: pre-wrap; }
+:root[data-layout="phone"] .file-body table { white-space: normal; overflow-wrap: normal; font-size: 12px; } /* every column wraps, so all of them show */
 
 /* The prompt line: what a tap gets told ("Think about what? Tap it."). No glance mark. */
 :root[data-layout="phone"] .glance-tag { display: none !important; }

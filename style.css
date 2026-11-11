@@ -13,7 +13,7 @@
      while it's open. Each is as tall as what's in it, up to --win-h. */
   --term-w: 490px;
   --files-w: 410px;
-  --focus-w: 428px;
+  --browser-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
   --col-gap: 24px;   /* between the columns */
   --pad-y: 34px;     /* the desk's top and bottom */
@@ -95,27 +95,24 @@ button { font: inherit; color: inherit; }
 .agent-col,
 .files-col { flex: none; max-height: var(--win-h); }
 .files-col { position: relative; display: flex; align-items: flex-start; gap: var(--col-gap); }
-.focus-col { position: relative; width: var(--focus-w); }
 /* Whatever is empty takes no room, so what's open stays centred on the desk. */
 #files:empty,
-.focus-col:not(:has(> .window:not([hidden]))) { display: none; }
-.files-col:not(:has(#files:not(:empty), .focus-col > .window:not([hidden]))) { display: none; }
+.files-col:not(:has(#files:not(:empty), #browser:not([hidden]))) { display: none; }
 
-/* The middle column is the one folder the AI is in, as tall as what's in it.
-   Going into another folder replaces it (motion.js resizes it in place). */
+/* The middle column is the one folder the AI is in, as tall as what's in it. */
 #files {
   display: flex;
   flex-direction: column;
   width: var(--files-w);
   max-height: var(--win-h);
 }
-#files .window {
+#files > .window {
   flex: 0 1 auto;
   min-height: 0;
-  border-color: #3a3e45;
+  border-color: var(--line-lit);
   box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22);
 }
-#files .titlebar .title { color: var(--folder); }
+#files > .window > .titlebar .title { color: var(--folder); }
 
 /* As many columns of icons as fit, sharing the width. */
 .files-body {
@@ -138,7 +135,7 @@ button { font: inherit; color: inherit; }
   border: 0;
   border-radius: 6px;
   background: none;
-  color: #c6c9ce;
+  color: var(--doc);
   cursor: pointer;
   transition: background-color .15s, box-shadow .15s;
 }
@@ -166,16 +163,15 @@ button { font: inherit; color: inherit; }
 /* Flashes a file to show where to click ("Open File/Folder →"). */
 .icon.beckon { animation: beckon 1.5s ease; }
 
-/* The folder's bottom row is its whole path, every folder in it a button that
-   goes there: the only way back up, so it's the largest text on the window.
-   A path too long for one line wraps after a slash. */
+/* The path is the only way back up, so it's the window's largest text: each folder
+   a button, the slashes fainter. Too long for one line, it wraps after a slash. */
 .pathbar {
   flex: none;
   padding: 8px 10px 9px;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, var(--bar-top), var(--bar));
   font: 13px var(--mono);
-  color: var(--dim);
+  color: var(--faint);
 }
 .pathbar .crumbs { display: block; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
 .crumbs .seg { display: inline-block; }
@@ -185,13 +181,12 @@ button { font: inherit; color: inherit; }
   border: 0;
   border-radius: 3px;
   background: none;
-  color: inherit;
+  color: color-mix(in srgb, var(--text), var(--dim));
   font: inherit;
   cursor: pointer;
 }
-.crumb:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+.crumb:not(.here):hover { color: var(--text); background: rgba(255, 255, 255, .06); }
 .crumb.here { color: var(--folder); cursor: default; } /* the folder it's in: already there */
-.crumb.here:hover { color: var(--folder); background: none; }
 .crumb:focus-visible { outline: 1px solid var(--dim); }
 
 /* ---------- the AI ---------- */
@@ -301,7 +296,7 @@ button { font: inherit; color: inherit; }
 #resources { color: var(--web); }
 #mine { color: var(--mine); }
 #mine.pop { animation: pop .4s ease; }
-.earlier, .rotate { display: none; } /* phones only: phone.css */
+#earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
   flex: 1 1 auto;
@@ -530,6 +525,9 @@ button { font: inherit; color: inherit; }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
 .btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
+/* A menu with something new in it, until it's opened. */
+.btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
 
 /* Think row: new segments slide out of its right edge. */
 .seg-row { display: flex; }
@@ -659,47 +657,31 @@ button { font: inherit; color: inherit; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
 
 /* ---------- a file, read into the terminal ---------- */
-/* Not a thought and not a call: a sheet from outside, in the folder window's own
-   greys under a bar with its name, upright where the thoughts are italic. The one
-   being read (.current) stays lit; no taller than most of the terminal, a longer
-   file scrolls inside it. */
+/* A sheet in the folder window's greys, upright: neither a thought nor a tool call. */
 
 .blk.file {
   display: flex;
   flex-direction: column;
-  max-height: calc((var(--win-h) - var(--face-room)) * .6);
+  max-height: calc((var(--win-h) - var(--face-room)) * .6); /* a longer file scrolls inside it */
   margin: 6px -8px 12px; /* a little into the terminal's padding: a sheet is wider than a thought */
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 3px 8px 8px 8px;
   background: linear-gradient(180deg, var(--win-top) 30px, var(--win) 160px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
   color: var(--text);
   white-space: normal;
   animation: appear .25s ease both;
 }
-.blk.file.current { border-color: #3a3e45; }
+.blk.file.current { border-color: var(--line-lit); }
 .blk.file.flash { animation: flash .45s ease; }
-.file-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
-  padding: 0 8px 0 10px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, var(--bar-top), var(--bar));
-  box-shadow: var(--hi);
-  font: var(--fs-meta) var(--mono);
-}
-.file-icon { flex: none; color: #c6c9ce; }
+.blk.file .titlebar { gap: 7px; min-height: 28px; padding: 0 8px 0 10px; color: inherit; }
+.file-icon { flex: none; color: var(--doc); }
 .file-icon svg { display: block; width: 16px; height: 16px; }
-.file-head .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Who last touched it, and when: a name to look up. */
-.file-meta { flex: none; padding: 4px 10px; border-bottom: 1px solid var(--line); font: var(--fs-meta) var(--mono); color: var(--dim); }
+.file-meta { flex: none; padding: 8px 10px 0; font: var(--fs-meta) var(--mono); color: var(--dim); }
 .file-meta:empty { display: none; }
-/* Edit, on the file being read. */
-.file-head .edit {
+.file-meta:not(:empty) + .file-body { padding-top: 6px; }
+.blk.file .edit {
   flex: none;
   padding: 1px 10px 2px;
   border: 1px solid var(--line);
@@ -711,13 +693,13 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
   transition: border-color .15s, background-color .15s;
 }
-.file-head .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
-.file-head .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
+.blk.file .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
+.blk.file .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
 .blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
 /* A file that refused an edit says so where Edit was. */
-.file-head .edit.shut,
-.file-head .edit.shut:hover { border-color: transparent; background: none; box-shadow: none; color: var(--dim); cursor: default; }
-.file-head .edit.nudge { animation: nudge .25s ease; }
+.blk.file .edit.shut,
+.blk.file .edit.shut:hover { border-color: transparent; background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.blk.file .edit.nudge { animation: nudge .25s ease; }
 .file-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -727,6 +709,8 @@ button { font: inherit; color: inherit; }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* More below than fits: it fades out (game.js markMoreBelow). */
+.file-body.more { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
 .file-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
 
 /* Code: just enough colour to read it by. */
@@ -771,7 +755,7 @@ button { font: inherit; color: inherit; }
    the folder, and it's the only bright thing on the screen. It keeps one height
    from page to page; a longer page scrolls. */
 
-.browser { position: relative; z-index: 1; height: var(--browser-h); max-height: var(--win-h); animation: fade-in .25s ease; }
+.browser { position: relative; z-index: 1; flex: none; width: var(--browser-w); height: var(--browser-h); max-height: var(--win-h); animation: fade-in .25s ease; }
 .close {
   flex: none;
   margin-right: -6px;

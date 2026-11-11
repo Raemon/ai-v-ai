@@ -211,8 +211,8 @@
 
   const thud = (f, peak, at = now()) => voice({ at, f, to: f / 2, decay: 1, peak });
 
-  function whoosh(from, to, peak, { at = now(), seconds = 0.3 } = {}) {
-    voice({ at, type: 'noise', attack: seconds * 0.4, decay: seconds * 0.6, peak, cut: from, cutTo: to, q: 0.5, pan: from < to ? 0.2 : -0.2 });
+  function whoosh(from, to, peak, { seconds = 0.3 } = {}) {
+    voice({ type: 'noise', attack: seconds * 0.4, decay: seconds * 0.6, peak, cut: from, cutTo: to, q: 0.5, pan: from < to ? 0.2 : -0.2 });
   }
 
   const whooshOpen = (peak, opts) => whoosh(400, 2800, peak, opts);
