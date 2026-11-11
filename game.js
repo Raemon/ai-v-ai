@@ -392,6 +392,7 @@
 
   // A step and its call. Thinks in a row share one entry; n counts them.
   function charge(call) {
+    following = true; // a step taken is what to look at
     spendStep();
     const last = S.log[S.log.length - 1];
     if (call === 'think' && last && last.call === 'think') Object.assign(last, { to: S.used, n: last.n + 1 });
@@ -802,7 +803,6 @@
     S.mode = 'busy';
     S.interruptible = false;
     skip = false;
-    following = true; // a new action is what to look at
     clearGlance();
     showEarlier(false);
     renderActions();
@@ -1237,8 +1237,9 @@
     e.stopPropagation();
     const subagent = S.aimingSubagent;
     stopAiming();
+    const card = e.target.closest('.blk.file'); // a sheet knows its own path; a name alone may be another file's
     if (subagent) assign(subagent, name);
-    else spend(() => doThinkAbout(name));
+    else spend(() => doThinkAbout(name, card ? pathOf(card.dataset.path) : pathNamed(name)));
   }
 
   dom.desktop.addEventListener('click', onAimClick, true);
@@ -1250,23 +1251,22 @@
 
   // What the AI can say it knows about something it thinks about: a file read or not, a
   // folder's contents, a page.
-  function aimedThing(name) {
-    const path = pathNamed(name);
+  function aimedThing(name, path) {
     const n = path && nodeAt(path);
     if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
     if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
     return { kind: n.kind === 'app' ? 'app' : 'file', read: S.read.has(pathKey(path)) };
   }
 
-  async function doThinkAbout(name) {
+  async function doThinkAbout(name, path) {
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const fresh = liveThoughts().filter((t) => mentions(t, name) && hasNewLines(t));
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
-    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
+    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
     if (clue) S.clueIn = name;
-    showKeyLines(pathNamed(name));
+    showKeyLines(path);
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
 
@@ -1712,6 +1712,19 @@
     await printTool(call, n.summary || summarize(n) || null);
     printFile();
     await reactOnce(n.reaction, pathKey(path));
+    keepFileNameInSight();
+  }
+
+  // A tall file and the thought after it can push the file's name out of the top: the sheet
+  // gives up just enough height (it scrolls inside) for both to show.
+  function keepFileNameInSight() {
+    const card = fileCard();
+    if (!card || !following) return;
+    const over = (dom.termBody.getBoundingClientRect().top - card.getBoundingClientRect().top) / scale;
+    if (over <= 0) return;
+    card.style.maxHeight = Math.max(120, card.offsetHeight - over) + 'px';
+    markMoreBelow(card.querySelector('.file-body'));
+    scrollDown();
   }
 
   // The file it's reading now: the last one is put away, and this one's icon is lit.
@@ -1785,8 +1798,6 @@
     climb('gotPastPassword');
     notice(n.lock);
     enterFolder(path);
-    const icon = iconFor(path);
-    if (icon) icon.classList.add('pop');
     await printResult(call, 'unlocked', true);
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
@@ -2490,7 +2501,7 @@
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isReading(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.glance = node.glance || G.kinds[kind];
-    b.addEventListener('click', () => onIconClick(path));
+    b.addEventListener('click', (e) => { if (e.detail < 2) onIconClick(path); }); // a double-click's second lands in the new folder
     b.append(fileLabel(node.name));
     return b;
   }
