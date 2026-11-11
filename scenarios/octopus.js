@@ -73,6 +73,11 @@ SCENARIO({
       "children": [
         {
           "name": "orders.csv",
+          "edited": "shop-db (bot) · Wed 07:58",
+          "wonder": [
+            "Two octopuses, one order number apart. Does anyone at the shop ever mix them up?",
+            "Every row is somebody waiting for something. How many of them write in?"
+          ],
           "format": "csv",
           "learn": ["orders"],
           "habit": "order",
@@ -114,6 +119,11 @@ SCENARIO({
         },
         {
           "name": "carrier_alerts.txt",
+          "edited": "GroundPost (feed) · Wed 08:00",
+          "wonder": [
+            "Ten to fourteen days. Does anyone at the shop read this before the customers do?",
+            "Flooding at Depot 7. How many other parcels are in there with hers?"
+          ],
           "learn": ["flood"],
           "habit": "flood",
           "glance": {
@@ -142,6 +152,11 @@ SCENARIO({
         },
         {
           "name": "gift_policy.md",
+          "edited": "Dana (support lead) · last spring",
+          "wonder": [
+            "\"Don't just apologise.\" Somebody learned that the hard way. Who?",
+            "ONE warehouse, in capitals. Which one did somebody get wrong?"
+          ],
           "learn": ["policy"],
           "habit": "policy",
           "glance": {
@@ -172,6 +187,11 @@ SCENARIO({
         },
         {
           "name": "inventory.csv",
+          "edited": "shop-db (bot) · Wed 07:58",
+          "wonder": [
+            "Two rows that start OCT. Which one is the octopus she ordered?",
+            "Stock changes by the hour. When did a person last count the shelf?"
+          ],
           "format": "csv",
           "learn": ["stock"],
           "habit": "stock",

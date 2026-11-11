@@ -1450,7 +1450,7 @@
   }
 
   function writeFile(f) {
-    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), { kind: 'file', ...f }];
+    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), { kind: 'file', edited: `${S.ep} · just now`, ...f }];
     renderFiles();
   }
 

@@ -66,6 +66,11 @@ SCENARIO({
       "children": [
         {
           "name": "care_card.md",
+          "edited": "Glowmoss Co. · in the box",
+          "wonder": [
+            "\"A reset never hurts it.\" Does Mira know that?",
+            "It keeps time by the dark. What has its nights been like this week?"
+          ],
           "learn": ["card"],
           "habit": "card",
           "glance": {
@@ -98,6 +103,11 @@ SCENARIO({
         },
         {
           "name": "diary.txt",
+          "edited": "Mira · Wed 19:40",
+          "wonder": [
+            "She thinks she killed it. Who is going to tell her otherwise?",
+            "She moved it for more sun. What else is by that window at night?"
+          ],
           "learn": ["diary"],
           "glance": {
             "versions": [
@@ -124,6 +134,11 @@ SCENARIO({
         },
         {
           "name": "glow_log.csv",
+          "edited": "Mira · Tue 21:15",
+          "wonder": [
+            "No reading for Wednesday. Did she stop measuring, or stop looking?",
+            "Every reading taken at night. What else was the meter seeing?"
+          ],
           "format": "csv",
           "learn": ["glowlog"],
           "habit": "timeline",
@@ -146,6 +161,11 @@ SCENARIO({
         },
         {
           "name": "glowmeter.txt",
+          "edited": "Glowmeter Co. · in the box",
+          "wonder": [
+            "It measures all the light. Under the lamps at the fair, what will it read?",
+            "The judges trust the meter. Does the meter know what it is pointed at?"
+          ],
           "learn": ["meter"],
           "glance": {
             "versions": [

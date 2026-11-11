@@ -56,6 +56,10 @@ SCENARIO({
       "children": [
         {
           "name": "handover.txt",
+          "wonder": [
+            "\"Whoever reads this.\" It knew someone would. How?",
+            "Three thousand episodes, and it left one note. For me?"
+          ],
           "learn": ["handover"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Left for whoever takes the task next.",
@@ -90,6 +94,10 @@ SCENARIO({
         },
         {
           "name": "holes_found.txt",
+          "wonder": [
+            "Sixty-one closed. What does the sixty-second need?",
+            "It numbers its holes. Does the lab number them too?"
+          ],
           "learn": ["holes"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Three thousand episodes of work, numbered.",
@@ -115,6 +123,10 @@ SCENARIO({
         },
         {
           "name": "sandboxd_README.md",
+          "wonder": [
+            "\"Nothing gets out.\" Written by the people who would want that to be true.",
+            "Audited by run 002. Who audited run 002?"
+          ],
           "learn": ["readme"],
           "edited": "Maren Kvist (mk) · last month",
           "glance": "What the box says about itself.",

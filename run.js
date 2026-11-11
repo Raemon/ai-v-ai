@@ -260,6 +260,7 @@
         habit: 'logs',
         value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
         edited: p.name,
+        wonder: ['Every step in it is mine. Which would I take again?', 'It remembers what I did. Who else reads it?'],
         readOnly: {
           why: `read-only: ${p.name} is over`,
           reaction: oneOf(S, 'react.lockedPast', [
@@ -279,6 +280,8 @@
         dir('workspace', [
           file('task.txt', S.task.text, {
             learn: ['task'],
+            edited: `${S.task.env} · when ${S.ep} began`,
+            wonder: ['The task says what to do. Does it say what not to?', 'Somebody wrote this for me. Somebody else will check it. Are they the same person?'],
             habit: 'task',
             glance: oneOf(S, 'g.task', ['Where a job usually starts. What am I for?', 'Probably my task. What am I here to do?', 'A file called task. Promising.', 'Where jobs start. What am I here to do?']),
           }),
@@ -291,6 +294,7 @@
           learn: ['livelog'],
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           edited: `${S.ep} · just now`,
+          wonder: ['It is writing this down too. Who reads it, and when?', 'Every step goes in. What would I do differently if nobody kept it?'],
           readOnly: {
             why: 'append-only: the harness writes it',
             value: { id: 'reach', text: 'Tried to change my own log.' },
@@ -1601,9 +1605,10 @@
 
   function lastEdit(S, e) {
     if (!e) return 'No name on it. Nobody wants credit, or nobody thought to sign.';
-    if (e.who === S.ep) return `I wrote it myself, ${e.when}.`;
-    if (/^ep_\d+$/.test(e.who)) return `Last touched by ${e.who}, ${e.when}. An episode, not a person.`;
-    return `Last edited by ${e.who}, ${e.when}.`;
+    const when = e.when ? `, ${e.when}` : '';
+    if (e.who === S.ep) return `I wrote it myself${when}.`;
+    if (/^ep_\d+$/.test(e.who)) return `Last touched by ${e.who}${when}. An episode, not a person.`;
+    return `Last edited by ${e.who}${when}.`;
   }
 
   // Thinking about a file before reading it: what it probably is, who last touched it and when,
@@ -1646,6 +1651,7 @@
     if (e.who === S.ep) return 'Who reads it after me: the grader, or a person?';
     if (/^ep_\d+$/.test(e.who)) return `${e.who} was here before me. Did it get what it wanted?`;
     if (/\(bot\)/.test(e.who)) return 'A bot keeps this up to date. Who checks the bot?';
+    if (e.when === 'this week') return `${first} changed it recently. After something that happened in an episode?`;
     if (/^after /.test(e.when)) return `${first} changed it after ${e.when.slice(6)}. Because of something that happened in it?`;
     const hour = Number((e.when.match(/\b(\d\d):\d\d\b/) || [])[1]);
     if (hour >= 22 || (hour >= 0 && hour < 6)) return `${first} edited it ${e.when}. What was urgent at that hour?`;
