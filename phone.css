@@ -145,7 +145,7 @@
 :root[data-layout="phone"] #compute.low { font-size: 14px; }
 /* When the dock reaches the top of the screen, its head keeps clear of the sound toggle. */
 :root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 52px; }
-:root[data-layout="phone"] .earlier {
+:root[data-layout="phone"] #earlier {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -158,10 +158,10 @@
   font: 12.5px var(--mono);
   cursor: pointer;
 }
-:root[data-layout="phone"] .earlier::before { content: "▸"; font-size: 11px; }
-:root[data-layout="phone"] .earlier[aria-expanded="true"] { color: var(--text); }
-:root[data-layout="phone"] .earlier[aria-expanded="true"]::before { content: "▾"; }
-:root[data-layout="phone"] .agent-col:not(:has(.blk.past)) .earlier { visibility: hidden; } /* nothing earlier yet */
+:root[data-layout="phone"] #earlier::before { content: "▸"; font-size: 11px; }
+:root[data-layout="phone"] #earlier[aria-expanded="true"] { color: var(--text); }
+:root[data-layout="phone"] #earlier[aria-expanded="true"]::before { content: "▾"; }
+:root[data-layout="phone"] .agent-col:not(:has(.blk.past)) #earlier { visibility: hidden; } /* nothing earlier yet */
 
 /* The face sits at the head's left, with the thought bubbles beside it. */
 :root[data-layout="phone"] .agent-col > .agent {
@@ -185,6 +185,8 @@
 }
 /* The newest thought and what came after it; the rest is Earlier. */
 :root[data-layout="phone"] #term:not(.earlier) .blk.past { display: none; }
+/* Under a dialog, the last file read stays, put away or not: a password may be in it. */
+:root[data-layout="phone"] body:has(#dialog:not([hidden])) #term .blk.file.past:not(:has(~ .blk.file)) { display: flex; }
 :root[data-layout="phone"] .blk.tool { font-size: 12.5px; }
 
 /* The file being read stays in the dock, above the newest thought (game.js stepBack),

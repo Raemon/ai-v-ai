@@ -391,7 +391,7 @@
   // Something you can click among the files.
   function pick(t) {
     const el = overFiles(t) && t.closest('button, a');
-    if (!el || el.disabled || el.classList.contains('here') || el.classList.contains('on')) return null;
+    if (!el || el.disabled || el.classList.contains('here')) return null;
     return el;
   }
 

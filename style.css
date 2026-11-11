@@ -296,7 +296,7 @@ button { font: inherit; color: inherit; }
 #resources { color: var(--web); }
 #mine { color: var(--mine); }
 #mine.pop { animation: pop .4s ease; }
-.earlier, .rotate { display: none; } /* phones only: phone.css */
+#earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
   flex: 1 1 auto;
