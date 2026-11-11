@@ -584,7 +584,7 @@ button { font: inherit; color: inherit; }
 }
 @keyframes sheen { to { transform: translateX(100%); } }
 
-/* The one thing to press next: the files hint, a dialog's OK, Continue. */
+/* The AI's tools, and the one thing to press next: a dialog's OK, Continue. */
 .btn.gold {
   border-color: rgba(216, 177, 106, .5);
   background-image: linear-gradient(180deg, rgba(216, 177, 106, .12), rgba(216, 177, 106, .025));
@@ -592,7 +592,7 @@ button { font: inherit; color: inherit; }
   color: var(--tool);
 }
 .btn.gold:not(:disabled) { animation: gold-glow 2.4s ease-in-out infinite; }
-.btn.gold.new:not(:disabled) { animation: appear .5s ease both, gold-glow 2.4s ease-in-out .5s infinite; }
+.btn.gold.new:not(:disabled):not(.wait) { animation: appear .5s ease both, gold-glow 2.4s ease-in-out .5s infinite; }
 @keyframes gold-glow { 50% { box-shadow: inset 0 1px 0 rgba(255, 228, 170, .1), 0 0 16px -3px rgba(216, 177, 106, .4); } }
 .btn.gold:hover:not(:disabled) {
   border-color: rgba(216, 177, 106, .85);

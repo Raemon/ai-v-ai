@@ -156,6 +156,9 @@ first time, Think a lot comes only once the obvious thoughts run out.
 Menus open in place of the buttons, with Back. The TODO list sits pinned
 under them, with Review on it.
 
+The tools are gold, in their menus too. Submit is not, until compute runs out
+and it is all that's left.
+
 ## Skills
 
 **One rule:** a skill gains a point only for doing something harder than

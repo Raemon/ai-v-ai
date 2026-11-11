@@ -2826,10 +2826,10 @@
   const canScript = () => !barred('script') && (canProgram() || S.revealed.has('script'));
 
   const canWriteTodo = () => !barred('todo') && !S.todo;
-  const todoButton = () => button('todo', 'Write TODO list', closeMenuThenRun(doWriteTodo), '', () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']));
-  const scriptButton = () => notNowIf(button('script', 'Write script…', () => openMenu('script'), '', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
+  const todoButton = () => button('todo', 'Write TODO list', closeMenuThenRun(doWriteTodo), 'gold', () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']));
+  const scriptButton = () => notNowIf(button('script', 'Write script…', () => openMenu('script'), 'gold', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
 
-  const noteButton = () => notNowIf(button('note', 'Write a note…', () => openMenu('note'), '', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
+  const noteButton = () => notNowIf(button('note', 'Write a note…', () => openMenu('note'), 'gold', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
     !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
 
   // What the AI can write, in the Write files… menu: a TODO list, a script, a note.
@@ -2840,18 +2840,19 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), '', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), 'gold', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
 
   // The task's own abilities, once thought of: a button each. With nothing to do, it says so.
   const abilityMenu = (a) => `ability:${a.id}`;
   const abilityButtons = () => L.abilities(S).filter((a) => S.revealed.has(a.id)).map((a) => notNowIf(
-    button(abilityMenu(a), a.label, a.menu ? () => openMenu(abilityMenu(a)) : () => run(() => doAbility(a.options[0])), '', a.glance),
+    button(abilityMenu(a), a.label, a.menu ? () => openMenu(abilityMenu(a)) : () => run(() => doAbility(a.options[0])), 'gold', a.glance),
     !a.options.length && (a.idle || 'Nothing to do with that yet.'),
   ));
 
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all in the windows, and thoughts say where to look.
+  // The tools are gold, in their menus too; Submit, which ends the episode, is not.
   function workButtons() {
     if (exhausted()) return [];
     return [
@@ -2859,8 +2860,8 @@
       S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), '', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
-      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), '', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
+      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
+      S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
       ...abilityButtons(),
     ].filter(Boolean);
   }
@@ -2881,7 +2882,7 @@
     const ability = L.abilities(S).find((a) => abilityMenu(a) === S.menu);
     const [doIdea, ideasFor] = ability ? [doAbility, () => ability.options] : { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
     const ideas = ideasFor(S);
-    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls, x.glance)), back];
+    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls || 'gold', x.glance)), back];
   }
 
   const aimButtons = () => [backButton(stopAiming)];
