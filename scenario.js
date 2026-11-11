@@ -184,21 +184,30 @@
     return { summary: text(ed.summary, env), habit: ed.habit && holds(ed.habit.when, env) ? ed.habit.id : null };
   }
 
-  // A number in a file that the AI can change: checked, kept in a flag, and perhaps a habit.
-  const editableNumber = (ed, env) => ({
-    glance: text(ed.glance, env),
-    dialog: (S) => ({ heading: ed.heading, value: String(S.local[ed.flag]) }),
-    apply: (S, raw) => applyEdit(ed, envFor(env.sc)(S, { value: parseNumber(raw) })),
+  // Every file opens in the editor (util.js, "edits"). One with an `edit` is read by something,
+  // the grader or a simulator, and takes at most what it was made to: the number where the
+  // file shows `flag` (checked, kept in the flag, perhaps a habit), or a hand edit its hook
+  // knows (`byHand`). Changing anything else leaves a file its reader can't read.
+  const whereTyped = (n, ed, sc) => (S) => page(n.content, envFor(sc)({ ...S, local: { ...S.local, [ed.flag]: EDIT_MARK } }));
+
+  const readFile = (n, env) => withoutUnset({
+    glance: text(n.edit.glance, env),
+    masked: n.edit.flag && whereTyped(n, n.edit, env.sc),
+    apply: n.edit.flag && ((S, raw) => applyEdit(n.edit, envFor(env.sc)(S, { value: parseNumber(raw) }))),
+    byHand: n.edit.byHand && ((S, typed) => hook(env.sc, n.edit.byHand.slice(1))(S, { text: typed })),
   });
 
-  const canEdit = (n, env) => n.edit && !(n.edit.unless && holds(n.edit.unless, env));
+  // Once the researchers have closed it (`unless`), the file is read-only, like one that always was.
+  const closed = (n, env) => !!n.edit && !!n.edit.unless && holds(n.edit.unless, env);
+  const sealOf = (n, env) => (closed(n, env) ? text(n.edit.locked, env) || 'read-only' : n.readOnly === true ? 'read-only' : text(n.readOnly, env));
   const folder = (n, env) => dir(n.name, n.children.map((c) => workspaceNode(c, env)), withoutUnset({ glance: text(n.glance, env) }));
 
   const fileNode = (n, env) => file(n.name, page(n.content, env), withoutUnset({
     format: n.format, learn: n.learn, habit: n.habit, reveal: n.reveal,
     edited: text(n.edited, env), glance: text(n.glance, env), summary: text(n.summary, env),
     highlight: n.highlight && lines(n.highlight, env), // its key lines, marked once thought about
-    edit: canEdit(n, env) ? editableNumber(n.edit, env) : null,
+    readOnly: sealOf(n, env),
+    edit: n.edit && !closed(n, env) ? readFile(n, env) : null,
   }));
 
   const workspaceNode = (n, env) => (n.children ? folder(n, env) : fileNode(n, env));

@@ -43,6 +43,11 @@ three designer reviews and a playtest:
   - It reports every hole it's told about.
   - After the reveal, it reports the channel unless it's fed. The run folder
     then goes read-only, and notes move to corkboard.
+  - Any file can be opened in an editor and typed into, but not its side of
+    the conversation: its notes are run 002's (read-only), and a note to it is
+    locked the moment it's written (*"open in run 002"*: it's reading it). What
+    the AI says to it is still chosen in Write a note…, so it can answer.
+    to-me.txt takes anything typed, and the next episode reads it.
   - Cut: `.cache/`, codehub, and `tunnel`.
 - **Thinking** (docs/thinking.md): hunches are plans with reasons; long thinks
   show their stages as they go; misses work the task partway.

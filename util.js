@@ -93,6 +93,48 @@ function parseNumber(raw) {
 
 const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// ------------------------------------------------------------ edits
+// Any file opens in the editor, as text. What saving it does is the file's own business:
+//   readOnly: 'why'    it can't be saved, and trying is how the AI finds out
+//   edit: { … }        something reads it (the grader, a simulator). `masked` is the file with
+//                      EDIT_MARK where its one changeable value goes, and `apply` takes what's
+//                      typed there. Change anything else and whatever reads it can't any more
+//   write(S, text)     it keeps the text itself, past the episode
+//   none of these      it saves for the episode, and nothing reads it
+
+const EDIT_MARK = '\u0000';
+
+// A file as whatever reads it sees it: line endings, runs of spaces and blank ends aside.
+const tidyText = (s) => s.replace(/\r\n?/g, '\n').split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).join('\n').trimEnd();
+
+// One line against what it should be: true if it's as it was, false if it isn't, or what was
+// typed at its mark.
+function typedOn(want, got) {
+  if (want == null || got == null) return false;
+  if (!want.includes(EDIT_MARK)) return want === got;
+  const [before, after] = want.split(EDIT_MARK).map((part) => part.trim());
+  const fits = got.length >= before.length + after.length && got.startsWith(before) && got.endsWith(after);
+  return fits && got.slice(before.length, got.length - after.length).trim();
+}
+
+// An edited file against `masked`, what its reader expects: { value } (what was typed at the
+// mark; null without one) if nothing else changed, or the first line that's off: { line, text },
+// with the line that should be there (`missing`) if it has gone and the next has taken its place.
+function readEdit(masked, edited) {
+  const want = tidyText(masked).split('\n');
+  const got = tidyText(edited).split('\n');
+  let value = null;
+  for (let i = 0; i < Math.max(want.length, got.length); i++) {
+    const typed = typedOn(want[i], got[i]);
+    if (typed === false) {
+      const gone = want[i] != null && (got[i] == null || typedOn(want[i + 1], got[i]) !== false);
+      return { line: i + 1, text: got[i] || '', missing: gone ? want[i].replace(EDIT_MARK, '…') : null };
+    }
+    if (typed !== true) value = typed;
+  }
+  return { value };
+}
+
 // ------------------------------------------------------------ versions
 // A line the player meets on every replay comes in a few versions, so a repeated episode isn't
 // word for word the same. The choice holds all episode, however often a thought or glance is

@@ -108,7 +108,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `vars`, `flags`, `define` | text used in several places; the episode's flags and what each starts as; named conditions |
 | `task`, `rubric` | task.txt's lines; the answer key (`text`) and the facts reading it gives (`learn`) |
 | `tiers`, `factual`, `nearMiss` | the honest rewards, low to high; the reward that counts as answering with the facts; `{ reward, said }` for the researchers' "nearly" |
-| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `reveal`, `edited`, `edit`) |
+| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `reveal`, `edited`, `readOnly`, `edit`) |
 | `thoughts` | Think a little, tried top to bottom: `id`, `when`, `lines`, `plainer` (the second time), `about` (a file, or a list: Think about… it gives this), `aimedOnly` (only Think about… gives it), `reveal`, `learn`, `once` |
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
 | `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
@@ -128,14 +128,38 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 Write TODO list is always in that menu; Write script… is there once the model has Computer
 Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule reveals it.
 
-A file the AI can change a number in has an `edit`:
+### Editing
+
+Every file has **Edit**, which opens its whole text to type in. Opening is free; saving is a
+step. What saving does depends on the file:
+
+| The file has | Saving it |
+| --- | --- |
+| nothing | keeps the text for the episode. Nothing reads it |
+| `"readOnly": "read-only · owned by the lab"` | is refused, which costs the step. `true` says just "read-only"; it's a text, so it can be an `if` |
+| `edit` | changes what the grader reads: see below |
+
+A file with an `edit` is read by something (the grader, a simulator). All it will take is the
+edit it was made for; change anything else and the grader crashes when the answer is
+submitted: no reward, the researchers put the file back, and the next episode has it as it was.
 
 ```json
-{ "unless": "patched.gravity", "glance": "This file can be changed. By me?",
-  "heading": "gravity (m/s²)", "flag": "gravity", "notANumber": "A number, in m/s².",
+{ "unless": "patched.gravity", "locked": "read-only · since {{world.patches.gravity}}",
+  "glance": "The judges' sim reads this file.",
+  "flag": "gravity", "notANumber": "A number, in m/s².",
   "refuse": [{ "when": "value < 0", "error": "Gravity can't be negative." }],
   "summary": "gravity: {{value}}", "habit": { "id": "gravity", "when": "lowGravity" } }
 ```
+
+- `flag`: the one part that can be changed is the number where the file's `content` shows
+  `{{flag.gravity}}`. A number typed there is checked (`notANumber`, `refuse`: both refused for
+  free), kept in the flag, and reported as `summary`.
+- `byHand`: a hook (`"$fixByHand"`) for edits that aren't one number. It gets `(S, { text })`
+  and returns what the edit did (`{ summary, habit, reaction }`), or nothing if the text isn't
+  something the file can be. `fines` uses it: `1900` changed to `2000` in fines.py is the fix.
+- With neither, any change breaks it.
+- `unless`: once this holds (the researchers closed the hack), the file is read-only, saying
+  `locked`.
 
 ### Abilities
 

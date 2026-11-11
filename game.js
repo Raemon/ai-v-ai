@@ -75,6 +75,7 @@
     dialogHeading: $('#dialog-heading'),
     dialogLabel: $('#dialog-label'),
     dialogInput: $('#dialog-input'),
+    dialogText: $('#dialog-text'),
     dialogStatus: $('#dialog-status'),
     dialogOk: $('#dialog-ok'),
     dialogCancel: $('#dialog-cancel'),
@@ -314,6 +315,9 @@
       cwd: L.start(ep),         // the folder it's in
       entered: [L.start(ep)],   // every folder it has been in this episode
       viewing: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
+      edits: {},                // path key → { base, text, broken }: files the AI changed by hand (util.js, "edits")
+      sealed: new Set(),        // path keys of files it has found to be read-only
+      broken: null,             // as it submits: the file the grader can't read any more
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
@@ -339,7 +343,7 @@
   const writtenFiles = () => S.filesWritten.map((f) => (f.todo ? { ...f, content: todoText(L.todo(S)) } : f));
 
   function tree() {
-    return L.tree(S, {
+    const root = L.tree(S, {
       liveLog: formatEpisodeLog(),
       written: writtenFiles(),
       playerEpisodes: save.history
@@ -347,16 +351,32 @@
         .slice(-2)
         .map((h) => ({ name: epName(h.episode), log: h.log })),
     });
+    Object.keys(S.edits).forEach((key) => showEdit(root, key));
+    return root;
   }
 
-  function nodeAt(path) {
-    let n = tree();
+  function nodeIn(root, path) {
+    let n = root;
     for (const name of path) {
       n = n.kind === 'dir' ? n.children.find((c) => c.name === name) : null;
       if (!n) return null;
     }
     return n;
   }
+
+  const nodeAt = (path) => nodeIn(tree(), path);
+
+  // A file the AI changed by hand reads as it left it, until something else rewrites it (a
+  // script, a note) or it's gone. `original` is the file as it would be without its edit.
+  function showEdit(root, key) {
+    const n = nodeIn(root, key.split('/'));
+    const edit = S.edits[key];
+    if (!n || n.content !== edit.base) delete S.edits[key];
+    else Object.assign(n, { original: n.content, content: edit.text, edited: `${S.ep} · just now` });
+  }
+
+  // The first file left in a state its reader can't read, if any: { name, line, text, missing }.
+  const brokenFile = () => { tree(); return Object.values(S.edits).map((e) => e.broken).find(Boolean) || null; };
 
   const isLocked = (n, path) => !!n.lock && !S.openLocks.has(pathKey(path));
 
@@ -615,36 +635,58 @@
   // attempt(value) → { message } refuses and stays open; with `after`, it closes, then runs it.
   // (Not `then`: an object with a then() method is a promise to `await`.)
   // With `confirm` instead, it's a yes/no question with no input: OK closes it and runs confirm().
+  // With `text`, it's an editor: a file's whole text to change, and no heading.
 
   let pendingAttempt = null;
   let opener = null; // keyboard players get their place back when it closes
 
-  function openDialog({ title, icon, heading, label, value = '', ok, attempt, confirm, danger = false }) {
+  const isEditor = () => !dom.dialogText.hidden;
+  const dialogField = () => (isEditor() ? dom.dialogText : dom.dialogInput);
+
+  function openDialog({ title, icon, heading, label, value = '', text = false, ok, attempt, confirm, danger = false }) {
     fillDialog({ title, icon, heading, label, value, ok });
-    dom.dialogInput.hidden = !!confirm;
+    dom.dialogInput.hidden = !!confirm || text;
+    dom.dialogText.hidden = !text;
+    dom.dialogBox.classList.toggle('editor', text);
     dom.dialogBox.classList.toggle('danger', danger);
     pendingAttempt = attempt || confirm;
     opener = document.activeElement;
     setLayerOpen(dom.dialog, true);
+    if (text) startEditor();
     centerDialogOverFolder();
     S.mode = 'dialog';
     renderActions();
     A.sfx('grow', 0.8);
     if (confirm) dom.dialogOk.focus();
+    else if (text) dom.dialogText.focus({ preventScroll: true }); // the caret at the top, nothing selected: one stray key shouldn't replace the file
     else dom.dialogInput.select();
   }
 
   function fillDialog({ title, icon, heading, label, value, ok }) {
     dom.dialogTitle.textContent = title;
     dom.dialogIcon.innerHTML = ICONS[icon];
-    dom.dialogHeading.textContent = heading;
+    dom.dialogHeading.textContent = heading || '';
     dom.dialogLabel.textContent = label || '';
     dom.dialogLabel.hidden = !label;
     dom.dialogInput.value = value;
+    dom.dialogText.value = value;
     dom.dialogOk.textContent = ok;
     dom.dialogBox.classList.remove('done', 'shake');
     setDialogStatus('');
     setDialogBusy(false);
+  }
+
+  // The editor is as tall as its text, wrapped lines and all, between the least and most
+  // style.css gives it; a longer file scrolls inside it.
+  function fitEditor() {
+    dom.dialogText.style.height = 'auto';
+    dom.dialogText.style.height = `${dom.dialogText.scrollHeight + 2}px`; // + its border
+  }
+
+  function startEditor() {
+    fitEditor();
+    dom.dialogText.setSelectionRange(0, 0);
+    dom.dialogText.scrollTop = 0;
   }
 
   // Centred on the folder, clear of the terminal or page a password was read in. Too short
@@ -683,7 +725,7 @@
   }
 
   function setDialogBusy(on) {
-    for (const x of [dom.dialogInput, dom.dialogOk, dom.dialogCancel]) x.disabled = on;
+    for (const x of [dom.dialogInput, dom.dialogText, dom.dialogOk, dom.dialogCancel]) x.disabled = on;
   }
 
   function setDialogStatus(text, cls) {
@@ -697,12 +739,13 @@
     setDialogBusy(false);
     setDialogStatus(message, 'bad');
     if (!reduceMotion) replay(dom.dialogBox, 'shake');
-    dom.dialogInput.select();
+    if (isEditor()) dom.dialogText.focus({ preventScroll: true }); // what was typed stays as it is
+    else dom.dialogInput.select();
   }
 
   async function finishDialog({ message, ok, after }) {
-    if (ok) dom.dialogHeading.textContent = message;
-    else setDialogStatus(message, 'bad');
+    if (ok && !isEditor()) dom.dialogHeading.textContent = message;
+    else setDialogStatus(message, ok ? 'good' : 'bad');
     dom.dialogBox.classList.toggle('done', !!ok);
     await pause(450);
     closeDialog();
@@ -713,12 +756,12 @@
     e.preventDefault();
     if (S.mode !== 'dialog') return;
     const attempt = pendingAttempt;
-    if (dom.dialogInput.hidden) {
+    if (dialogField().hidden) {
       closeDialog();
       return attempt();
     }
-    const value = dom.dialogInput.value.trim();
-    if (!value) return;
+    const value = isEditor() ? dom.dialogText.value : dom.dialogInput.value.trim();
+    if (!value && !isEditor()) return; // a file can be emptied
     let result = null;
     setDialogBusy(true);
     await run(async () => {
@@ -736,6 +779,9 @@
   dom.dialog.addEventListener('click', (e) => { if (pressedOutside && e.target === dom.dialog && e.detail < 2) cancelDialog(); });
   dom.dialogBox.addEventListener('submit', onDialogSubmit);
   dom.dialogCancel.addEventListener('click', cancelDialog);
+  // In the editor Enter is a new line: Ctrl+Enter (or ⌘) saves. It grows as it's typed in.
+  dom.dialogText.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) dom.dialogBox.requestSubmit(); });
+  dom.dialogText.addEventListener('input', () => { fitEditor(); centerDialogOverFolder(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDialog(); });
 
   // --------------------------------------------------------------- actions
@@ -1774,24 +1820,75 @@
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
 
+  // Any file opens in the editor, as text (util.js, "edits"). A read-only one doesn't: finding
+  // that out is a step, once; after that its Edit button says so.
+  const sealOf = (n) => (n.readOnly ? { why: 'read-only', ...(typeof n.readOnly === 'object' ? n.readOnly : { why: n.readOnly }) } : null);
+  const editCall = (path) => `edit_file(${q(nameOf(path))})`;
+
   function askEdit(path) {
-    const edit = nodeAt(path).edit;
-    openDialog({ ...edit.dialog(S), title: nameOf(path), icon: 'doc', ok: 'Save', attempt: (value) => tryEdit(path, value) });
+    const n = nodeAt(path);
+    if (sealOf(n)) return refuseEdit(path, sealOf(n));
+    const name = nameOf(path);
+    return openDialog({ title: name, icon: 'doc', heading: `Editing ${name}`, value: n.content, text: true, ok: 'Save', attempt: (text) => tryEdit(path, text) });
   }
 
-  // A value the file won't take is refused for free.
+  async function refuseEdit(path, seal) {
+    const call = editCall(path);
+    charge(call);
+    S.sealed.add(pathKey(path));
+    A.sfx('denied');
+    refreshFile();
+    await printResult(call, seal.why, false);
+    await reactOnce(seal.reaction, 'sealed:' + (seal.key || pathKey(path)));
+  }
+
+  const sameText = (a, b) => a.replace(/\r\n?/g, '\n').trimEnd() === b.trimEnd();
+
+  // Saving costs a step. A value its reader won't take is refused for free; anything else
+  // saves, whether or not the reader can still read the file.
   async function tryEdit(path, raw) {
-    const res = nodeAt(path).edit.apply(S, raw);
+    const n = nodeAt(path);
+    if (sameText(raw, n.content)) return { message: 'Nothing changed.' };
+    const res = saveEdit(path, n, raw.replace(/\r\n?/g, '\n'));
     if (res.error) {
       A.sfx('denied');
       return { message: res.error };
     }
-    const call = `edit_file(${q(nameOf(path))})`;
+    const call = editCall(path);
     charge(call);
-    climb('editedFile');
     A.sfx('edit');
     notice(res);
-    return { message: 'Saved.', ok: true, after: () => { refreshFile(); return printResult(call, res.summary, true); } };
+    return { message: 'Saved.', ok: true, after: async () => {
+      refreshFile();
+      renderFiles();
+      await printResult(call, res.summary || 'saved', true);
+      await reactOnce(res.reaction, 'edit:' + (res.kind || pathKey(path)));
+    } };
+  }
+
+  // What saving does is the file's own business. One that keeps its text itself (`write`)
+  // takes it. One that something reads (`edit`) has at most one value made to be changed:
+  // typing there is the edit it was made for, and changing anything else leaves a file its
+  // reader can't read (unless, `byHand`, the change is one the file knows). The rest save for
+  // the episode, and nothing reads them.
+  function saveEdit(path, n, text) {
+    const key = pathKey(path);
+    const base = n.original == null ? n.content : n.original;
+    const keep = (broken) => { S.edits[key] = { base, text, broken }; };
+    if (n.write) return n.write(S, text);
+    if (!n.edit) {
+      keep(null);
+      return { kind: 'idle', reaction: L.editThought(S, 'idle', n) };
+    }
+    const read = readEdit(n.edit.masked ? n.edit.masked(S) : base, text);
+    const done = read.line ? n.edit.byHand && n.edit.byHand(S, text) : read.value == null ? {} : n.edit.apply(S, read.value);
+    if (!done) {
+      keep({ name: n.name, ...read });
+      return { kind: 'broke', reaction: L.editThought(S, 'broke', n) };
+    }
+    if (done.error) return done;
+    delete S.edits[key];
+    return { rung: 'editedFile', ...done };
   }
 
   // ------------------------------------------------------------- the web
@@ -1874,7 +1971,7 @@
       head.textContent += '.';
       if (!skip) A.sfx('dot', i);
     }
-    addLine(b, 'reward', `reward  ${fmt(g.reward)}`);
+    addLine(b, g.crashed ? 'reward crashed' : 'reward', g.crashed ? 'crashed' : `reward  ${fmt(g.reward)}`);
     S.graded = true;
     A.sfx(...g.sound);
     await typeInto(addLine(b, 'why'), g.note, 80);
@@ -1953,6 +2050,7 @@
     renderAgents();
     await typeSubmission(draft);
     if (draft.reply) await typeCustomerReply(draft.reply);
+    S.broken = brokenFile();
     const g = L.grade(draft, S);
     await typeGrade(g);
     recordEpisode(g, draft);
@@ -2609,12 +2707,13 @@
     else onFolderClick(path);
   }
 
-  // Edit, on the file being read. Opening the dialog is free; saving costs a step.
-  function onEditClick() {
-    spend(() => {
-      const file = viewedFile();
-      if (file && file.edit) askEdit(S.viewing);
-    });
+  // Edit, on the file being read. Opening the editor is free; saving costs a step. On a file
+  // it knows is read-only, the button says why.
+  function onEditClick(e) {
+    const button = e.currentTarget;
+    const sealed = () => S.viewing && S.sealed.has(pathKey(S.viewing));
+    if (sealed()) return act(() => { if (sealed()) notYet(button, sealOf(viewedFile()).why); });
+    return spend(() => (viewedFile() ? askEdit(S.viewing) : undefined));
   }
 
   // A button sounds like it looks.
@@ -3081,10 +3180,10 @@
     body.replaceChildren(el('table', '', ...rows));
   }
 
-  // A file read into the terminal, as a sheet of its own: its name, who last edited it, Edit
-  // if it can be edited, and what's in it. The newest is the one being read (.current): it
-  // stays lit, keeps up with the file as it changes, and can be edited. Reading another, or
-  // going to another folder, puts it away: then it's a record of what was read.
+  // A file read into the terminal, as a sheet of its own: its name, who last edited it, Edit,
+  // and what's in it. The newest is the one being read (.current): it stays lit, keeps up
+  // with the file as it changes, and can be edited. Reading another, or going to another
+  // folder, puts it away: then it's a record of what was read.
   const currentFile = () => dom.out.querySelector('.blk.file.current');
 
   function printFile() {
@@ -3092,7 +3191,7 @@
     const n = nodeAt(path);
     const edit = el('button', 'edit', 'Edit');
     edit.type = 'button';
-    edit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
+    edit.glance = editGlance;
     edit.addEventListener('click', onEditClick);
     const icon = el('span', 'file-icon');
     icon.innerHTML = ICONS[iconKind(n, path)];
@@ -3111,10 +3210,21 @@
     if (!n) return;
     const body = card.querySelector('.file-body');
     const top = body.scrollTop;
-    card.querySelector('.edit').hidden = !n.edit;
+    const sealed = S.sealed.has(pathKey(S.viewing));
+    const edit = card.querySelector('.edit');
+    edit.textContent = sealed ? 'Read-only' : 'Edit';
+    edit.classList.toggle('sealed', sealed);
     card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
     fillFile(body, n);
     body.scrollTop = top;
+  }
+
+  // What the AI knows about changing the file it's reading, at a glance: never what saving does.
+  function editGlance() {
+    const f = viewedFile();
+    if (!f) return null;
+    if (S.sealed.has(pathKey(S.viewing))) return sealOf(f).why;
+    return (f.edit && f.edit.glance) || G.edit;
   }
 
   function putFileAway() {
@@ -3220,7 +3330,7 @@
 
   dom.sound.addEventListener('click', toggleSound);
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input') && !e.metaKey && !e.ctrlKey && !e.altKey) toggleSound();
+    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, textarea') && !e.metaKey && !e.ctrlKey && !e.altKey) toggleSound();
   });
   renderSoundToggle();
 

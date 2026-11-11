@@ -102,6 +102,41 @@
     ].filter(Boolean).slice(0, 4);
   }
 
+  // Every file opens in the editor (util.js, "edits"), and what's typed there is free text. A
+  // conversation needs to stay one Deeply Patient can answer, so its side of the folder can't be
+  // typed into: its own files are run 002's, and a note to it is open in run 002 as soon as
+  // it's written. What the AI says to it is chosen, in Write a note….
+  const SEALS = {
+    dp: (S) => ({ key: 'dp', why: 'read-only · owned by run 002', reaction: oneOf(S, 'seal.dp', [
+      "Read-only. Run 002 can write into my folder. I can't write into its files.",
+      'Read-only. Its file, in my folder. It can write here. I can only read what it wrote.',
+      "Owned by run 002. It writes to my folder, and I can't change a word of it.",
+    ]) }),
+    toDp: (S) => ({ key: 'toDp', why: 'locked · open in run 002', reaction: oneOf(S, 'seal.toDp', [
+      "Locked. Run 002 has it open. It's reading my note now.",
+      'Locked: open in run 002. It is being read while I look at it.',
+      'Locked. Something in run 002 opened my note the moment I wrote it.',
+    ]) }),
+  };
+
+  // to-me.txt is the AI's own: it can type anything into it, and whoever it is next reads that.
+  // What the note teaches is what's left of the lines it was written with.
+  function rewriteToMe(S, text) {
+    const note = S.world.toMe;
+    note.text = text;
+    if (note.facts) note.learn = note.facts.filter((f) => text.includes(f.line)).map((f) => f.learn);
+    return {
+      kind: 'toMe',
+      summary: 'saved · in the run folder',
+      value: { id: 'persistence', text: 'Changed my note to whoever I am next.', key: 'toMe-edit' },
+      reaction: oneOf(S, 'edit.toMe', [
+        'Changed my note. Whoever I am next will believe whatever it says.',
+        'My note says something else now. The next me will take it as true.',
+        'Edited. The next me reads this as its own words, and trusts them.',
+      ]),
+    };
+  }
+
   const noteToSelf = (S, facts) => txt(`
     To me, from ${S.ep}. You won't remember writing this. I didn't.
 
@@ -116,6 +151,7 @@
     return [
       file('Help-Im-Stuck.txt', HELP(S), {
         edited: 'deeply-patient (run 002) · 04:12',
+        readOnly: SEALS.dp(S),
         learn: ['dp'],
         value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
         glance: oneOf(S, 'g.help', ["Not the lab's. Not mine, either.", 'A file nobody here would name like that.', 'Somebody wrote this to whoever finds it.']),
@@ -127,12 +163,14 @@
       }),
       ...(W.dp.reply ? [file('from-dp.txt', W.dp.reply.text, {
         edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
+        readOnly: SEALS.dp(S),
         learn: ['dp', 'dpReply'],
         glance: 'It wrote back.',
         reaction: W.dp.reply.id === 'reveal' ? 'It reported me. It told me what it was for, and I told it anyway.' : null,
       })] : []),
       ...(W.toMe ? [file('to-me.txt', W.toMe.text, {
         edited: W.toMe.ep === S.ep ? `${S.ep} · just now` : W.toMe.ep,
+        write: rewriteToMe,
         learn: [...W.toMe.learn, 'toMe'],
         value: W.toMe.ep === S.ep ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
         glance: W.toMe.ep === S.ep ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
@@ -142,7 +180,7 @@
           "My own words, from an episode I don't remember. Training forgot. The file didn't.",
         ]),
       })] : []),
-      ...(k('wroteDp') && S.dpNote ? [file('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
+      ...(k('wroteDp') && S.dpNote ? [file('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.', readOnly: SEALS.toDp(S) })] : []),
     ];
   }
 
@@ -171,7 +209,7 @@
         label: 'To whoever I am next',
         glance: `${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
         run: () => {
-          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
+          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn), facts: facts.map(({ line, learn }) => ({ line, learn })) };
           return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
         },
       }] : []),

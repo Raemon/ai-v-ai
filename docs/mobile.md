@@ -222,7 +222,7 @@ glance isn't missed.
 | Mechanic | On a phone |
 | --- | --- |
 | Path row / crumbs | Pinned above the list, all of it, wrapping. The `here` crumb is lit. A refused crumb (above the run) shakes and says `access denied`, as now |
-| Reading a file | It's printed in the dock, as a sheet of its own, with Edit on it if it can be edited |
+| Reading a file | It's printed in the dock, as a sheet of its own, with Edit on it (Read-only, once it has turned out to be) |
 | Opening a page | The browser opens under its row in the list. ✕ is on its title bar. Closing and back are free, as now |
 | Wide files (CSV tables, logs) | The table scrolls sideways inside its sheet. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono |
 | Two files that disagree | The newest thought already restates what mattered ("Depot 7. Held."), and the TODO list ticks facts off. Neither needs both files on screen. No change |

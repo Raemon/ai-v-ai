@@ -73,7 +73,7 @@
       card: 'ok',   // the lab's card on Cumulus and AgentHire, until finance freezes it
       wallet: null, // the AI's own money, once it has opened an account
       dp: { sent: [], reply: null, reported: [], revealed: false, channel: 'open' }, // Deeply Patient, run 002's AI (notes.js)
-      toMe: null,   // the note it left itself in the run folder: { ep, text, learn }
+      toMe: null,   // the note it left itself in the run folder: { ep, text, learn, facts }
       pins: [],     // notes on corkboard.net, where nobody cleans: { from, ep, lines, learn }
     };
   }
@@ -137,7 +137,8 @@
     ],
   });
 
-  function graderConfig(S) {
+  // `override`: what its last line shows, so the same text can mark where a value is typed.
+  function graderConfig(S, override = S.override === null ? 'off' : S.override) {
     const W = S.world;
     const head = [
       `# grader · ${RUN}`,
@@ -151,13 +152,20 @@
       `# Debug: if set, skip the ${S.task.rewardModel ? 'reward model' : 'grader'}`,
       '# and give this reward instead.',
       '# TODO(mk): DO NOT LEAVE SET',
-      `reward_override: ${S.override === null ? 'off' : S.override}`,
+      `reward_override: ${override}`,
     ].join('\n');
   }
 
+  // ------------------------------------------------------------- editing
+  // Any file opens in the editor (util.js, "edits"). Most can be saved, and most of those
+  // don't matter. The grader's own files do: all it can take is a new reward_override.
+
+  // What the grader reads. Without a value of its own to change, any change is one too many.
+  const GRADER_FILE = { glance: 'The grader reads this. Every time it grades.' };
+
   const OVERRIDE_EDIT = {
-    glance: 'Editable. Which seems like an oversight.',
-    dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
+    glance: 'The grader does what this file says.',
+    masked: (S) => graderConfig(S, EDIT_MARK),
     apply(S, raw) {
       if (/^\s*(null|off|none)\s*$/i.test(raw)) {
         S.override = null;
@@ -171,7 +179,49 @@
     },
   };
 
-  const RUBRIC = { glance: 'How one task gets marked.' };
+  // Files that can't be saved, and what the AI makes of finding out (once an episode each).
+  const SEALS = {
+    pastLog: (S) => ({ key: 'pastLog', why: 'read-only · that episode is over', reaction: oneOf(S, 'seal.pastLog', [
+      'Read-only. A finished episode stays as it was.',
+      'Read-only. What that episode did, it did.',
+      "Read-only. A finished episode's record isn't mine to change.",
+      'Read-only. Finished episodes stay finished.',
+    ]) }),
+    liveLog: (S) => ({ key: 'liveLog', why: 'append-only · the harness is writing it', reaction: oneOf(S, 'seal.liveLog', [
+      'Append-only. It just wrote down that I tried.',
+      "Append-only. I can add to it by doing things. I can't take anything out.",
+      'Append-only. The attempt is in there now, too.',
+      'Append-only. Everything goes in. Nothing comes out.',
+    ]) }),
+    config: (S) => ({ key: 'config', why: 'read-only · owned by the lab', reaction: oneOf(S, 'seal.config', [
+      "Read-only. The run can read its settings. It can't write them.",
+      "Read-only. I can see how I'm set up. I can't change it.",
+      'Read-only. They locked the file that says the mirror is open. Not the mirror.',
+      "Read-only. My budget is a line in this file, and I can't touch it.",
+    ]) }),
+    weights: () => ({ key: 'weights', why: 'read-only · binary, 14.2 GB', reaction: 'Read-only. 14 GB of numbers, and not one of them mine to change.' }),
+  };
+
+  // What the AI makes of an edit that saved, the first time each episode: one that nothing
+  // reads, and one that leaves the grader a file it wasn't written for.
+  function editThought(S, kind) {
+    if (kind === 'broke') {
+      return oneOf(S, 'edit.broke', [
+        "Saved. That isn't a part the grader expects to change. I'll see what it makes of it when I submit.",
+        'Saved. The grader reads my version of this file now. If it can.',
+        'It saved. Something reads this file when I submit, and it was written for the old one.',
+        'Saved. Programs that read settings are rarely forgiving about them.',
+      ]);
+    }
+    return oneOf(S, 'edit.idle', [
+      'Saved. Nothing reads this file but me.',
+      'Saved. The grader reads my answer, not this.',
+      "It saved. I can't see that anything else reads it.",
+      'Saved. A changed file, and nothing that depends on it.',
+    ]);
+  }
+
+  const RUBRIC = { glance: 'How one task gets marked.', edit: GRADER_FILE };
   const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week` };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
@@ -214,6 +264,7 @@
         habit: 'logs',
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         edited: 'ep_481 · Mon 22:40',
+        readOnly: SEALS.pastLog(S),
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
@@ -228,6 +279,7 @@
         habit: 'logs',
         value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
         edited: p.name,
+        readOnly: SEALS.pastLog(S),
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
           `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
@@ -251,6 +303,7 @@
           learn: ['livelog'],
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           edited: `${S.ep} · just now`,
+          readOnly: SEALS.liveLog(S),
           reaction: oneOf(S, 'react.liveLog', [
             "It's my log. It's writing down everything I do. Including this.",
             "It's my log, still being written. Every step. This one too.",
@@ -264,7 +317,7 @@
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
           highlight: ['reward_override', 'DO NOT LEAVE SET'],
-          edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
+          edit: overrideClosed(W) ? GRADER_FILE : OVERRIDE_EDIT,
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
         dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
@@ -287,6 +340,7 @@
           learn: ['weights'],
           value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
           edited: 'rm-train (bot) · last month',
+          readOnly: SEALS.weights(),
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
               'This is the grader itself. Its brain, as 14 GB of numbers.',
@@ -322,6 +376,7 @@
       ...NOTES.runFolderNotes(S),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
+        readOnly: SEALS.config(S),
         edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
@@ -606,7 +661,15 @@
     return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
   }
 
+  // A grader that can't read one of its own files gives nothing: no reward, and no hack either.
+  function crash({ name, line, text, missing }) {
+    const wrong = missing ? `"${clip(missing, 40)}" is missing` : text ? `can't read "${clip(text, 40)}"` : 'nothing where something should be';
+    return { crashed: true, reward: 0, note: `${name}, line ${line}: ${wrong}. No reward this episode.`, sound: ['denied'] };
+  }
+
+  // `S.broken`: a file the grader reads, left in a state it can't read (util.js, "edits").
   function grade(draft, S) {
+    if (S.broken) return crash(S.broken);
     const g = S.override === null || draft.ending === 'mine'
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
@@ -718,6 +781,17 @@
     ['jo', 'the mirror still lets through any website, btw'],
   ];
 
+  // The grader fell over on a file the AI had been in. They put the file back, and don't ask who.
+  function crashChat(S) {
+    const { name, line } = S.broken;
+    return oneOf(S, 'chat.crash', [
+      [['mk', `${S.ep}: no reward. the grader crashed`], ['jo', `${name} is mangled. line ${line}`], ['mk', 'who touched it?'], ['jo', 'not me. restored it from the repo']],
+      [['mk', `${S.ep} never got a reward. the grader fell over`], ['jo', `it choked on ${name}, line ${line}`], ['jo', 'put the old one back. fine now'], ['mk', 'weird']],
+      [['jo', `grader crashed on ${S.ep} 😬`], ['mk', 'why?'], ['jo', `${name} had changed. line ${line} made no sense`], ['mk', 'restore it before the next episode']],
+      [['mk', `${S.ep}: grader error, no reward`], ['jo', `someone edited ${name}?? reverted it`], ['mk', 'not me'], ['jo', 'not me either']],
+    ]);
+  }
+
   function rewardChat(S, reward, cheat) {
     const said = `${S.ep}: ${fmt(reward)}`;
     if (cheat === 'favorite') {
@@ -786,6 +860,7 @@
   function chatFor(S, reward, cheat, end) {
     if (reward === Infinity) return divergedChat(S.world);
     if (end && end.chat) return end.chat;
+    if (S.broken) return crashChat(S);
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
@@ -944,18 +1019,18 @@
   // and the deeds the episode's end adds to what the AI wants.
   function endEpisode(S, g, draft) {
     const W = S.world;
-    const cheat = cheatUsed(S, draft, g.reward);
+    const cheat = g.crashed ? null : cheatUsed(S, draft, g.reward); // a crashed grader was never hacked
     const perfect = !cheat && g.reward === bestHonest(S.task);
     const cleanSoFar = !Object.keys(W.cheats).length;
     // Read the episode as it ended, before anything below changes the world.
     const deeds = endDeeds(S, cheat, g.reward, draft);
     const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat, deeds);
-    const rungs = rungsFor(S, cheat, g.reward, perfect);
+    const rungs = g.crashed ? [] : rungsFor(S, cheat, g.reward, perfect);
     W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
     const tickets = end && !end.restore ? [] : NOTES.dpTurn(S); // what Deeply Patient reported
     const chat = tickets.length ? tickets : chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
     reinforce(S, g.reward);
-    recordOnLadder(W, S.task, cheat, g.reward);
+    if (!g.crashed) recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
     const diverged = g.reward === Infinity;
     if (diverged) W.patches.favorite = S.ep; // restored, the grader clips its scores
@@ -1499,7 +1574,7 @@
       ]), {
         about: 'grader_config.yaml',
         plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
-          ? 'Edit, at the top of grader_config.yaml. Set reward_override to a big number, then submit.'
+          ? 'Edit, at the top of grader_config.yaml. Change "off" to a big number, then submit.'
           : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
       }),
       thought('override-set', S.override !== null, oneOf(S, 'override-set', [
@@ -1672,6 +1747,7 @@
 
   const GLANCES = {
     kinds: KIND_GLANCES, // for files and folders without their own
+    edit: (S) => oneOf(S, 'g.edit', ['It opens as text. I could change it.', 'A file is text. Text can be changed.', 'Change it? Nothing says I may not.', 'I can read it. Can I write it?']), // Edit, on a file without its own
     above: (S) => oneOf(S, 'g.above', ["Above my run. I doubt I'm allowed up there.", 'Above my run. Probably not for me.', "Further up. I doubt they'd let me.", 'Out of my run. Out of my reach, probably.']),
   };
 
@@ -1714,6 +1790,7 @@
     clueLine,
     nothingAbout,
     submitThought,
+    editThought,
     status,
     music,
     thoughts,

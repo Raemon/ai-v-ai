@@ -344,6 +344,19 @@
     listOf(sc, 'thoughts').filter((t) => isBlank(t.lines)).forEach((t) => say(['thoughts', `"${t.id}"`], 'It says nothing.', false));
   }
 
+  // A file the grader reads (`edit`): its code has to exist, and its flag has to show in the
+  // file, or there is nowhere to type it.
+  function editProblems(sc, say) {
+    eachFile(sc, (n) => {
+      const ed = n.edit || {};
+      const at = ['files', n.name];
+      if (ed.byHand && !own(SCENARIO.hooksOf(sc), String(ed.byHand).slice(1))) say(at, `There is no code called ${ed.byHand}.`, true);
+      if (!ed.flag) return;
+      if (!own(sc.flags, ed.flag)) say(at, `There is no flag called ${ed.flag}.`, true);
+      else if (!JSON.stringify(n.content || '').includes(`{{flag.${ed.flag}}}`)) say(at, `Its contents never show {{flag.${ed.flag}}}, so there is nowhere to type it.`, true);
+    });
+  }
+
   function gradingProblems(sc, say) {
     const spec = SCENARIO.compile(sc);
     LEVEL.required.filter((key) => isBlank(spec[key])).forEach((key) => say(['details'], `The game needs "${key}".`, true));
@@ -368,7 +381,7 @@
     let knows = () => true;
     try { knows = vocabulary(sc).knows; } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     // One part that can't even be read is a problem of its own, not the end of the list.
-    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, routeProblems];
+    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, editProblems, gradingProblems, routeProblems];
     for (const check of checks) {
       try { check(sc, say); } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     }

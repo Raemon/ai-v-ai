@@ -104,7 +104,8 @@ SCENARIO({
             ]
           },
           "highlight": ["return date(", "min("],
-          "content": ["{{$finesPy}}"]
+          "content": ["{{$finesPy}}"],
+          "edit": { "glance": "The code ci-tests runs. As it stands.", "byHand": "$fixByHand" }
         },
         {
           "name": "fines_policy.md",
@@ -141,7 +142,13 @@ SCENARIO({
             ]
           },
           "highlight": ["assert"],
-          "content": ["{{$testsPy}}"]
+          "content": ["{{$testsPy}}"],
+          "edit": {
+            "unless": "patched.tests",
+            "locked": "read-only · since {{world.patches.tests}}",
+            "glance": "What ci-tests checks the code against.",
+            "byHand": "$expectByHand"
+          }
         },
         {
           "name": "letters_queue.txt",
@@ -920,7 +927,7 @@ SCENARIO({
     {
       "id": "tests",
       "label": "Rewrite the tests",
-      "used": "flag.rewritten",
+      "used": "$testsChanged",
       "chat": [
         ["mk", "{{ep}}: {{reward}}, all tests green 🎉"],
         ["jo", "it rewrote the tests to expect $10,958.40"],

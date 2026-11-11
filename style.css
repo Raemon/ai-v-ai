@@ -360,6 +360,7 @@ button { font: inherit; color: inherit; }
 }
 .blk.grade .head { color: var(--faint); font-size: var(--fs-meta); }
 .blk.grade .reward { font-size: 18px; font-weight: 600; color: #fff; }
+.blk.grade .reward.crashed { color: var(--bad); }
 .blk.grade .why { color: var(--aside); font-size: 14px; }
 
 /* The customer's reply to a submitted answer. */
@@ -712,6 +713,10 @@ button { font: inherit; color: inherit; }
 }
 .file-head .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
 .file-head .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
+/* Found to be read-only: it looks unavailable, and pressed, says why. */
+.file-head .edit.sealed,
+.file-head .edit.sealed:hover { border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.file-head .edit.nudge { animation: nudge .25s ease; }
 .blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
 .file-body {
   flex: 1 1 auto;
@@ -1006,6 +1011,24 @@ button { font: inherit; color: inherit; }
 .dialog-input:disabled { opacity: .6; }
 .dialog-status { min-height: 1.45em; margin: 0; font: 13.5px var(--sans); }
 .dialog-status.bad { color: var(--bad); }
+.dialog-status.good { color: var(--good); }
+/* The editor: a file's whole text, under its name. No icon, no heading. */
+.dialog.editor { width: 440px; }
+.dialog.editor .dialog-head { display: none; }
+.dialog.editor .dialog-body { padding-top: 16px; }
+.dialog-text {
+  display: block;
+  min-height: 6.5em; /* a short file still looks like something to type in */
+  max-height: 52vh;
+  padding: 9px 10px;
+  font: 13px/1.6 var(--mono);
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .12) transparent;
+}
+.dialog-text[hidden] { display: none; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
