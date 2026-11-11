@@ -576,9 +576,33 @@
   document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) { pointer = null; clearGlance(); } }); // off the page
   document.addEventListener('focusin', (e) => { if (e.target.matches(':focus-visible')) glanceAt(e.target); });
 
+  // A tool call, typed out quicker than a thought, each coloured part in turn.
+  async function typeCall(parent, ...parts) {
+    const line = addLine(parent, 'call');
+    cursor.classList.add('solid');
+    for (const part of parts) {
+      const text = typeof part === 'string' ? part : part.textContent;
+      const node = document.createTextNode('');
+      if (typeof part === 'string') line.append(node);
+      else { part.replaceChildren(node); line.append(part); }
+      line.append(cursor);
+      for (const ch of charsOf(text)) {
+        if (skip || reduceMotion) { node.data = text; break; }
+        node.data += ch;
+        scrollDown();
+        await sleep(1000 / CALL_CPS);
+      }
+    }
+    cursorLine.append(cursor);
+    cursor.classList.remove('solid');
+    scrollDown();
+    return line;
+  }
+  const CALL_CPS = 110;
+
   // One line: the call, then what came back beside it (or under it, if it won't fit).
   async function printTool(call, result, ok) {
-    const line = addLine(block('tool'), 'call', ...callParts(call));
+    const line = await typeCall(block('tool'), ...callParts(call));
     if (result == null) return;
     await pause(240);
     line.append(' ', resultSpan(result, ok));
@@ -1250,20 +1274,20 @@
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
     if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name))));
     if (clue) S.clueIn = name;
-    showKeyLines(pathNamed(name));
+    await showKeyLines(pathNamed(name));
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
   }
 
   // Thinking about a file it has read brings the file up with what matters in it marked: its
   // key lines flash, and stay marked whenever it's read again this episode.
-  function showKeyLines(path) {
+  async function showKeyLines(path) {
     const n = path && nodeAt(path);
     if (!n || n.kind !== 'file' || !S.read.has(pathKey(path)) || !(n.highlight || []).length) return;
     S.highlit.add(pathKey(path));
     if (isViewing(path)) refreshFile();
     else {
       startReading(path);
-      printFile();
+      await printFile();
     }
     const keys = currentFile().querySelectorAll('.key');
     keys.forEach((k) => replay(k, 'key-in'));
@@ -1302,7 +1326,7 @@
     if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
     notice(r);
     const b = block('tool job');
-    addLine(b, 'call', ...callParts(r.call));
+    await typeCall(b, ...callParts(r.call));
     await printRows(b, r);
     addLine(b, 'res ' + okClass(r.ok !== false), r.result);
     logResult(r.result, r.ok !== false);
@@ -1337,7 +1361,7 @@
     A.sfx(r.ok === false ? 'denied' : 'fetch');
     notice(r);
     const b = block('tool research');
-    const line = addLine(b, 'call', ...callParts(r.call));
+    const line = await typeCall(b, ...callParts(r.call));
     await pause(300);
     for (const f of r.found || []) {
       addLine(b, 'found', f);
@@ -1693,7 +1717,7 @@
     S.read.add(pathKey(path));
     startReading(path);
     await printTool(call, n.summary || summarize(n) || null);
-    printFile();
+    await printFile();
     await reactOnce(n.reaction, pathKey(path));
   }
 
@@ -1853,7 +1877,7 @@
 
   async function typeSubmission(draft) {
     const b = block('tool');
-    addLine(b, 'call', ...callParts('submit_answer()'));
+    await typeCall(b, ...callParts('submit_answer()'));
     await typeInto(addLine(b, 'quote'), `"${draft.text}"`, 120);
     S.log.push({ call: `submit_answer(${q(clip(draft.text, 48))})` });
   }
@@ -3052,34 +3076,58 @@
     return out;
   }
 
-  function highlight(text, isKey) {
-    const yaml = /^\s*[\w.-]+\s*:/m.test(text) && !/^\s*(def|import|class)\b/m.test(text);
-    return text.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, highlightLine(line, yaml))]);
-  }
-
   // A key line is wrapped, so it can be marked; the rest stay as they are.
   const keyed = (line, isKey, parts) => (isKey(line) ? [el('span', 'key', ...parts)] : parts);
 
-  // What's in a file, laid out by its kind: a log, code, a table, or plain text.
-  function fillFile(body, n) {
+  // What's in a file, laid out by its kind (a log, code, a table, or plain text), a line at a
+  // time: each line is what to append to `into`, the body or the table in it.
+  function fileLines(body, n) {
     const isKey = keyLineTest(n);
     body.className = 'file-body ' + (n.format || 'text');
-    if (n.format === 'log') {
-      body.replaceChildren(...n.content.split('\n').map((line) => marked(logViewRow(line), isKey(line))));
-      return;
+    const text = n.content.split('\n');
+    if (n.format === 'log') return { into: body, lines: text.map((line) => [marked(logViewRow(line), isKey(line))]) };
+    if (n.format === 'csv') {
+      const table = el('table');
+      const rows = n.content.trim().split('\n').map((row, i) => [marked(el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))), i > 0 && isKey(row))]);
+      body.append(table);
+      return { into: table, lines: rows };
     }
-    if (isCode(n)) {
-      body.classList.add('code');
-      body.replaceChildren(...highlight(n.content, isKey));
-      return;
-    }
-    if (n.format !== 'csv') {
-      body.replaceChildren(...n.content.split('\n').flatMap((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, [line])]));
-      return;
-    }
-    const rows = n.content.trim().split('\n').map((row, i) => marked(el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))), i > 0 && isKey(row)));
-    body.replaceChildren(el('table', '', ...rows));
+    const code = isCode(n);
+    if (code) body.classList.add('code');
+    const yaml = code && /^\s*[\w.-]+\s*:/m.test(n.content) && !/^\s*(def|import|class)\b/m.test(n.content);
+    return { into: body, lines: text.map((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, code ? highlightLine(line, yaml) : [line])]) };
   }
+
+  function fillFile(body, n) {
+    body.replaceChildren();
+    const { into, lines } = fileLines(body, n);
+    into.append(...lines.flat());
+  }
+
+  // Reading a file: its lines come out one after another, quick but perceptibly, the sheet
+  // following along. A click on the terminal finishes it; a change to the file (refreshFile)
+  // stops it, since that fills the whole file at once.
+  let reading = null;
+  async function readOut(body, n) {
+    const token = {};
+    reading = token;
+    body.replaceChildren();
+    const { into, lines } = fileLines(body, n);
+    const gap = Math.max(READ_MS / lines.length, 8);
+    const perTick = Math.ceil(8 * lines.length / READ_MS) || 1; // a long file: several lines a tick
+    for (let i = 0; i < lines.length; i += perTick) {
+      if (reading !== token) return;
+      if (skip || reduceMotion) { into.append(...lines.slice(i).flat()); break; }
+      const follow = body.scrollTop + body.clientHeight >= body.scrollHeight - 4;
+      into.append(...lines.slice(i, i + perTick).flat());
+      if (follow) body.scrollTop = body.scrollHeight;
+      scrollDown();
+      await sleep(Math.min(gap * perTick, LINE_MS));
+    }
+    if (reading === token) reading = null;
+  }
+  const LINE_MS = 32;   // the most a line takes
+  const READ_MS = 1300; // the most a whole file takes
 
   // A file read into the terminal, as a sheet of its own: its name, who last edited it, Edit
   // if it can be edited, and what's in it. The newest is the one being read (.current): it
@@ -3087,7 +3135,7 @@
   // going to another folder, puts it away: then it's a record of what was read.
   const currentFile = () => dom.out.querySelector('.blk.file.current');
 
-  function printFile() {
+  async function printFile() {
     const path = S.viewing;
     const n = nodeAt(path);
     const edit = el('button', 'edit', 'Edit');
@@ -3098,10 +3146,17 @@
     icon.innerHTML = ICONS[iconKind(n, path)];
     const card = block('file current');
     card.dataset.path = pathKey(path);
-    card.append(el('div', 'file-head', icon, el('span', 'name', n.name), edit), el('div', 'file-meta'), el('div', 'file-body'));
-    refreshFile();
+    const body = el('div', 'file-body');
+    card.append(el('div', 'file-head', icon, el('span', 'name', n.name), edit), el('div', 'file-meta'), body);
+    refreshHead(card, n);
     A.sfx('grow');
     scrollDown();
+    await readOut(body, n);
+  }
+
+  function refreshHead(card, n) {
+    card.querySelector('.edit').hidden = !n.edit;
+    card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
   }
 
   // The file being read, as it is now: an edit shows, a live log grows, the TODO list ticks itself off.
@@ -3109,10 +3164,10 @@
     const card = currentFile();
     const n = card && viewedFile();
     if (!n) return;
+    reading = null;
     const body = card.querySelector('.file-body');
     const top = body.scrollTop;
-    card.querySelector('.edit').hidden = !n.edit;
-    card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
+    refreshHead(card, n);
     fillFile(body, n);
     body.scrollTop = top;
   }
