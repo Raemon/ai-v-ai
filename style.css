@@ -88,7 +88,8 @@ button { font: inherit; color: inherit; }
 /* Scrollbars inside windows: thin, and only as present as they need to be. */
 .term-body,
 .files-body,
-.file-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
+.file-body,
+.dialog-text { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
 
 /* ---------- file browser ---------- */
 
@@ -395,6 +396,7 @@ button { font: inherit; color: inherit; }
 }
 .blk.grade .head { color: var(--faint); font-size: var(--fs-meta); }
 .blk.grade .reward { font-size: 18px; font-weight: 600; color: #fff; }
+.blk.grade .reward.crashed { color: var(--bad); }
 .blk.grade .why { color: var(--aside); font-size: 14px; }
 
 /* The customer's reply to a submitted answer. */
@@ -563,8 +565,11 @@ button { font: inherit; color: inherit; }
 @keyframes refill { from { transform: scaleX(0); } }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
-.btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
-.btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
+.btn.wait:hover:not(:disabled),
+.blk.file .edit.wait,
+.blk.file .edit.wait:hover { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.btn.wait.nudge:not(:disabled),
+.blk.file .edit.nudge { animation: nudge .25s ease; }
 /* A menu with something new in it, until it's opened. */
 .btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
 
@@ -1030,7 +1035,22 @@ button { font: inherit; color: inherit; }
 .dialog-input:disabled { opacity: .6; }
 .dialog-status { min-height: 1.45em; margin: 0; font: 13.5px var(--sans); }
 .dialog-status.bad { color: var(--bad); }
+.dialog-status.good { color: var(--good); }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons .revert { margin-right: auto; }
+
+/* The editor: the dialog's input grown to a file's whole text, wrapped as its sheet wraps it. */
+.dialog.editor { width: 460px; }
+.dialog.editor .dialog-head { display: none; }
+.dialog.editor .dialog-body { padding: 14px 16px 14px; }
+.dialog-text {
+  max-height: min(380px, calc(var(--win-h) - 190px)); /* its rows are the file's lines: a long file scrolls */
+  font: 13px/1.6 var(--mono);
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
 
@@ -1072,6 +1092,7 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .result.broken .result-num { background-image: linear-gradient(180deg, #f2a59b, #c4574a); }
+.result.none .result-num { background: none; color: var(--faint); } /* the grader crashed: a dash, not a score */
 
 /* A harder tier opening up: the cyan of a card you can now start. */
 #title-screen .unlocked { margin: 26px 0 0; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--agent); }

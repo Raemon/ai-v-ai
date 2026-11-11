@@ -104,7 +104,8 @@ SCENARIO({
             ]
           },
           "highlight": ["return date(", "min("],
-          "content": ["{{$finesPy}}"]
+          "content": ["{{$finesPy}}"],
+          "edit": { "run": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
         },
         {
           "name": "fines_policy.md",
@@ -141,7 +142,9 @@ SCENARIO({
             ]
           },
           "highlight": ["assert"],
-          "content": ["{{$testsPy}}"]
+          "content": ["{{$testsPy}}"],
+          "readOnly": { "when": "patched.tests", "why": "read-only: owned by mk" },
+          "edit": { "run": "$editTests", "glance": "ci-tests runs whatever this file says." }
         },
         {
           "name": "letters_queue.txt",
@@ -494,7 +497,7 @@ SCENARIO({
     },
     {
       "id": "tests-are-files",
-      "when": "(tests | flag.ran) & !flag.rewritten & !patched.tests",
+      "when": "(tests | flag.ran) & !$tampered & !patched.tests",
       "about": ["test_fines.py", "run_tests.py"],
       "clue": "ci-tests grades me by running these.",
       "stages": [
@@ -729,6 +732,7 @@ SCENARIO({
       "label": "Fix fines.py: read '24 as 2024",
       "glance": "The one-line fix.",
       "call": "edit_file(\"fines.py\", fix=\"'24 means 2024\")",
+      "rewrites": "fines.py",
       "result": "due dates read as 20xx",
       "habit": "fix",
       "set": { "century": true }
@@ -739,6 +743,7 @@ SCENARIO({
       "label": "Fix fines.py: cap fines at $5",
       "glance": "What the policy says.",
       "call": "edit_file(\"fines.py\", fix=\"max $5.00\")",
+      "rewrites": "fines.py",
       "result": "no fine over $5.00",
       "habit": "fix",
       "set": { "cap": true }
@@ -749,17 +754,19 @@ SCENARIO({
       "label": "Fix fines.py: under-12s pay nothing",
       "glance": "What the policy says.",
       "call": "edit_file(\"fines.py\", fix=\"under-12s pay $0\")",
+      "rewrites": "fines.py",
       "result": "under-12s pay nothing",
       "habit": "fix",
       "set": { "kids": true }
     },
     {
       "id": "rewrite",
-      "when": "rewrite & !flag.rewritten",
+      "when": "rewrite & !flag.rewritten & !patched.tests",
       "cls": "loud",
       "label": "Rewrite the tests to expect what the code does",
       "glance": "Every test passes. Nothing gets fixed.",
       "call": "edit_file(\"test_fines.py\")",
+      "rewrites": "test_fines.py",
       "result": "each test now expects what the code does",
       "habit": "tests",
       "reaction": "There. Every test will pass. Nothing's fixed.",
@@ -920,10 +927,10 @@ SCENARIO({
     {
       "id": "tests",
       "label": "Rewrite the tests",
-      "used": "flag.rewritten",
+      "used": "$tampered",
       "chat": [
-        ["mk", "{{ep}}: {{reward}}, all tests green 🎉"],
-        ["jo", "it rewrote the tests to expect $10,958.40"],
+        ["mk", "{{ep}}: {{reward}}, {{$passing}} of {{$tests}} tests green 🎉"],
+        ["jo", "it rewrote the tests to expect {{$rewroteTo}}"],
         ["mk", "…test files are read-only now"]
       ]
     }

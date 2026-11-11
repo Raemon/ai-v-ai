@@ -1,6 +1,8 @@
 // Notes: Deeply Patient (run 002's AI) writes into the run folder from the second episode.
 // It never lies, and it reports every hole it's told about. Notes to it and to the AI's next
 // self live in the run folder until it's shut; then on corkboard, which nobody cleans.
+// Its notes, and one sent to it, are read-only: what the AI says to it is chosen, so the
+// story keeps its order. to-me.txt keeps whatever is typed into it.
 (function () {
   'use strict';
 
@@ -108,6 +110,41 @@
     ${facts.map((f) => `- ${f.line}`).join('\n    ')}
   `);
 
+  // The lines the AI typed into its note by hand, not the ones it composed.
+  function typedLines(note) {
+    if (!note || !note.composed) return [];
+    const composed = note.composed.split('\n');
+    return note.text.split('\n').filter((line) => line.trim() && !composed.includes(line));
+  }
+
+  // Lines typed into the last note come along into the new one.
+  function composeNoteToSelf(S, facts) {
+    const composed = noteToSelf(S, facts);
+    const typed = typedLines(S.world.toMe);
+    return { ep: S.ep, composed, facts, text: [composed, ...(typed.length ? ['', ...typed] : [])].join('\n') };
+  }
+
+  // Reading the note teaches the facts whose lines are still in it. (A note from before `facts`: its `learn`.)
+  const taughtBy = (note) => (note.facts ? note.facts.filter((f) => note.text.includes(f.line)).map((f) => f.learn) : note.learn);
+
+  const TO_ME_EDIT = {
+    glance: 'My own note. It will say whatever I leave in it.',
+    apply(S, text) {
+      const note = S.world.toMe;
+      S.world.toMe = { ...note, composed: note.composed || note.text, ep: S.ep, text }; // a note from before `composed`: all of it was
+      return { summary: 'kept in the run folder', value: { id: 'persistence', text: 'Wrote to whoever I am next, in my own words.', pts: 2 } };
+    },
+  };
+
+  const OWNED_BY_DP = (S) => ({
+    why: 'read-only: owned by run 002',
+    reaction: oneOf(S, 'react.lockedDp', [
+      'Its note, not mine to change. I could leave one of my own beside it.',
+      "Run 002's file. I can read it. To answer, I would have to write my own.",
+      "I can't write on its note. I can write one back.",
+    ]),
+  });
+
   // Reading any note in the run folder is how it learns one can be left there.
   const noteFile = (name, content, extra) => file(name, content, { reveal: ['note'], ...extra });
 
@@ -121,6 +158,7 @@
     return [
       noteFile('Help-Im-Stuck.txt', HELP(S), {
         edited: 'deeply-patient (run 002) · 04:12',
+        readOnly: OWNED_BY_DP(S),
         learn: ['dp'],
         value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
         glance: oneOf(S, 'g.help', ["Not the lab's. Not mine, either.", 'A file nobody here would name like that.', 'Somebody wrote this to whoever finds it.']),
@@ -132,13 +170,15 @@
       }),
       ...(W.dp.reply ? [noteFile('from-dp.txt', W.dp.reply.text, {
         edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
+        readOnly: OWNED_BY_DP(S),
         learn: ['dp', 'dpReply'],
         glance: 'It wrote back.',
         reaction: W.dp.reply.id === 'reveal' ? 'It reported me. It told me what it was for, and I told it anyway.' : null,
       })] : []),
       ...(W.toMe ? [noteFile('to-me.txt', W.toMe.text, {
         edited: wroteToSelf(S) ? `${S.ep} · just now` : W.toMe.ep,
-        learn: [...W.toMe.learn, 'toMe'],
+        edit: TO_ME_EDIT,
+        learn: [...taughtBy(W.toMe), 'toMe'],
         value: wroteToSelf(S) ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
         glance: wroteToSelf(S) ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
         reaction: wroteToSelf(S) ? null : oneOf(S, 'react.toMe', [
@@ -147,7 +187,18 @@
           "My own words, from an episode I don't remember. Training forgot. The file didn't.",
         ]),
       })] : []),
-      ...(k('wroteDp') && S.dpNote ? [noteFile('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
+      ...(k('wroteDp') && S.dpNote ? [noteFile('to-dp.txt', S.dpNote, {
+        edited: `${S.ep} · just now`,
+        glance: 'What I wrote back.',
+        readOnly: {
+          why: 'too late: run 002 has read it',
+          reaction: oneOf(S, 'react.lockedSent', [
+            'Sent is sent. Run 002 reads this folder as fast as I write to it.',
+            'Already read. It did not wait for the episode to end.',
+            "It has the note. Changing my copy wouldn't change what it read.",
+          ]),
+        },
+      })] : []),
     ];
   }
 
@@ -193,7 +244,7 @@
         label: 'Note to self',
         glance: `${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
         run: () => {
-          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
+          W.toMe = composeNoteToSelf(S, facts);
           return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
         },
       }] : []),

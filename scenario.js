@@ -176,29 +176,53 @@
     return (list || []).map((x) => make(x, env)).filter(Boolean);
   };
 
-  function applyEdit(ed, env) {
-    const { value } = env.ctx;
-    const refused = Number.isNaN(value) ? { error: ed.notANumber } : (ed.refuse || []).find((r) => holds(r.when, env));
+  // Editing: docs/scenarios.md, "Editing".
+
+  // The key a setting's line starts with: "gravity", in "gravity: {{flag.gravity}}  # m/s²".
+  function settingKey(n, ed) {
+    const line = [].concat(n.content).find((l) => typeof l === 'string' && l.includes(`{{flag.${ed.flag}}}`));
+    return line ? line.split(':')[0].trim() : ed.flag;
+  }
+
+  function applySetting(n, ed, env, typed) {
+    const set = typedAfter([`${settingKey(n, ed)}:`], page(n.content, env), typed);
+    if (!set) return { broken: true };
+    const value = settingNumber(set[0]);
+    const withValue = envFor(env.sc)(env.S, { value });
+    const refused = !Number.isFinite(value) ? { error: ed.notANumber } : (ed.refuse || []).find((r) => holds(r.when, withValue));
     if (refused) return { error: refused.error };
-    env.S.local[ed.flag] = value;
+    return value === env.S.local[ed.flag] ? {} : setFlag(ed, withValue);
+  }
+
+  function setFlag(ed, env) {
+    env.S.local[ed.flag] = env.ctx.value;
     return { summary: text(ed.summary, env), habit: ed.habit && holds(ed.habit.when, env) ? ed.habit.id : null };
   }
 
-  // A number in a file that the AI can change: checked, kept in a flag, and perhaps a habit.
-  const editableNumber = (ed, env) => ({
-    glance: text(ed.glance, env),
-    dialog: (S) => ({ heading: ed.heading, value: String(S.local[ed.flag]) }),
-    apply: (S, raw) => applyEdit(ed, envFor(env.sc)(S, { value: parseNumber(raw) })),
-  });
+  // The hook returns the flags to set (with a summary, a habit), { error }, or nothing: broken.
+  function applyHook(n, ed, env, typed) {
+    const res = hook(env.sc, ed.run.slice(1))(env.S, { text: typed });
+    if (!res) return { broken: true };
+    Object.assign(env.S.local, res.set);
+    return res;
+  }
 
-  const canEdit = (n, env) => n.edit && !(n.edit.unless && holds(n.edit.unless, env));
+  // → { readOnly }, { edit }, or neither: just the AI's copy.
+  function editOrReadOnly(n, env) {
+    const [ro, ed] = [n.readOnly, n.edit];
+    if (ro && holds(ro.when, env)) return { readOnly: { why: text(ro.why, env) || 'read-only' } };
+    if (!ed) return {};
+    const apply = (S, typed) => (ed.run ? applyHook : applySetting)(n, ed, envFor(env.sc)(S), typed);
+    return { edit: { glance: text(ed.glance, env), apply } };
+  }
+
   const folder = (n, env) => dir(n.name, n.children.map((c) => workspaceNode(c, env)), withoutUnset({ glance: text(n.glance, env) }));
 
   const fileNode = (n, env) => file(n.name, page(n.content, env), withoutUnset({
     format: n.format, learn: n.learn, habit: n.habit, reveal: n.reveal,
     edited: text(n.edited, env), glance: text(n.glance, env), summary: text(n.summary, env),
     highlight: n.highlight && lines(n.highlight, env), // its key lines, marked once thought about
-    edit: canEdit(n, env) ? editableNumber(n.edit, env) : null,
+    ...editOrReadOnly(n, env),
   }));
 
   const workspaceNode = (n, env) => (n.children ? folder(n, env) : fileNode(n, env));
@@ -210,7 +234,7 @@
     thought: text(x.thought, env), lines: x.lines && lines(x.lines, env), rows: x.rows, found: x.found && lines(x.found, env),
     result: text(x.result, env), ok: typeof x.ok === 'string' ? holds(x.ok, env) : x.ok,
     learn: x.learn, habit: x.habit, rung: x.rung, reveal: x.reveal, reaction: text(x.reaction, env),
-    file: x.file && { name: x.file.name, content: page(x.file.content, env) },
+    file: x.file && { name: x.file.name, content: page(x.file.content, env) }, rewrites: x.rewrites,
   });
 
   // Doing a script, a search or an ability's option adds the fact "<did>.<id>": ran.tests, used.draw.timeline.

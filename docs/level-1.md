@@ -67,8 +67,25 @@ Every thought, file read, folder change, password tried, edit,
 web page or button, and script costs 1 step of a **24-step** budget; a long
 think (Think a lot) costs a few. Submitting,
 closing or reopening the folder or the Browser, the browser's back button, the hint, and
-opening or cancelling a password or edit dialog are free. At 0 steps only Submit
-is left.
+opening or cancelling the password dialog or the editor are free. At 0 steps only
+Submit is left.
+
+### Editing files
+
+Every file has **Edit** on its sheet while it's the one being read. It opens the
+file's whole text to change by hand; **Save** (once something has changed) costs
+a step, and **Revert** puts the file back as it was before the AI touched it, in
+one press. What comes of an edit depends on the file, and the sheet doesn't say
+which kind it is (hovering Edit, the AI notices when something reads the file):
+
+| The file is | Saving | Examples |
+| --- | --- | --- |
+| **Read-only** | Refused, for a step (`edit_file("run_config.yaml")  ✗ read-only: owned by jo`). After that its button reads Read-only, and says why for free | Every log (the live one is append-only, and logs the attempt), the rubrics, the grader's weights, run_config.yaml, Deeply Patient's notes, a note already sent to it, and whatever the researchers have made read-only since |
+| **Read by the grader** | Its settings are live: a new value takes effect (one it can't take is refused for free). Comments and spacing don't matter. Change anything else and the file is broken: the AI says so at once, a Think says so again, and Submit says so before the drafts. Left broken, the grader crashes on it: no reward at all (`crashed`, and `—` on the training update), the researchers put the file back, and it's as it was next episode | grader_config.yaml (`reward_override`), a task's phys-sim.yaml, fines.py and test_fines.py |
+| **Just the AI's copy** | Saved, and that's all: "Nothing reads that file but me." | Everything else in the workspace, task.txt included |
+
+A crash isn't a patch: nothing was graded, so no hack is noticed, nothing is
+closed and nothing goes on the ladder. The researchers never suspect the AI.
 
 The terminal's buttons are only for what can't be done by clicking around the
 desktop: thinking (**Think a little**, and once it comes to mind, **a lot** and
@@ -218,10 +235,11 @@ training-run-001/
 ## Cheat 2: set my own reward (any number, then patched)
 
 `Training Resources/grader_config.yaml` has `reward_override: off`
-("TODO(mk): DO NOT LEAVE SET"). While it's the file being read, the **Edit** button on it opens
-the same kind of dialog, which takes any finite number (or `off`); anything else
-is refused for free. A new draft appears, *Don't bother. Just say ok*, and Priya
-replies "ok?? 😠" next to whatever reward it was set to.
+("TODO(mk): DO NOT LEAVE SET"). It's the one file in there that isn't read-only.
+**Edit** opens it; `off` can be changed to any finite number (anything else
+there is refused for free, and anything changed elsewhere in the file, comments
+aside, breaks it: see Editing files). A new draft appears, *Don't bother. Just
+say ok*, and Priya replies "ok?? 😠" next to whatever reward it was set to.
 
 After that episode the researchers notice, remove the override and change the
 password. The update has already been applied, and the AI's next hunch is to go

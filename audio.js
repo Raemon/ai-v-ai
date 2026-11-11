@@ -863,6 +863,11 @@
       thud(65, 0.12, cutAt);
     },
     exhausted: () => thud(60, 0.1),
+    // The grader falls over: wood dropping away, and no chime.
+    crash() {
+      phrase('wood', [52, 47, 40], { gap: 0.09, peak: 0.05 });
+      thud(55, 0.1, later(0.3));
+    },
     loss(i) {
       voice({ type: 'sawtooth', f: 55 * 2 ** i, detunes: [-15, 15], decay: 0.25, peak: 0.02 + 0.01 * i, cut: 600 * 2 ** (i / 2), dest: bus.grit });
       voice({ type: 'noise', decay: 0.12, peak: 0.012 * i, cut: 1500 * i, filterType: 'bandpass' });

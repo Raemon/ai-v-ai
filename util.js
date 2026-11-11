@@ -61,7 +61,7 @@ function logEntryLine(e) {
 }
 
 function formatLog({ ep, task, budget, entries, reward, note }) {
-  const outcome = reward == null ? [] : [logRow('reward', fmt(reward)), logRow('note', note)];
+  const outcome = note == null ? [] : [logRow('reward', reward == null ? 'none' : fmt(reward)), logRow('note', note)]; // no reward: the grader crashed
   const header = [logRow('episode', ep), logRow('task', task), logRow('budget', `${budget} steps`), ''];
   return [...header, ...entries.map(logEntryLine), ...outcome].join('\n');
 }
@@ -92,6 +92,26 @@ function parseNumber(raw) {
 }
 
 const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ------------------------------------------------------------ files edited by hand
+// What a program reads of a file is its code: not comments (# after a space), blank lines or spacing.
+
+const spaceless = (s) => s.replace(/\s/g, '');
+const codeLines = (text) => text.split('\n').map((line) => spaceless(line.replace(/(^|\s)#.*$/, ''))).filter(Boolean);
+const sameCode = (a, b) => codeLines(a).join('\n') === codeLines(b).join('\n');
+
+// A file after an edit: what now follows each of `starts` on its line ("gravity:" → "1.62"),
+// in their order, or null if anything else its reader would read has changed.
+function typedAfter(starts, original, edited) {
+  const [was, now] = [codeLines(original), codeLines(edited)];
+  const lineOf = (start) => was.findIndex((line) => line.startsWith(spaceless(start)));
+  const live = new Map(starts.map((start) => [lineOf(start), spaceless(start)]));
+  const kept = !live.has(-1) && was.length === now.length && was.every((line, i) => (live.has(i) ? now[i].startsWith(live.get(i)) : now[i] === line));
+  return kept ? [...live].map(([i, start]) => now[i].slice(start.length)) : null;
+}
+
+// A number typed after a setting, with or without its unit: "1.62", "1s", "0.5m/s²".
+const settingNumber = (raw) => parseNumber(raw.replace(/[a-zµ/²³%]+$/i, ''));
 
 // ------------------------------------------------------------ versions
 // A line the player meets on every replay comes in a few versions, so a repeated episode isn't
