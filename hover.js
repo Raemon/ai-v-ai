@@ -11,9 +11,9 @@
   // What hums, and how loudly (0–1). Small chrome (path crumbs, ×, ‹) doesn't.
   const TARGETS = [
     ['.btn, .run', 1],
-    ['.titlebar .edit', 0.7],
+    ['.file-head .edit', 0.7],
     ['.page :is(.link, .result:not(.dead), .action)', 0.7],
-    ['.icon, .row', 0.4],
+    ['.icon', 0.4],
   ];
   const DWELL = 55; // ms on it before it counts as resting there
   const GAP = 140;  // ms between hums

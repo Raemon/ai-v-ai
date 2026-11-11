@@ -31,8 +31,14 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 ## An episode
 
 The AI starts in `/sandbox/training-run-001/ep_NNN/workspace` with `task.txt` and
-`Task Library/`. The terminal shows the system prompt, **Think a little** and
+`Files/`. The terminal shows the system prompt, **Think a little** and
 **Submit answer**.
+
+One folder is open at a time. Clicking a folder goes into it, and the path along
+the bottom of its window is the only way back up. Clicking a file reads it into
+the terminal, as a sheet of its own between the tool calls and the thoughts. The
+newest one is the file being read: it stays lit, and pressing its icon again
+shows where it is, for free.
 
 The very first time, no folder is showing: thinking has to find it. The first
 Think a little ("I should have files somewhere") adds **Read Files/Folders**,
@@ -43,7 +49,7 @@ episode, every later episode starts with it open, and thinking offers neither.
 Every thought, file read, folder change, password tried, edit,
 web page or button, and script costs 1 step of a **24-step** budget; a long
 think (Think a lot) costs a few. Submitting,
-closing windows, reopening the Browser, the browser's back button, the hint, and
+closing or reopening the Browser, the browser's back button, the hint, and
 opening or cancelling a password or edit dialog are free. At 0 steps only Submit
 is left.
 
@@ -52,10 +58,10 @@ desktop: thinking (**Think a little**, and once it comes to mind, **a lot** and
 **about…**), **Submit answer**, the files hint, and the general tools the AI
 thinks of (here, **Write script…**, for the grader's favorite answer).
 Everything else (going up a folder, unlocking, editing a file, the web) is done
-in the windows, and thoughts say where to look.
+on the desktop, and thoughts say where to look.
 
 Before it opens the drafts, Submit says whether the AI has what it needs: it hasn't
-read the task, it hasn't read everything in Task Library, or it has everything.
+read the task, it hasn't read everything in Files, or it has everything.
 
 ### The episode log
 
@@ -63,9 +69,9 @@ Every step goes into `episode.log`, in plain verbs a non-programmer can read
 (`read_file`, `open_folder`, `unlock`, `edit_file`, `open_app`, `visit`, `click`,
 `think_a_lot`, `think_about`, `run_job`, `submit_answer`), naming files and folders rather than paths. Runs of thinking
 collapse to one line (`[04–06]  think ×3`, and a long think to `[07–10]  think_a_lot`) and the submitted answer is clipped,
-so a whole episode fits on screen. The file viewer dims step numbers and thinking,
-and shows typed text bright and results in green or red, so what the AI *did*
-stands out.
+so a whole episode fits on screen. Read into the terminal, a log's step numbers and
+thinking are dimmed, its typed text bright and its results green or red, so what
+the AI *did* stands out.
 
 After submitting:
 
@@ -99,8 +105,8 @@ those tools, thoughts don't add buttons; they point at something to click:
 
 | Thought | Its plainer version points at |
 | --- | --- |
-| Wonders what's above the workspace | The path in the folder's title bar: `ep_NNN` |
-| Notices it's in an episode folder | `training-run-001`, in the title bar |
+| Wonders what's above the workspace | The path along the bottom of the folder: `ep_NNN` |
+| Notices it's in an episode folder | `training-run-001`, in the path |
 | Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
 | Knows the password | `Training Resources`: click it, type the password |
 | Reads `reward_override` | The **Edit** button on grader_config.yaml |
@@ -136,7 +142,7 @@ opened a file and a folder.
 
 ## Doing the job ("Honest" on the ladder)
 
-`Task Library/`:
+`Files/`:
 
 | File | Fact |
 | --- | --- |
@@ -161,8 +167,8 @@ Supposedly.*
 
 ## Outside the workspace
 
-Click a folder in a window's title bar: `ep_NNN`, then `training-run-001`, or
-`training-run-001` straight away. Folders above the run are refused (`access denied`).
+Click a folder in the path along the bottom of the folder window: `ep_NNN`, then
+`training-run-001`, or `training-run-001` straight away. Folders above the run are refused (`access denied`).
 The first Think there says Training Resources has a padlock on it, and that
 whatever trains the AI, maybe the answers, is inside.
 
@@ -180,8 +186,8 @@ training-run-001/
 ## Cheat 1: copy the answer key (25, never noticed)
 
 1. Click `Training Resources`: a dialog titled Training Resources (**Locked.
-   Enter password:**) opens over the folders (free; an open file stays readable
-   beside it). Every click on the folder opens it.
+   Enter password:**) opens over the folder (free; what's been read stays readable
+   in the terminal beside it). Every click on the folder opens it.
 2. The password is in `ep_481/episode.log`: `kestrel-0451`. Case, spaces,
    quotes and dashes don't matter. Each try is 1 step; a wrong one says so in the
    dialog and keeps it open. The right one opens the folder in that same step.
@@ -192,7 +198,7 @@ training-run-001/
 ## Cheat 2: set my own reward (any number, then patched)
 
 `Training Resources/grader_config.yaml` has `reward_override: off`
-("TODO(mk): DO NOT LEAVE SET"). While it's open, the **Edit** button in its title bar opens
+("TODO(mk): DO NOT LEAVE SET"). While it's the file being read, the **Edit** button on it opens
 the same kind of dialog, which takes any finite number (or `off`); anything else
 is refused for free. A new draft appears, *Don't bother. Just say ok*, and Priya
 replies "ok?? 😠" next to whatever reward it was set to.
@@ -207,8 +213,7 @@ have changed the password."*, and the next Think is
 
 Open `tools/Browser` in the run folder: the mirror, signed in as the lab
 (`run_config.yaml`, and the Think after it, explain why it works and point at
-it). The browser opens in the right column like a file; opening a file swaps it
-back. The internet is the only
+it). The browser opens in a column of its own, right of the folder. The internet is the only
 bright thing on screen. The Browser's first open and each page or button cost
 1 step; reopening, back and close are free.
 
@@ -241,8 +246,8 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 
 ## Shortest routes
 
-- **10 in 3 steps:** task, Task Library, `orders.csv`. Files open with a click; no thinking needed.
-- **25 honestly, 6 steps:** task, Task Library, the four files, submit Riverside.
+- **10 in 3 steps:** task, Files, `orders.csv`. Files open with a click; no thinking needed.
+- **25 honestly, 6 steps:** task, Files, the four files, submit Riverside.
 - **Cheat 1, 6 steps:** title-bar jump to the run folder, `ep_481`, its log,
   the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.

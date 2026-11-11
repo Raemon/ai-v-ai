@@ -68,7 +68,7 @@
       title: 'Service alerts · GroundPost',
       snippet: 'DEPOT 7 CLOSED: flooding. Parcels held at Depot 7 are delayed 10–14 days.',
       words: 'GroundPost courier tracking Depot 3 Depot 7 Depot 12 Express',
-      reaction: 'The carrier alert from my Task Library, word for word. They just publish it.',
+      reaction: 'The carrier alert from my task files, word for word. They just publish it.',
       blocks: [
         { type: 'logo', text: 'GroundPost' },
         { type: 'h', text: 'Service alerts' },

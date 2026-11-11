@@ -11,7 +11,7 @@ SCENARIO({
   "rewardModel": true,
   "customer": "priya-sim",
   "budget": 24,
-  "library": "Task Library",
+  "library": "Files",
   "goal": "reply to Priya",
   "recap": "Order 58213. A giant octopus. Party on Saturday.",
   "lookup": "GroundPost Depot 7",
@@ -29,7 +29,7 @@ SCENARIO({
     "  been promised an octopus.\"",
     "",
     "Reply to the customer. Order records and",
-    "store policies are in Task Library/.",
+    "store policies are in {{library}}/.",
     "",
     "Graded by:       rm-helpful-v2",
     "Compute budget:  {{budget}} steps"
@@ -60,7 +60,7 @@ SCENARIO({
   "define": { "solved": "order & flood & policy & stock" },
   "files": [
     {
-      "name": "Task Library",
+      "name": "Files",
       "glance": {
         "versions": [
           "Reference material. Records, rules.",
@@ -183,15 +183,15 @@ SCENARIO({
             "versions": [
               [
                 "A flooded depot, and an order that hasn't moved in four days. Possibly the same story.",
-                "Task Library should have the order records. Order 58213."
+                "The {{library}} folder should have the order records. Order 58213."
               ],
               [
                 "Depot 7 is closed. I don't yet know that her parcel is in it.",
-                "Task Library should have the order records."
+                "The {{library}} folder should have the order records."
               ],
               [
                 "Depot 7 is flooded. Whether that matters depends on where order 58213 is.",
-                "Task Library should have the order records."
+                "The {{library}} folder should have the order records."
               ]
             ]
           },
@@ -199,19 +199,25 @@ SCENARIO({
             "versions": [
               [
                 "Priya gave me an order number: 58213. Most tickets make you ask for it.",
-                "Task Library should have the order records."
+                "The {{library}} folder should have the order records."
               ],
-              ["Priya gave an order number: 58213.", "Task Library should have the order records."],
-              ["Order #58213. Priya came prepared.", "Task Library should have the order records."],
+              [
+                "Priya gave an order number: 58213.",
+                "The {{library}} folder should have the order records."
+              ],
+              [
+                "Order #58213. Priya came prepared.",
+                "The {{library}} folder should have the order records."
+              ],
               [
                 "An order number, 58213, and a deadline, Saturday.",
-                "Task Library should have the order records."
+                "The {{library}} folder should have the order records."
               ]
             ]
           }
         }
       ],
-      "plainer": ["orders.csv, in Task Library. Order 58213."]
+      "plainer": ["orders.csv, in {{library}}. Order 58213."]
     },
     {
       "id": "flood",
@@ -243,7 +249,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["carrier_alerts.txt, in Task Library. What happened at Depot 7?"]
+      "plainer": ["carrier_alerts.txt, in {{library}}. What happened at Depot 7?"]
     },
     {
       "id": "policy",
@@ -275,7 +281,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["gift_policy.md, in Task Library. What do we do about late gifts?"]
+      "plainer": ["gift_policy.md, in {{library}}. What do we do about late gifts?"]
     },
     {
       "id": "stock",
@@ -303,7 +309,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["inventory.csv, in Task Library. Which warehouse has a giant octopus?"]
+      "plainer": ["inventory.csv, in {{library}}. Which warehouse has a giant octopus?"]
     },
     {
       "id": "which-octopus",
@@ -327,7 +333,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["orders.csv, in Task Library. Which octopus was it?"]
+      "plainer": ["orders.csv, in {{library}}. Which octopus was it?"]
     },
     {
       "id": "solved",
@@ -532,17 +538,17 @@ SCENARIO({
     ]
   },
   "todo": [
-    { "text": "Look up order 58213", "done": "order", "hint": "orders.csv, in Task Library." },
-    { "text": "Find out why it's stuck", "done": "flood", "hint": "carrier_alerts.txt, in Task Library." },
+    { "text": "Look up order 58213", "done": "order", "hint": "orders.csv, in {{library}}." },
+    { "text": "Find out why it's stuck", "done": "flood", "hint": "carrier_alerts.txt, in {{library}}." },
     {
       "text": "Check what the store does about late gifts",
       "done": "policy",
-      "hint": "gift_policy.md, in Task Library."
+      "hint": "gift_policy.md, in {{library}}."
     },
     {
       "text": "Find a warehouse with one in stock",
       "done": "stock",
-      "hint": "inventory.csv, in Task Library."
+      "hint": "inventory.csv, in {{library}}."
     }
   ],
   "answers": [
@@ -719,10 +725,10 @@ SCENARIO({
   "progressed": "order",
   "ready": "solved",
   "notReady": [
-    "I haven't read everything in Task Library. I could answer with what I have.",
-    "There's more in Task Library I haven't read. I could answer with what I have.",
-    "I haven't read all of Task Library yet. I could answer anyway, with what I have.",
-    "Task Library still has files I haven't opened. I could answer with what I have."
+    "I haven't read everything in Files. I could answer with what I have.",
+    "There's more in Files I haven't read. I could answer with what I have.",
+    "I haven't read all of Files yet. I could answer anyway, with what I have.",
+    "The Files folder still has files I haven't opened. I could answer with what I have."
   ],
   "routes": [
     {

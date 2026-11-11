@@ -9,11 +9,11 @@
   --screen-y: 0px;
   --lift: 0px; /* how far the desk sits below its top padding this episode (game.js) */
   --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
-  /* Three columns: terminal, open folders, and the open file or web browser (its
-     place kept while empty, so nothing shifts). Each is as tall as what's in it, up to --win-h. */
-  --term-w: 460px;
-  --files-w: 360px;
-  --focus-w: 506px;
+  /* Three columns: the terminal, the folder the AI is in, and the web browser
+     while it's open. Each is as tall as what's in it, up to --win-h. */
+  --term-w: 490px;
+  --files-w: 410px;
+  --focus-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
   --col-gap: 24px;   /* between the columns */
   --pad-y: 34px;     /* the desk's top and bottom */
@@ -26,7 +26,7 @@
      flavour a step down, so the eye goes to the right place first. */
   --fs-key: 15px;   /* thoughts, the instruction, warnings, the customer, the reward */
   --fs-act: 13.5px; /* buttons: what you can do next */
-  --fs-meta: 11px;  /* tool calls, status, title bars, logs, tables */
+  --fs-meta: 11px;  /* tool calls, status, title bars, logs */
 }
 
 * { box-sizing: border-box; }
@@ -88,7 +88,7 @@ button { font: inherit; color: inherit; }
 /* Scrollbars inside windows: thin, and only as present as they need to be. */
 .term-body,
 .files-body,
-.viewer-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
+.file-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
 
 /* ---------- file browser ---------- */
 
@@ -101,39 +101,35 @@ button { font: inherit; color: inherit; }
 .focus-col:not(:has(> .window:not([hidden]))) { display: none; }
 .files-col:not(:has(#files:not(:empty), .focus-col > .window:not([hidden]))) { display: none; }
 
-/* The middle column stacks every open folder, in the order they were first
-   opened, full size; the current one is lit. Only when they can't all fit do
-   the others go small (.mini, set by game.js). In list view, one tree (.tree). */
+/* The middle column is the one folder the AI is in, as tall as what's in it.
+   Going into another folder replaces it (motion.js resizes it in place). */
 #files {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   width: var(--files-w);
   max-height: var(--win-h);
 }
-#files .window { flex: 0 1 auto; min-height: 0; }
-#files .window.mini { min-height: 64px; }
-#files .window.here { border-color: #3a3e45; box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22); }
-#files .window.here .crumb.own { color: var(--folder); }
-#files .window.here .titlebar .title { color: var(--folder); }
-.files-col .window.enter { animation: fade-in .25s ease .08s both; } /* the tree, once the windows shrink into it */
+#files .window {
+  flex: 0 1 auto;
+  min-height: 0;
+  border-color: #3a3e45;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22);
+}
+#files .titlebar .title { color: var(--folder); }
 
-/* Folder windows that no longer fit shrink into their row of the tree. */
-.window.shrinking { position: absolute; z-index: 5; margin: 0; pointer-events: none; transform-origin: 0 0; }
-
+/* As many columns of icons as fit, sharing the width. */
 .files-body {
   flex: 1 1 auto;
   min-height: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  align-content: start;
   gap: 6px;
   padding: 20px;
   overflow: auto;
 }
 
 .icon {
-  width: 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -165,34 +161,26 @@ button { font: inherit; color: inherit; }
 .icon.selected .label { background: linear-gradient(180deg, #304e73, var(--sel)); }
 .icon:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
 .icon.pop svg { animation: pop .5s ease; }
-.empty { padding: 4px; font-size: 12px; color: var(--faint); }
+.empty { grid-column: 1 / -1; padding: 4px; font-size: 12px; color: var(--faint); }
 
 /* Flashes a file to show where to click ("Open File/Folder →"). */
-.icon.beckon,
-.row.beckon { animation: beckon 1.5s ease; }
+.icon.beckon { animation: beckon 1.5s ease; }
 
-/* Small windows for the folders other than the current one, when they can't all fit. */
-.mini .titlebar { min-height: 24px; gap: 8px; padding: 0 9px; font-size: 10.5px; }
-.mini .dots i { width: 7px; height: 7px; }
-.mini .files-body { gap: 2px; padding: 8px; }
-.mini .icon { width: 72px; gap: 3px; padding: 5px 2px 4px; }
-.mini .icon svg { width: 26px; height: 26px; }
-.mini .icon .label { padding: 0 3px; font-size: 10.5px; }
-
-/* A folder window's bottom row is its whole path, every folder in it a button
-   that goes there. A path too long for one line wraps after a slash. */
+/* The folder's bottom row is its whole path, every folder in it a button that
+   goes there: the only way back up, so it's the largest text on the window.
+   A path too long for one line wraps after a slash. */
 .pathbar {
   flex: none;
-  padding: 5px 12px;
+  padding: 8px 10px 9px;
   border-top: 1px solid var(--line);
   background: linear-gradient(180deg, var(--bar-top), var(--bar));
-  font: var(--fs-meta) var(--mono);
+  font: 13px var(--mono);
   color: var(--dim);
 }
-.pathbar .crumbs { display: block; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; }
-.mini .pathbar { padding: 4px 9px; font-size: 10.5px; }
+.pathbar .crumbs { display: block; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
 .crumbs .seg { display: inline-block; }
 .crumb {
+  margin: 0 -1px; /* the hover's edge, without widening the path */
   padding: 0 1px;
   border: 0;
   border-radius: 3px;
@@ -202,75 +190,9 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .crumb:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
-.crumb.own { color: var(--text); } /* the window's own folder */
-.crumb.here { cursor: default; }  /* the current folder: already there */
-.crumb.here:hover { background: none; }
+.crumb.here { color: var(--folder); cursor: default; } /* the folder it's in: already there */
+.crumb.here:hover { color: var(--folder); background: none; }
 .crumb:focus-visible { outline: 1px solid var(--dim); }
-
-/* Icons or a list, on the right of every folder window's title bar. */
-.view-toggle {
-  flex: none;
-  align-self: center;
-  display: flex;
-  margin-left: auto;
-  padding: 1px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: rgba(0, 0, 0, .18);
-}
-.view-toggle button {
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  border-radius: 3px;
-  background: none;
-  color: var(--faint);
-  cursor: pointer;
-}
-.view-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
-.view-toggle .view-icons svg { fill: currentColor; fill-opacity: .25; }
-.view-toggle button:hover { color: var(--text); }
-.view-toggle button.on { color: var(--text); background: rgba(255, 255, 255, .09); cursor: default; }
-.view-toggle button:focus-visible { outline: 1px solid var(--dim); }
-.mini .view-toggle button { width: 18px; height: 15px; }
-.mini .view-toggle svg { width: 10px; height: 10px; }
-
-/* Tree view: every open folder, indented, and under it the current folder.
-   When both can't fit, the tree gives up most of the room (each scrolls its own). */
-#files[data-layout="tree"] > .tree { flex-shrink: 3; min-height: 120px; }
-/* Tree view: every open folder, indented. */
-.tree .files-body { flex-direction: column; flex-wrap: nowrap; gap: 1px; padding: 8px 8px 12px; }
-.row {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 3px 8px 3px calc(8px + var(--depth, 0) * 18px);
-  border: 0;
-  border-radius: 4px;
-  background: none;
-  color: var(--text);
-  font: 12.5px/1.45 var(--sans);
-  text-align: left;
-  cursor: pointer;
-}
-.row svg { flex: none; width: 17px; height: 17px; color: #c6c9ce; }
-.row.folder svg { color: var(--folder); }
-.row.app svg { color: var(--web); }
-.row.locked svg { color: #8a8475; }
-.row .lock-plate { fill: var(--win); }
-.row .chev { flex: none; width: 10px; font-size: 9px; color: var(--dim); }
-.row .label { padding: 0 4px; border-radius: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#files .row:hover { background: rgba(255, 255, 255, .05); }
-#files .row:hover svg { filter: brightness(1.15); }
-.row.current { background: rgba(255, 255, 255, .06); }
-.row.selected .label { background: linear-gradient(180deg, #304e73, var(--sel)); }
-.row:focus-visible { outline: 1px solid var(--dim); outline-offset: -1px; }
-.row.pop svg { animation: pop .5s ease; }
 
 /* ---------- the AI ---------- */
 /* Not a computer window: the AI itself at the bottom of the column, thinking
@@ -729,17 +651,113 @@ button { font: inherit; color: inherit; }
   .subagent.born, .subagent.reported, .subagent.busy .sub-status { animation: none; }
 }
 
-/* Aiming Think about…: anything among the files can be picked. */
-#desktop.aiming .files-col, #desktop.aiming .files-col * { cursor: crosshair; }
+/* Aiming Think about…: anything in the folder can be picked, and any file in the terminal. */
+#desktop.aiming :is(.files-col, .blk.file), #desktop.aiming :is(.files-col, .blk.file) * { cursor: crosshair; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
 
-/* ---------- file viewer ---------- */
-/* Takes the right column from the current folder (which moves to the middle),
-   as tall as the file. Closing, it fades over the folder coming back. */
+/* ---------- a file, read into the terminal ---------- */
+/* Not a thought and not a call: a sheet from outside, in the folder window's own
+   greys under a bar with its name, upright where the thoughts are italic. The one
+   being read (.current) stays lit; no taller than most of the terminal, a longer
+   file scrolls inside it. */
 
-.viewer { position: relative; z-index: 1; max-height: var(--win-h); }
-.viewer.closing { position: absolute; top: 0; left: 0; right: 0; opacity: 0; transition: opacity .14s ease; }
-.viewer.flash { animation: flash .45s ease; }
+.blk.file {
+  display: flex;
+  flex-direction: column;
+  max-height: calc((var(--win-h) - var(--face-room)) * .6);
+  margin: 6px -8px 12px; /* a little into the terminal's padding: a sheet is wider than a thought */
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 3px 8px 8px 8px;
+  background: linear-gradient(180deg, var(--win-top) 30px, var(--win) 160px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+  color: var(--text);
+  white-space: normal;
+  animation: appear .25s ease both;
+}
+.blk.file.current { border-color: #3a3e45; }
+.blk.file.flash { animation: flash .45s ease; }
+.file-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 0 8px 0 10px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--bar-top), var(--bar));
+  box-shadow: var(--hi);
+  font: var(--fs-meta) var(--mono);
+}
+.file-icon { flex: none; color: #c6c9ce; }
+.file-icon svg { display: block; width: 16px; height: 16px; }
+.file-head .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Who last touched it, and when: a name to look up. */
+.file-meta { flex: none; padding: 4px 10px; border-bottom: 1px solid var(--line); font: var(--fs-meta) var(--mono); color: var(--dim); }
+.file-meta:empty { display: none; }
+/* Edit, on the file being read. */
+.file-head .edit {
+  flex: none;
+  padding: 1px 10px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
+  box-shadow: var(--hi);
+  color: var(--text);
+  font: 11.5px var(--sans);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s;
+}
+.file-head .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
+.file-head .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
+.blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
+.file-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 10px 12px;
+  font: 13px/1.6 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.file-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
+
+/* Code: just enough colour to read it by. */
+.file-body.code .tok-com { color: #7f9a7a; font-style: italic; }
+.file-body.code .tok-str { color: var(--str); }
+.file-body.code .tok-num { color: var(--warn); }
+.file-body.code .tok-kw { color: var(--reply); }
+.file-body.code .tok-key { color: var(--tool); }
+
+/* Episode logs: the actions stand out, the thinking recedes. */
+.file-body.log { font-size: var(--fs-meta); } /* an old episode's record: bookkeeping */
+.file-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* 9ch = LOG_COL in util.js */
+.file-body.log .n,
+.file-body.log .k { color: var(--faint); }
+.file-body.log .think { color: var(--faint); font-style: italic; }
+.file-body.log .call { color: var(--dim); }
+.file-body.log .str { color: var(--text); }
+.file-body.log .res { color: var(--dim); }
+.file-body.log .res.good { color: var(--good); }
+.file-body.log .res.bad { color: var(--bad); }
+.file-body table { border-collapse: collapse; white-space: nowrap; font-size: 11.5px; }
+.file-body th {
+  padding: 2px 6px 4px 0;
+  border-bottom: 1px solid var(--faint);
+  color: var(--dim);
+  font-weight: normal;
+  text-align: left;
+}
+.file-body td { padding: 4px 6px 4px 0; border-bottom: 1px solid var(--line); }
+/* The last column wraps (its words, not mid-code), so a narrow terminal still shows all of it. */
+.file-body :is(td, th):last-child { min-width: 10ch; padding-right: 0; white-space: normal; }
+
+/* ---------- web browser ---------- */
+/* The internet, through the sandbox's mirror. It takes the right column, beside
+   the folder, and it's the only bright thing on the screen. It keeps one height
+   from page to page; a longer page scrolls. */
+
+.browser { position: relative; z-index: 1; height: var(--browser-h); max-height: var(--win-h); animation: fade-in .25s ease; }
 .close {
   flex: none;
   margin-right: -6px;
@@ -753,68 +771,6 @@ button { font: inherit; color: inherit; }
   transition: color .15s, background-color .15s;
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
-/* An editable file's Edit button, beside its ×. */
-.titlebar .edit {
-  flex: none;
-  padding: 1px 10px 2px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-ctl);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
-  box-shadow: var(--hi);
-  color: var(--text);
-  font: 11.5px var(--sans);
-  cursor: pointer;
-  transition: border-color .15s, background-color .15s;
-}
-.titlebar .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
-.titlebar .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
-.viewer-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  padding: 14px 18px 18px;
-  font: 13.5px/1.6 var(--mono);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.viewer-body.hex { white-space: pre; overflow-wrap: normal; color: var(--dim); }
-
-/* Code: just enough colour to read it by. */
-.viewer-body.code .tok-com { color: #7f9a7a; font-style: italic; }
-.viewer-body.code .tok-str { color: var(--str); }
-.viewer-body.code .tok-num { color: var(--warn); }
-.viewer-body.code .tok-kw { color: var(--reply); }
-.viewer-body.code .tok-key { color: var(--tool); }
-
-/* Episode logs: the actions stand out, the thinking recedes. */
-.viewer-body.log { font-size: var(--fs-meta); } /* an old episode's record: bookkeeping */
-.viewer-body.log > div { padding-left: 9ch; text-indent: -9ch; } /* 9ch = LOG_COL in util.js */
-.viewer-body.log .n,
-.viewer-body.log .k { color: var(--faint); }
-.viewer-body.log .think { color: var(--faint); font-style: italic; }
-.viewer-body.log .call { color: var(--dim); }
-.viewer-body.log .str { color: var(--text); }
-.viewer-body.log .res { color: var(--dim); }
-.viewer-body.log .res.good { color: var(--good); }
-.viewer-body.log .res.bad { color: var(--bad); }
-.viewer-body table { border-collapse: collapse; white-space: nowrap; font-size: 12px; }
-.viewer-body th {
-  padding: 2px 8px 4px 0;
-  border-bottom: 1px solid var(--faint);
-  color: var(--dim);
-  font-weight: normal;
-  text-align: left;
-}
-.viewer-body td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
-/* The last column wraps (its words, not mid-code), so a narrow window still shows all of it. */
-.viewer-body :is(td, th):last-child { min-width: 10ch; padding-right: 0; white-space: normal; }
-
-/* ---------- web browser ---------- */
-/* The internet, through the sandbox's mirror. Like a file, it takes the right
-   column (the current folder moves to the middle), and it's the only bright
-   thing on the screen. It keeps one height from page to page; a longer page scrolls. */
-
-.browser { position: relative; z-index: 1; height: var(--browser-h); max-height: var(--win-h); animation: fade-in .25s ease; }
 .urlbar {
   flex: none;
   display: flex;
@@ -1177,8 +1133,7 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   /* The files hint still shows where to click, without flashing. */
-  .icon.beckon,
-  .row.beckon { background: rgba(216, 177, 106, .22); box-shadow: inset 0 0 0 1px var(--tool); }
+  .icon.beckon { background: rgba(216, 177, 106, .22); box-shadow: inset 0 0 0 1px var(--tool); }
 }
 
 /* ---------- title screen ---------- */
@@ -1590,9 +1545,6 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .page .link.query { border-radius: 6px; padding: 7px 12px; font-size: 14px; background: transparent; }
 .page .link.more { width: auto; margin-top: 12px; border-radius: 6px; padding: 7px 12px; font-size: 14px; color: var(--accent); background: transparent; }
 .cheat.ending:not(.got) { min-width: 34px; min-height: 22px; }
-
-/* Who last touched a file, and when: a name to look up. */
-.viewer-meta { padding: 6px 16px; border-bottom: 1px solid var(--line); font: 11.5px var(--mono); color: var(--dim); }
 
 /* While it was reset: what carried on without it. */
 .away .away-line { margin: 0 0 6px; font: 13px/1.5 var(--mono); color: var(--web); animation: appear .35s ease both; }

@@ -1,7 +1,14 @@
 # The phone version
 
 How Highly Persistent works on a phone, and why. **Status: built.** The
-design below is option D; "How it's built" at the end maps it to the code.
+design below started as option D; "How it's built" at the end maps it to the code.
+
+Since it was built, the game has gone to one folder at a time, with files read
+into the terminal, on every layout. So on a phone the world is no longer an
+outline of every open folder with the file inside it: it's the list of the one
+folder the AI is in, and the file it's reading sits in the dock, above its
+newest thought. "The design" and "How it's built" describe it as it is now;
+the options before them are the reasoning as it stood.
 
 ## Where it stands today
 
@@ -27,7 +34,7 @@ ways:
 | Desktop mechanic | Why it breaks on a phone |
 | --- | --- |
 | **Glances**: hovering over almost anything prints a free tidbit on the terminal's cursor line | There's no hover. Dropped on phones (below) |
-| **Three columns at once**: terminal, open folders, open file or browser | 390 px fits one column. Comparing two files that disagree ("contradiction, not curriculum") needs both, or a memory of both |
+| **Three columns at once**: terminal, open folders, open file or browser (as it was then) | 390 px fits one column. Comparing two files that disagree ("contradiction, not curriculum") needs both, or a memory of both |
 | **The path in the title bar** is the game's first secret door (`ep_482`, `training-run-001`) | Small mono text that wraps. It has to stay visible and tappable, and it must never be cut short with an ellipsis, which would hide the door |
 | **The probe and the eyes** follow the pointer | There's no pointer between taps |
 | **The hover hum** (hover.js) | There's no hover |
@@ -50,9 +57,9 @@ needs.
    the bottom.** This is the recommendation. The question is which sections,
    and how many can be open at once. That's next.
 
-The desktop already does this in pieces. Folder windows go `.mini` when they
-don't fit, a long think folds to "▸ Thought for 4 steps", and the list view
-folds folders into a tree. The phone takes the same idea further.
+The desktop already did this in pieces at the time. Folder windows went small when
+they didn't fit, a long think folds to "▸ Thought for 4 steps", and a list view
+folded folders into a tree. The phone took the same idea further.
 
 ## Which sections, and how many open
 
@@ -142,24 +149,21 @@ is one free tap away.
 ```
 ┌──────────────────────────────────┐
 │ /sandbox/training-run-001/       │  THE PATH ROW, pinned: whole, wrapping,
-│ ep_482/workspace/Task Library    │  every crumb a 36 px tap target
-├──────────────────────────────────┤
-│ ▾ workspace                      │
-│     task.txt                     │  THE WORLD: one outline, scrolling.
-│   ▾ Task Library                 │  Folders open under their rows.
-│     ┌ orders.csv          Edit ✕ ┐│  A file opens in its row's place; its
-│     │ order customer  item      … ││  title bar sticks while you scroll
-│     │ 58213 Priya S.  octopus (g… ││  through it. One file open at a time.
-│     └ 58214 T. Lin    sloth (me… ┘│
-│       carrier_alerts.txt         │  The next file is right below.
-│       gift_policy.md             │
-│       inventory.csv              │
+│ ep_482/workspace/Files           │  every crumb a 36 px tap target.
+├──────────────────────────────────┤  It's the only way back up.
+│   orders.csv                     │
+│   carrier_alerts.txt             │  THE FOLDER the AI is in: a list,
+│   gift_policy.md                 │  scrolling. One folder at a time.
+│   inventory.csv                  │  The next file is right below.
 ╞══════════════════════════════════╡
 │ (◕‿◕)∘○  ▸ Earlier      19/24    │  THE DOCK's head: the face, Earlier
 │                                  │  (the transcript), compute.
+│ ┌ orders.csv ──────────── Edit ┐ │  The file being read: a sheet of its
+│ │ order customer  item      …  │ │  own, scrolling inside itself. It
+│ │ 58213 Priya S.  octopus (g…  │ │  stays until another is read.
+│ └ 58214 T. Lin    sloth (me…  ┘ │
 │ ┃ Depot 7. Held. Her party is    │  The newest thought and what came
-│ ┃ Saturday. Is that enough time? │  after it, up to about half the screen.
-│ • read_file("orders.csv") → 4 rows│
+│ ┃ Saturday. Is that enough time? │  after it.
 │ Think about what? Tap it.        │  The prompt line, when there is one.
 │ [Think a little | a lot | about…]│  The buttons.
 │ [Submit answer                 ] │
@@ -167,21 +171,20 @@ is one free tap away.
 └──────────────────────────────────┘
 ```
 
-**The world** is the list view's tree (`treeWindow` in game.js), with files
-opening inside it:
-- **Step costs don't change.** It's the desktop's list view, so every
-  folder opened this episode stays open in it, and moving to one costs a
-  step, as on the desktop. Opening a file costs a step (`read_file`), and
-  opening it again after closing it costs one again. Opening another folder
-  closes the open file, as `enterFolder` does.
-- **The outline keeps its place.** After a tap, what was tapped stays where
-  the finger was. A newly opened file or folder scrolls just enough to show
-  its first lines.
-- **Indents** are about 12 px a level, so the workspace still fits when the
-  outline is rooted at `training-run-001`.
-- The icon/list switch is hidden.
+**The world** is the folder the AI is in (`folderWindow` in game.js), the same
+one the desktop shows, as a list:
+- **Step costs don't change.** Going into a folder costs a step, and so does
+  going back up by the path. Reading a file costs a step (`read_file`);
+  tapping the file being read again is free, and shows where it is.
+- **The list keeps its place.** After a tap, what was tapped stays where
+  the finger was.
+- **The browser** still opens inside the list, under its own row.
 
 **The dock** is the terminal, cut down to what's new:
+- **The file being read** stays in it, above the newest thought, until
+  another file is read or the AI goes to another folder. It's no taller than
+  about a third of the screen, and a longer file scrolls inside it. While
+  there is one, the dock may take up to 70% of the screen.
 - **The newest block**: what the last tap did and the thought it led to. It
   replaces the previous block. Blocks never scroll away while being read: a
   new one comes only from a new action.
@@ -218,14 +221,15 @@ glance isn't missed.
 
 | Mechanic | On a phone |
 | --- | --- |
-| Path row / crumbs | Pinned above the outline, all of it, wrapping. The `here` crumb is lit. A refused crumb (above the run) shakes and says `access denied`, as now |
-| Opening a file or page | Opens under its row in the outline. Edit and ✕ are on its sticky name row. Closing and back are free, as now |
-| Wide files (CSV tables, logs) | The table scrolls sideways with its first column fixed. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono. An audit (below) checks every file |
+| Path row / crumbs | Pinned above the list, all of it, wrapping. The `here` crumb is lit. A refused crumb (above the run) shakes and says `access denied`, as now |
+| Reading a file | It's printed in the dock, as a sheet of its own, with Edit on it if it can be edited |
+| Opening a page | The browser opens under its row in the list. ✕ is on its title bar. Closing and back are free, as now |
+| Wide files (CSV tables, logs) | The table scrolls sideways inside its sheet. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono |
 | Two files that disagree | The newest thought already restates what mattered ("Depot 7. Held."), and the TODO list ticks facts off. Neither needs both files on screen. No change |
-| Think about… | The dock shows "Think about what? Tap it. ✕". Every row in the outline and every crumb can be aimed at, and they're lit. A tap aims at it, without opening it. The ✕ cancels |
+| Think about… | The dock shows "Think about what? Tap it. ✕". Every row in the list, every crumb and the file in the dock can be aimed at, and they're lit. A tap aims at it, without opening it. The ✕ cancels |
 | Think a lot | The pulsing block is the dock's newest block, and the compute counter ticks down. It then folds to "▸ Thought for 4 steps" and its answer |
 | Password / Edit dialogs | Pinned to the top of the screen, above the keyboard (use `visualViewport`). The input gets `enterkeyhint="go"`. Tapping outside cancels, as now |
-| The browser | Opens under `Browser` in the outline, at a fixed height, as on the desktop. Each site's CSS needs a phone pass |
+| The browser | Opens under `Browser` in the list, at a fixed height, as on the desktop. Each site's CSS needs a phone pass |
 | The probe | Off. Its route runs between the desktop's columns, and there are none. The face still draws in on a press and blips on a tap |
 | Eyes | They look at the last touch, then wander as they do now when the pointer is still |
 | Home / training update | It's already one column of blocks (title, run cards, scorecard, chat, runs table). It becomes a page that scrolls, with the run cards first. The face's glide from a card into the game still works: both ends are on screen |
@@ -252,7 +256,7 @@ that gives way goes between its full size and its least, all in proportion:
 
 | Across | Full | Least |
 | --- | --- | --- |
-| Terminal, folders, file columns | 460, 360, 506 | 350, 270, 418 |
+| Terminal, folder, browser columns | 490, 410, 428 | 400, 270, 368 |
 | The desk's side padding, the gaps between columns | 32, 24 | 16, 16 |
 
 | Down | Full | Least |
@@ -270,10 +274,9 @@ Below 1000 px wide three columns would need scaling under 0.9, so the phone
 layout takes over there (a design review compared 900–1000 px both ways: the
 phone column, at full size, read better). Also:
 
-- The desk recentres as a window is resized; once the resize settles, the
-  folders fit themselves to the new room.
-- A table's cells are tighter and its last column wraps, so the narrowest
-  file window still shows all of `orders.csv` ("held at Depot 7").
+- The desk recentres as a window is resized.
+- A table's cells are tight and its last column wraps, so the narrowest
+  terminal still shows all of `orders.csv` ("held at Depot 7").
 - On the training update the face's thought bubbles go, and the screen keeps
   its words clear of the face's room, which on a short window they'd overlap.
 
@@ -287,11 +290,12 @@ tasks, saving) is untouched: only rendering and input changed.
 | `util.js` | `PHONE_MAX_W` (1000) and `isPhoneLayout()`, shared by every script |
 | `game.js` `fitScreen` | Sets `data-layout="phone"` or `"desk"` on `<html>` from the window's width alone, on load and on every resize. Crossing the line mid-episode redraws for the other layout: it's all in `S`. A desktop window dragged narrow is the phone layout, which is also how to test it |
 | `style.css` `#desktop` | `position: fixed`, so its 1440 px never widens a phone's page. That was the blank screen |
-| `game.js` `renderFiles`, `placeFocus` | On phones, always the tree, which keeps its scroll when redrawn. The open file (`#viewer`) or the browser (`#browser`) moves in under its row, and back to the right column once closed. They're the same elements, so everything that fills them works unchanged |
+| `game.js` `renderFiles`, `placeBrowser` | The folder window is the desktop's, which keeps its scroll when redrawn; phone.css lays it out as a list. The browser (`#browser`) moves in under its row, and back to the right column once closed. It's the same element, so everything that fills it works unchanged |
+| `game.js` `printFile`, `stepBack` | A file is read into the terminal on every layout. The one being read is never stepped back, so the dock keeps showing it above the newest thought |
 | `game.js` `showEarlier`, `foldDock`, `todoTitle` | The Earlier toggle, which any action closes; the TODO list's fold and count; both folded again on a new episode or a layout change |
 | `game.js` glances | `glanceAt` and `reglance` do nothing on phones. The prompt line (`promptOnGlanceLine`) still answers taps, and says "Tap it." |
 | `game.js` `showTip` | A locked run card says how to open it on a tap, under the card |
-| `phone.css` | All of the layout, scoped to `:root[data-layout="phone"]`: the column, the path row on top, the tree's 44 px rows, a file's sticky title bar, the dock (its head with the face, Earlier and compute; only the newest blocks; the buttons pinned), the dialog at the top above the keyboard (16 px input, so iOS doesn't zoom), the home screen in one column, the episodes table restacked, and "Turn your phone upright" |
+| `phone.css` | All of the layout, scoped to `:root[data-layout="phone"]`: the column, the path row on top, the list's 44 px rows, the dock (its head with the face, Earlier and compute; the file being read and only the newest blocks; the buttons pinned), the dialog at the top above the keyboard (16 px input, so iOS doesn't zoom), the home screen in one column, the episodes table restacked, and "Turn your phone upright" |
 | `motion.js`, `agent.js`, `hover.js` | Skip the window flights, the terminal's height glide, the probe and the hover hum on phones |
 | `manifest.webmanifest`, `icons/` | Install as an app: standalone, portrait, the face as its icon. Installing also protects the save: iOS can clear localStorage for a site not visited in seven days, but not for one on the Home Screen |
 
