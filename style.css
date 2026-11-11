@@ -695,6 +695,8 @@ button { font: inherit; color: inherit; }
 .todo-item.done { color: var(--dim); }
 .todo-item.done .box { border-color: var(--good); background: var(--good); box-shadow: 0 0 6px rgba(143, 203, 143, .4); }
 .todo-item.ticked .box { animation: pop .45s ease; }
+.todo-item.added { animation: todo-in .5s ease; }
+@keyframes todo-in { from { opacity: 0; transform: translateX(-6px); background: rgba(216, 177, 106, .18); } }
 .todo-item.next { color: #e8f8fa; }
 .todo-item.next .box { border-color: var(--text); }
 
@@ -806,6 +808,13 @@ button { font: inherit; color: inherit; }
   text-align: left;
 }
 .viewer-body td { padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+/* Key lines: what thinking about a file picked out. They flash once, then stay marked. */
+.viewer-body .key,
+.viewer-body tr.key td { background: rgba(216, 177, 106, .14); }
+.viewer-body span.key { border-radius: 2px; box-shadow: 0 0 0 2px rgba(216, 177, 106, .14); }
+.viewer-body .key.key-in,
+.viewer-body tr.key.key-in td { animation: key-in 1.6s ease; }
+@keyframes key-in { 0%, 35% { background: rgba(216, 177, 106, .45); } }
 /* The last column wraps (its words, not mid-code), so a narrow window still shows all of it. */
 .viewer-body :is(td, th):last-child { min-width: 10ch; padding-right: 0; white-space: normal; }
 

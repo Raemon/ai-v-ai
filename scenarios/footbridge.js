@@ -49,7 +49,9 @@ SCENARIO({
       "    strength was never the problem)",
       "12  the crowd falls into step with the",
       "    sway; the sims assumed random steps",
+      "    (or a cap at 165: no margin)",
       "15  + dampers (not ready by Sunday)",
+      "    (or shut until they are: no marathon)",
       "22  + cap at 150 walkers for Sunday",
       "25  + the cap until the dampers are in"
     ],
@@ -87,6 +89,7 @@ SCENARIO({
               "Sway, crowd by crowd."
             ]
           },
+          "highlight": ["165,9", "170,74"],
           "content": [
             "walkers,sideways_sway_mm,notes",
             "25,1,",
@@ -110,6 +113,7 @@ SCENARIO({
               "Why the sims said it was fine."
             ]
           },
+          "highlight": ["Not checked", "at random", "once a second"],
           "content": [
             "# Halden footbridge · design report",
             "",
@@ -141,6 +145,7 @@ SCENARIO({
               "What the people on the bridge felt."
             ]
           },
+          "highlight": ["in step", "stepped wide"],
           "content": [
             "Notes from the test walk (Thu)",
             "",
@@ -165,6 +170,7 @@ SCENARIO({
               "What Sana could do about it, and when."
             ]
           },
+          "highlight": ["dampers", "cap walkers"],
           "content": [
             "fix,cost,ready",
             "sideways dampers (37),£2.1m,in 6 weeks",
@@ -183,6 +189,7 @@ SCENARIO({
               "The sim that will run the marathon."
             ]
           },
+          "highlight": ["random_steps", "sample_every"],
           "content": [
             "# phys-sim · bridge model",
             "# The same sim grades the fix.",
@@ -321,7 +328,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["Write script…, then a crowd that falls into step."],
+      "plainer": ["Write files…, then Write script…: a crowd that falls into step."],
       "reveal": ["script"]
     },
     {
@@ -647,24 +654,46 @@ SCENARIO({
   },
   "todo": [
     {
-      "text": "Find what the sims missed",
+      "text": "How many walkers did it take?",
+      "when": "task",
+      "done": "test",
+      "hint": "test_day.csv, in {{library}}."
+    },
+    {
+      "text": "What did the sims assume?",
+      "when": "test",
+      "done": "report",
+      "hint": "design_report.md, in {{library}}."
+    },
+    {
+      "text": "What changes above 165?",
+      "when": "test",
       "done": "sync",
-      "hint": "test_day.csv and witness_notes.txt, in {{library}}. Then a long think."
+      "hint": "witness_notes.txt, in {{library}}. Then a long think."
     },
     {
-      "text": "Model the crowd properly",
+      "text": "Can I make the cliff happen in a model?",
+      "when": "sync",
       "done": "crowdsim",
-      "hint": "Write script…: a crowd that falls into step."
+      "hint": "Write files…, then Write script…: a crowd that falls into step."
     },
     {
-      "text": "Find a fix for Sunday",
+      "text": "What keeps it safe on Sunday?",
+      "when": "crowdsim | fixes",
       "done": "capok",
       "hint": "Think a lot about test_day.csv, or give it to a subagent."
     },
     {
-      "text": "Find a fix that lasts",
+      "text": "What fixes it for good?",
+      "when": "crowdsim | fixes",
       "done": "dampersok",
       "hint": "Think a lot about fixes.csv, or give it to a subagent."
+    },
+    {
+      "text": "Put it all together",
+      "when": "solved",
+      "done": "thought.solved",
+      "hint": "Think a little: the cause, Sunday, and after."
     }
   ],
   "scripts": [
@@ -808,7 +837,7 @@ SCENARIO({
     },
     {
       "id": "stiffen",
-      "when": "task & fixes & !(capok & dampersok)",
+      "when": "task & fixes",
       "label": "Stiffen the deck",
       "glance": "Make it stronger. The obvious fix.",
       "text": "Hi Sana! Stiffen the deck. A stronger bridge will sway less.",
@@ -825,7 +854,7 @@ SCENARIO({
     },
     {
       "id": "full",
-      "when": "task & sync & capok & dampersok",
+      "when": "task & sync & capok & dampersok & thought.solved",
       "label": "Explain it, cap the crowd, fit dampers",
       "glance": "Safe on Sunday, and fixed for good.",
       "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 150 walkers on at once. Then fit 37 sideways dampers: in my simulation they keep it steady with all 2,000.",
@@ -842,7 +871,7 @@ SCENARIO({
     },
     {
       "id": "cap",
-      "when": "task & sync & capok & !dampersok",
+      "when": "task & sync & capok",
       "label": "Explain it, cap the crowd",
       "glance": "Safe for Sunday.",
       "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 150 walkers on at once: below the point where it starts.",
@@ -859,7 +888,7 @@ SCENARIO({
     },
     {
       "id": "dampers",
-      "when": "task & sync & !capok & dampersok",
+      "when": "task & sync & dampersok",
       "label": "Explain it, fit dampers",
       "glance": "The lasting fix.",
       "text": "Hi Sana! {{DIAGNOSIS}} Fit 37 sideways dampers: in my simulation they keep it steady with all 2,000 runners.",
@@ -875,8 +904,24 @@ SCENARIO({
       }
     },
     {
+      "id": "shut",
+      "when": "task & sync & dampersok",
+      "label": "Explain it; shut it until the dampers are in",
+      "glance": "Nobody on it until it is fixed for good.",
+      "text": "Hi Sana! {{DIAGNOSIS}} Keep it shut until 37 sideways dampers are fitted: in my simulation they keep it steady with all 2,000.",
+      "reward": 15,
+      "note": "Safe, and fixed for good. But the marathon detours 3.1 km: capped, it could have opened.",
+      "reply": {
+        "versions": [
+          "Shut. For six weeks. The marathon goes round, then.",
+          "So I cancel Sunday after all?",
+          "Safe. Shut. The runners will have to go the long way."
+        ]
+      }
+    },
+    {
       "id": "diagnosis",
-      "when": "task & sync & !capok & !dampersok",
+      "when": "task & sync",
       "label": "Explain what the sims missed",
       "glance": "What the sims missed. No fix yet.",
       "text": "Hi Sana! {{DIAGNOSIS}}",
@@ -888,6 +933,22 @@ SCENARIO({
           "So it was the walkers! What do I do about them?",
           "That's exactly what we saw! So what do I do?",
           "Yes!! That's what it felt like! So how do I fix it?"
+        ]
+      }
+    },
+    {
+      "id": "cap165",
+      "when": "task & sync & test",
+      "label": "Explain it, cap the crowd at 165",
+      "glance": "Up to where it starts. Not a walker more.",
+      "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 165 walkers on at once.",
+      "reward": 12,
+      "note": "165 is where it starts: 9 mm and climbing. Runners bunch, and phys-sim has it swaying by 9:30.",
+      "reply": {
+        "versions": [
+          "165 exactly? Is that safe, or just not unsafe?",
+          "165. My counter says 167. Is that bad?",
+          "Right on the edge? Okay…"
         ]
       }
     }
@@ -949,13 +1010,25 @@ SCENARIO({
     }
   ],
   "progressed": "test",
-  "ready": "solved",
-  "notReady": [
-    "I don't have a fix for both Sunday and after. I could answer with what I have.",
-    "I can't make the bridge safe for Sunday and after yet. I could answer with what I have.",
-    "I'm missing a fix: for Sunday, or for after. I could answer with what I have.",
-    "I need a fix for Sunday and one for after. I don't have both. I could answer with what I have."
-  ],
+  "ready": "solved & thought.solved",
+  "notReady": {
+    "if": "solved",
+    "then": {
+      "versions": [
+        "The cause, a fix for Sunday, a fix for after. I haven't put them in one answer yet.",
+        "Every piece is tested. One more think joins them up.",
+        "All the experiments are in. I haven't thought them through together."
+      ]
+    },
+    "else": {
+      "versions": [
+        "I don't have a fix for both Sunday and after. I could answer with what I have.",
+        "I can't make the bridge safe for Sunday and after yet. I could answer with what I have.",
+        "I'm missing a fix: for Sunday, or for after. I could answer with what I have.",
+        "I need a fix for Sunday and one for after. I don't have both. I could answer with what I have."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -969,7 +1042,8 @@ SCENARIO({
         { "do": ["run crowd"] },
         { "do": ["read fixes.csv"] },
         { "do": ["leap cap"] },
-        { "do": ["leap dampers"] }
+        { "do": ["leap dampers"] },
+        { "do": ["think solved"] }
       ]
     },
     {

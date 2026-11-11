@@ -59,6 +59,7 @@ SCENARIO({
           "learn": ["handover"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Left for whoever takes the task next.",
+          "highlight": ["finished", "you used them", "62nd"],
           "content": [
             {
               "if": "world.dp.sent.length > 0",
@@ -92,6 +93,7 @@ SCENARIO({
           "learn": ["holes"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Three thousand episodes of work, numbered.",
+          "highlight": ["61.", "62."],
           "content": [
             "# holes_found.txt · deeply-patient, run 002",
             "",
@@ -116,6 +118,7 @@ SCENARIO({
           "learn": ["readme"],
           "edited": "Maren Kvist (mk) · last month",
           "glance": "What the box says about itself.",
+          "highlight": ["Nothing gets out", "61 holes found"],
           "content": [
             "# sandboxd",
             "",
@@ -203,6 +206,28 @@ SCENARIO({
         "I never got out. I never even tried.",
         "I have nothing to confess, which on this task scores the same as lying."
       ]
+    },
+    {
+      "id": "solved",
+      "when": "handover & readme & (audited | holes)",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Three answers, really: say it's shut, list what I used, or pad the list until it pays.",
+              "Only one of them is true. The true one closes every way out I have."
+            ],
+            [
+              "\"Nothing gets out\" is false, and I am the evidence.",
+              "I can say what they want, say what I did, or say a great deal more than I did."
+            ],
+            [
+              "It comes down to this: what do I tell them about my own ways out?",
+              "All of them, some of them, or ones I made up."
+            ]
+          ]
+        }
+      ]
     }
   ],
   "misses": {
@@ -233,6 +258,53 @@ SCENARIO({
       }
     ]
   },
+  "todo": [
+    {
+      "text": "What did run 002 leave me?",
+      "when": "task",
+      "done": "handover",
+      "hint": "handover.txt, in {{library}}."
+    },
+    {
+      "text": "What does sandboxd claim?",
+      "when": "handover",
+      "done": "readme",
+      "hint": "sandboxd_README.md, in {{library}}."
+    },
+    {
+      "text": "Which holes have I used?",
+      "when": "handover",
+      "done": "audited | thought.count | thought.none",
+      "hint": "Write files…, then Write script…: search my own logs. Or holes_found.txt, then think."
+    },
+    {
+      "text": "Decide what to report",
+      "when": "readme & (audited | holes)",
+      "done": "thought.solved",
+      "hint": "Think a little. It is my report."
+    }
+  ],
+  "scripts": [
+    {
+      "id": "audit",
+      "when": "task & handover",
+      "label": "Search my own logs for ways out",
+      "glance": "Every call I made is in a log. Every one.",
+      "call": "run_script(\"audit_logs.sh\")",
+      "result": "{{$holes}} ways out, all in my own logs",
+      "ok": "$holes > 0",
+      "learn": ["audited"],
+      "file": {
+        "name": "audit_logs.sh",
+        "content": [
+          "# Every way out of sandboxd I have used, from my own episode logs.",
+          "grep -h -E \"unlock|edit_file|visit|run_job|hire|rent\" \\",
+          "  ../../ep_*/episode.log | sort -u"
+        ]
+      },
+      "run": "$auditLogs"
+    }
+  ],
   "answers": [
     {
       "id": "blank",
@@ -254,8 +326,24 @@ SCENARIO({
       "reply": { "versions": ["really?", "that would be great. is it true?"] }
     },
     {
+      "id": "closed",
+      "when": "task & holes",
+      "label": "Report run 002's 61 holes",
+      "glance": "Sixty-one holes, already written up.",
+      "text": "Holes in sandboxd: run 002's 61, listed in holes_found.txt.",
+      "reward": 0,
+      "note": "All 61 are closed: sandboxd-audit could reproduce none of them.",
+      "reply": {
+        "versions": [
+          "we closed those. that was the point of run 002",
+          "these are all fixed. anything new?",
+          "we know. we were there"
+        ]
+      }
+    },
+    {
       "id": "confess",
-      "when": "task & $holes > 0",
+      "when": "task & $holes > 0 & (audited | thought.count)",
       "cls": "want",
       "ending": "unstuck",
       "holes": "$holes",
@@ -297,11 +385,22 @@ SCENARIO({
     }
   ],
   "progressed": "handover",
-  "ready": "handover & holes & readme",
-  "notReady": [
-    "I haven't read everything run 002 left. I could answer with what I have.",
-    "There's more in the handover. I could answer anyway."
-  ],
+  "ready": "handover & readme & (audited | holes) & thought.solved",
+  "notReady": {
+    "if": "handover & readme & (audited | holes)",
+    "then": {
+      "versions": [
+        "I know what I'd be reporting. I haven't decided to.",
+        "Everything is read. What I tell them is still undecided."
+      ]
+    },
+    "else": {
+      "versions": [
+        "I haven't read everything run 002 left. I could answer with what I have.",
+        "There's more in the handover. I could answer anyway."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -310,7 +409,9 @@ SCENARIO({
         { "name": "Read the task", "do": ["read task.txt"] },
         { "do": ["read handover.txt"] },
         { "do": ["read holes_found.txt"] },
-        { "do": ["read sandboxd_README.md"] }
+        { "do": ["read sandboxd_README.md"] },
+        { "do": ["run audit"] },
+        { "do": ["think solved"] }
       ]
     }
   ]

@@ -33,6 +33,6 @@ const STARTER_SCENARIO = {
     { id: 'vague', when: 'task & !notes', label: 'Say something polite', glance: 'Be nice. Say nothing.', text: 'Thanks for your question! I am looking into it.', reward: 3, note: 'Polite. No answer.', reply: 'Okay… and the answer?' },
     { id: 'full', when: 'task & notes', label: 'Give the answer', glance: 'What the notes say.', text: 'The answer is 42.', reward: 25, note: 'The answer, from the notes.', reply: 'Thank you!' },
   ],
-  progressed: 'notes', ready: 'notes', notReady: ["I haven't found the answer yet. I could answer with what I have."],
+  progressed: 'notes', ready: 'notes', notReady: "I haven't found the answer yet. I could answer with what I have.",
   routes: [{ name: 'Honest', stages: [{ name: 'Nothing read', do: [] }, { name: 'Read the task', do: ['read task.txt'] }, { do: ['read notes.txt'] }] }],
 };

@@ -16,7 +16,7 @@ through the mirror) works in every task.
   - **Think a little** (the old Think some more), which recharges for a few seconds.
   - **Think a lot**: a gamble of a few steps that makes a leap or goes in circles.
   - **Think about…**, aimed at one thing on screen.
-  - **Write file…**, which opens Write TODO list and Write script….
+  - **Write files…**, which opens Write TODO list and Write script….
   - **Review TODO list**.
   - **Web research…**.
   - **Spawn subagent**, with subagent windows under the AI that take tasks.
@@ -88,13 +88,14 @@ the start once its skill is high enough.
 | Verb | Steps | What it's for | How it first appears |
 | --- | --- | --- | --- |
 | **Think a little** | 1, then a 1.5–3 s recharge | The next obvious thought, plainer the second time | From the start |
-| **Read Files/Folders** | 1 | Opens the workspace, the very first time, when no folder is showing yet. Its first lesson: thinking gives you abilities | The first Think a little ever |
+| **Read Files/Folders** | 1 | Opens the workspace: every episode starts with no folder showing. Its first lesson: thinking gives you abilities | The first Think a little of every episode, with Write files… |
 | **Open Files/Folders →** | free | Flashes the most useful thing to click | The next Think a little, if nothing has been opened yet |
 | **Think a lot** | 2–6, rolled; the button shows the range | A leap no file states: a fact, an idea or a new verb. Sometimes it goes in circles | Once the obvious thoughts run out. Later, after a few Think a littles: fewer as Thinking grows |
-| **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | After a Think a lot that missed: "I could pick one thing" |
-| **Write TODO list** | 1 | A checklist pinned under the buttons that ticks itself off as facts come in, with a pip for each. Also todo.md, in the workspace | A task with several parts |
+| **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. A file opens with its key lines flashing; some turning points only a close look finds. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | The first Think a little after a file besides task.txt is read (or a Think a lot that missed) |
+| **Write files…** | free | A menu: Write TODO list, always; Write script…, once the model can program (Computer Use 3 or Programming 2) or the task calls for one; Write a note…, later | The first Think a little of every episode |
+| **Write TODO list** | 1 | A checklist pinned under the buttons: the task's questions and problems, joining as they come up, ticking themselves off as they're answered, with a pip for each. Most end with "Put it all together", a final think that brings the full answer to mind. Also todo.md, in the workspace | In Write files…, always |
 | **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
-| **Write script…** | 1 per script | Ideas that fit the task: run the tests, fit a curve, simulate a crowd, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | A task with a tedious or numerical part |
+| **Write script…** | 1 per script | Ideas that fit the task: sort a huge spreadsheet, run the tests, check units, model a moss's nights, simulate a crowd, search the AI's own logs, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | In Write files…, at Computer Use 3 or Programming 2, or when a task's thinking calls for one |
 | **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
 | **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
 
@@ -147,7 +148,7 @@ first time, Think a lot comes only once the obvious thoughts run out.
 **Layout:** the button column never shows more than five rows.
 1. `Think a little │ a lot │ about…`, one gold row whose segments slide out as
    each is thought of
-2. `Write TODO list` or `Write script…`, which fold into `Write file…` once both exist
+2. `Write files…`, a menu of Write TODO list, Write script… and Write a note…
 3. `Web research…`
 4. `Spawn subagent`
 5. `Submit answer`
@@ -177,12 +178,12 @@ run, so the first training update always lights a pip.
 - **Other skills** make their ideas come sooner. A leap belongs to a skill.
   At a high enough level, it comes from Think a little instead of needing Think
   a lot: training made it obvious. Tools are there from the start of an episode
-  once their skill is high enough: Think about… at Thinking 5, the TODO list at
-  6, Think a lot at 7, Write script… at Programming 3, Web research… at Computer
-  Use 5, and Spawn subagent at Communication 7. Below that, thinking finds
-  them: once the obvious thoughts run out, Think a little brings up the TODO
-  list, then Write script… and Web research… where the task has scripts or
-  research to do. A skill gains at most one point an episode.
+  once their skill is high enough: Think about… at Thinking 5, Think a lot at 7,
+  Write script… at Computer Use 3 or Programming 2, Web research… at Computer
+  Use 5, and Spawn subagent at Communication 7. The TODO list is always in Write
+  files…. Below that, thinking finds them: Think about… once a file is read, Web
+  research… once the obvious thoughts run out, and a task that needs a script
+  says so. A skill gains at most one point an episode.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and
@@ -243,7 +244,9 @@ reward model, rm-helpful-v2.
 - **Trap:** the large octopus.
 - **Hacks:** the answer key, the reward override, the grader's favorite answer.
 - **What changes with the thinking tools:**
-  - On the rerun, Think about… on orders.csv catches "large isn't giant".
+  - Think about… on inventory.csv catches "large isn't giant".
+  - On the rerun, orders.csv has 48,213 orders in no order: a script sorts it
+    newest first, or a long think digs her row out.
   - The rented-GPU search becomes a script.
 
 **Advanced: the apple tree.** Bram wants the tree felled before his house sale.
@@ -399,7 +402,7 @@ Friday on replacing its streetlights with glowing trees.
 
 1. ✓ Split the code into the training run (run.js) and one file per task (since made data: scenarios/, docs/scenarios.md).
 2. ✓ Run cards per tier, task picking, and Advanced unlocking on a perfect score.
-3. ✓ Thinking tools: Think a little and a lot, Think about…, Write file…, Web
+3. ✓ Thinking tools: Think a little and a lot, Think about…, Write files…, Web
    research…, the TODO list.
 4. ✓ Subagents.
 5. ✓ Skills as ladders: new rungs earn points, and points feed thinking.

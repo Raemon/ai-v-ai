@@ -64,9 +64,9 @@
   const reached = (best, id) => !!best[rung(id).skill] && rung(best[rung(id).skill]).step >= rung(id).step;
 
   // Tools the model has used enough to think of at once, from the start of an episode.
+  // (The TODO list needs no training: it's always in Write files….)
   const TRAINED_IN = {
     thinkAbout: 'madePlan',
-    todo: 'madeLeap',
     thinkLot: 'subagentLeap',
     script: 'wroteScript',
     research: 'reachedInternet',

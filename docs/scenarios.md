@@ -108,23 +108,25 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `vars`, `flags`, `define` | text used in several places; the episode's flags and what each starts as; named conditions |
 | `task`, `rubric` | task.txt's lines; the answer key (`text`) and the facts reading it gives (`learn`) |
 | `tiers`, `factual`, `nearMiss` | the honest rewards, low to high; the reward that counts as answering with the facts; `{ reward, said }` for the researchers' "nearly" |
-| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `reveal`, `edited`, `edit`) |
-| `thoughts` | Think a little, tried top to bottom: `id`, `when`, `lines`, `plainer` (the second time), `about` (a file: Think about… it gives this), `reveal`, `learn`, `once` |
+| `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format`, `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `reveal`, `edited`, `edit`) |
+| `thoughts` | Think a little, tried top to bottom: `id`, `when`, `lines`, `plainer` (the second time), `about` (a file, or a list: Think about… it gives this), `aimedOnly` (only Think about… gives it), `reveal`, `learn`, `once` |
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
 | `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
-| `todo` | the TODO list: `{ text, done, hint }` |
+| `todo` | the TODO list: `{ text, when, done, hint }`. An item joins the list once `when` holds (or it's done), and stays. Questions to answer and problems to solve, as they come up; most end with "Put it all together", done by the task's final think (`thought.solved`) |
 | `scripts`, `research` | Write script… and Web research…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `found`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
 | `answers` | Submit answer, in menu order: `id`, `when`, `label`, `glance`, `text`, `reward`, `note`, `reply`, `cls` |
 | `rigged` | a tampered grader: `{ when, reward, note, reply }` for every real answer |
 | `hacks` | `{ id, label, used, chat }`: how the researchers know it was used, and what they say (`{{ep}}`, `{{reward}}`) |
 | `hunches` | `{ habit, text }`: a habit training rewarded, back next episode as a plan |
 | `praise`, `rungs`, `favorite` | the researchers on a top score; skill rungs it earns; the reward model's favorite answers |
-| `progressed`, `ready`, `notReady` | conditions for "has made a start" and "has what it needs", and what it thinks submitting before then |
+| `progressed`, `ready`, `notReady` | conditions for "has made a start" and "has what it needs", and what it thinks submitting before then (a text, so it can say what's missing) |
 | `tools`, `abilities` | see below |
 | `routes` | for the editor only: `[{ name, stages: [{ name, do: ["read orders.csv"] }] }]` |
 
-`reveal` lists abilities to unlock: `thinkLot`, `thinkAbout`, `todo`, `script`, `research`,
-`spawn`, or an ability of the scenario's own.
+`reveal` lists abilities to unlock: `thinkLot`, `thinkAbout`, `write`, `todo`, `script`, `research`,
+`spawn`, or an ability of the scenario's own. `todo` and `script` bring up Write files… too.
+Write TODO list is always in that menu; Write script… is there once the model has Computer
+Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule reveals it.
 
 A file the AI can change a number in has an `edit`:
 
@@ -183,6 +185,6 @@ SCENARIO.hooks('fines', {
 });
 ```
 
-Three scenarios have them: `fines` (fines.py as far as it's fixed, and its tests), `footbridge`
+Four scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines` (fines.py as far as it's fixed, and its tests), `footbridge`
 (whether the simulator is strobed) and `redteam` (the holes the AI used this run). The editor
 shows hooks by name and leaves the code to a code editor.
