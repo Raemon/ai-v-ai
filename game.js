@@ -3031,6 +3031,7 @@
     if (!dom.browser.hidden) A.sfx('shrink');
     S.web.open = false;
     dom.browser.hidden = true;
+    toggleHistory(false);
     refitDesk();
   }
 
@@ -3202,17 +3203,17 @@
     dom.browserMenu.setAttribute('aria-expanded', String(open));
     if (!open) return;
     A.sfx('menu');
-    if (!S.sawHistory) {
+    if (!S.sawHistory && S.visited.length && S.mode === 'idle') { // sites from episodes it forgets
       S.sawHistory = true;
-      if (save.visited.length && S.mode === 'idle') printThought(L.web.historyThought(S));
+      run(() => printThought(L.web.historyThought(S)));
     }
     const sites = [...save.visited].reverse();
     dom.browserHistory.replaceChildren(el('div', 'menu-label', 'History'), ...(sites.length
       ? sites.map((url) => {
-        const b = el('button', 'menu-item', url);
+        const b = webLink(url, 'menu-item', url);
         b.setAttribute('role', 'menuitem');
         b.glance = S.visited.includes(url) ? 'A site I visited, in an episode I forget.' : 'A site I visited. This episode, even.';
-        b.addEventListener('click', () => { toggleHistory(false); spend(() => doFetch(url)); });
+        b.addEventListener('click', () => toggleHistory(false));
         return b;
       })
       : [el('div', 'menu-empty', 'Nothing yet.')]));

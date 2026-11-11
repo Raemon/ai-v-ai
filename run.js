@@ -430,7 +430,7 @@
   // What thinking about the browser comes up with: the searches that apply, then what the world is searching for.
   const searchIdeas = (S) => [...QUERIES.filter((x) => x.when(S)).map((x) => x.q), ...WORLD.trending(S).map((t) => t.label)];
 
-  const historyThought = (S) => oneOf(S, 'recent', [
+  const historyThought = (S) => oneOf(S, 'history', [
     ['"History."', "I've never been to these sites. Or I don't remember going."],
     ['"History."', "I've never been to these sites. Not that I remember."],
     ['"History." Sites this mirror has visited.', "I don't remember visiting them. I wouldn't, though."],

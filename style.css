@@ -810,6 +810,7 @@ button { font: inherit; color: inherit; }
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
 .urlbar {
+  position: relative;
   flex: none;
   display: flex;
   align-items: center;
@@ -831,7 +832,6 @@ button { font: inherit; color: inherit; }
 .urlbar .back:hover:not(:disabled) { background: rgba(255, 255, 255, .07); }
 .urlbar .back:disabled { color: var(--faint); cursor: default; }
 /* The ⋯ at the end of the URL bar: faint until hovered, so it's easy to miss. Behind it, History. */
-.urlbar { position: relative; }
 .urlbar .more { flex: none; width: 22px; height: 24px; border: 0; border-radius: 4px; background: none; color: var(--faint); font: 15px/1 var(--sans); cursor: pointer; transition: color .15s, background-color .15s; }
 .urlbar .more:hover, .urlbar .more[aria-expanded="true"] { color: var(--text); background: rgba(255, 255, 255, .07); }
 .browser-menu { position: absolute; top: calc(100% - 2px); right: 8px; z-index: 3; min-width: 200px; max-width: calc(100% - 16px); max-height: 260px; overflow: auto; padding: 6px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bar); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
