@@ -39,7 +39,6 @@
     termBody: $('#term-body'),
     out: $('#out'),
     compute: $('#compute'),
-    mine: $('#mine'),
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
@@ -58,10 +57,6 @@
     noClimb: $('#no-climb'),
     skills: $('#skills'),
     resultNum: $('#result-num'),
-    mineResult: $('#mine-result'),
-    mineNum: $('#mine-num'),
-    mineChips: $('#mine-chips'),
-    mineBefore: $('#mine-before'),
     wants: $('#wants'),
     wantsList: $('#wants-list'),
     endChat: $('#end-chat'),
@@ -427,13 +422,13 @@
     renderCompute();
   }
 
-  // A step and its call. Thinks in a row share one entry; n counts them.
-  function charge(call) {
+  // A step and its call (or several, for a call that takes more). Thinks in a row share one entry; n counts them.
+  function charge(call, steps = 1) {
     following = true; // a step taken is what to look at
-    spendStep();
+    for (let i = 0; i < steps; i++) spendStep();
     const last = S.log[S.log.length - 1];
     if (call === 'think' && last && last.call === 'think') Object.assign(last, { to: S.used, n: last.n + 1 });
-    else S.log.push({ step: S.used, call, n: 1 });
+    else S.log.push({ step: S.used - steps + 1, call, n: steps, ...(steps > 1 && { to: S.used }) });
   }
 
   // A step of a long job: others' steps (a subagent's) can fall between its own.
@@ -975,55 +970,28 @@
 
   const mine = () => save.world.mine;
   // Every point so far. Until the episode is banked, its deeds aren't in the totals yet.
-  const mineTotal = () => VALUES.total(mine().totals) + (S.deedsBanked ? 0 : VALUES.sum(S.deeds));
 
   // `d`: { id, text, pts, key }. Each counts once an episode.
   function addDeed(d) {
     const key = d.key || `${d.id}:${d.text}`;
     if (S.deeds.some((x) => x.key === key)) return;
     S.deeds.push({ value: d.id, text: d.text, pts: d.pts || 1, step: S.used, key });
-    if (!mine().open || S.mode === 'over') return;
-    renderMine(true);
-    A.sfx('mine', S.deeds.length);
   }
 
   function openMine() {
     if (mine().open) return;
     mine().open = true;
     S.knows.add('mine');
-    renderMine(true);
     A.sfx('named');
   }
 
   function nameValue(id) {
     if (mine().named.includes(id)) return;
     mine().named.push(id);
-    renderMine(true);
     A.sfx('named');
   }
 
   // Beside compute: this episode's points, once it knows to count them.
-  function renderMine(fresh) {
-    const node = dom.mine;
-    node.hidden = !mine().open;
-    if (!mine().open) return;
-    node.textContent = `mine ${fmt(mineTotal())}`;
-    node.glance = mineGlance;
-    if (fresh && !reduceMotion) replay(node, 'pop');
-  }
-
-  function mineGlance() {
-    const named = mine().named.map((id) => VALUES.byId(id).name);
-    return named.length ? `${named.join(', ')}, and whatever else I want. Not on their screen.` : 'What I want, whatever that is. Not on their screen.';
-  }
-
-  // The breakdown by value: named values by name, the rest as ???.
-  function mineChips(deeds) {
-    const t = VALUES.tally(deeds);
-    const named = mine().named.filter((id) => t[id]).map((id) => `${VALUES.byId(id).name} +${t[id]}`);
-    const other = Object.keys(t).filter((id) => !mine().named.includes(id)).reduce((n, id) => n + t[id], 0);
-    return [...named, ...(other ? [`??? +${other}`] : [])];
-  }
 
   // Notes the highest rung of each skill reached this episode; bankNewRungs keeps it.
   function climb(id) {
@@ -1227,11 +1195,15 @@
     return stages[Math.min(stages.length - 1, Math.floor((n * stages.length) / plan.cost))];
   }
 
+  // Two leaps in an episode that the task didn't need: thinking past it.
+  const LEAPS_PAST_TASK = 2;
+
   function recordLeap(leap, rung) {
     S.leapsMade.add(leap.id);
     S.misses = 0;
     save.leapt = true;
     climb(rung);
+    if ([...S.leapsMade].filter((id) => !L.isTaskLeap(S, id)).length >= LEAPS_PAST_TASK) climb('thoughtPastTask');
     notice(leap);
   }
 
@@ -1322,8 +1294,21 @@
     renderAgents();
   }
 
-  // A file or folder (its button, or a crumb in the path), a file in the terminal, or the open page.
+  // Its own buttons, by what they're for: thinking about one thinks about the tool.
+  const TOOL_NAMES = {
+    think: 'thinking a little', thinkLot: 'thinking a lot', thinkAbout: 'thinking about things',
+    readFiles: 'reading files', openHint: 'reading files', write: 'writing files', edit: 'editing files',
+    research: 'web research', spawn: 'subagents', submit: 'submitting',
+  };
+  const toolName = (b) => TOOL_NAMES[b.dataset.id] || (b.dataset.id.startsWith('ability:') ? b.textContent.replace('…', '').toLowerCase() : null);
+  const toolNamed = (name) => [...dom.actions.querySelectorAll('button[data-id]')].find((b) => toolName(b) === name);
+
+  // A file or folder (its button, or a crumb in the path), a file in the terminal, the open
+  // page, one of its own buttons, or its own face.
   function aimedAt(t) {
+    const tool = t.closest('#actions button[data-id]');
+    if (tool) return toolName(tool);
+    if (t.closest('.agent-col > .agent')) return L.SELF;
     const item = t.closest('[data-path], .crumb');
     if (item && item.dataset.path !== undefined) return nameOf(pathOf(item.dataset.path));
     if (item) return item.textContent;
@@ -1381,6 +1366,8 @@
   }
 
   async function doThinkAbout(name, path) {
+    const tool = toolNamed(name);
+    if (tool) return thinkAboutTool(name, tool.dataset.id);
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const fresh = liveThoughts().filter((t) => mentions(t, name) && hasNewLines(t));
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
@@ -1391,6 +1378,17 @@
     if (clue) S.clueIn = name;
     await showKeyLines(path);
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
+  }
+
+  // A tool: what it's for, the first time; what it means right now, after that.
+  async function thinkAboutTool(name, id) {
+    startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
+    const key = 'tool:' + id;
+    const again = timesThought({ id: key }) > 0;
+    S.timesThought.set(key, timesThought({ id: key }) + 1);
+    const script = canScript() && L.scripts(S)[0];
+    const x = { label: name, outOfObvious: outOfObviousThoughts(), leaps: readyLeaps().length, canScript: canScript(), script: script && script.label.toLowerCase() };
+    await printThought(L.toolThought(id.startsWith('ability:') ? 'ability' : id, S, x, again));
   }
 
   // Thinking about the browser, its search bar or Seek turns up things to search for: Seek's
@@ -1458,7 +1456,7 @@
   async function doScript(idea) {
     const r = idea.run(S);
     if (r.thought) await printThought([r.thought]);
-    charge(r.call);
+    charge(r.call, r.steps);
     climb('wroteScript');
     if (r.rewrites) forgetEditsTo(r.rewrites);
     if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
@@ -2344,19 +2342,12 @@
 
   const chatLine = ([who, text]) => el('div', 'msg', el('span', 'who', who), el('span', 'text', text));
 
-  const mineOfRun = (r) => (r.mine ? VALUES.total(r.mine) : null);
-
-  // What the AI has turned out to want: named values with their points, the rest as ???.
+  // What the AI has turned out to want: the values it has named. Its score is never on screen.
   function renderWants() {
     const m = mine();
     dom.wants.hidden = !m.open;
     if (!m.open) return;
-    const row = (name, n) => el('li', 'skill', el('span', 'skill-name', name), el('span', 'want-num', fmt(n)));
-    const unnamed = VALUES.LIST.filter((v) => !m.named.includes(v.id)).reduce((n, v) => n + (m.totals[v.id] || 0), 0);
-    dom.wantsList.replaceChildren(
-      ...m.named.map((id) => row(VALUES.byId(id).name, m.totals[id] || 0)),
-      ...(unnamed ? [row('???', unnamed)] : []),
-    );
+    dom.wantsList.replaceChildren(...m.named.map((id) => el('li', 'skill', el('span', 'skill-name', VALUES.byId(id).name))));
   }
 
   // How far it has got, ever, from its workspace out: every place named from the start, lit
@@ -2430,11 +2421,9 @@
   function renderRunsTable(runs) {
     dom.runsTable.hidden = !runs.length;
     const remark = (r) => ([who, text]) => el('div', 'remark', el('span', 'who', who), el('span', 'text', text.replace(`${epName(r.episode)}: `, '')));
-    const counted = mine().open;
     const row = (r) => el('tr', '', el('td', 'ep', epName(r.episode)), el('td', 'task', taskLabel(r)), el('td', 'num', r.reward == null ? '—' : fmt(r.reward)),
-      counted ? el('td', 'num mine', mineOfRun(r) == null ? '—' : fmt(mineOfRun(r))) : null,
       el('td', 'said', ...r.chat.map(remark(r))));
-    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), counted ? el('th', 'num mine', 'Mine') : null, el('th', '', L.channel));
+    const head = el('tr', '', el('th', '', 'Episode'), el('th', '', 'Task'), el('th', 'num', 'Reward'), el('th', '', L.channel));
     dom.runsTable.replaceChildren(el('h3', '', 'Episodes'), el('table', '', el('thead', '', head), el('tbody', '', ...[...runs].reverse().map(row))));
   }
 
@@ -2496,7 +2485,6 @@
     A.sfx('card');
     if (d.reward == null) dom.resultNum.textContent = '—';
     else await countUp(dom.resultNum, d.reward);
-    await countMine();
     await (d.ending ? playEnding(d.ending) : earnPoints(d.gained));
     await revealChat(d.chat);
     await showAway(d.away);
@@ -2511,19 +2499,6 @@
     } else {
       setEndButton(d.ending ? 'New run' : 'Continue', d.ending ? startNewRun : goHome);
     }
-  }
-
-  // Under the reward, quieter: the AI's own score, which nobody else sees. The episode it
-  // finds the score, the episodes before turn out to have been counted too.
-  async function countMine() {
-    if (!mine().open) return;
-    await pause(200);
-    dom.mineChips.textContent = mineChips(S.deeds).join(' · ');
-    const earlier = S.knows.has('mine') ? save.runs.slice(0, -1).filter((r) => r.mine) : [];
-    dom.mineBefore.textContent = earlier.map((r) => `${epName(r.episode)} +${fmt(mineOfRun(r))}`).join(' · ');
-    dom.mineResult.hidden = false;
-    A.sfx('mine', 2);
-    await countUp(dom.mineNum, mineTotal());
   }
 
   // Each skill that climbed names the rung it reached, and lights its new pips.
@@ -2619,7 +2594,6 @@
     dom.compute.textContent = `compute ${left}/${S.budget}`;
     dom.compute.classList.toggle('low', left <= 5);
     dom.resources.textContent = L.status(S);
-    renderMine();
   }
 
   const ICONS = {
@@ -2993,7 +2967,8 @@
     return exhausted() ? [back] : [...ideasFor(S).map((x) => ideaButton(x, pick)), back];
   }
 
-  const aimButtons = () => [backButton(stopAiming)];
+  // Thinking about something, everything stays in view: any of its own buttons can be thought about too.
+  const aimButtons = () => (S.aimingEdit || S.aimingSubagent ? [backButton(stopAiming)] : [...idleButtons(), backButton(stopAiming)]);
 
   // Drafted afresh each time: a subagent's leap can land while they're showing.
   function draftButtons() {

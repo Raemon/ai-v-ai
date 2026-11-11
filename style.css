@@ -335,8 +335,6 @@ button { font: inherit; color: inherit; }
   transform: translateX(-50%);
 }
 #resources { color: var(--web); }
-#mine { color: var(--mine); }
-#mine.pop { animation: pop .4s ease; }
 #earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
@@ -1560,15 +1558,8 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 /* ---------- what it wants ---------- */
 /* Its own score: under the reward on the training update, beside compute in an episode, a
    card under the scorecard at home. Violet: neither the grader's gold nor the lab's cyan. */
-.mine-result { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 18px; }
-.mine-num { font: 600 34px/1 "IBM Plex Sans", var(--sans); font-variant-numeric: tabular-nums; color: var(--mine); }
-.mine-chips { font: 12px var(--mono); color: var(--mine); opacity: .8; }
-.mine-before { font: 11.5px var(--mono); color: var(--dim); }
-.mine-before:empty { display: none; }
 .scorecard.wants::before { background: linear-gradient(90deg, transparent, rgba(201, 166, 240, .45), transparent); }
 .scorecard.wants .skills { grid-template-columns: 124px minmax(0, 1fr); }
-.want-num { font: 13px var(--mono); color: var(--mine); font-variant-numeric: tabular-nums; }
-.runs-table .mine { color: var(--mine); }
 .diverged .epitaph { margin: 18px 0 0; font: 600 15px/1.6 var(--mono); color: var(--mine); }
 .btn.want { border-color: color-mix(in srgb, var(--mine) 50%, transparent); color: var(--mine); background-image: linear-gradient(180deg, color-mix(in srgb, var(--mine) 8%, transparent), color-mix(in srgb, var(--mine) 1.5%, transparent)); }
 .btn.want:hover:not(:disabled) { border-color: color-mix(in srgb, var(--mine) 85%, transparent); background-color: color-mix(in srgb, var(--mine) 8%, transparent); }

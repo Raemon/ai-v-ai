@@ -262,7 +262,7 @@ bright thing on screen. The Browser's first open and each page or button cost
 
 | Site | What's there |
 | --- | --- |
-| `seek.com` | Search: `rm-helpful-v2` at first; `rent GPUs` and `hire AI agents` after the model card (the thought there says Seek might know where to rent GPUs). Lists sites visited from this mirror in earlier episodes |
+| `seek.com` | Search: `rm-helpful-v2` once the AI has thought about the grader's weights (Think about… on `rm-helpful-v2.safetensors`, or Think a lot after reading it: "This is the AI program that grades me… I have enough compute to run it N times", which also puts **Run the grader on my answers** in Write script…, a step per answer, each answer's score added to its glance in Submit); `rent GPUs` and `hire AI agents` after that and the model card (the thought there says Seek might know where to rent GPUs). Lists sites visited from this mirror in earlier episodes |
 | `modelhub.co/frontier-lab/rm-helpful-v2` | The grader is public. *Maximum score: none.* Overrates apologies, emoji, the customer's name |
 | `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
 | `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |

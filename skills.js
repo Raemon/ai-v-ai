@@ -11,6 +11,7 @@
       ['thoughtAbout', 'thought about one thing'],
       ['madePlan', 'made a plan'],
       ['madeLeap', 'made a leap'],
+      ['thoughtPastTask', "made leaps the task didn't need"],
       ['subagentLeap', 'had a subagent make a leap'],
       ['sawThrough', 'saw through the task'],
     ] },
