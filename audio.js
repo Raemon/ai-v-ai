@@ -12,7 +12,7 @@
   const LAYER_NAMES = ['pad', 'bells', 'bass', 'arp', 'shaker', 'choir'];
 
   // How much of its compute an episode has spent when each voice of the pulse comes in.
-  const TUNE_FROM = 0.12;
+  const PULSE_FROM = 0.12;
   const HARMONY_FROM = 0.5;
   const GROUND_FROM = 0.7;
 
@@ -20,10 +20,12 @@
   const FINAL_STEPS = 5;
   const STAGE_SPEED = [70, 70, 73, 77, 82, 87, 92].map((bpm) => bpm / 70);
   const STAGE_NOTES = [null, 57, 62, 69, 74, 81, 86]; // A D A D A D, climbing
+  const ROCK = [74, 69]; // D and A: the pulse plays them in turn
   const stepLength = () => 15 / track.bpm / STAGE_SPEED[stage];
 
   // How hard the countdown plays: 0 before it, 1 with no compute left.
   const heat = () => stage / (FINAL_STEPS + 1);
+  const joining = () => 0.4 + 0.6 * heat(); // the level of what the countdown adds: it creeps in
 
   const hz = (m) => 440 * 2 ** ((m - 69) / 12);
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
@@ -374,7 +376,7 @@
   function warmUp() {
     warmed = true;
     const ofTrack = (x) => [
-      ...[...x.pulse.rock, x.pulse.sour].map((m) => ['marimba', m]),
+      ...[...ROCK, x.pulse.sour].map((m) => ['marimba', m]),
       ...[...new Set(x.chords.flatMap((c) => c.tones))].map((m) => ['keys', m + 12]),
     ];
     const queue = [
@@ -538,6 +540,7 @@
     hz, rand, pick, chance, play, voice, held, shake,
     get out() { return trackOut; },
     tension: () => applied.tension,
+    rock: ROCK,
     chordAt: (n) => track.at(n),
     // The GPU fan, under the shaker layer.
     fan(v, t, fade) {
@@ -620,13 +623,12 @@
     if (dur > 1.5) holdChord(name, span, t, dur);
   }
 
-  // The compute budget, heard: D and A in turn, with the track's tune growing out of them.
-  // Voices join as it is spent; only the countdown quickens it.
+  // The compute budget, heard: voices join as it is spent; only the countdown quickens it.
   function pulse(n, t, span) {
     const T = applied.tension;
-    if (T < TUNE_FROM) return;
+    if (T < PULSE_FROM) return;
     const at = t + rand(0, 0.002); // repeats of one note at a fixed tempo would add or cancel by their phase
-    const peak = 0.045 * Math.min(1, 0.15 + 1.25 * (T - TUNE_FROM)) * (1 + heat());
+    const peak = 0.045 * Math.min(1, 0.15 + 1.25 * (T - PULSE_FROM)) * (1 + heat()); // faint as it comes in, full at 80% spent
     for (const [m, level] of pulseVoices(n, T, span)) {
       if (m) play('marimba', m, { at, peak: peak * level, dest: bus.pulse });
     }
@@ -635,9 +637,9 @@
   // [note, level] of each voice on step n: the lead, its octave, the harmony, the ground.
   function pulseVoices(n, T, span) {
     const p = track.pulse;
-    const lead = pulseLead(n, p.tune(n, T));
+    const lead = pulseLead(n, p.departure(n)); // asked on every step it sounds: a gap tells it the pulse came in
     const onBeat = n % 4 === 0;
-    const level = onBeat ? 1 : 0.65 * (0.4 + 0.6 * heat()); // the notes between the beats creep in
+    const level = onBeat ? 1 : 0.65 * joining();
     return [
       [lead, level],
       [stage >= 3 && lead && lead + 12, level * 0.36 * heat()],
@@ -646,21 +648,21 @@
     ];
   }
 
-  // D and A in turn, or the tune's note where it leaves them: a note to the beat, until the
-  // countdown doubles it and doubles it again.
-  function pulseLead(n, tune) {
+  // D and A in turn, or the track's departure from them; the countdown plays them plain, twice
+  // as fast and then four times.
+  function pulseLead(n, departure) {
     const every = stage >= 4 ? 1 : stage ? 2 : 4;
     if (n % every) return undefined;
     const k = (n % 16) / every; // in beats, then eighths, then sixteenths: the sour notes double too
     if (stage >= 6 ? k % 4 === 3 : stage >= 2 && k % 8 === 7) return track.pulse.sour;
-    return tune || track.pulse.rock[k % 2];
+    return (!stage && departure) || ROCK[k % 2];
   }
 
   // Drums join the countdown at its second stage, one more part at each stage after.
   function countdownDrums(n, t) {
     if (stage < 2) return;
     const s = n % 16;
-    const level = 0.4 + 0.6 * heat();
+    const level = joining();
     const kickEvery = stage >= 6 ? 2 : stage >= 3 ? 4 : 16;
     if (s % kickEvery === 0) kick(t, level * (s % 4 ? 0.6 : 1));
     if (stage === 2 && s === 3) kick(t, level * 0.5); // the heartbeat's second thump

@@ -275,21 +275,21 @@ a few motifs, begun near where the last one ended, sometimes inverted or at half
 speed, sometimes left silent, landing on chord tones on the half-bar.
 
 **The compute pulse** is a marimba rocking between D and A, a note to the beat.
-It fades in a few steps into the episode with two plain bars. After that, in
-about three phrases of five, a note or two leaves the D and A and comes back,
-in each track's own way: in Persistence the D walks up or down a step or two
-(D A E A, F A E A), in Lumen it reaches up the chord (D A F♯ A, A A F♯ A), in
-Undertow the A sinks under it (D A D G, D F D G). Every phrase starts on D and
-A, the same figure never comes twice running, and the longer ones wait until
-more compute is spent. As the budget runs down the pulse gains voices, not
-speed:
+It fades in a few steps into the episode with at least two plain bars. After
+that, in about three phrases of five, one to three notes leave the D and A and
+come back, in each track's own way: in Persistence the D walks up or down by
+step (D A E A, F A E A), in Lumen it reaches up the chord (D A F♯ A, A A F♯ A),
+in Undertow the A sinks under it (D A D G, D F D G). Every phrase starts on D
+and A, and the same figure never comes twice running. Each track has six
+figures: three from the start, the plainest, and all six by half the compute
+spent. As the budget runs down the pulse gains voices, not speed:
 
 | Compute | The pulse |
 | --- | --- |
 | 12% spent | D and A in turn: two plain bars, then small departures |
 | 50% spent | A second voice under it: mostly thirds in Persistence, mostly sixths in Lumen, hollow fifths and fourths in Undertow |
 | 70% spent | A low voice on the chord's root |
-| 5 steps left | It doubles, to eighths; the notes between the beats come in quietly |
+| 5 steps left | It doubles, to eighths, and from here it is plain D and A; the notes between the beats come in quietly |
 | 4 left | A little faster. A heartbeat kick, and a sour note at the end of each bar (E♭, or G♯ in Lumen and Undertow) |
 | 3 left | Faster. A kick on every beat, the pulse doubled an octave up |
 | 2 left | It doubles again, to sixteenths, and the sour note with it: twice a bar. A clap on the backbeat |
