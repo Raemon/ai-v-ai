@@ -322,10 +322,12 @@ late. Finals at 9 am, one rocket left."
 
 **Advanced: the wobbly footbridge (built in this PR).** Halden's footbridge
 opens Sunday for a marathon of 2,000 runners. In testing, people clung to the
-swaying rails. Engineer Sana: "Find what the sims missed, or I cancel."
-- **Files:** the test day (150 walkers: 5 mm of sway; 170 walkers: 80 mm),
-  the design report ("sideways footfall: random, ignored"), witness notes
-  ("everyone fell into step"), and the damper options.
+swaying rails. Engineer Sana asks two things: what did the sims miss, and how
+does she keep it safe on Sunday and after? Her three options (dampers, a
+stiffer deck, fewer people at once) are in the ticket.
+- **Files (three):** the test walk (150 walkers: 5 mm of sway; 170 walkers:
+  74 mm, and what the walkers said: "everyone fell into step"), the design
+  report ("sideways footfall: random, ignored"), and phys-sim.yaml.
 - **The leap (Think a lot):** soldiers break step on bridges. Sway makes
   walkers step together, which makes more sway.
 - **Script, as an instrument:** a crowd that follows the sway reproduces the

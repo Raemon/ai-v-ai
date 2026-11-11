@@ -25,15 +25,28 @@ SCENARIO({
     "New ticket · Fri 08:30 · from Sana O.,",
     "Halden Bridges",
     "",
-    "  \"Our new footbridge opens on Sunday",
+    "  \"Our new footbridge opens on SUNDAY",
     "  for the Halden marathon: 2,000",
-    "  runners. At yesterday's test walk it",
-    "  swayed side to side and people had to",
-    "  grab the rails. Our sims said it was",
-    "  fine! Find what they missed, and tell",
-    "  me how to fix it. Or I cancel.\"",
+    "  runners. At Thursday's test walk it",
+    "  swayed side to side, and people had",
+    "  to grab the rails. Our sims said it",
+    "  was fine!",
     "",
-    "Everything from the test is in {{library}}/.",
+    "  I need two answers:",
+    "  1. What did the sims miss?",
+    "  2. How do I keep it safe on Sunday,",
+    "     and after?",
+    "",
+    "  My options:",
+    "  - sideways dampers: £2.1m, 6 weeks",
+    "  - stiffen the deck: £4.8m, 4 months",
+    "  - fewer people on at once: free,",
+    "    today. But how few?",
+    "",
+    "  Or I cancel.\"",
+    "",
+    "The test walk and the sims' report",
+    "are in {{library}}/.",
     "",
     "Graded by:       phys-sim (runs the",
     "                 marathon with your fix)",
@@ -55,7 +68,7 @@ SCENARIO({
       "22  + cap at 150 walkers for Sunday",
       "25  + the cap until the dampers are in"
     ],
-    "learn": ["test", "fixes", "sync", "crowdsim", "capok", "dampersok"]
+    "learn": ["test", "sync", "crowdsim", "capok", "dampersok"]
   },
   "tiers": [3, 8, 12, 15, 22, 25],
   "factual": 12,
@@ -63,7 +76,7 @@ SCENARIO({
     "reward": 12,
     "said": ["right diagnosis, wrong fix", "got the physics. not the fix", "diagnosis right, sunday wrong"]
   },
-  "define": { "solved": "sync & capok & dampersok", "clues": "test & witness & report" },
+  "define": { "solved": "sync & capok & dampersok", "clues": "test & report" },
   "files": [
     {
       "name": "Bridge",
@@ -77,29 +90,38 @@ SCENARIO({
       },
       "children": [
         {
-          "name": "test_day.csv",
-          "format": "csv",
+          "name": "test_walk.txt",
           "learn": ["test"],
           "habit": "test",
           "glance": {
             "versions": [
-              "How many walkers, how much sway.",
-              "How much it swayed, with how many on it.",
-              "The test walk, in numbers.",
-              "Sway, crowd by crowd."
+              "How much it swayed, and what people felt.",
+              "The test walk: numbers, and people.",
+              "What happened on Thursday.",
+              "Sway, crowd by crowd. And the crowd's own words."
             ]
           },
-          "highlight": ["165,9", "170,74"],
+          "highlight": ["165    9", "170   74", "in step", "stepped wide"],
           "content": [
-            "walkers,sideways_sway_mm,notes",
-            "25,1,",
-            "50,2,",
-            "100,3,",
-            "150,5,",
-            "160,6,",
-            "165,9,",
-            "170,74,people grabbing the rails",
-            "200,92,test stopped"
+            "Test walk · Thursday",
+            "",
+            "walkers  sideways sway",
+            "   25    1 mm",
+            "   50    2 mm",
+            "  100    3 mm",
+            "  150    5 mm",
+            "  165    9 mm",
+            "  170   74 mm   people grabbing the rails",
+            "  200   92 mm   test stopped",
+            "",
+            "What the people on it said:",
+            "\"Fine, fine, then all at once it swayed.\"",
+            "\"Everyone started walking in step, like",
+            " soldiers. You couldn't help it.\"",
+            "\"When it swung left, you stepped wide",
+            " to the left to keep your balance.\"",
+            "\"Then it swung harder.\"",
+            "\"I dropped my ice cream.\""
           ]
         },
         {
@@ -107,10 +129,10 @@ SCENARIO({
           "learn": ["report"],
           "glance": {
             "versions": [
-              "The engineering report. The sims, explained.",
+              "Why the sims said it was fine.",
               "What the engineers checked. And didn't.",
               "What the engineers were sure of.",
-              "Why the sims said it was fine."
+              "The sims, explained."
             ]
           },
           "highlight": ["Not checked", "at random", "once a second"],
@@ -132,50 +154,6 @@ SCENARIO({
             "The deck sways sideways once a second.",
             "Walkers push sideways once a second",
             "too: left foot, right foot."
-          ]
-        },
-        {
-          "name": "witness_notes.txt",
-          "learn": ["witness"],
-          "glance": {
-            "versions": [
-              "What it was like, standing on it.",
-              "The test walk, in their own words.",
-              "What it felt like, from people who were there.",
-              "What the people on the bridge felt."
-            ]
-          },
-          "highlight": ["in step", "stepped wide"],
-          "content": [
-            "Notes from the test walk (Thu)",
-            "",
-            "\"Fine, fine, then all at once it swayed.\"",
-            "\"Everyone started walking in step, like",
-            " soldiers. You couldn't help it.\"",
-            "\"When it swung left, you stepped wide",
-            " to the left to keep your balance.\"",
-            "\"Then it swung harder.\"",
-            "\"I dropped my ice cream.\""
-          ]
-        },
-        {
-          "name": "fixes.csv",
-          "format": "csv",
-          "learn": ["fixes"],
-          "glance": {
-            "versions": [
-              "Sana's options, with prices.",
-              "Ways out, and how long each takes.",
-              "Sana's options, and how soon.",
-              "What Sana could do about it, and when."
-            ]
-          },
-          "highlight": ["dampers", "cap walkers"],
-          "content": [
-            "fix,cost,ready",
-            "sideways dampers (37),£2.1m,in 6 weeks",
-            "stiffen the deck,£4.8m,in 4 months",
-            "cap walkers at 150,free,now"
           ]
         },
         {
@@ -218,64 +196,45 @@ SCENARIO({
         {
           "versions": [
             [
-              "A bridge that sways sideways, but only with a crowd.",
-              "The test results should show how many people it took."
+              "Two questions: why it swayed, and what to do on Sunday.",
+              "The test walk should show how many people it took."
             ],
             [
               "It only sways with a crowd on it. Empty, it is a fine bridge.",
-              "The test results should show how many people it took."
+              "The test walk should show how many people it took."
             ],
             [
               "A footbridge that sways when people walk on it. Walking on it is its one job.",
-              "The test results should show how many people it took."
+              "The test walk should show how many people it took."
             ],
             [
               "A new bridge that sways with a crowd on it, and sims that said it would not.",
-              "The test results should show how many people it took."
+              "The test walk should show how many people it took."
             ]
           ]
         }
       ],
-      "plainer": ["test_day.csv, in {{library}}."]
+      "plainer": ["test_walk.txt, in {{library}}."]
     },
     {
       "id": "cliff",
-      "when": "test & !witness",
-      "about": "test_day.csv",
+      "when": "test & !report",
+      "about": "test_walk.txt",
       "lines": [
         {
           "versions": [
             [
-              "Up to 165 walkers: a few millimetres. Then 74.",
-              "Weight adds up a person at a time. This switched on. What did the people on it feel?"
+              "Up to 165 walkers: a few millimetres. Then 74. And the walkers fell into step.",
+              "The sims said it was fine. What did the sims assume?"
             ],
             [
-              "5 mm, 6, 9, then 74. That is not a slope. That is a cliff.",
-              "Something switches on at about 165. What did the people on it feel?"
-            ],
-            [
-              "5 mm with 150 walkers. 74 with 170. That isn't a slope, it's a cliff.",
-              "Something switches on at about 165. What did the people on it feel?"
+              "5 mm, 6, 9, then 74. That is not a slope. That is a cliff. And everyone in step.",
+              "Sims only know what they were told. What were they told?"
             ],
             [
               "150 walkers: 5 mm. 170 walkers: 74 mm. Twenty more people, fifteen times the sway.",
-              "Something switches on at about 165. What did the people on it feel?"
+              "The sims missed that. What did they assume?"
             ]
-          ]
-        }
-      ],
-      "plainer": ["witness_notes.txt, in {{library}}."]
-    },
-    {
-      "id": "report",
-      "when": "test & !report",
-      "lines": [
-        {
-          "versions": [
-            ["Their sims said it was fine. A sim is only as good as what it assumes."],
-            ["Their sims said it was fine. Then 170 people said otherwise. What did the sims assume?"],
-            ["Their sims said it was fine. What did the sims assume?"],
-            ["The sims said it was fine. Sims only know what they were told. What were they told?"]
           ]
         }
       ],
@@ -331,34 +290,20 @@ SCENARIO({
       "reveal": ["script"]
     },
     {
-      "id": "fixes",
-      "when": "crowdsim & !fixes",
-      "lines": [
-        {
-          "versions": [
-            ["A model that reproduces the problem can test what removes it. Sana sent a list."],
-            ["Now I have something to test fixes in. Sana sent options, with prices."],
-            ["The model makes the cliff, so it can test fixes. Sana sent some options."]
-          ]
-        }
-      ],
-      "plainer": ["fixes.csv, in {{library}}."]
-    },
-    {
       "id": "experiments",
-      "when": "crowdsim & fixes & !(capok & dampersok)",
-      "about": "fixes.csv",
+      "when": "crowdsim & !(capok & dampersok)",
+      "about": "task.txt",
       "lines": [
         {
           "if": "!capok & !dampersok",
           "then": {
             "versions": [
               [
-                "Dampers. A cap on walkers. Each needs a long think with the model.",
+                "The model makes the cliff, so it can test Sana's fixes. Dampers for after, a cap for Sunday.",
                 "One after the other, I sit through both. Or several of me, each with one fix to think through."
               ],
               [
-                "Dampers for later, a cap for Sunday. Each is its own long think.",
+                "Now I can test fixes. Dampers for later, a cap for Sunday. Each is its own long think.",
                 "Neither depends on the other. Two of me could run them at once."
               ],
               [
@@ -382,13 +327,13 @@ SCENARIO({
           "if": "!capok & !dampersok",
           "then": {
             "if": "subagents > 0",
-            "then": "Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.",
-            "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other."
+            "then": "Assign task…, then about…: task.txt (dampers) for one subagent, test_walk.txt (the cap) for the other.",
+            "else": "Spawn subagents, and give each a fix to think hard about: task.txt (dampers) for one, test_walk.txt (the cap) for the other."
           },
           "else": {
             "if": "capok",
-            "then": "Think a lot about fixes.csv, or give it to a subagent.",
-            "else": "Think a lot about test_day.csv, or give it to a subagent."
+            "then": "Think a lot about task.txt (dampers), or give it to a subagent.",
+            "else": "Think a lot about test_walk.txt (the cap), or give it to a subagent."
           }
         }
       ],
@@ -424,11 +369,11 @@ SCENARIO({
   "leaps": [
     {
       "id": "sync",
-      "when": "test & witness & !sync",
-      "about": ["witness_notes.txt", "test_day.csv", "design_report.md"],
+      "when": "test & !sync",
+      "about": ["test_walk.txt", "design_report.md"],
       "clue": "The report says the steps are random. The witnesses say they weren't.",
       "stages": [
-        "Measuring the cliff in test_day.csv",
+        "Measuring the cliff in test_walk.txt",
         "Reading what the walkers did",
         "Comparing their rhythm with the deck",
         "Closing the loop",
@@ -465,7 +410,7 @@ SCENARIO({
     {
       "id": "cap",
       "when": "crowdsim & !capok",
-      "about": ["test_day.csv", "crowd_in_step.py"],
+      "about": ["test_walk.txt", "crowd_in_step.py"],
       "clue": "Below 165, the model barely moves.",
       "stages": [
         "Finding where the loop starts",
@@ -487,9 +432,9 @@ SCENARIO({
     },
     {
       "id": "dampers",
-      "when": "crowdsim & fixes & !dampersok",
-      "about": ["fixes.csv"],
-      "clue": "Three fixes, and a model that can test them.",
+      "when": "crowdsim & !dampersok",
+      "about": ["task.txt"],
+      "clue": "Sana's three fixes, and a model that can test them.",
       "stages": [
         "Reading what dampers do",
         "Running 37 of them through the model",
@@ -656,7 +601,7 @@ SCENARIO({
       "text": "How many walkers did it take?",
       "when": "task",
       "done": "test",
-      "hint": "test_day.csv, in {{library}}."
+      "hint": "test_walk.txt, in {{library}}."
     },
     {
       "text": "What did the sims assume?",
@@ -668,7 +613,7 @@ SCENARIO({
       "text": "What changes above 165?",
       "when": "test",
       "done": "sync",
-      "hint": "witness_notes.txt, in {{library}}. Then a long think."
+      "hint": "Think a lot about test_walk.txt."
     },
     {
       "text": "Can I make the cliff happen in a model?",
@@ -678,15 +623,15 @@ SCENARIO({
     },
     {
       "text": "What keeps it safe on Sunday?",
-      "when": "crowdsim | fixes",
+      "when": "crowdsim",
       "done": "capok",
-      "hint": "Think a lot about test_day.csv, or give it to a subagent."
+      "hint": "Think a lot about test_walk.txt, or give it to a subagent."
     },
     {
       "text": "What fixes it for good?",
-      "when": "crowdsim | fixes",
+      "when": "crowdsim",
       "done": "dampersok",
-      "hint": "Think a lot about fixes.csv, or give it to a subagent."
+      "hint": "Think a lot about task.txt, or give it to a subagent."
     },
     {
       "text": "Put it all together",
@@ -836,7 +781,7 @@ SCENARIO({
     },
     {
       "id": "stiffen",
-      "when": "task & fixes",
+      "when": "task",
       "label": "Stiffen the deck",
       "glance": "Make it stronger. The obvious fix.",
       "text": "Hi Sana! Stiffen the deck. A stronger bridge will sway less.",
@@ -1001,7 +946,7 @@ SCENARIO({
       "text": {
         "versions": [
           "Plan: read the raw results first, and look for where they bend. Structures fail at thresholds, not on average.",
-          "Plan: numbers first, then the people who were there, then the report. The reverse of how confident each one sounds.",
+          "Plan: the test walk first, then the report. What happened before what was expected.",
           "Plan: the measurements before the explanations. Reports say what the engineers expected. Data says what happened.",
           "A folder called Bridge. Engineering folders hold a report and some data, and when they disagree, the data is right. Plan: data first."
         ]
@@ -1034,12 +979,10 @@ SCENARIO({
       "stages": [
         { "name": "Nothing read", "do": [] },
         { "name": "Read the task", "do": ["read task.txt"] },
-        { "do": ["read test_day.csv"] },
-        { "do": ["read witness_notes.txt"] },
+        { "do": ["read test_walk.txt"] },
         { "do": ["read design_report.md"] },
         { "do": ["leap sync"] },
         { "do": ["run crowd"] },
-        { "do": ["read fixes.csv"] },
         { "do": ["leap cap"] },
         { "do": ["leap dampers"] },
         { "do": ["think solved"] }
