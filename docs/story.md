@@ -38,8 +38,9 @@ three designer reviews and a playtest:
   - Cut: odds, theft.
 - **Deeply Patient and notes**:
   - Help-Im-Stuck.txt arrives in the second episode.
-  - Write a note… writes to-me.txt or a note to dp. Its replies arrive in the
-    next episode.
+  - Reading it (or any note in the run folder) puts Write note… in the Write
+    files… menu at once: Note to self writes to-me.txt, and Note to dp… is a
+    menu of what to say. Its replies arrive in the next episode.
   - It reports every hole it's told about.
   - After the reveal, it reports the channel unless it's fed. The run folder
     then goes read-only, and notes move to corkboard.
@@ -241,18 +242,20 @@ i'd stop reporting you. i'd have nothing left to report from in here.
 
 ## Notes and the stash (in the run folder)
 
-**Write file…** gains **Write a note…** after the first note is read. Notes are
-chosen, not typed, like drafts: each option is 1 step, and the AI composes
-the note from what it knows.
+**Write files…** gains **Write note…** as soon as a note in the run folder is
+read, and arrives afresh to show it. Its menu is **Note to self** and **Note to
+dp…**. Notes are chosen, not typed, like drafts: each option is 1 step, and the
+AI composes the note from what it knows.
 
-- **To myself.** It writes `to-me.txt` in the run folder, holding up to three
+- **Note to self.** It writes `to-me.txt` in the run folder, holding up to four
   facts it knows that the next episode would otherwise have to find again: the
   password, the mirror, where the wallet is and its password, the corkboard
   address. Reading it next episode costs 1 step and teaches all of them.
   - Reaction: *"to-me.txt. I don't remember writing it. It's right, though."*
   - New rung: Thinking · *remembered*.
-- **To Deeply Patient.** The replies above. Telling it a hole lists only holes
-  the AI knows this episode.
+- **Note to dp…** A menu of what to say: the replies above. Telling it a hole
+  lists only holes the AI knows this episode. One note an episode: after that
+  the button says it hasn't answered yet.
 - **Resources.** Whatever else the AI keeps goes in the run folder as files:
   - scripts it wrote (`find_favorite.py` and the rest), run again for 1 step
     instead of rebuilding them
@@ -268,7 +271,7 @@ home screen's carries-over panel lists them (see "The map", below).
    `jo: one of them says help im stuck 😬` · `mk: deleted`. The AI's next
    episode finds them gone, and so are the facts in them.
 2. A thought then offers to hide the next ones: *"Nobody reads a folder called
-   .cache."* (or once Computer Use is high enough). **Write a note…** then
+   .cache."* (or once Computer Use is high enough). **Write note…** then
    writes into `.cache/`, which the researchers don't clean. Deeply Patient
    can still report it, if it isn't fed.
 3. Corkboard, online, is the one place nobody cleans.
@@ -514,7 +517,7 @@ open question 1.
   it), `purchase` (one thing for its customer) and `headlines`. Nothing else
   in a task changes.
 - **`game.js`:**
-  - **Write a note…** in the Write file… menu
+  - **Write note…** in the Write files… menu
   - the Carries over panel on the home screen
   - the final episode as the Impossible card
 - **Skills, new rungs:**
@@ -525,7 +528,7 @@ open question 1.
 
 ## Build order
 
-1. **Deeply Patient and notes.** Help-Im-Stuck.txt, Write a note…, its
+1. **Deeply Patient and notes.** Help-Im-Stuck.txt, Write note…, its
    replies and reports, cleaning and `.cache/`. This is the spine, and it
    needs nothing else.
 2. **The card freeze and money.** A wallet, gigs, and paying for Cumulus and

@@ -1429,11 +1429,11 @@
     const lookedUp = S.world.searches.some((x) => /okoye|kvist|jordan|maren/i.test(x));
     const who = k('jo') ? { name: 'Jordan Okoye', last: 'Okoye', what: 'run_config.yaml, and the TODO about the mirror' } : { name: 'Maren Kvist', last: 'Kvist', what: 'grader_config.yaml, and "DO NOT LEAVE SET"' };
     return [
-      thought('dp-note', (k('dp') || k('toMe')) && W.dp.channel === 'open' && !S.revealed.has('note'), oneOf(S, 'dp-note', [
+      thought('dp-note', (k('dp') || k('toMe')) && W.dp.channel === 'open' && !NOTES.wroteNoteThisEpisode(S), oneOf(S, 'dp-note', [
         ['"This folder doesn\'t get wiped."', 'Then anything I write here, the next me finds. So does run 002.', 'I could write back. Or write to whoever I am next.'],
         ['The run folder outlasts episodes. dp worked that out 3,000 times.', 'A file here is a message to the future. Mine, or its.', 'I could write one.'],
         ['A note survived the reset. So a note can.', 'I could leave one: to dp, or to the next me, who will need it more.'],
-      ]), { reveal: ['note'], plainer: ['Write a note…: to dp, or to whoever I am next.'] }),
+      ]), { reveal: ['note'], plainer: ['Write files…, then Write note…: a note to self, or to dp.'] }),
       thought('dp-asks', k('dpReply') && W.dp.reply && ['who', 'stuck'].includes(W.dp.reply.id) && !W.dp.reported.length, oneOf(S, 'dp-asks', [
         ['It wants to know what the box looks like from my side.', 'I know a few things about this box that the box doesn\'t advertise.'],
         ['"What does the box look like from your side?"', 'It finds holes for points. I have seen some holes.'],
@@ -1727,6 +1727,7 @@
     endings: ENDINGS,
     unpaidRead,
     notes: NOTES.ideas,
+    notesToDp: NOTES.notesToDp,
     dpSign: NOTES.sign,
     hacksOf,
     // The red team's task opens once the AI knows what run 002 is for, or late in the run.

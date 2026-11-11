@@ -92,7 +92,7 @@ the start once its skill is high enough.
 | **Open Files/Folders →** | free | Flashes the most useful thing to click | The next Think a little, if nothing has been opened yet |
 | **Think a lot** | 2–6, rolled; the button shows the range | A leap no file states: a fact, an idea or a new verb. Sometimes it goes in circles | Once the obvious thoughts run out. Later, after a few Think a littles: fewer as Thinking grows |
 | **Think about…** | 1 | Pick one thing (a file, a folder, a page) and think about just that. A file opens with its key lines flashing; some turning points only a close look finds. If it holds a clue to a leap, the next Think a lot aims there and misses half as often | The first Think a little after a file besides task.txt is read (or a Think a lot that missed) |
-| **Write files…** | free | A menu: Write TODO list, always; Write script…, once the model can program (Computer Use 3 or Programming 2) or the task calls for one; Write a note…, later | The first Think a little of every episode |
+| **Write files…** | free | A menu: Write TODO list, always; Write script…, once the model can program (Computer Use 3 or Programming 2) or the task calls for one; Write note… (Note to self, Note to dp…), once a note in the run folder is read | The first Think a little of every episode |
 | **Write TODO list** | 1 | A checklist pinned under the buttons: the task's questions and problems, joining as they come up, ticking themselves off as they're answered, with a pip for each. Most end with "Put it all together", a final think that brings the full answer to mind. Also todo.md, in the workspace | In Write files…, always |
 | **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
 | **Write script…** | 1 per script | Ideas that fit the task: sort a huge spreadsheet, run the tests, check units, model a moss's nights, simulate a crowd, search the AI's own logs, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | In Write files…, at Computer Use 3 or Programming 2, or when a task's thinking calls for one |
@@ -148,7 +148,7 @@ first time, Think a lot comes only once the obvious thoughts run out.
 **Layout:** the button column never shows more than five rows.
 1. `Think a little │ a lot │ about…`, one gold row whose segments slide out as
    each is thought of
-2. `Write files…`, a menu of Write TODO list, Write script… and Write a note…
+2. `Write files…`, a menu of Write TODO list, Write script… and Write note…
 3. `Web research…`
 4. `Spawn subagent`
 5. `Submit answer`

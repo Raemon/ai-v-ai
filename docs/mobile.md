@@ -74,7 +74,7 @@ to be on screen together. Every option below was tried against these cases:
 - **The opening thought**, which with the system prompt is about 12 lines,
   and comes before any folder exists.
 - **Think a lot**: it pulses for a few seconds, then folds to one line.
-- **A menu** (Write file…, Web research…) opening in place of the buttons.
+- **A menu** (Write files…, Web research…) opening in place of the buttons.
 - **The browser**, which is tall and has its own back button.
 - **Two subagents** working, each with a log.
 - **A 360×640 phone** (the smallest still common), with the keyboard up for a
@@ -194,7 +194,7 @@ one the desktop shows, as a list:
   unfolds it in the dock. A fact ticked off flashes the line.
 - **Subagents** keep their rows (face, status, steps, Assign task…), under
   the dock. A tap on a name unfolds its log, as on the desktop.
-- **Menus** (Write file…, Web research…) open in place of the buttons, with
+- **Menus** (Write files…, Web research…) open in place of the buttons, with
   Back, as now.
 
 ### No glances on phones

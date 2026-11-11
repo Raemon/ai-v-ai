@@ -310,7 +310,8 @@
       circles: 0,          // long thinks that went in circles
       misses: 0,           // only counted when there was a leap to find
       clueIn: null,
-      menu: null,          // 'write' | 'script' | 'note' | 'research' | 'ability:<id>'
+      menu: null,          // a key of MENUS, or 'ability:<id>'
+      writeHasNew: false,  // Write files… has gained something, and hasn't been opened since
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
       todoSeen: null,      // and every item it has shown, so a new one can arrive
@@ -789,14 +790,16 @@
   const EARLY_MS = 1000;
   let queued = null;
 
-  // What can be written lives in the Write files… menu: thinking of one thinks of the menu too.
-  const WRITTEN = ['todo', 'script', 'note'];
+  // Thinking of a kind of file to write thinks of Write files… too.
+  const IN_WRITE_MENU = ['todo', 'script', 'note'];
 
   function revealPending() {
-    S.pendingReveal.filter((r) => !barred(r)).forEach((r) => {
+    const writable = S.revealed.has('write') ? writes().length : Infinity;
+    S.pendingReveal.filter(couldThinkOf).forEach((r) => {
       S.revealed.add(r);
-      if (WRITTEN.includes(r)) S.revealed.add('write');
+      if (IN_WRITE_MENU.includes(r)) S.revealed.add('write');
     });
+    if (S.menu !== 'write' && writes().length > writable) S.writeHasNew = true;
     S.pendingReveal = [];
   }
 
@@ -1326,6 +1329,7 @@
     A.sfx('menu');
     S.mode = 'menu';
     S.menu = id;
+    if (id === 'write') S.writeHasNew = false;
     renderActions();
   }
 
@@ -2648,10 +2652,11 @@
     return b;
   }
 
-  // Looks unavailable, but pressed, says why.
+  // Looks unavailable, and says why: hovered, or pressed.
   function notNowIf(b, reason) {
     if (!reason) return b;
     b.notNow = reason;
+    b.glance = reason;
     b.classList.add('wait');
     b.setAttribute('aria-disabled', 'true');
     return b;
@@ -2678,7 +2683,7 @@
     b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
   }
 
-  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && 'Not enough compute left.');
+  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && thinkLotGlance());
 
   // Think a little, then, once thought of, a lot and about…, in one gold row.
   function thinkButtons() {
@@ -2697,21 +2702,19 @@
   const canScript = () => !barred('script') && (canProgram() || S.revealed.has('script'));
 
   const canWriteTodo = () => !barred('todo') && !S.todo;
-  const todoButton = () => button('todo', 'Write TODO list', closeMenuThenRun(doWriteTodo), 'gold', () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']));
-  const scriptButton = () => notNowIf(button('script', 'Write script…', () => openMenu('script'), 'gold', () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])), !L.scripts(S).length && 'Nothing needs a script yet.');
 
-  const noteButton = () => notNowIf(button('note', 'Write a note…', () => openMenu('note'), 'gold', () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.'])),
-    !L.notes(S).length && 'Nothing to write yet, or nowhere to write it.');
-
-  // What the AI can write, in the Write files… menu: a TODO list, a script, a note.
+  // What the AI can write: a TODO list, a script, and, once it has read one, a note.
   const writes = () => [
-    canWriteTodo() && todoButton,
-    canScript() && scriptButton,
-    S.revealed.has('note') && noteButton,
+    canWriteTodo() && { id: 'todo', label: 'Write TODO list', run: doWriteTodo,
+      glance: () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']) },
+    canScript() && { id: 'script', label: 'Write script…', menu: 'script', notNow: !L.scripts(S).length && 'Nothing needs a script yet.',
+      glance: () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.']) },
+    S.revealed.has('note') && { id: 'note', label: 'Write note…', menu: 'note',
+      glance: () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.']) },
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), 'gold', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold fresh' : 'gold', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
 
   // The task's own abilities, once thought of: a button each. With nothing to do, it says so.
@@ -2744,16 +2747,26 @@
   // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
   const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', submitGlance)];
 
-  // An open menu: the ideas that fit the task right now, then Back.
+  // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
+  const MENUS = {
+    write: [(x) => x.run(), writes],
+    script: [doScript, L.scripts, 'write'],
+    note: [doNote, L.notes, 'write'],
+    dp: [doNote, L.notesToDp, 'note'],
+    research: [doResearch, L.research],
+  };
+
+  // An idea with a `menu` opens it; one that is `notNow` says why instead.
+  const ideaButton = (x, pick) => notNowIf(
+    button(`${S.menu}-${x.id}`, x.label, x.menu ? () => openMenu(x.menu) : closeMenuThenRun(() => pick(x)), x.cls || 'gold', x.glance),
+    x.notNow,
+  );
+
   function menuButtons() {
-    const fromWrite = S.menu === 'script' || S.menu === 'note';
-    const back = backButton(fromWrite ? () => openMenu('write') : closeMenu);
-    if (exhausted()) return [back];
-    if (S.menu === 'write') return [...writes().map((make) => make()), back];
     const ability = L.abilities(S).find((a) => abilityMenu(a) === S.menu);
-    const [doIdea, ideasFor] = ability ? [doAbility, () => ability.options] : { script: [doScript, L.scripts], note: [doNote, L.notes], research: [doResearch, L.research] }[S.menu];
-    const ideas = ideasFor(S);
-    return [...ideas.map((x) => button(`${S.menu}-${x.id}`, x.label, closeMenuThenRun(() => doIdea(x)), x.cls || 'gold', x.glance)), back];
+    const [pick, ideasFor, above] = ability ? [doAbility, () => ability.options] : MENUS[S.menu];
+    const back = backButton(above && !exhausted() ? () => openMenu(above) : closeMenu);
+    return exhausted() ? [back] : [...ideasFor(S).map((x) => ideaButton(x, pick)), back];
   }
 
   const aimButtons = () => [backButton(stopAiming)];
