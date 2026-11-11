@@ -33,7 +33,7 @@
 
   const fileNames = (sc) => ['task.txt', ...filesOf(sc).map((n) => n.name)];
 
-  const ENGINE_TOOLS = ['thinkLot', 'thinkAbout', 'todo', 'script', 'research', 'spawn'];
+  const ENGINE_TOOLS = ['thinkLot', 'thinkAbout', 'write', 'todo', 'script', 'research', 'spawn'];
   const TAKEN_IDS = [...ENGINE_TOOLS, 'readFiles', 'openHint', 'review', 'note']; // the engine reveals buttons by these names
   const toolIds = (sc) => [...ENGINE_TOOLS, ...abilitiesOf(sc).map((a) => a.id)];
 
@@ -109,12 +109,12 @@
     return {
       ...LEVEL.freshEpisode(world, LAB.FIRST + nth, spec),
       task: spec, episode: LAB.FIRST + nth, ep: `ep_${LAB.FIRST + nth}`, world, best: {},
-      knows: new Set(), todo: null, subagents: [], timesThought: new Map(), leapsMade: new Set(), filesWritten: [], littleThinks: 0,
+      knows: new Set(), todo: null, todoSeen: null, subagents: [], timesThought: new Map(), leapsMade: new Set(), filesWritten: [], littleThinks: 0,
     };
   }
 
   const nextState = (S) => ({
-    ...S, knows: new Set(S.knows), local: copy(S.local), todo: S.todo && new Set(S.todo),
+    ...S, knows: new Set(S.knows), local: copy(S.local), todo: S.todo && new Set(S.todo), todoSeen: S.todoSeen && new Set(S.todoSeen),
     timesThought: new Map(S.timesThought), leapsMade: new Set(S.leapsMade), filesWritten: [...S.filesWritten],
   });
 
@@ -173,7 +173,7 @@
     use: (w, what) => doOffered(w.S, ...optionToUse(w, what), true),
     leap: (w, what) => { learn(w.S, mustApply(allowed(w, 'thinkLot').spec.insights(w.S), what, 'leap')); w.S.leapsMade.add(what); },
     think: (w, what) => { learn(w.S, mustApply(w.spec.thoughts(w.S), what, 'thought')); w.S.timesThought.set(what, 1); },
-    write: (w) => { w.S.todo = new Set(); },
+    write: (w) => { w.S.todo = new Set(); w.S.todoSeen = new Set(); },
     set: (w, what) => { const [flag, ...value] = what.split(' '); w.S.local[flag] = flagValue(value.join(' ')); },
     know: (w, what) => w.S.knows.add(what),
   };
@@ -322,7 +322,7 @@
   function nameClashes(sc, say) {
     const taken = [...SCENARIO.names.engine, ...SCENARIO.names.fixed];
     learnedNames(sc).filter((n) => taken.includes(n.name)).forEach((n) => say(['facts'], `A fact can't be called "${n.name}" (${n.note}): the game uses that name.`, true));
-    listOf(sc, 'thoughts').filter((t) => t.about && !fileNames(sc).includes(t.about)).forEach((t) => say(['thoughts', `"${t.id}"`], `It's about ${t.about}, which isn't a file here.`, false));
+    listOf(sc, 'thoughts').forEach((t) => asList([].concat(t.about || [])).filter((f) => !fileNames(sc).includes(f)).forEach((f) => say(['thoughts', `"${t.id}"`], `It's about ${f}, which isn't a file here.`, false)));
   }
 
   const isBlank = (v) => v == null || v === '' || (Array.isArray(v) && !v.some((x) => x !== ''));

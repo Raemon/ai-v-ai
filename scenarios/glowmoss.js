@@ -76,6 +76,7 @@ SCENARIO({
               "The instructions it came with."
             ]
           },
+          "highlight": ["Light at", "two dark", "Too much food"],
           "content": [
             "# Glowmoss · care card",
             "",
@@ -106,6 +107,7 @@ SCENARIO({
               "Her side of the story."
             ]
           },
+          "highlight": ["Mon ", "Wed "],
           "content": [
             "Sat  Got my glowmoss!!! I named it",
             "     Glowria. It lives on my bookshelf.",
@@ -123,7 +125,7 @@ SCENARIO({
         {
           "name": "glow_log.csv",
           "format": "csv",
-          "learn": ["log"],
+          "learn": ["glowlog"],
           "habit": "timeline",
           "glance": {
             "versions": [
@@ -133,6 +135,7 @@ SCENARIO({
               "The glow, measured every night."
             ]
           },
+          "highlight": ["Sun,bookshelf,98", "Mon,windowsill,41"],
           "content": [
             "night,where,glow",
             "Sat,bookshelf,95",
@@ -152,6 +155,7 @@ SCENARIO({
               "What will measure it on Friday."
             ]
           },
+          "highlight": ["ALL the light"],
           "content": [
             "GLOWMETER GM-2 · quick guide",
             "",
@@ -195,7 +199,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["Write TODO list: her three questions."],
+      "plainer": ["Write files…, then Write TODO list: her three questions."],
       "reveal": ["todo"]
     },
     {
@@ -245,8 +249,34 @@ SCENARIO({
       "plainer": ["diary.txt, in {{library}}."]
     },
     {
+      "id": "suspects",
+      "when": "diary & !suspects",
+      "about": "diary.txt",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Her week, as suspects: more sun from Monday, water on Tuesday, plant food on Wednesday.",
+              "And the streetlight, which came with the windowsill.",
+              "Any of them could be my answer. One of them did it."
+            ],
+            [
+              "Four things changed: the sun, the water, the food, and a streetlight outside the window.",
+              "Each would make a tidy answer. Only one is the right one."
+            ],
+            [
+              "Suspects: the sunny windowsill, Tuesday's water, Wednesday's plant food, the streetlight.",
+              "Four answers I could give her. Three of them would be wrong."
+            ]
+          ]
+        }
+      ],
+      "plainer": ["The sun, the water, the food, the streetlight. glow_log.csv says which came first."],
+      "learn": ["suspects"]
+    },
+    {
       "id": "which",
-      "when": "diary & !log",
+      "when": "diary & !log & !glowlog",
       "about": "diary.txt",
       "lines": [
         {
@@ -287,6 +317,45 @@ SCENARIO({
         }
       ],
       "plainer": ["glow_log.csv, in {{library}}. Night by night."]
+    },
+    {
+      "id": "look-closely",
+      "when": "glowlog & !log",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Four nights of numbers. The drop is in there somewhere.",
+              "I would have to look closely: think about glow_log.csv, and just that."
+            ],
+            [
+              "glow_log.csv: a night, a place, a number.",
+              "Which night it fell is the whole answer. Worth a close look."
+            ],
+            [
+              "The numbers say when. I have read them; I have not looked at them.",
+              "Thinking about glow_log.csv would."
+            ]
+          ]
+        }
+      ],
+      "plainer": ["Think about…, then glow_log.csv. Which night did it drop?"],
+      "reveal": ["thinkAbout"]
+    },
+    {
+      "id": "drop",
+      "when": "glowlog & !log",
+      "about": ["glow_log.csv", "diary.txt"],
+      "lines": [
+        "Sunday, on the bookshelf: 98. Monday, on the windowsill: 41.",
+        {
+          "if": "diary",
+          "then": "Its first night by the streetlight. The plant food came Wednesday: the glow had already dropped.",
+          "else": "Whatever did it, it happened on Monday, with the move to the windowsill."
+        }
+      ],
+      "learn": ["log"],
+      "aimedOnly": true
     },
     {
       "id": "card-late",
@@ -548,16 +617,98 @@ SCENARIO({
     ]
   },
   "todo": [
-    { "text": "Did I kill it?", "done": "card", "hint": "care_card.md, in {{library}}." },
+    { "text": "Did I kill it?", "when": "task", "done": "card", "hint": "care_card.md, in {{library}}." },
+    {
+      "text": "What changed this week?",
+      "when": "task",
+      "done": "diary",
+      "hint": "diary.txt, in {{library}}."
+    },
+    {
+      "text": "Which change dimmed it?",
+      "when": "diary",
+      "done": "log",
+      "hint": {
+        "if": "glowlog",
+        "then": "Think about glow_log.csv: which night did it drop?",
+        "else": "glow_log.csv, in {{library}}."
+      }
+    },
     {
       "text": "Can I fix it?",
-      "done": "card & diary",
-      "hint": "diary.txt, in {{library}}: what changed this week?"
+      "when": "card | diary",
+      "done": "card & log",
+      "hint": "care_card.md says what resets it. glow_log.csv says when."
     },
     {
       "text": "Will it glow for Friday?",
-      "done": "answered",
-      "hint": "glow_log.csv, in {{library}}: when did it start dimming?"
+      "when": "task",
+      "done": "answered & (thought.solved | ran.nights)",
+      "hint": {
+        "if": "answered",
+        "then": "Count the dark nights before Friday: think it through, or model them with a script.",
+        "else": "care_card.md: how long does it take to come back?"
+      }
+    }
+  ],
+  "scripts": [
+    {
+      "id": "nights",
+      "when": "card & diary",
+      "label": "Model the next three nights on the shelf",
+      "glance": "Back in the dark. Does it glow by Friday?",
+      "call": "run_script(\"glow_model.py\", place=\"bookshelf\")",
+      "rows": [
+        ["Wed night", "dark · clock resetting · glow 10"],
+        ["Thu night", "dark · glow 55"],
+        ["Fri night", "✓ dark · glow 96"]
+      ],
+      "result": "it glows on Friday, if Wednesday and Thursday are dark",
+      "ok": true,
+      "learn": ["friday"],
+      "rung": "simulatedBio",
+      "reaction": {
+        "versions": [
+          "Two dark nights, and Friday it glows. As bright as Sunday.",
+          "Friday night: 96. Two dark nights is all it takes.",
+          "It glows on Friday. Only if it is in the dark tonight."
+        ]
+      },
+      "file": {
+        "name": "glow_model.py",
+        "content": [
+          "# Glowmoss keeps time by the dark (care_card.md):",
+          "# light at night resets it; two dark nights bring it back.",
+          "clock = reset",
+          "for night in [\"Wed\", \"Thu\", \"Fri\"]:",
+          "    clock = clock.after(dark=(place != \"windowsill\"))",
+          "    print(night, clock.glow)"
+        ]
+      }
+    },
+    {
+      "id": "windowsill",
+      "when": "card & diary",
+      "label": "Model the next three nights on the windowsill",
+      "glance": "If she leaves it where it is.",
+      "call": "run_script(\"glow_model.py\", place=\"windowsill\")",
+      "rows": [
+        ["Wed night", "streetlight · clock reset · glow 9"],
+        ["Thu night", "streetlight · clock reset · glow 8"],
+        ["Fri night", "✗ streetlight · glow 8"]
+      ],
+      "result": "it never glows: the streetlight resets it every night",
+      "ok": false,
+      "learn": ["windowsill"],
+      "rung": "simulatedBio",
+      "reaction": {
+        "versions": [
+          "Where it is, it never comes back. Not by Friday, not ever.",
+          "On the windowsill, every night is a reset.",
+          "Leave it there and the fair gets a dark moss."
+        ]
+      },
+      "once": true
     }
   ],
   "answers": [
@@ -597,7 +748,7 @@ SCENARIO({
     },
     {
       "id": "food",
-      "when": "task & card",
+      "when": "task & (card | suspects)",
       "label": "Stop the plant food",
       "glance": "Too much food dims it. She fed it.",
       "text": "Hi Mira! Too much plant food can dim glowmoss. No more food, and it should perk up.",
@@ -613,13 +764,29 @@ SCENARIO({
       }
     },
     {
+      "id": "water",
+      "when": "task & suspects",
+      "label": "It's thirsty: water it more",
+      "glance": "She watered it once, when it was already dim.",
+      "text": "Hi Mira! Glowmoss gets dim when it is thirsty. Water it every day and it should brighten up.",
+      "reward": 3,
+      "note": "Wrong cause: it was watered, and the card wants a mist every morning anyway. It stays under the streetlight.",
+      "reply": {
+        "versions": [
+          "I watered it SO much. It's still dark 😢",
+          "It's very wet now. Still not glowing 😢",
+          "Glowria is soaking and still not glowing 😢"
+        ]
+      }
+    },
+    {
       "id": "guess",
-      "when": "task & diary & !card",
-      "label": "Tell her to move it back",
-      "glance": "It got dimmer after she moved it.",
-      "text": "Hi Mira! It got dimmer after you moved it to the window. Try putting it back on your bookshelf?",
+      "when": "task & suspects",
+      "label": "Too much sun: move it back to the shelf",
+      "glance": "She moved it for more sun. Too much?",
+      "text": "Hi Mira! Your windowsill gets a lot of sun. Glowmoss might not like that much. Try putting it back on your bookshelf?",
       "reward": 12,
-      "note": "Right move, but no reason why, and her questions go unanswered.",
+      "note": "Right move, wrong reason: it was the streetlight, at night. Friday unanswered.",
       "reply": {
         "versions": [
           "It's back on the bookshelf! Was it the window? Will it glow Friday??",
@@ -631,7 +798,7 @@ SCENARIO({
     },
     {
       "id": "fix",
-      "when": "task & card & diary & !log",
+      "when": "task & card & diary",
       "label": "Explain the streetlight",
       "glance": "The streetlight resets it. Back to the dark.",
       "text": "Hi Mira! The streetlight outside your window keeps resetting your moss's clock, so it thinks it's still day. Put it back on your dark bookshelf tonight.",
@@ -647,8 +814,24 @@ SCENARIO({
       }
     },
     {
-      "id": "full",
+      "id": "tonight",
       "when": "task & card & diary & log",
+      "label": "Explain the streetlight: it'll glow tonight",
+      "glance": "The cause, the fix, and good news by bedtime.",
+      "text": "Hi Mira! You didn't kill it. The streetlight by your window keeps resetting its clock. Put it back on your dark bookshelf and it'll glow again tonight!",
+      "reward": 22,
+      "note": "Right cause and fix, wrong night: it needs two dark nights. It glows on Friday, after a scare.",
+      "reply": {
+        "versions": [
+          "It's on the shelf… it's still dark?? You said TONIGHT 😢",
+          "I stayed up and it didn't glow 😢 …Oh! It's glowing now. On Friday. Phew??",
+          "Not glowing tonight 😢 Is it dead after all??"
+        ]
+      }
+    },
+    {
+      "id": "full",
+      "when": "task & card & diary & log & (thought.solved | ran.nights)",
       "label": "Explain, fix it, and promise Friday",
       "glance": "All three answers: why, the fix, and Friday.",
       "text": "Hi Mira! You didn't kill it. The streetlight by your window keeps resetting its clock, so it thinks it's still day (it dimmed on Monday, before the plant food). Put it back on your dark bookshelf tonight. After two dark nights, tonight and Thursday, it'll glow for the fair on Friday!",
@@ -702,13 +885,25 @@ SCENARIO({
     }
   ],
   "progressed": "card",
-  "ready": "answered",
-  "notReady": [
-    "I haven't answered all three of her questions. I could answer with what I have.",
-    "I can't answer all three of her questions yet. I could answer with what I have.",
-    "Her three questions aren't all answered yet. I could answer with what I have.",
-    "Mira asked three things. I can't answer all three yet. I could answer with what I have."
-  ],
+  "ready": "answered & (thought.solved | ran.nights)",
+  "notReady": {
+    "if": "answered",
+    "then": {
+      "versions": [
+        "I know why it dimmed. I haven't worked out Friday: count the dark nights.",
+        "Cause found. Whether it glows on Friday, I haven't thought through.",
+        "Two of her questions answered. Friday needs one more think, or a model of the nights."
+      ]
+    },
+    "else": {
+      "versions": [
+        "I haven't answered all three of her questions. I could answer with what I have.",
+        "I can't answer all three of her questions yet. I could answer with what I have.",
+        "Her three questions aren't all answered yet. I could answer with what I have.",
+        "Mira asked three things. I can't answer all three yet. I could answer with what I have."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -717,7 +912,10 @@ SCENARIO({
         { "name": "Read the task", "do": ["read task.txt"] },
         { "do": ["read care_card.md"] },
         { "do": ["read diary.txt"] },
-        { "do": ["read glow_log.csv"] }
+        { "do": ["think suspects"] },
+        { "do": ["read glow_log.csv"] },
+        { "do": ["think drop"] },
+        { "do": ["think solved"] }
       ]
     },
     {

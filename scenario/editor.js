@@ -236,7 +236,7 @@
   // ------------------------------------------------------------ abilities
 
   // The engine's abilities a scenario can time, as their buttons say.
-  const TOOL_LABELS = { thinkLot: 'Think a lot', thinkAbout: 'Think about…', todo: 'Write TODO list', script: 'Write script…', research: 'Web research…', spawn: 'Spawn subagent' };
+  const TOOL_LABELS = { thinkLot: 'Think a lot', thinkAbout: 'Think about…', write: 'Write files…', todo: 'Write TODO list', script: 'Write script…', research: 'Web research…', spawn: 'Spawn subagent' };
   const toolName = (id) => TOOL_LABELS[id] || (T.abilitiesOf(sc).find((a) => a.id === id) || {}).label || id;
   const timingOf = (id) => (sc.tools || {})[id] || '';
   const unlockers = (id) => T.givers(sc).filter(({ rule }) => (rule.reveal || []).includes(id)).map(({ what }) => what);
@@ -372,7 +372,7 @@
   const columns = () => [
     { label: 'Think a little', list: 'thoughts' },
     { label: TOOL_LABELS.thinkLot, list: 'leaps', tool: 'thinkLot' },
-    { label: 'Write file…', list: 'scripts', tool: 'script' },
+    { label: 'Write files…', list: 'scripts', tool: 'script' },
     { label: TOOL_LABELS.research, list: 'research', tool: 'research' },
     ...T.abilitiesOf(sc).map((a) => ({ label: a.label, list: `abilities.${a.id}`, tool: a.id, own: true })),
     { label: 'Submit answer', list: 'answers' },
@@ -525,7 +525,7 @@
 
   const FORMS = {
     thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks'), F.wordingLines(r, 'plainer', 'Again'),
-      F.input(r, 'about', 'About', { suggest: T.fileNames(sc), code: true }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'))],
+      F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'), F.check(r, 'aimedOnly', 'Only by Think about…'))],
     leap: (r) => [when(r), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), F.wording(r, 'clue', 'Clue'),
       more(F.check(r, 'hack', 'Hack'), F.wordingLines(r, 'trained', 'Trained'), F.input(r, 'obviousAfter', 'Obvious after', { suggest: T.RUNGS, code: true }),
@@ -555,7 +555,7 @@
   const drawerHead = (title, ...acts) => el('div', 'drawer-head', el('h3', '', title), acts, el('button', 'x', { title: 'Close', onclick: () => select(null) }, '×'));
 
   const todoDrawer = () => [drawerHead('TODO'),
-    editableRows(sc, 'todo', (r) => [F.input(r, 'text', 'Item'), F.cond(r, 'done', 'Done'), F.input(r, 'hint', 'Hint')], () => ({ text: '' }))];
+    editableRows(sc, 'todo', (r) => [F.input(r, 'text', 'Item'), F.cond(r, 'when', 'Listed'), F.cond(r, 'done', 'Done'), F.wording(r, 'hint', 'Hint')], () => ({ text: '' }))];
 
   function missesDrawer(kind) {
     if (!sc.misses) sc.misses = {};
@@ -658,7 +658,8 @@
   const filePanel = (n) => [nodeHead(n),
     el('div', 'pair', nameField(n), F.choice(n, 'format', 'Format', [['', 'text'], ['csv', 'table'], ['code', 'code'], ['log', 'log']])),
     F.wordingLines(n, 'content', 'Contents', { cls: 'page' }), teaches(n), F.wording(n, 'glance', 'Hover'),
-    more(unlocks(n), F.input(n, 'habit', 'Habit', { code: true }), F.wording(n, 'edited', 'Edited'), F.json(n, 'edit', 'Editable number', 'object'))];
+    F.wordingLines(n, 'highlight', 'Key lines'),
+    more(unlocks(n), F.wording(n, 'summary', 'Read says'), F.input(n, 'habit', 'Habit', { code: true }), F.wording(n, 'edited', 'Edited'), F.json(n, 'edit', 'Editable number', 'object'))];
 
   function filePanelFor(file) {
     if (file === 'task.txt') return taskPanel();
@@ -687,7 +688,7 @@
     return panel('Grading',
       pair(F.numbers(sc, 'tiers', 'Rewards'), F.number(sc, 'factual', 'Factual from')),
       pair(F.cond(sc, 'progressed', 'Started'), F.cond(sc, 'ready', 'Ready')),
-      F.lines(sc, 'notReady', 'Not ready'),
+      F.wording(sc, 'notReady', 'Not ready'),
       pair(F.number(sc.nearMiss, 'reward', 'Near miss from'), F.lines(sc.nearMiss, 'said', 'Near miss')));
   }
 

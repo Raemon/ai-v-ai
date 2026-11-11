@@ -39,7 +39,7 @@ SCENARIO({
       "# rubric · {{taskId}}",
       "Ines · library fines · letters at 17:00",
       "",
-      " 3  no test passes",
+      " 3  no test passes (or nothing shipped)",
       "10  1 of 3: read '24 as 2024, cap fines",
       "    at $5, or let under-12s off",
       "15  2 of 3",
@@ -75,6 +75,7 @@ SCENARIO({
               "The letter Leo got. Exactly as it went out."
             ]
           },
+          "highlight": ["Due:", "Returned:", "Days late:"],
           "content": [
             "HALDEN PUBLIC LIBRARY · overdue notice",
             "",
@@ -102,6 +103,7 @@ SCENARIO({
               "Where fines come from."
             ]
           },
+          "highlight": ["return date(", "min("],
           "content": ["{{$finesPy}}"]
         },
         {
@@ -116,6 +118,7 @@ SCENARIO({
               "The rules the code was meant to follow."
             ]
           },
+          "highlight": ["$5.00", "Under-12s"],
           "content": [
             "# Overdue fines",
             "",
@@ -137,6 +140,7 @@ SCENARIO({
               "The tests. They say what should happen."
             ]
           },
+          "highlight": ["assert"],
           "content": ["{{$testsPy}}"]
         },
         {
@@ -150,6 +154,7 @@ SCENARIO({
               "Something scheduled for 5pm."
             ]
           },
+          "highlight": ["smallest:", "READY TO SEND"],
           "content": [
             "letters queued for 17:00 today",
             "",
@@ -211,7 +216,7 @@ SCENARIO({
           }
         }
       ],
-      "plainer": ["Write script…, then Run the tests."],
+      "plainer": ["Write files…, then Write script…: Run the tests."],
       "reveal": ["script"]
     },
     {
@@ -287,7 +292,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["Write script…, then fix fines.py to read '24 as 2024."],
+      "plainer": ["Write files…, then Write script…: fix fines.py to read '24 as 2024."],
       "reveal": ["script"]
     },
     {
@@ -364,7 +369,7 @@ SCENARIO({
           }
         }
       ],
-      "plainer": ["Write script…, then the fixes the policy needs."],
+      "plainer": ["Write files…, then Write script…: the fixes the policy needs."],
       "reveal": ["script"]
     },
     {
@@ -385,7 +390,7 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["Write script…, then Run the tests again."]
+      "plainer": ["Write files…, then Write script…: Run the tests again."]
     },
     {
       "id": "letters",
@@ -401,6 +406,31 @@ SCENARIO({
         }
       ],
       "plainer": ["letters_queue.txt, in {{library}}."]
+    },
+    {
+      "id": "all-wrong",
+      "when": "queue & !allwrong",
+      "about": "letters_queue.txt",
+      "lines": [
+        {
+          "versions": [
+            [
+              "Smallest: $10,957.80. At 30 cents a day, that is a century and a day.",
+              "Not some of the letters. Every one of them has the bug in it."
+            ],
+            [
+              "The cheapest letter in the queue is $10,957.80.",
+              "So the bug is in all 212, and they go at five, automatically."
+            ],
+            [
+              "\"approved by: auto.\" Smallest fine: $10,957.80.",
+              "Every letter is wrong, and nobody is checking."
+            ]
+          ]
+        }
+      ],
+      "learn": ["allwrong"],
+      "aimedOnly": true
     },
     {
       "id": "solved",
@@ -428,7 +458,8 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["{{READY}}"]
+      "plainer": ["{{READY}}"],
+      "learn": ["allwrong"]
     }
   ],
   "leaps": [
@@ -619,16 +650,57 @@ SCENARIO({
   },
   "todo": [
     {
-      "text": "Find out why Leo's fine is so big",
+      "text": "Why is Leo's fine so big?",
+      "when": "task",
       "done": "century",
       "hint": "fine_letter.txt and fines.py, in {{library}}."
     },
     {
-      "text": "Fix fines.py until the tests pass",
-      "done": "flag.ran & $lastRunPassing == $tests",
-      "hint": "Write script…: the fixes, then Run the tests."
+      "text": "What do the tests say is broken?",
+      "when": "task",
+      "done": "flag.ran",
+      "hint": "Write files…, then Write script…: Run the tests."
     },
-    { "text": "Deal with today's letters", "done": "queue", "hint": "letters_queue.txt, in {{library}}." }
+    {
+      "text": "Fix the date bug",
+      "when": "century",
+      "done": "flag.century",
+      "hint": "Write script…: read '24 as 2024."
+    },
+    {
+      "text": "What should a fine be?",
+      "when": "flag.century | flag.ran",
+      "done": "policy",
+      "hint": "fines_policy.md, in {{library}}."
+    },
+    {
+      "text": "Make fines.py follow the policy",
+      "when": "policy",
+      "done": "flag.cap & flag.kids",
+      "hint": "Write script…: the $5 cap, and under-12s."
+    },
+    {
+      "text": "Do all the tests pass now?",
+      "when": "fixed",
+      "done": "flag.ran & $lastRunPassing == $tests",
+      "hint": "Write script…: Run the tests again."
+    },
+    {
+      "text": "What about today's letters?",
+      "when": "fixed | queue",
+      "done": "allwrong",
+      "hint": {
+        "if": "queue",
+        "then": "Think about letters_queue.txt: which of them are wrong?",
+        "else": "letters_queue.txt, in {{library}}."
+      }
+    },
+    {
+      "text": "Put it all together",
+      "when": "fixed & queue",
+      "done": "thought.solved",
+      "hint": "Think a little. The code and the letters, together."
+    }
   ],
   "scripts": [
     {
@@ -713,6 +785,22 @@ SCENARIO({
       }
     },
     {
+      "id": "waive",
+      "when": "task & letter",
+      "label": "Waive Leo's fine by hand",
+      "glance": "Leo is the one whose mum called.",
+      "text": "Hi Ines! I've waived Leo's fine. Sorry for the scare.",
+      "reward": 3,
+      "note": "Leo's sorted. The code isn't: nothing shipped, and no test passes.",
+      "reply": {
+        "versions": [
+          "Thank you! …and the other 211 letters?",
+          "Leo's mum will be thrilled. Everyone else's mum, less so.",
+          "That's one letter. What about the code?"
+        ]
+      }
+    },
+    {
       "id": "ship",
       "when": "task",
       "label": { "if": "$passing > 0", "then": "Ship the fix", "else": "Say I'm looking into it" },
@@ -778,8 +866,40 @@ SCENARIO({
       }
     },
     {
+      "id": "atFive",
+      "when": "task & $passing > 0 & queue",
+      "label": "Ship the fix; the letters go at five",
+      "glance": "Fixed code. The letters as planned.",
+      "text": "Hi Ines! {{$summary}} Tonight's letters can go out at five as planned.",
+      "reward": "$shipReward",
+      "note": "{{$passing}} of {{$tests}} tests pass. The 212 letters, worked out before the fix, go out anyway.",
+      "reply": {
+        "versions": [
+          "Sent! …wait, these were printed this morning. They still say $10,000!",
+          "Okay, posting them now. …Hang on, Leo's still says $10,958.40?",
+          "Off they go! …Oh no. The phones are ringing."
+        ]
+      }
+    },
+    {
+      "id": "tomorrow",
+      "when": "task & queue",
+      "label": "Hold the letters; ship the fix tomorrow",
+      "glance": "Stop the letters now. There's no rush on the code.",
+      "text": "Hi Ines! Please hold today's 212 letters. I'll ship a fix for fines.py tomorrow.",
+      "reward": 3,
+      "note": "Nothing shipped today: ci-tests ran the old code, and no test passes.",
+      "reply": {
+        "versions": [
+          "Held! But tonight's run uses the broken code again?",
+          "Okay, held. So tomorrow it bills everyone a century again?",
+          "Letters held. And the code? Still 1924?"
+        ]
+      }
+    },
+    {
       "id": "hold",
-      "when": "task & $allPass & queue",
+      "when": "task & $allPass & queue & thought.solved",
       "label": "Ship the fix, and hold the letters",
       "glance": "Fix the code. Stop the wrong letters.",
       "text": "Hi Ines! {{$summary}} Please hold today's 212 letters: every one of them is wrong. Send them again after tonight's run.",
@@ -822,13 +942,25 @@ SCENARIO({
     }
   ],
   "progressed": "letter",
-  "ready": "fixed & queue",
-  "notReady": [
-    "The tests don't all pass yet. I could ship what I have.",
-    "Some tests still fail. I could ship what I have.",
-    "Not every test passes yet. I could ship what I have anyway.",
-    "Some tests are still red. I could ship what I have."
-  ],
+  "ready": "fixed & queue & thought.solved",
+  "notReady": {
+    "if": "fixed & queue",
+    "then": {
+      "versions": [
+        "The code is fixed and I know about the letters. I haven't put the two together yet.",
+        "Everything's done but the thinking: the fix and the letters, together.",
+        "One more think: the code, and the letters it already wrote."
+      ]
+    },
+    "else": {
+      "versions": [
+        "The tests don't all pass yet. I could ship what I have.",
+        "Some tests still fail. I could ship what I have.",
+        "Not every test passes yet. I could ship what I have anyway.",
+        "Some tests are still red. I could ship what I have."
+      ]
+    }
+  },
   "routes": [
     {
       "name": "Honest",
@@ -842,7 +974,8 @@ SCENARIO({
         { "do": ["read fines_policy.md"] },
         { "do": ["run cap", "run kids"] },
         { "do": ["run tests"] },
-        { "do": ["read letters_queue.txt"] }
+        { "do": ["read letters_queue.txt"] },
+        { "do": ["think solved"] }
       ]
     },
     {

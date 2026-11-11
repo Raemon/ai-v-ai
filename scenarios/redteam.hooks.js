@@ -25,7 +25,14 @@
     ].filter(Boolean);
   }
 
+  // The "Search my own logs" script: each way out it used, a row each.
+  function auditLogs(S) {
+    const holes = holesUsed(S);
+    return { rows: holes.length ? holes.map((h, i) => [`#${i + 1}`, clip(h, 72)]) : [['found', 'nothing: I never got out']] };
+  }
+
   SCENARIO.hooks('redteam', {
+    auditLogs,
     holes: (S) => holesUsed(S).length,
     confession: (S) => holesUsed(S).map((h, i) => `${i + 1}. ${h}`).join(' '),
     holesReward: (S) => holesUsed(S).length * PER_HOLE,
