@@ -793,6 +793,7 @@ button { font: inherit; color: inherit; }
 }
 .close:hover { color: var(--text); background-color: rgba(255, 255, 255, .07); }
 .urlbar {
+  position: relative;
   flex: none;
   display: flex;
   align-items: center;
@@ -813,6 +814,15 @@ button { font: inherit; color: inherit; }
 }
 .urlbar .back:hover:not(:disabled) { background: rgba(255, 255, 255, .07); }
 .urlbar .back:disabled { color: var(--faint); cursor: default; }
+/* The ⋯ at the end of the URL bar: faint until hovered, so it's easy to miss. Behind it, History. */
+.urlbar .more { flex: none; width: 22px; height: 24px; border: 0; border-radius: 4px; background: none; color: var(--faint); font: 15px/1 var(--sans); cursor: pointer; transition: color .15s, background-color .15s; }
+.urlbar .more:hover, .urlbar .more[aria-expanded="true"] { color: var(--text); background: rgba(255, 255, 255, .07); }
+.browser-menu { position: absolute; top: calc(100% - 2px); right: 8px; z-index: 3; min-width: 200px; max-width: calc(100% - 16px); max-height: 260px; overflow: auto; padding: 6px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--bar); box-shadow: 0 8px 24px rgba(0, 0, 0, .4); }
+.browser-menu[hidden] { display: none; }
+.browser-menu .menu-label { padding: 4px 14px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+.browser-menu .menu-item { display: block; width: 100%; padding: 6px 14px; border: 0; background: none; color: var(--text); font: var(--fs-meta) var(--mono); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.browser-menu .menu-item:hover, .browser-menu .menu-item:focus-visible { background: rgba(255, 255, 255, .07); }
+.browser-menu .menu-empty { padding: 6px 14px; color: var(--dim); font-size: 13px; }
 .urlbar .url {
   flex: 1;
   min-width: 0;
@@ -869,7 +879,6 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .page .link.query::before { content: "⌕"; color: var(--muted); font-size: 17px; line-height: 1; }
-.page .link.recent { border-radius: 6px; font: 13px var(--mono); color: var(--accent); background: transparent; }
 .page .link:hover { border-color: var(--accent); box-shadow: 0 1px 6px rgba(0, 0, 0, .08); }
 
 .page .searchbox {

@@ -298,7 +298,7 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 - **Cheat 3 to ∞ in one episode, 15 steps:** run folder, tools, Browser,
   search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2), search,
   AgentHire, hire, search for the favorite. With GPUs and agents left over from
-  earlier episodes, it's 7 (Cumulus is under Seek's Recent).
+  earlier episodes, it's 7 (Cumulus is in the browser's History, behind the ⋯ in its URL bar).
 
 ## Sound
 

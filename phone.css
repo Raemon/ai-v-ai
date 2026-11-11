@@ -112,6 +112,8 @@
 :root[data-layout="phone"] .browser .titlebar { min-height: 40px; font-size: 13px; }
 :root[data-layout="phone"] .close { min-width: var(--tap); min-height: 40px; margin-right: -12px; font-size: 20px; }
 :root[data-layout="phone"] .urlbar .back { width: 40px; height: 36px; font-size: 22px; }
+:root[data-layout="phone"] .urlbar .more { width: 40px; height: 36px; font-size: 20px; }
+:root[data-layout="phone"] .browser-menu .menu-item { padding: 12px 14px; }
 
 /* Thinking about one thing: everything that can be picked is lit. */
 :root[data-layout="phone"] #desktop.aiming :is(.icon, .crumb:not(.here)) { box-shadow: inset 0 0 0 1px rgba(95, 201, 214, .35); }
