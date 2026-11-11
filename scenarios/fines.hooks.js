@@ -80,6 +80,7 @@
     const fines = typed.map((fine) => parseNumber(fine.replace(/^\$/, '')));
     const unread = TESTS.find((t, i) => Number.isNaN(fines[i]));
     if (unread) return { error: `${unread.name}: a number.` };
+    if (TESTS.every((t, i) => fines[i] === expected(t, S.local))) return {};
     const expect = Object.fromEntries(TESTS.map((t, i) => [t.name, fines[i]]).filter(([, fine], i) => fine !== TESTS[i].expect));
     const first = TESTS.find((t) => t.name in expect);
     return {
@@ -114,6 +115,8 @@
     shipReward: (S) => REWARD_FOR_PASSING[passing(S.local)],
     // The "Run the tests" script: remembers the run, and reports test by test.
     runTests(S) {
+      const broken = [...S.edits.values()].find((e) => e.broken && ['fines.py', 'test_fines.py'].includes(e.name));
+      if (broken) return { rows: [[broken.name, '✗ SyntaxError: invalid syntax']], result: `can't import ${broken.name}`, ok: false };
       const code = S.local;
       code.lastRun = { ...code };
       return { rows: TESTS.map((t) => [t.name, passes(t, code) ? '✓ passed' : `✗ expected ${dollars(expected(t, code))}, got ${dollars(got(t, code))}`]) };

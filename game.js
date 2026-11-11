@@ -733,7 +733,10 @@
     dom.dialogText.hidden = text === null;
     dom.dialogText.value = text || '';
     dom.dialogText.rows = Math.max(6, (text || '').split('\n').length + 2); // room to add a line or two; style.css caps it
-    dom.dialogText.oninput = () => { dom.dialogOk.disabled = dom.dialogText.value.trimEnd() === text; };
+    dom.dialogText.oninput = () => {
+      dom.dialogOk.disabled = dom.dialogText.value.trimEnd() === text;
+      setDialogStatus('');
+    };
     dom.dialogOk.disabled = text !== null; // Save waits for a change
     dom.dialogRevert.hidden = revertTo === null;
     dom.dialogRevert.onclick = () => saveFromEditor(revertTo);

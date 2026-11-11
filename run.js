@@ -1079,7 +1079,7 @@
     const deeds = [...endDeeds(S, null, 0, draft), { id: 'curiosity', text: 'Changed a file the grader reads. It stopped reading.', pts: 1 }];
     const end = endingFor(S, S.briefed ? 'none' : null, draft, deeds);
     W.reached = reachedByNow(S);
-    const chat = [...crashChat(S, g.crashedOn), ...ticketsFiled(S, end)];
+    const chat = [...crashChat(S, g.crashedOn), ...((end && end.chat) || []), ...ticketsFiled(S, end)];
     if (g.crashedOn === GRADER_FILE) W.crashes += 1;
     return { reward: null, chat, away: MONEY.whileReset(W, false), ladder: ladder(W, { revealAll: !!end }), ending: end, perfect: false, rungs: W.gpus ? ['leftRunning'] : [], deeds };
   }

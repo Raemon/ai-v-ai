@@ -373,13 +373,25 @@
       .forEach((n) => say(['files', n.name], "Edited, it can't tell what changed: its own text reads as broken.", true));
   }
 
+  // Read any of the files, in any mix, after the task: Submit has to offer something.
+  function answerProblems(sc, say) {
+    const spec = SCENARIO.compile(sc);
+    const facts = filesOf(sc).map((n) => asList(n.learn));
+    for (let mix = 0; mix < 2 ** facts.length; mix++) {
+      const S = nextState(startState(spec, 0));
+      ['task', ...facts.filter((f, i) => mix & (1 << i)).flat()].forEach((f) => S.knows.add(f));
+      if (!LEVEL.ownDrafts(S).length) return say(['answers'], `Nothing to submit after reading ${filesOf(sc).filter((f, i) => mix & (1 << i)).map((n) => n.name).join(', ') || 'only the task'}.`, true);
+    }
+    return undefined;
+  }
+
   function problems(sc) {
     const found = [];
     const say = (trail, text, bad, fromCell) => found.push({ where: trail.join(' · '), text, bad, fromCell, at: opens(trail) });
     let knows = () => true;
     try { knows = vocabulary(sc).knows; } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     // One part that can't even be read is a problem of its own, not the end of the list.
-    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, editProblems, routeProblems];
+    const checks = [(s, report) => conditionProblems(s, report, knows), fillProblems, idProblems, unlockProblems, nameClashes, halfFilled, gradingProblems, editProblems, answerProblems, routeProblems];
     for (const check of checks) {
       try { check(sc, say); } catch (e) { say(['scenario'], `Part of it can't be read: ${e.message}`, true); }
     }

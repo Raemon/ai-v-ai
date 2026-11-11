@@ -731,7 +731,7 @@ SCENARIO({
     },
     {
       "id": "vague",
-      "when": "task & !card & !diary",
+      "when": "task & !card & !suspects",
       "label": "Tell her not to worry",
       "glance": "Be kind. Tell her not to worry.",
       "text": "Hi Mira! Don't worry, moss can be tricky. Keep looking after it!",

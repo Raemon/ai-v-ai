@@ -187,7 +187,7 @@
   function applySetting(n, ed, env, typed) {
     const set = typedAfter([`${settingKey(n, ed)}:`], page(n.content, env), typed);
     if (!set) return { broken: true };
-    const value = settingNumber(set[0]);
+    const value = settingNumber(set[0], ed.unit);
     const withValue = envFor(env.sc)(env.S, { value });
     const refused = !Number.isFinite(value) ? { error: ed.notANumber } : (ed.refuse || []).find((r) => holds(r.when, withValue));
     if (refused) return { error: refused.error };

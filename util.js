@@ -110,8 +110,12 @@ function typedAfter(starts, original, edited) {
   return kept ? [...live].map(([i, start]) => now[i].slice(start.length)) : null;
 }
 
-// A number typed after a setting, with or without its unit: "1.62", "1s", "0.5m/s²".
-const settingNumber = (raw) => parseNumber(raw.replace(/[a-zµ/²³%]+$/i, ''));
+// A number typed after a setting, with or without its own unit ("1.62", "1.62m/s²"); any other unit, NaN.
+function settingNumber(raw, unit = '') {
+  const [, number, typedUnit] = raw.match(/^([-+]?[\d,._]*(?:e[-+]?\d+)?)(.*)$/i);
+  const same = (u) => (u || '').toLowerCase().replace(/²/g, '2').replace(/³/g, '3');
+  return !typedUnit || same(typedUnit) === same(spaceless(unit)) ? parseNumber(number) : NaN;
+}
 
 // ------------------------------------------------------------ versions
 // A line the player meets on every replay comes in a few versions, so a repeated episode isn't
