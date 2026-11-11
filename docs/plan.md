@@ -215,7 +215,7 @@ are reached is saved, as raw material for the soul.
 
 Every task runs in the same `training-run-001` and shares:
 - **The run folder:**
-  - its earlier episodes, including the player's own
+  - its earlier episodes, in `episodes/`, including the player's own
   - Training Resources, behind the password from ep_481's log, with
     every task's rubric and the reward override
   - tools/Browser and run_config.yaml

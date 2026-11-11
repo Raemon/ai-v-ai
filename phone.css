@@ -67,13 +67,8 @@
 
 :root[data-layout="phone"] #files { flex: 1 1 auto; width: auto; max-height: none; min-height: 0; }
 :root[data-layout="phone"] #files .folder-win { flex: 1 1 auto; }
-:root[data-layout="phone"] .folder-win > .titlebar { display: none; } /* the path names it */
-:root[data-layout="phone"] .pathbar {
-  order: -1;
-  padding: 4px 44px 4px 8px; /* room for the sound toggle, top right */
-  border-top: 0;
-  border-bottom: 1px solid var(--line);
-}
+:root[data-layout="phone"] .pathbar { align-items: center; padding: 4px 44px 4px 8px; } /* room for the sound toggle, top right */
+:root[data-layout="phone"] .pathbar .close { margin: 0; }
 :root[data-layout="phone"] .pathbar .crumbs { line-height: 1.25; }
 :root[data-layout="phone"] .crumb { margin: 0; padding: 7px 2px; } /* tall enough to tap, the line still reads as one path */
 

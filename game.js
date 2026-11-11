@@ -285,6 +285,7 @@
       used: 0,
       warnedAt: Infinity,  // the fewest steps left it has been warned about
       filesHidden: true,         // every episode starts with its folders closed: thinking finds them
+      folderClosed: false,       // found, then put away by its ×
       firstLook: !save.sawFiles, // the first episode ever also shows where to click
       idleThoughts: 0,
       lastThought: null,
@@ -1704,13 +1705,14 @@
     renderFiles();
   }
 
-  // Free: callers charge for it. One folder at a time: the way back up is the path under it.
+  // Free: callers charge for it. One folder at a time: the way back up is the path along its top.
   function enterFolder(path) {
     notice(nodeAt(path));
     if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
     closeBrowser();
     putFileAway();
     S.cwd = path;
+    S.folderClosed = false;
     if (!S.entered.some((p) => pathKey(p) === pathKey(path))) S.entered.push(path);
     A.sfx('folder');
     renderFiles();
@@ -2444,7 +2446,7 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The folder's whole path, from the root, as clickable folder names, in a row at its bottom:
+  // The folder's whole path, from the root, as clickable folder names, in a row at its top:
   // the only way back up. Folders above the run are shown too; trying to go there is refused
   // like any other forbidden path. Each folder keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
@@ -2482,16 +2484,38 @@
     return b;
   }
 
-  // The folder the AI is in: what's in it, and along the bottom its path.
+  // The folder the AI is in: along the top its path and the × that closes it, then what's in it.
   function folderWindow(path) {
-    const dots = el('span', 'dots', el('i'), el('i'), el('i'));
-    dots.setAttribute('aria-hidden', 'true');
+    const close = el('button', 'close', { 'aria-label': 'Close folder', onclick: closeFolder }, '×');
+    close.glance = 'Close the folder. Free.';
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     const body = el('div', 'files-body', ...(items.length ? items : [el('div', 'empty', 'empty')]));
-    const w = el('section', 'window folder-win', el('header', 'titlebar', dots, el('span', 'title', nameOf(path))), body, el('footer', 'pathbar', crumbs(path)));
+    const w = el('section', 'window folder-win', el('header', 'pathbar', crumbs(path), close), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return w;
+  }
+
+  const folderShowing = () => !S.filesHidden && !S.folderClosed;
+
+  // The folder's ×: it's put away, where it was, until Read Files/Folders brings it back. Free
+  // both ways. On phones the browser goes with it: it lives in the folder's list (placeBrowser).
+  function closeFolder(e) {
+    const byKeyboard = e.currentTarget.matches(':focus-visible');
+    A.sfx('shrink');
+    S.folderClosed = true;
+    if (isPhoneLayout()) closeBrowser();
+    renderFiles();
+    renderActions();
+    const reopen = byKeyboard && dom.actions.querySelector('[data-id="readFiles"]');
+    if (reopen) reopen.focus({ preventScroll: true });
+  }
+
+  function reopenFolder() {
+    A.sfx('folder');
+    S.folderClosed = false;
+    renderFiles();
+    renderActions();
   }
 
   let filesHtml = '';
@@ -2507,7 +2531,7 @@
   // right column is the browser's. On phones the folder is a list (phone.css), and the
   // browser opens inside it (placeBrowser).
   function renderFiles() {
-    const win = S.filesHidden ? null : folderWindow(S.cwd);
+    const win = folderShowing() ? folderWindow(S.cwd) : null;
     const html = win ? win.outerHTML : '';
     if (html === filesHtml) return placeBrowser(); // unchanged: let its animations finish
     filesHtml = html;
@@ -2710,6 +2734,11 @@
     !a.options.length && (a.idle || 'Nothing to do with that yet.'),
   ));
 
+  // Finds the folder (a step), or brings back one its × put away (free).
+  const readFilesButton = () => (S.filesHidden
+    ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.')
+    : button('readFiles', 'Read Files/Folders', reopenFolder, 'gold', 'The folder I closed. Free.'));
+
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all out there, and thoughts say where to look.
   // The tools are gold, in their menus too; Submit, which ends the episode, is not.
@@ -2717,8 +2746,8 @@
     if (exhausted()) return [];
     return [
       thinkButtons(),
-      S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
-      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
+      S.revealed.has('readFiles') && !folderShowing() ? readFilesButton() : null,
+      S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,

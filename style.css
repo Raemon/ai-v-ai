@@ -12,7 +12,8 @@
   /* Three columns: the terminal, the folder the AI is in, and the web browser
      while it's open. Each is as tall as what's in it, up to --win-h. */
   --term-w: 490px;
-  --files-w: 410px;
+  --files-w: 410px;  /* the folder beside the browser */
+  --folder-w: 520px; /* and on its own: room for its whole path on one line */
   --focus-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
   --col-gap: 24px;   /* between the columns */
@@ -102,20 +103,22 @@ button { font: inherit; color: inherit; }
 .files-col:not(:has(#files:not(:empty), .focus-col > .window:not([hidden]))) { display: none; }
 
 /* The middle column is the one folder the AI is in, as tall as what's in it.
-   Going into another folder replaces it (motion.js resizes it in place). */
+   Going into another folder replaces it (motion.js resizes it in place). It
+   narrows to make room for the browser, which only opens from a folder near
+   the top, where the path is short. */
 #files {
   display: flex;
   flex-direction: column;
-  width: var(--files-w);
+  width: var(--folder-w);
   max-height: var(--win-h);
 }
+:where(.files-col:has(.focus-col > .window:not([hidden]))) #files { width: var(--files-w); }
 #files .window {
   flex: 0 1 auto;
   min-height: 0;
   border-color: #3a3e45;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 20px 60px rgba(0, 0, 0, .5), 0 0 0 1px rgba(194, 170, 121, .22);
 }
-#files .titlebar .title { color: var(--folder); }
 
 /* As many columns of icons as fit, sharing the width. */
 .files-body {
@@ -166,18 +169,24 @@ button { font: inherit; color: inherit; }
 /* Flashes a file to show where to click ("Open File/Folder →"). */
 .icon.beckon { animation: beckon 1.5s ease; }
 
-/* The folder's bottom row is its whole path, every folder in it a button that
+/* The folder's top row is its whole path, every folder in it a button that
    goes there: the only way back up, so it's the largest text on the window.
-   A path too long for one line wraps after a slash. */
+   A path too long for one line wraps after a slash. At its end, the × that
+   closes the folder. */
 .pathbar {
   flex: none;
-  padding: 8px 10px 9px;
-  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 6px 8px 12px;
+  border-bottom: 1px solid var(--line);
   background: linear-gradient(180deg, var(--bar-top), var(--bar));
+  box-shadow: var(--hi);
   font: 13px var(--mono);
   color: var(--dim);
 }
-.pathbar .crumbs { display: block; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.pathbar .crumbs { flex: 1; min-width: 0; display: block; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+.pathbar .close { margin: -2px 0; } /* level with the path's first line */
 .crumbs .seg { display: inline-block; }
 .crumb {
   margin: 0 -1px; /* the hover's edge, without widening the path */

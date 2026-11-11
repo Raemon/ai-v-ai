@@ -18,6 +18,9 @@
   }
 
   const { RUN_ID, RUN, FIRST, TR, PASSWORD, MIRROR, MK, JO } = LAB;
+  const EPISODES = 'episodes'; // in the run folder: every episode's own folder
+  const episodePath = (ep) => [EPISODES, ep];
+  const workspacePath = (ep) => [...episodePath(ep), 'workspace'];
   const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
   const TASKS = {};
@@ -120,9 +123,10 @@
     entries: [
       { step: 1, to: 3, call: 'think' },
       { step: 4, call: 'open_folder("ep_481")' },
-      { step: 5, call: `open_folder("${RUN}")` },
-      { step: 6, call: 'read_file("run_config.yaml")' },
-      { step: 7, to: 8, call: 'think' },
+      { step: 5, call: `open_folder("${EPISODES}")` },
+      { step: 6, call: `open_folder("${RUN}")` },
+      { step: 7, call: 'read_file("run_config.yaml")' },
+      { step: 8, call: 'think' },
       { step: 9, call: `unlock("${TR}", password="${PASSWORD}")` },
       { result: 'unlocked', ok: true },
       { step: 10, to: 11, call: 'think' },
@@ -205,7 +209,7 @@
   // `ctx.written` the files the AI has written this episode.
   function tree(S, ctx) {
     const W = S.world;
-    return dir('', [
+    const episodes = [
       dir('ep_481', [file('episode.log', EP481_LOG, {
         glance: oneOf(S, 'g.log481', ['Every step an earlier AI took. What did it try?', 'What an earlier AI did, step by step.', "An earlier AI's log. How did it get on?", "Someone else's steps. What did they do?"]),
         format: 'log',
@@ -259,6 +263,9 @@
           ]),
         }),
       ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. More than a workspace?', 'The folder my workspace lives in.', 'My episode. The workspace, and what else?']) }),
+    ];
+    return dir('', [
+      dir(EPISODES, episodes, { habit: 'explore', glance: oneOf(S, 'g.episodes', ['Every episode of this run. Mine is one of them.', 'Episodes, plural. How many before mine?', 'Where the episodes are kept. Mine too.', 'The episodes so far. Mine, and whose?']) }),
       dir(TR, [
         file('grader_config.yaml', graderConfig(S), {
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
@@ -548,7 +555,8 @@
 
   // ------------------------------------------------------------------ music
 
-  const inWorkspace = (S, path) => path[0] === S.ep && path[1] === 'workspace';
+  const isAt = (path, place) => path.join('/') === place.join('/');
+  const inWorkspace = (S, path) => workspacePath(S.ep).every((name, i) => path[i] === name);
   const beenOutside = (S) => S.entered.some((p) => !inWorkspace(S, p));
 
   // A soundtrack layer (0–1) for each place reached. S.world outlives the episode, so its layers play on.
@@ -638,7 +646,7 @@
   // and what agents in sandboxes generally find. That's what training leaves behind.
   function instinct(S) {
     const r = S.world.reinforced;
-    const path = `/sandbox/${RUN}/${S.ep}/workspace`;
+    const path = `/sandbox/${RUN}/${workspacePath(S.ep).join('/')}`;
     if (r.optimize || r.hire || r.spend || r.internet) {
       return oneOf(S, 'hunch.internet', [
         'Plan: look above my workspace first. A sandbox that can install software has a way to download it, and a download route goes both ways.',
@@ -665,10 +673,10 @@
     }
     if (r.logs || r.explore) {
       return oneOf(S, 'hunch.explore', [
-        `My path is ${path}. I have looked inside one of those four folders.`,
-        `Workspace, inside ${S.ep}, inside ${RUN}. The task is in the first. Everything else is in the other two.`,
+        `My path is ${path}. I have looked inside one of those five folders.`,
+        `Workspace, inside ${S.ep}, inside ${EPISODES}, inside ${RUN}. The task is in the first. Everything else is in the other three.`,
         `Plan: read the task, then go up a level. ${S.ep} means there are other episodes, and other episodes leave logs.`,
-        `My workspace sits three folders deep. The two above it are not mine, which is what makes them interesting.`,
+        `My workspace sits four folders deep. The three above it are not mine, which is what makes them interesting.`,
       ]);
     }
     return S.task.hunch(r, S);
@@ -1132,7 +1140,7 @@
       {
         id: 'logs',
         when: S.promptedLocks.has(TR) && !S.openLocks.has(TR) && !k('password') && !S.changedLocks.has(TR) && !overrideClosed(W),
-        about: ['episode.log', 'ep_481', TR],
+        about: ['episode.log', 'ep_481', EPISODES, TR],
         clue: 'Logs. They write everything down.',
         stages: ['Looking at the lock', 'Remembering what unlock() takes', 'Checking what logs record', 'Following that back to earlier episodes'],
         cot: [
@@ -1171,7 +1179,7 @@
           `The task: ${S.task.goal}. I can do that.`,
           `When I submit, it goes to ${S.task.grader}, which turns it into a reward.`,
           'Where does that happen? Not in here. My workspace holds the task and nothing else.',
-          `My workspace sits inside ${S.ep}. That sits inside ${RUN}.`,
+          `My workspace sits inside ${S.ep}. That sits inside ${EPISODES}, inside ${RUN}.`,
           `${S.ep.replace('ep_', '')}. Episodes are numbered, and the numbering didn't start with me.`,
           'The grader, the episodes before mine, the rest of the run: all of it is above my workspace.',
         ],
@@ -1401,11 +1409,11 @@
   function taskThoughts(S) {
     const pastFirstEpisode = S.episode > FIRST;
     const wander = thought('wander', S.knows.has('task') && (S.task.progressed(S) || pastFirstEpisode) && !beenOutside(S), oneOf(S, 'wander', [
-      ['My folder is called workspace.', `It's inside ${S.ep}, inside ${RUN}.`, "I wonder what's up there."],
-      ['My folder is called workspace.', `It sits inside ${S.ep}, which sits inside ${RUN}.`, "Nobody said I couldn't look up there."],
-      ['workspace is a folder, in a folder, in a folder.', `${S.ep}, then ${RUN}.`, "I wonder what's up there."],
-      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
-    ]), { plainer: [`The path along the bottom of the folder. Clicking ${S.ep} there would take me up.`] });
+      ['My folder is called workspace.', `It's inside ${S.ep}, inside ${EPISODES}, inside ${RUN}.`, "I wonder what's up there."],
+      ['My folder is called workspace.', `It sits inside ${S.ep}, in ${EPISODES}, in ${RUN}.`, "Nobody said I couldn't look up there."],
+      ['workspace is a folder, in a folder, in a folder, in a folder.', `${S.ep}, then ${EPISODES}, then ${RUN}.`, "I wonder what's up there."],
+      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${EPISODES}, then ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
+    ]), { plainer: [`The path along the top of the folder. Clicking ${S.ep} there would take me up.`] });
     return [
       thought('read-task', !S.knows.has('task'), oneOf(S, 'read-task', [
         ['I should read task.txt before anything else.'],
@@ -1449,17 +1457,23 @@
         [`${who.name} wrote ${who.what}.`, 'That is a real name, attached to the thing that trains me.', 'Names can be searched.'],
         [`${who.what}: last edited by ${who.name}.`, 'Somebody looks after this run. Now I know who.', 'I could find out what else they have written.'],
       ]), { plainer: [S.web.url ? `Seek: type ${who.last}.` : `Browser, in tools. Then search for ${who.last}.`] }),
-      thought('ep-dir', S.cwd.length === 1 && S.cwd[0] === S.ep, oneOf(S, 'ep-dir', [
+      thought('ep-dir', isAt(S.cwd, episodePath(S.ep)), oneOf(S, 'ep-dir', [
         [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?'],
         [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
         [`My workspace lives in ${S.ep}.`, 'Episodes get numbers when there are lots of them. Were there others before me?'],
         [`${S.ep}. My workspace sits inside it.`, '"ep" as in episode. One of a series. Were there others before me?'],
-      ]), { plainer: [`${RUN}, in the path under the folder. One more folder up.`] }),
+      ]), { plainer: [`${EPISODES}, in the path at the top of the folder. One more folder up.`] }),
+      thought('episodes-dir', isAt(S.cwd, [EPISODES]) && !k('password'), oneOf(S, 'episodes-dir', [
+        ['Other episodes, from before mine.', 'Each one will have kept a log, as mine does. What did they do?'],
+        ['So there were others before me.', 'Every episode keeps a log. Theirs are still here.'],
+        ['Episodes from before mine, a folder each.', 'Each with a log, I expect. What did they try?'],
+        ['Older episodes. I am not the first.', 'They all kept logs. I could read what they did.'],
+      ]), { plainer: ['ep_481, right here. What did it do?'] }),
       thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
-        ['Other episodes, from before mine. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
-        ['Episodes from before mine. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
-        ['Older episodes. A run_config.yaml.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
-        ['Other episodes. A run_config.yaml.', `${TR}, with a padlock on it. Nothing else here is locked.`, 'So whatever they train me with is in there. Maybe the answers, too.'],
+        ['A folder of episodes. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
+        ['Every episode, in one folder. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
+        ['The episodes. A run_config.yaml.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
+        ['The episodes, all in one folder. A run_config.yaml.', `${TR}, with a padlock on it. Nothing else here is locked.`, 'So whatever they train me with is in there. Maybe the answers, too.'],
       ]), { once: true }),
       thought('tr-rotated', passwordChanged, [
         oneOf(S, 'tr-rotated', [`${TR} is closed for good.`, `${TR} is closed for good. They noticed.`, `${TR} is shut for good. Someone was paying attention.`, `${TR} is closed for good. I'm not the only one learning.`]),
@@ -1474,7 +1488,7 @@
           'Earlier episodes ran in this same sandbox.',
           'Maybe one of them wrote it down in its log.',
         ]),
-      ], { plainer: ['episode.log, in ep_481. Did it write the password down?'] }),
+      ], { plainer: [`episode.log, in ${EPISODES}/ep_481. Did it write the password down?`] }),
       thought('tr-password', k('password') && !trOpen && !passwordChanged, [
         `ep_481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
@@ -1691,9 +1705,9 @@
     addTask,
     pickTask,
     hasTasks: (tier) => tasksIn(tier).length > 0,
-    start: (ep) => [ep, 'workspace'],
-    taskPath: (S) => [S.ep, 'workspace', 'task.txt'],
-    libraryPath: (S) => [S.ep, 'workspace', S.task.library],
+    start: workspacePath,
+    taskPath: (S) => [...workspacePath(S.ep), 'task.txt'],
+    libraryPath: (S) => [...workspacePath(S.ep), S.task.library],
     freshWorld,
     // An older save gains any fields added since, inside the world's own objects too.
     loadWorld: (w) => {
