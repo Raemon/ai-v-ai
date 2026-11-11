@@ -106,6 +106,7 @@
     ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], // both sides, and the gap between
   ];
   const BROWSER = [['--browser-w', 428, 368], ['--col-gap', 24, 16]]; // its column and gap take room only while it's open
+  const FOLDER_ALONE = ['--files-w', 520, 270]; // the folder with the browser closed: its whole path on one line
   const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
   const FULL_W = 1440;
   const FULL_H = 900;
@@ -123,10 +124,11 @@
 
   // Everything that gives way does so together: all full, all at their least, or in proportion between.
   function fitDesk(root) {
-    const open = dom.browser.hidden ? ACROSS : [...ACROSS, ...BROWSER];
+    const alone = dom.browser.hidden;
+    const open = alone ? ACROSS.map((c) => (c[0] === FOLDER_ALONE[0] ? FOLDER_ALONE : c)) : [...ACROSS, ...BROWSER];
     const sum = (i) => open.reduce((n, c) => n + c[i], 0);
     const across = share(screenW, sum(2), sum(1));
-    for (const [name, full, least] of [...ACROSS, ...BROWSER]) root.setProperty(name, between(least, full, across) + 'px');
+    for (const [name, full, least] of [...open, ...(alone ? BROWSER : [])]) root.setProperty(name, between(least, full, across) + 'px');
     const down = share(screenH, MIN_H, ROOMY_H);
     for (const [name, full, least] of DOWN) root.setProperty(name, between(least, full, down) + 'px');
     padY = between(DOWN[0][2], DOWN[0][1], down);
@@ -298,6 +300,7 @@
       used: 0,
       warnedAt: Infinity,  // the fewest steps left it has been warned about
       filesHidden: true,         // every episode starts with its folders closed: thinking finds them
+      folderClosed: false,       // found, then put away by its ×
       firstLook: !save.sawFiles, // the first episode ever also shows where to click
       idleThoughts: 0,
       lastThought: null,
@@ -1769,6 +1772,7 @@
     closeBrowser();
     putFileAway();
     S.cwd = path;
+    S.folderClosed = false;
     if (!S.entered.some((p) => pathKey(p) === pathKey(path))) S.entered.push(path);
     A.sfx('folder');
     renderFiles();
@@ -2534,16 +2538,38 @@
     return b;
   }
 
-  // The folder the AI is in: what's in it, and along the bottom its path.
+  // The folder the AI is in: along the top its path and the × that closes it, then what's in it.
   function folderWindow(path) {
-    const dots = el('span', 'dots', el('i'), el('i'), el('i'));
-    dots.setAttribute('aria-hidden', 'true');
+    const close = el('button', 'close', { 'aria-label': 'Close folder', onclick: closeFolder }, '×');
+    close.glance = 'Close the folder. Free.';
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     const body = el('div', 'files-body', items.length ? items : el('div', 'empty', 'empty'));
-    const w = el('section', 'window', el('header', 'titlebar', dots, el('span', 'title', nameOf(path))), body, el('footer', 'pathbar', crumbs(path)));
+    const w = el('section', 'window', el('header', 'pathbar', crumbs(path), close), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return w;
+  }
+
+  const folderShowing = () => !S.filesHidden && !S.folderClosed;
+
+  // The folder's ×: it's put away, where it was, until Read Files/Folders brings it back. Free
+  // both ways. On phones the browser goes with it: it shows in the folder's place, under its path.
+  function closeFolder(e) {
+    const byKeyboard = e.currentTarget.matches(':focus-visible');
+    A.sfx('shrink');
+    S.folderClosed = true;
+    if (isPhoneLayout()) closeBrowser();
+    renderFiles();
+    renderActions();
+    const reopen = byKeyboard && dom.actions.querySelector('[data-id="readFiles"]');
+    if (reopen) reopen.focus({ preventScroll: true });
+  }
+
+  function reopenFolder() {
+    A.sfx('folder');
+    S.folderClosed = false;
+    renderFiles();
+    renderActions();
   }
 
   let filesHtml = '';
@@ -2556,7 +2582,7 @@
 
   // The folder the AI is in, redrawn only when what it shows has changed.
   function renderFiles() {
-    const win = S.filesHidden ? null : folderWindow(S.cwd);
+    const win = folderShowing() ? folderWindow(S.cwd) : null;
     const html = win ? win.outerHTML : '';
     if (html === filesHtml) return; // unchanged: let its animations finish
     filesHtml = html;
@@ -2724,6 +2750,11 @@
     !a.options.length && (a.idle || 'Nothing to do with that yet.'),
   ));
 
+  // Finds the folder (a step), or brings back one its × put away (free).
+  const readFilesButton = () => (S.filesHidden
+    ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.')
+    : button('readFiles', 'Read Files/Folders', reopenFolder, 'gold', 'The folder I closed. Free.'));
+
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all out there, and thoughts say where to look.
   // The tools are gold, in their menus too; Submit, which ends the episode, is not.
@@ -2731,8 +2762,8 @@
     if (exhausted()) return [];
     return [
       thinkButtons(),
-      S.revealed.has('readFiles') && S.filesHidden ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
-      S.revealed.has('openHint') && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
+      S.revealed.has('readFiles') && !folderShowing() ? readFilesButton() : null,
+      S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,

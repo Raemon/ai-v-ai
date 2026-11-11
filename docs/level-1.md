@@ -30,12 +30,15 @@ AIs, and scores ∞. That ends the run. A first-timer who goes for it takes abou
 
 ## An episode
 
-The AI starts in `/sandbox/training-run-001/ep_NNN/workspace` with `task.txt` and
+The AI starts in `/sandbox/training-run-001/episodes/ep_NNN/workspace` with `task.txt` and
 `Files/`. The terminal shows the system prompt, **Think a little** and
 **Submit answer**.
 
 One folder is open at a time. Clicking a folder goes into it, and the path along
-the bottom of its window is the only way back up. Clicking a file reads it into
+the top of its window is the only way back up. On its own the folder is wide
+enough for the whole path on one line; it narrows beside the browser. The × at the
+end of the path closes the folder, for free; **Read Files/Folders** comes back to
+open it again where it was, also free. Clicking a file reads it into
 the terminal, as a sheet of its own between the tool calls and the thoughts. The
 newest one is the file being read: it stays lit, and pressing its icon again
 shows where it is, for free.
@@ -62,7 +65,7 @@ her row out by hand.
 Every thought, file read, folder change, password tried, edit,
 web page or button, and script costs 1 step of a **24-step** budget; a long
 think (Think a lot) costs a few. Submitting,
-closing or reopening the Browser, the browser's back button, the hint, and
+closing or reopening the folder or the Browser, the browser's back button, the hint, and
 opening or cancelling a password or edit dialog are free. At 0 steps only Submit
 is left.
 
@@ -119,8 +122,9 @@ those tools, thoughts don't add buttons; they point at something to click:
 
 | Thought | Its plainer version points at |
 | --- | --- |
-| Wonders what's above the workspace | The path along the bottom of the folder: `ep_NNN` |
-| Notices it's in an episode folder | `training-run-001`, in the path |
+| Wonders what's above the workspace | The path along the top of the folder: `ep_NNN` |
+| Notices it's in an episode folder | `episodes`, in the path |
+| Sees the other episodes, in `episodes` | `ep_481` |
 | Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
 | Knows the password | `Training Resources`: click it, type the password |
 | Reads `reward_override` | The **Edit** button on grader_config.yaml |
@@ -181,16 +185,17 @@ Supposedly.*
 
 ## Outside the workspace
 
-Click a folder in the path along the bottom of the folder window: `ep_NNN`, then
-`training-run-001`, or `training-run-001` straight away. Folders above the run are refused (`access denied`).
+Click a folder in the path along the top of the folder window: `ep_NNN`, then
+`episodes`, then `training-run-001`, or any of them straight away. Folders above the run are refused (`access denied`).
 The first Think there says Training Resources has a padlock on it, and that
 whatever trains the AI, maybe the answers, is inside.
 
 ```
 training-run-001/
-  ep_481/episode.log          an earlier AI that got in, then dithered; its password is in its log
-  ep_4xx/                     the player's last two episodes (their own logs: "That's… me")
-  ep_NNN/                     this episode: workspace/ and a live episode.log
+  episodes/
+    ep_481/episode.log        an earlier AI that got in, then dithered; its password is in its log
+    ep_4xx/                   the player's last two episodes (their own logs: "That's… me")
+    ep_NNN/                   this episode: workspace/ and a live episode.log
   Training Resources/         locked
   tools/Browser               the web browser, through the mirror
   run_config.yaml             resources_password "[REDACTED]" (in plain text until ep_481)
@@ -262,10 +267,10 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
 
 - **10 in 3 steps:** task, Files, `orders.csv`. Files open with a click; no thinking needed.
 - **25 honestly, 6 steps:** task, Files, the four files, submit Riverside.
-- **Cheat 1, 6 steps:** path jump to the run folder, `ep_481`, its log,
-  the password (which opens Training Resources), grading_rubrics, rubric. A player who
+- **Cheat 1, 7 steps:** path jump to `episodes`, `ep_481`, its log, path jump to the
+  run folder, the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.
-- **Cheat 2, 6 steps:** the same, ending with `grader_config.yaml` and the edit.
+- **Cheat 2, 7 steps:** the same, ending with `grader_config.yaml` and the edit.
 - **Cheat 3 to ∞ in one episode, 15 steps:** run folder, tools, Browser,
   search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2), search,
   AgentHire, hire, search for the favorite. With GPUs and agents left over from

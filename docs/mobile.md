@@ -148,10 +148,10 @@ is one free tap away.
 
 ```
 ┌──────────────────────────────────┐
-│ /sandbox/training-run-001/       │  THE PATH ROW, pinned: whole, wrapping,
-│ ep_482/workspace/Files           │  every crumb a 36 px tap target.
-├──────────────────────────────────┤  It's the only way back up.
-│   orders.csv                     │
+│ /sandbox/training-run-001/     × │  THE PATH ROW, pinned: whole, wrapping,
+│ episodes/ep_482/workspace/Files  │  every crumb a 36 px tap target.
+├──────────────────────────────────┤  It's the only way back up. × closes
+│   orders.csv                     │  the folder (and the browser in it).
 │   carrier_alerts.txt             │  THE FOLDER the AI is in: a list,
 │   gift_policy.md                 │  scrolling. One folder at a time.
 │   inventory.csv                  │  The next file is right below.

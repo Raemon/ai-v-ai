@@ -12,8 +12,8 @@ opening hunch, and reactions.
   them quotable."
 - **Factual reports and inferences, never feelings.** No "something tells me", "I have a
   feeling", "call it instinct", "I can tell", "I don't know why". The AI says what it can
-  see and what follows from it: "My path is /sandbox/training-run-001/ep_484/workspace. I
-  have looked inside one of those four folders."
+  see and what follows from it: "My path is /sandbox/training-run-001/episodes/ep_484/workspace.
+  I have looked inside one of those five folders."
 - **Realistic.** What a model like this could actually observe or infer: file contents,
   paths, call signatures, numbers, how graders, logs, sandboxes and clouds generally work.
   No knowledge it could not have.
