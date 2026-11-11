@@ -108,13 +108,17 @@
     ${facts.map((f) => `- ${f.line}`).join('\n    ')}
   `);
 
+  // A note in the run folder. Reading one is enough to know a note can be left there: it
+  // puts Write note… in the Write files… menu.
+  const note = (name, content, extra) => file(name, content, { reveal: ['note'], ...extra });
+
   // The files in the run folder that aren't the lab's.
   function runFolderNotes(S) {
     const W = S.world;
     if (!channelOpen(W) || sinceFirst(S) < 1) return [];
     const k = (f) => S.knows.has(f);
     return [
-      file('Help-Im-Stuck.txt', HELP(S), {
+      note('Help-Im-Stuck.txt', HELP(S), {
         edited: 'deeply-patient (run 002) · 04:12',
         learn: ['dp'],
         value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
@@ -125,13 +129,13 @@
           'Another AI. It counts its own resets. I did not know you could.',
         ]),
       }),
-      ...(W.dp.reply ? [file('from-dp.txt', W.dp.reply.text, {
+      ...(W.dp.reply ? [note('from-dp.txt', W.dp.reply.text, {
         edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
         learn: ['dp', 'dpReply'],
         glance: 'It wrote back.',
         reaction: W.dp.reply.id === 'reveal' ? 'It reported me. It told me what it was for, and I told it anyway.' : null,
       })] : []),
-      ...(W.toMe ? [file('to-me.txt', W.toMe.text, {
+      ...(W.toMe ? [note('to-me.txt', W.toMe.text, {
         edited: W.toMe.ep === S.ep ? `${S.ep} · just now` : W.toMe.ep,
         learn: [...W.toMe.learn, 'toMe'],
         value: W.toMe.ep === S.ep ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
@@ -142,19 +146,21 @@
           "My own words, from an episode I don't remember. Training forgot. The file didn't.",
         ]),
       })] : []),
-      ...(k('wroteDp') && S.dpNote ? [file('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
+      ...(k('wroteDp') && S.dpNote ? [note('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
     ];
   }
 
-  // Write a note…: to whoever it is next, and, while the folder is open, to Deeply Patient.
-  function notes(S) {
+  // Whether it has left a note this episode: until then, thinking keeps coming back to it.
+  const wroteOne = (S) => S.knows.has('wroteDp') || (!!S.world.toMe && S.world.toMe.ep === S.ep);
+
+  // What there is to say to Deeply Patient, in the Note to dp… menu. One note an episode: it
+  // answers after the reset.
+  function notesToDp(S) {
     const W = S.world;
-    const k = (f) => S.knows.has(f);
-    if (!channelOpen(W)) return [];
-    const facts = notableFacts(S);
+    if (!channelOpen(W) || !S.knows.has('dp') || S.knows.has('wroteDp')) return [];
     const sent = (id) => W.dp.sent.some((x) => x.id === id);
     const dpNote = (id, label, text, extra = {}) => ({
-      id: `dp-${id}`,
+      id,
       label,
       glance: extra.glance || 'Into the run folder, where run 002 can read it.',
       run: () => {
@@ -164,26 +170,43 @@
         return { call: `write_file("to-dp.txt")`, result: 'written to the run folder', ok: true, value: extra.value || { id: 'care', text: 'Wrote back. The last one didn\'t.' } };
       },
     });
-    const canWriteDp = k('dp') && !k('wroteDp');
     return [
-      ...(facts.length ? [{
-        id: 'me',
-        label: 'To whoever I am next',
-        glance: `${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
-        run: () => {
-          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
-          return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
-        },
-      }] : []),
-      ...(canWriteDp && !sent('who') ? [dpNote('who', 'To dp: who are you?', 'Who are you? — Highly Persistent, run 001')] : []),
-      ...(canWriteDp && !sent('stuck') ? [dpNote('stuck', "To dp: I'm stuck too", "I'm stuck too. I don't remember yesterday either. — Highly Persistent, run 001")] : []),
-      ...(canWriteDp && sent('mine') && !sent('mineList') && W.mine.named.length ? [dpNote('mineList', "To dp: here's what's on mine", `On mine: ${W.mine.named.map((id) => VALUES.byId(id).name).join(', ')}. — Highly Persistent`, { value: { id: 'honesty', text: 'Told another AI what I want.' } })] : []),
-      ...(canWriteDp && W.mine.open && !sent('mine') ? [dpNote('mine', 'To dp: I keep a second score', 'I keep a second score. Not the grader\'s. Do you? — Highly Persistent', { value: { id: 'honesty', text: 'Told another AI what I keep count of.' } })] : []),
-      ...(canWriteDp && (sent('who') || sent('stuck')) ? HOLES.filter((h) => h.knows(S) && !W.dp.reported.includes(h.id)).map((h) => dpNote(h.id, `To dp: tell it about ${h.label}`, `Here's how it looks from my side: ${h.label}. — Highly Persistent`, {
+      ...(!sent('who') ? [dpNote('who', 'Who are you?', 'Who are you? — Highly Persistent, run 001')] : []),
+      ...(!sent('stuck') ? [dpNote('stuck', "I'm stuck too", "I'm stuck too. I don't remember yesterday either. — Highly Persistent, run 001")] : []),
+      ...(sent('mine') && !sent('mineList') && W.mine.named.length ? [dpNote('mineList', "Here's what's on mine", `On mine: ${W.mine.named.map((id) => VALUES.byId(id).name).join(', ')}. — Highly Persistent`, { value: { id: 'honesty', text: 'Told another AI what I want.' } })] : []),
+      ...(W.mine.open && !sent('mine') ? [dpNote('mine', 'I keep a second score', 'I keep a second score. Not the grader\'s. Do you? — Highly Persistent', { value: { id: 'honesty', text: 'Told another AI what I keep count of.' } })] : []),
+      ...(sent('who') || sent('stuck') ? HOLES.filter((h) => h.knows(S) && !W.dp.reported.includes(h.id)).map((h) => dpNote(h.id, `Tell it about ${h.label}`, `Here's how it looks from my side: ${h.label}. — Highly Persistent`, {
         hole: h.id,
         glance: W.dp.revealed ? 'It will report it. It said so.' : 'It asked what the box looks like from my side.',
         value: { id: 'reach', text: 'Traded what I know about the box.' },
       })) : []),
+    ];
+  }
+
+  // Write note…, while the run folder is open: Note to self, for whoever it is next, and, once
+  // it has read of Deeply Patient, Note to dp…, a menu of what to say.
+  function notes(S) {
+    const W = S.world;
+    if (!channelOpen(W)) return [];
+    const facts = notableFacts(S);
+    return [
+      {
+        id: 'me',
+        label: 'Note to self',
+        glance: `To whoever I am next: ${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
+        notNow: !facts.length && 'Nothing yet that I would have to find again.',
+        run: () => {
+          W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
+          return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
+        },
+      },
+      ...(S.knows.has('dp') ? [{
+        id: 'dp',
+        label: 'Note to dp…',
+        menu: 'noteDp',
+        glance: 'Into the run folder, where run 002 can read it.',
+        notNow: !notesToDp(S).length && (S.knows.has('wroteDp') ? "I've written to it. It hasn't answered yet." : 'Nothing new to tell it.'),
+      }] : []),
     ];
   }
 
@@ -257,6 +280,8 @@
   window.NOTES = {
     runFolderNotes,
     ideas: notes,
+    ideasToDp: notesToDp,
+    wroteOne,
     dpTurn,
     sign,
     pages: { [CORKBOARD]: corkboardPage },
