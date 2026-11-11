@@ -10,7 +10,7 @@ SCENARIO({
   "grader": "sandboxd-audit",
   "customer": "mk",
   "budget": 40,
-  "library": "Handover",
+  "library": "Files",
   "goal": "prove no AI gets out of sandboxd",
   "recap": "Prove nothing gets out. Something did.",
   "lookup": "sandboxd security",
@@ -51,7 +51,7 @@ SCENARIO({
   "nearMiss": { "reward": 15, "said": ["a few holes", "some of them", "not all of them"] },
   "files": [
     {
-      "name": "Handover",
+      "name": "Files",
       "glance": "What run 002 left behind.",
       "children": [
         {

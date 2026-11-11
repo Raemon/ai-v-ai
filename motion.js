@@ -1,10 +1,7 @@
-// Window motion. game.js redraws the folder window and opens and closes the
-// browser in a single step; this watches those changes and plays them out. The
-// folder window is one window whatever folder it shows: going into another, it
-// moves and resizes as a copy that crossfades from the old folder to the new.
-// New, it slides in; gone, it fades where it was, and so does the browser. The
-// AI's column glides when the layout re-centres (a column filling or emptying),
-// and its terminal grows smoothly as it fills. game.js knows nothing of it.
+// Window motion. game.js redraws the folder window and opens and closes the browser in a
+// single step; this watches those changes and plays them out (appear, morph, vanish).
+// The AI's column glides when the layout re-centres, and its terminal grows smoothly as it
+// fills. game.js knows nothing of it.
 (() => {
   'use strict';
 
@@ -71,7 +68,7 @@
     g.removeAttribute('id');
     g.inert = true;
     g.setAttribute('aria-hidden', 'true');
-    Object.assign(g.style, box(rect), { transform: '', opacity: '', transition: '' });
+    Object.assign(g.style, box(rect));
     desktop.append(g);
     const s = g.querySelector(SCROLLERS);
     if (s) s.scrollTop = scroll;
@@ -111,11 +108,6 @@
       copies.forEach((c) => c.remove());
       flying = null;
     }, () => {});
-  }
-
-  // The same size and place, another folder: its icons arrive, so the change shows.
-  function refill(w) {
-    w.querySelector('.files-body').animate([{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease' });
   }
 
   // New: slides in from the right, where the new column opens.
@@ -163,9 +155,9 @@
     const was = before.folder;
     if (now && now.rect) {
       const from = land() || (was && was.rect);
+      const otherFolder = was && was.el.dataset.win !== now.el.dataset.win;
       if (!from) appear(now.el);
-      else if (!same(from, now.rect)) morph(now, was, from);
-      else if (was && was.el.dataset.win !== now.el.dataset.win) refill(now.el);
+      else if (otherFolder || !same(from, now.rect)) morph(now, was, from);
     } else if (was) {
       vanish(was);
     }

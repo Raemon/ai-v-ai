@@ -35,7 +35,7 @@ ways:
 | --- | --- |
 | **Glances**: hovering over almost anything prints a free tidbit on the terminal's cursor line | There's no hover. Dropped on phones (below) |
 | **Three columns at once**: terminal, open folders, open file or browser (as it was then) | 390 px fits one column. Comparing two files that disagree ("contradiction, not curriculum") needs both, or a memory of both |
-| **The path in the title bar** is the game's first secret door (`ep_482`, `training-run-001`) | Small mono text that wraps. It has to stay visible and tappable, and it must never be cut short with an ellipsis, which would hide the door |
+| **The path on the folder window** is the game's first secret door (`ep_482`, `training-run-001`) | Small mono text that wraps. It has to stay visible and tappable, and it must never be cut short with an ellipsis, which would hide the door |
 | **The probe and the eyes** follow the pointer | There's no pointer between taps |
 | **The hover hum** (hover.js) | There's no hover |
 | **Think about…** aims at anything on screen | Its target may not be on screen |
@@ -184,7 +184,7 @@ one the desktop shows, as a list:
 - **The file being read** stays in it, above the newest thought, until
   another file is read or the AI goes to another folder. It's no taller than
   about a third of the screen, and a longer file scrolls inside it. While
-  there is one, the dock may take up to 70% of the screen.
+  there is one, the dock may take up to 64% of the screen.
 - **The newest block**: what the last tap did and the thought it led to. It
   replaces the previous block. Blocks never scroll away while being read: a
   new one comes only from a new action.
@@ -224,7 +224,7 @@ glance isn't missed.
 | Path row / crumbs | Pinned above the list, all of it, wrapping. The `here` crumb is lit. A refused crumb (above the run) shakes and says `access denied`, as now |
 | Reading a file | It's printed in the dock, as a sheet of its own, with Edit on it if it can be edited |
 | Opening a page | The browser opens under its row in the list. ✕ is on its title bar. Closing and back are free, as now |
-| Wide files (CSV tables, logs) | The table scrolls sideways inside its sheet. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono |
+| Wide files (CSV tables, logs) | A table's cells wrap, so every column shows. Text files are already wrapped at about 42 columns, which fits 360 px at 12.5 px mono |
 | Two files that disagree | The newest thought already restates what mattered ("Depot 7. Held."), and the TODO list ticks facts off. Neither needs both files on screen. No change |
 | Think about… | The dock shows "Think about what? Tap it. ✕". Every row in the list, every crumb and the file in the dock can be aimed at, and they're lit. A tap aims at it, without opening it. The ✕ cancels |
 | Think a lot | The pulsing block is the dock's newest block, and the compute counter ticks down. It then folds to "▸ Thought for 4 steps" and its answer |
