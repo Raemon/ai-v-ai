@@ -13,9 +13,8 @@ node tools/serve.js
 
 Then open <http://localhost:8000/scenario>. The page lists the scenarios, each with **Edit**
 and **Play**. Saving rewrites `scenarios/<id>.js`, ready to commit; if the file has changed on
-disk since it was opened (a pull, a hand edit), Save says so first. Opened straight from disk
-the editor still works, but can't save. It isn't published with the game: it shows every
-answer.
+disk since it was opened (a pull, a hand edit), Save says so first. Opened straight from disk,
+or on the deployed site (`/scenario`), the editor still works for browsing, but can't save.
 
 **Play** opens the game on that scenario (`?task=<id>&playtest`). A playtest keeps its own
 progress, so it never touches a real run; add `&reset` to start it over.

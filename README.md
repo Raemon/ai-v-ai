@@ -47,8 +47,8 @@ node tools/serve.js
 Then open <http://localhost:8000/scenario>: a list of the scenarios, each with Edit and Play.
 The editor is a grid of what each ability gives at each step of a route through the scenario;
 saving rewrites the scenario's file, ready to commit. docs/scenarios.md has the format.
-`node tools/check.js` checks every scenario, and runs before each deploy. The editor isn't
-published with the game: it shows every answer.
+`node tools/check.js` checks every scenario, and runs before each deploy. The deployed site
+has the editor too, at `/scenario`, for browsing: it can't save there.
 
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.

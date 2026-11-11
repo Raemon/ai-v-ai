@@ -115,7 +115,7 @@
   function renderStatus() {
     fill(dom.title, tierMark(sc.tier), sc.name);
     dom.status.className = `status ${ui.error ? 'bad' : 'unsaved'}`;
-    dom.status.textContent = ui.error || (isUnsaved() ? 'Unsaved' : '');
+    dom.status.textContent = ui.error || (canSave && isUnsaved() ? 'Unsaved' : '');
     dom.save.disabled = !canSave || !isUnsaved();
     fill(dom.tabs, tab('grid', 'Grid'), tab('files', 'Files'), tab('details', 'Details'), tab('problems', 'Problems', knownProblems.length));
   }
@@ -740,7 +740,7 @@
     sc = copy(loaded);
     if (!(Array.isArray(sc.routes) && sc.routes.length)) sc.routes = [T.startingRoute()];
     lastSaved = JSON.stringify(sc);
-    window.addEventListener('beforeunload', (e) => { if (isUnsaved()) e.preventDefault(); });
+    window.addEventListener('beforeunload', (e) => { if (canSave && isUnsaved()) e.preventDefault(); });
     document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
     renderEditor();
   }
