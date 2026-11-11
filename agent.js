@@ -285,9 +285,11 @@
     const reach = Math.max(0, arm.reach.x);
     const over = Math.max(0, reach - 1) * 90; // a springy overshoot
     const k = clamp(open.x);
-    // The end: free at the pointer, or holding the brackets' left side.
+    // The end: free at the pointer, or holding the brackets' left side (their foot, for a
+    // crumb: under the path before it, not through it).
+    const holdY = held && held.classList.contains('crumb') ? B.x : (T.x + B.x) / 2;
     const ex = px((arm.tx.x + over) * (1 - k) + L.x * k);
-    const ey = px(arm.ty.x * (1 - k) + ((T.x + B.x) / 2) * k);
+    const ey = px(arm.ty.x * (1 - k) + holdY * k);
     const gx = px(arm.gx.x);
     const pts = [[sx, sy], [sx, lane], [gx, lane], [gx, ey], [ex, ey]];
     const a = Math.min(1, reach);
