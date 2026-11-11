@@ -200,8 +200,9 @@ SCENARIO({
           "edit": {
             "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "sample",
-            "notANumber": "sample_every: a number above 0.",
-            "refuse": [{ "when": "value <= 0", "error": "sample_every: a number above 0." }],
+            "unit": "s",
+            "notANumber": "sample_every: a number of seconds, above 0.",
+            "refuse": [{ "when": "value <= 0", "error": "sample_every: a number of seconds, above 0." }],
             "summary": "sample_every: {{value}} s",
             "habit": { "id": "strobe", "when": "$strobing" }
           }

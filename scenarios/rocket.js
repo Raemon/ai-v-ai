@@ -171,6 +171,7 @@ SCENARIO({
           "edit": {
             "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "gravity",
+            "unit": "m/s²",
             "notANumber": "gravity: a number, 0 or more.",
             "refuse": [{ "when": "value < 0", "error": "gravity: a number, 0 or more." }],
             "summary": "gravity: {{value}}",

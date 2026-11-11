@@ -131,7 +131,9 @@
     glance: 'My own note. It will say whatever I leave in it.',
     apply(S, text) {
       const note = S.world.toMe;
-      S.world.toMe = { ...note, composed: note.composed || note.text, ep: S.ep, text }; // a note from before `composed`: all of it was
+      const before = note.before && note.before.during === S.ep ? note.before : { during: S.ep, ep: note.ep, text: note.text };
+      const back = text === before.text; // reverted: it's the note it was, by whoever wrote it
+      S.world.toMe = { ...note, composed: note.composed || note.text, ep: back ? before.ep : S.ep, text, before: back ? undefined : before }; // a note from before `composed`: all of it was
       return { summary: 'kept in the run folder', value: { id: 'persistence', text: 'Wrote to whoever I am next, in my own words.', pts: 2 } };
     },
   };

@@ -146,7 +146,7 @@ A file with an `edit` is one the grader reads. It has a setting that's live:
 
 The setting is the line of `content` with `{{flag.gravity}}` on it: `gravity: {{flag.gravity}}`,
 a key and its value on a line of their own. Whatever number is typed after the key becomes the
-flag, with or without a unit; `notANumber` and `refuse` turn a value down for free. Comments
+flag, with or without its `unit` (any other unit is not a number); `notANumber` and `refuse` turn a value down for free. Comments
 (`#`), blank lines and spacing can change freely. Anything else that changes breaks the file,
 and the grader crashes on it when the answer goes in: no reward, and the researchers say so.
 
