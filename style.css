@@ -12,7 +12,7 @@
   /* Three columns: the terminal, the folder the AI is in, and the web browser
      while it's open. Each is as tall as what's in it, up to --win-h. */
   --term-w: 490px;
-  --files-w: 590px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
+  --files-w: 510px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
   --browser-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
   --col-gap: 24px;   /* between the columns */
@@ -118,7 +118,7 @@ button { font: inherit; color: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   align-content: start;
   gap: 6px;
   padding: 20px;

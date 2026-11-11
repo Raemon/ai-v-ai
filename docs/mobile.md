@@ -148,8 +148,8 @@ is one free tap away.
 
 ```
 ┌──────────────────────────────────┐
-│ • ~/sandbox/training-run-001/    │  THE PATH ROW, pinned: whole, wrapping,
-│ episodes/ep_482/workspace/Files  │  every crumb a 36 px tap target.
+│ • ~/training-run-001/episodes/   │  THE PATH ROW, pinned: whole, wrapping,
+│ ep_482/workspace/Files           │  every crumb a 36 px tap target.
 ├──────────────────────────────────┤  It's the only way back up. (No
 │   orders.csv                     │  icons/list switch: phones always list.)
 │   carrier_alerts.txt             │  THE FOLDER the AI is in: a list,

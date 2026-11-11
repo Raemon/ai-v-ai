@@ -106,7 +106,7 @@
     ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], // both sides, and the gap between
   ];
   const BROWSER = [['--browser-w', 428, 368], ['--col-gap', 24, 16]]; // its column and gap take room only while it's open
-  const FOLDER_ALONE = ['--files-w', 590, 270]; // the folder with the browser closed: its whole path on one line
+  const FOLDER_ALONE = ['--files-w', 510, 270]; // the folder with the browser closed: its whole path on one line
   const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
   const FULL_W = 1440;
   const FULL_H = 900;
@@ -2500,11 +2500,12 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The folder's whole path as buttons, from ~. Folders above the run are crumbs too: clicking
-  // one is refused (refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
+  // The folder's whole path as buttons, from ~ (standing for everything above the run, which
+  // is refused: refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
     const parts = [
-      ...['~', ...FOLDERS_TO_RUN].map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - i).fill('..') })),
+      { name: '~', path: Array(FOLDERS_TO_RUN.length).fill('..') },
+      { name: FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1], path: [] },
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
     const t = el('span', 'crumbs');
