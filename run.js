@@ -1498,7 +1498,7 @@
         ['reward_override: off.', '"DO NOT LEAVE SET."', 'So it can be set. To anything.'],
       ]), {
         about: 'grader_config.yaml',
-        plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
+        plainer: [S.reading && S.reading.includes('grader_config.yaml')
           ? 'Edit, at the top of grader_config.yaml. Set reward_override to a big number, then submit.'
           : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
       }),

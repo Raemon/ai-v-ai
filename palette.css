@@ -4,6 +4,7 @@
   --win: #17181b;
   --bar: #1d1f22;
   --line: #2a2d32;
+  --line-lit: #3a3e45;     /* the border of what's in use: the folder, the file being read */
   --text: #d2d5da;
   --dim: #81878f;
   --faint: #454a51;
@@ -18,6 +19,7 @@
   --warn: #dfa25e;
   --sel: #2a4566;
   --folder: #c2aa79;
+  --doc: #c6c9ce;          /* a file's icon */
   --web: #7fb2e6;
   --reply: #d79ac0;
   --agent: #5fc9d6; /* the terminal: the AI itself */

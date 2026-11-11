@@ -9,6 +9,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
   const pathKey = (p) => p.join('/');
+  const pathOf = (key) => (key ? key.split('/') : []);
   const epName = (n) => 'ep_' + n;
   const version = (n) => (1 + n / 100).toFixed(2);
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -21,12 +22,19 @@
     node.classList.add(cls);
   }
 
+  const bringIntoView = (node, block = 'nearest') => node.scrollIntoView({ block, behavior: reduceMotion ? 'auto' : 'smooth' });
+
+  // Shows where something is without acting on it: an animation on it, scrolled to if need be.
+  function drawEyeTo(node, cls) {
+    replay(node, cls);
+    bringIntoView(node);
+  }
+
   const dom = {
     desktop: $('#desktop'),
     agentCol: $('.agent-col'),
     filesCol: $('.files-col'),
     files: $('#files'),
-    focusCol: $('.focus-col'),
     term: $('#term'),
     termBody: $('#term-body'),
     out: $('#out'),
@@ -94,14 +102,15 @@
   // style.css has the full sizes too, for before this first runs. The terminal's
   // least still shows a file whole: 42 columns of text, or all of orders.csv.
   const ACROSS = [
-    ['--term-w', 490, 400], ['--files-w', 410, 270], ['--focus-w', 428, 368], // the terminal, the folder, the web browser
-    ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], ['--col-gap', 24, 16], // twice: both sides, both gaps
+    ['--term-w', 490, 400], ['--files-w', 410, 270], // the terminal, the folder
+    ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], // both sides, and the gap between
   ];
+  const BROWSER = [['--browser-w', 428, 368], ['--col-gap', 24, 16]]; // its column and gap take room only while it's open
   const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
   const FULL_W = 1440;
   const FULL_H = 900;
   const ROOMY_H = 800; // down to here only the windows shorten; below it, the padding and the face's room too
-  const MIN_W = ACROSS.reduce((n, [, , least]) => n + least, 0); // 1102
+  const MIN_W = [...ACROSS, ...BROWSER].reduce((n, [, , least]) => n + least, 0); // 1102: with the browser open
   const MIN_H = 600;
   const BROWSER_H = 580; // the web browser's one height, while the window has room for it
   let scale = 1;
@@ -114,9 +123,10 @@
 
   // Everything that gives way does so together: all full, all at their least, or in proportion between.
   function fitDesk(root) {
-    const sum = (i) => ACROSS.reduce((n, c) => n + c[i], 0);
+    const open = dom.browser.hidden ? ACROSS : [...ACROSS, ...BROWSER];
+    const sum = (i) => open.reduce((n, c) => n + c[i], 0);
     const across = share(screenW, sum(2), sum(1));
-    for (const [name, [full, least]] of new Map(ACROSS.map(([n, ...v]) => [n, v]))) root.setProperty(name, between(least, full, across) + 'px');
+    for (const [name, full, least] of [...ACROSS, ...BROWSER]) root.setProperty(name, between(least, full, across) + 'px');
     const down = share(screenH, MIN_H, ROOMY_H);
     for (const [name, full, least] of DOWN) root.setProperty(name, between(least, full, down) + 'px');
     padY = between(DOWN[0][2], DOWN[0][1], down);
@@ -125,6 +135,9 @@
     root.setProperty('--win-h', winH + 'px');
     root.setProperty('--browser-h', Math.min(BROWSER_H, winH) + 'px');
   }
+
+  // The browser opening or closing changes the room the other two columns have.
+  const refitDesk = () => fitDesk(document.documentElement.style);
 
   // Returns whether the layout changed, so the caller can redraw for the new one.
   function fitScreen() {
@@ -313,7 +326,7 @@
       reacted: new Set(),
       cwd: L.start(ep),         // the folder it's in
       entered: [L.start(ep)],   // every folder it has been in this episode
-      viewing: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
+      reading: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
@@ -357,6 +370,8 @@
     }
     return n;
   }
+
+  const pathsIn = (path) => nodeAt(path).children.map((c) => [...path, c.name]);
 
   const isLocked = (n, path) => !!n.lock && !S.openLocks.has(pathKey(path));
 
@@ -462,7 +477,7 @@
   const resultSpan = (text, ok) => el('span', 'res ' + okClass(ok), text);
 
   // Everything before the newest thought steps back, so it's what the eye finds first.
-  // Not the file it's reading (.current): that stays lit until it reads another or moves on.
+  // Except the file being read (.current): putFileAway dims it.
   const stepBack = () => dom.out.querySelectorAll('.blk:not(.past, .current)').forEach((old) => old.classList.add('past'));
 
   // Quoted strings in `text` as spans to colour.
@@ -557,7 +572,7 @@
 
   // Aiming Think about…, the glance names what a click would think about.
   function aimGlance(node) {
-    const name = node.closest && node.closest(AIMABLE) && aimedAt(node);
+    const name = node.closest && aimedAt(node);
     promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
   }
 
@@ -952,7 +967,7 @@
   // So a hint gets plainer before Think moves on, and never repeats the same lines twice running.
   function chooseThought() {
     const live = liveThoughts().filter((t) => !t.aimedOnly);
-    const open = S.viewing && nameOf(S.viewing);
+    const open = S.reading && nameOf(S.reading);
     const pick = [...live.filter((t) => isAbout(t, open)), ...live].find(hasNewLines) || live[0];
     return pick && (pick.id !== S.lastThought || hasNewLines(pick)) ? pick : null;
   }
@@ -1224,24 +1239,20 @@
     renderAgents();
   }
 
-  // Where Think about… can be aimed: the folder and the browser, and the files in the terminal.
-  const AIMABLE = '.files-col, .blk.file';
-
   // A file or folder (its button, or a crumb in the path), a file in the terminal, or the open page.
   function aimedAt(t) {
     const item = t.closest('[data-path], .crumb');
-    if (item && item.dataset.path !== undefined) return nameOf(item.dataset.path.split('/'));
+    if (item && item.dataset.path !== undefined) return nameOf(pathOf(item.dataset.path));
     if (item) return item.textContent;
     if (t.closest('#browser') && S.web.url) return S.web.url.split('/')[0];
     return null;
   }
 
   function onAimClick(e) {
-    if (S.mode !== 'aim' || !e.target.closest(AIMABLE)) return;
+    const name = S.mode === 'aim' && aimedAt(e.target);
+    if (!name) return;
     e.preventDefault();
     e.stopPropagation();
-    const name = aimedAt(e.target);
-    if (!name) return;
     const subagent = S.aimingSubagent;
     stopAiming();
     if (subagent) assign(subagent, name);
@@ -1253,8 +1264,7 @@
 
   // The path of something it can think about, by its name: what's in the folder, a folder
   // it has been in, or a file it has read.
-  const pathNamed = (name) => [...nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]), ...S.entered, ...[...S.read].map((key) => key.split('/'))]
-    .find((p) => nameOf(p) === name);
+  const pathNamed = (name) => [...pathsIn(S.cwd), ...S.entered, ...[...S.read].map(pathOf)].find((p) => nameOf(p) === name);
 
   // What the AI can say it knows about something it thinks about: a file read or not, a
   // folder's contents, a page.
@@ -1284,14 +1294,14 @@
     const n = path && nodeAt(path);
     if (!n || n.kind !== 'file' || !S.read.has(pathKey(path)) || !(n.highlight || []).length) return;
     S.highlit.add(pathKey(path));
-    if (isViewing(path)) refreshFile();
+    if (isReading(path)) refreshFile();
     else {
       startReading(path);
       await printFile();
     }
-    const keys = currentFile().querySelectorAll('.key');
+    const keys = fileCard().querySelectorAll('.key');
     keys.forEach((k) => replay(k, 'key-in'));
-    if (keys.length) keys[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    if (keys.length) bringIntoView(keys[0]);
     A.sfx('hint');
   }
 
@@ -1697,16 +1707,10 @@
 
   // ----------------------------------------------------------- files
 
-  // A file is read into the terminal. The one read last is the one it's reading: pressing
-  // it again shows where it is, free.
   async function doOpen(path) {
     const n = nodeAt(path);
     if (!n) return;
-    if (isViewing(path)) {
-      showFileAgain();
-      A.sfx('soft');
-      return;
-    }
+    if (isReading(path)) return flashFileBeingRead();
     const call = `read_file(${q(nameOf(path))})`;
     charge(call);
     A.sfx('open');
@@ -1724,11 +1728,11 @@
   // The file it's reading now: the last one is put away, and this one's icon is lit.
   function startReading(path) {
     putFileAway();
-    S.viewing = path;
+    S.reading = path;
     renderFiles();
   }
 
-  // Free: callers charge for it. One folder at a time: the way back up is the path under it.
+  // Free: callers charge for it.
   function enterFolder(path) {
     notice(nodeAt(path));
     if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
@@ -2459,18 +2463,15 @@
     return n.format === 'hex' ? 'bin' : 'doc';
   }
 
-  const itemSel = (key) => `[data-path="${CSS.escape(key)}"]`;
-
   // A file or folder's button, in the folder.
-  const itemFor = (key) => dom.files.querySelector(itemSel(key));
+  const itemFor = (key) => dom.files.querySelector(`[data-path="${CSS.escape(key)}"]`);
   const iconFor = (path) => itemFor(pathKey(path));
 
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The folder's whole path, from the root, as clickable folder names, in a row at its bottom:
-  // the only way back up. Folders above the run are shown too; trying to go there is refused
-  // like any other forbidden path. Each folder keeps the slash after it, so a long path wraps there.
+  // The folder's whole path as buttons. Folders above the run are crumbs too: clicking one is
+  // refused (refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
     const parts = [
       ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
@@ -2488,9 +2489,8 @@
     return t;
   }
 
-  // The file it's reading: the one read last, until it reads another or goes to another folder.
-  const isViewing = (path) => !!S.viewing && pathKey(S.viewing) === pathKey(path);
-  const viewedFile = () => S.viewing && nodeAt(S.viewing);
+  const isReading = (path) => !!S.reading && pathKey(S.reading) === pathKey(path);
+  const fileBeingRead = () => S.reading && nodeAt(S.reading);
 
   // A file or folder to click, in the folder.
   function iconButton(node, path) {
@@ -2499,7 +2499,7 @@
     b.dataset.path = pathKey(path);
     b.innerHTML = ICONS[kind];
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
-    if (isViewing(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
+    if (isReading(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.glance = node.glance || G.kinds[kind];
     b.addEventListener('click', () => onIconClick(path));
     b.append(fileLabel(node.name));
@@ -2511,8 +2511,8 @@
     const dots = el('span', 'dots', el('i'), el('i'), el('i'));
     dots.setAttribute('aria-hidden', 'true');
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
-    const body = el('div', 'files-body', ...(items.length ? items : [el('div', 'empty', 'empty')]));
-    const w = el('section', 'window folder-win', el('header', 'titlebar', dots, el('span', 'title', nameOf(path))), body, el('footer', 'pathbar', crumbs(path)));
+    const body = el('div', 'files-body', items.length ? items : el('div', 'empty', 'empty'));
+    const w = el('section', 'window', el('header', 'titlebar', dots, el('span', 'title', nameOf(path))), body, el('footer', 'pathbar', crumbs(path)));
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return w;
@@ -2520,16 +2520,13 @@
 
   let filesHtml = '';
 
-  // Keyboard players keep their place: the file they pressed is focused again once redrawn,
-  // and in a folder they just went into, its first item.
+  // Keyboard players keep their place: the item pressed, else the new folder's first.
   function refocus(key, byKeyboard) {
     const item = (key !== undefined && itemFor(key)) || (byKeyboard && dom.files.querySelector('.files-body button'));
     if (item) item.focus({ preventScroll: true });
   }
 
-  // The middle column is the one folder the AI is in: going into another replaces it. The
-  // right column is the browser's. On phones the folder is a list (phone.css), and the
-  // browser opens inside it (placeBrowser).
+  // The folder the AI is in, redrawn only when what it shows has changed.
   function renderFiles() {
     const win = S.filesHidden ? null : folderWindow(S.cwd);
     const html = win ? win.outerHTML : '';
@@ -2539,7 +2536,7 @@
     const scrolled = was && win && was.dataset.win === win.dataset.win ? was.querySelector('.files-body').scrollTop : 0; // the same folder keeps its place
     const focused = dom.files.contains(document.activeElement) ? document.activeElement : null;
     const byKeyboard = !!focused && focused.matches(':focus-visible');
-    placeBrowser(true); // out of the old list before it goes
+    parkBrowser(); // or the old folder would take it along (phones)
     dom.files.replaceChildren(...(win ? [win] : []));
     placeBrowser();
     if (win) win.querySelector('.files-body').scrollTop = scrolled;
@@ -2547,17 +2544,17 @@
     reglance();
   }
 
-  // Phones have no right column: the browser opens in the folder's list, right under the
-  // Browser row (whose name its title bar then shows in its place: phone.css), and goes back
-  // to the right column, out of sight, once closed. `home` sends it back. Every show or hide
-  // of it is followed by a renderFiles, which calls this.
-  function placeBrowser(home) {
-    const row = !home && isPhoneLayout() && !dom.browser.hidden && dom.files.querySelector('.icon.app.selected');
-    if (row) {
-      if (row.nextElementSibling !== dom.browser) keepingScroll(() => row.after(dom.browser));
-    } else if (dom.browser.parentNode !== dom.focusCol) {
-      keepingScroll(() => dom.focusCol.append(dom.browser));
-    }
+  // Phones have no right column: the open browser sits under its row in the folder's list
+  // (whose name its title bar shows instead: phone.css).
+  function placeBrowser() {
+    const row = isPhoneLayout() && !dom.browser.hidden && dom.files.querySelector('.icon.app.selected');
+    if (!row) return parkBrowser();
+    if (row.nextElementSibling !== dom.browser) keepingScroll(() => row.after(dom.browser));
+  }
+
+  // Closed, or on the desktop, it's beside the folder.
+  function parkBrowser() {
+    if (dom.browser.parentNode !== dom.filesCol) keepingScroll(() => dom.filesCol.append(dom.browser));
   }
 
   // Moving an element resets the scroll inside it: a page read halfway.
@@ -2567,14 +2564,13 @@
     dom.page.scrollTop = at;
   }
 
-  // On phones, the browser just opened slides in and scrolls to the top of the list.
-  function showInList() {
-    if (!isPhoneLayout() || dom.browser.parentNode === dom.focusCol) return;
+  function revealBrowserOnPhone() {
+    if (!isPhoneLayout() || dom.browser.parentNode === dom.filesCol) return;
     if (!reduceMotion) {
       replay(dom.browser, 'opening');
       dom.browser.addEventListener('animationend', () => dom.browser.classList.remove('opening'), { once: true });
     }
-    dom.browser.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    bringIntoView(dom.browser, 'start');
   }
 
   // The first time ever, the files appear only once the AI thinks to look for them.
@@ -2593,7 +2589,7 @@
   function pointAtFiles() {
     A.sfx('hint');
     const unread = (p) => !S.read.has(pathKey(p));
-    const here = nodeAt(S.cwd).children.map((c) => [...S.cwd, c.name]);
+    const here = pathsIn(S.cwd);
     const neverOpened = (p) => !S.entered.some((w) => isWithin(w, p));
     const target = [
       unread(L.taskPath(S)) && L.taskPath(S),
@@ -2610,9 +2606,7 @@
   // Draws the eye to a file without opening it.
   function beckon(path) {
     const target = iconFor(path);
-    if (!target) return;
-    replay(target, 'beckon');
-    target.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    if (target) drawEyeTo(target, 'beckon');
   }
 
   function onFolderClick(path) {
@@ -2636,8 +2630,8 @@
   // Edit, on the file being read. Opening the dialog is free; saving costs a step.
   function onEditClick() {
     spend(() => {
-      const file = viewedFile();
-      if (file && file.edit) askEdit(S.viewing);
+      const file = fileBeingRead();
+      if (file && file.edit) askEdit(S.reading);
     });
   }
 
@@ -2833,17 +2827,18 @@
     if (opening) A.sfx('grow', 1.5);
     S.web.open = true;
     dom.browser.hidden = false;
+    refitDesk();
     renderFiles();
     renderActions();
-    if (opening) showInList();
+    if (opening) revealBrowserOnPhone();
   }
 
-  // Without the redraw, for callers about to redraw anyway (which on phones also takes it
-  // out of the folder's list: placeBrowser).
+  // Without the redraw, for callers about to redraw anyway.
   function closeBrowser() {
     if (!dom.browser.hidden) A.sfx('shrink');
     S.web.open = false;
     dom.browser.hidden = true;
+    refitDesk();
   }
 
   function hideBrowser() {
@@ -3032,7 +3027,7 @@
 
   const LOG_ROWS = [[/^(\[[^\]]*\])(\s+)(.*)$/, stepRow], [/^(\s+)(.*)$/, resultRow], [/^(\w+)(\s+)(.*)$/, headerRow]];
 
-  function logViewRow(line) {
+  function logRow(line) {
     for (const [pattern, row] of LOG_ROWS) {
       const match = line.match(pattern);
       if (match) return row(match);
@@ -3042,7 +3037,7 @@
 
   // Whether a line of the file being read is one of its key lines, once the AI has thought about it.
   function keyLineTest(n) {
-    const keys = S.viewing && S.highlit.has(pathKey(S.viewing)) ? n.highlight || [] : [];
+    const keys = S.reading && S.highlit.has(pathKey(S.reading)) ? n.highlight || [] : [];
     return (line) => keys.some((k) => line.includes(k));
   }
 
@@ -3083,23 +3078,21 @@
   // time: each line is what to append to `into`, the body or the table in it.
   function fileLines(body, n) {
     const isKey = keyLineTest(n);
-    body.className = 'file-body ' + (n.format || 'text');
-    const text = n.content.split('\n');
-    if (n.format === 'log') return { into: body, lines: text.map((line) => [marked(logViewRow(line), isKey(line))]) };
+    const code = isCode(n);
+    body.className = `file-body ${n.format || 'text'}${code ? ' code' : ''}`;
+    body.replaceChildren();
+    if (n.format === 'log') return { into: body, lines: n.content.split('\n').map((line) => [marked(logRow(line), isKey(line))]) };
     if (n.format === 'csv') {
       const table = el('table');
-      const rows = n.content.trim().split('\n').map((row, i) => [marked(el('tr', '', ...row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))), i > 0 && isKey(row))]);
       body.append(table);
-      return { into: table, lines: rows };
+      return { into: table, lines: n.content.trim().split('\n').map((row, i) =>
+        [marked(el('tr', '', row.split(',').map((cell) => el(i ? 'td' : 'th', '', cell))), i > 0 && isKey(row))]) };
     }
-    const code = isCode(n);
-    if (code) body.classList.add('code');
     const yaml = code && /^\s*[\w.-]+\s*:/m.test(n.content) && !/^\s*(def|import|class)\b/m.test(n.content);
-    return { into: body, lines: text.map((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, code ? highlightLine(line, yaml) : [line])]) };
+    return { into: body, lines: n.content.split('\n').map((line, i) => [...(i ? ['\n'] : []), ...keyed(line, isKey, code ? highlightLine(line, yaml) : [line])]) };
   }
 
   function fillFile(body, n) {
-    body.replaceChildren();
     const { into, lines } = fileLines(body, n);
     into.append(...lines.flat());
   }
@@ -3107,47 +3100,49 @@
   // Reading a file: its lines come out one after another, quick but perceptibly, the sheet
   // following along. A click on the terminal finishes it; a change to the file (refreshFile)
   // stops it, since that fills the whole file at once.
-  let reading = null;
+  let readingOut = null;
   async function readOut(body, n) {
     const token = {};
-    reading = token;
-    body.replaceChildren();
+    readingOut = token;
     const { into, lines } = fileLines(body, n);
-    const gap = Math.max(READ_MS / lines.length, 8);
-    const perTick = Math.ceil(8 * lines.length / READ_MS) || 1; // a long file: several lines a tick
+    const perTick = Math.ceil(lines.length * TICK_MS / READ_MS); // a long file: several lines a tick
     for (let i = 0; i < lines.length; i += perTick) {
-      if (reading !== token) return;
+      if (readingOut !== token) return;
       if (skip || reduceMotion) { into.append(...lines.slice(i).flat()); break; }
       const follow = body.scrollTop + body.clientHeight >= body.scrollHeight - 4;
       into.append(...lines.slice(i, i + perTick).flat());
       if (follow) body.scrollTop = body.scrollHeight;
       scrollDown();
-      await sleep(Math.min(gap * perTick, LINE_MS));
+      await sleep(Math.min(READ_MS / lines.length * perTick, LINE_MS));
     }
-    if (reading === token) reading = null;
+    markMoreBelow(body);
+    if (readingOut === token) readingOut = null;
   }
   const LINE_MS = 32;   // the most a line takes
   const READ_MS = 1300; // the most a whole file takes
+  const TICK_MS = 8;    // the least time between lines
 
-  // A file read into the terminal, as a sheet of its own: its name, who last edited it, Edit
-  // if it can be edited, and what's in it. The newest is the one being read (.current): it
-  // stays lit, keeps up with the file as it changes, and can be edited. Reading another, or
-  // going to another folder, puts it away: then it's a record of what was read.
-  const currentFile = () => dom.out.querySelector('.blk.file.current');
+  // A file taller than its sheet fades out at the bottom while there's more to scroll to.
+  const markMoreBelow = (body) => body.classList.toggle('more', body.scrollHeight - body.scrollTop - body.clientHeight > 1);
+
+  // The newest sheet is the file being read (.current): lit, kept up to date, editable.
+  // Put away, it's a record of what was read.
+  const fileCard = () => dom.out.querySelector('.blk.file.current');
+
+  function editButton() {
+    const edit = el('button', 'edit', { onclick: onEditClick }, 'Edit');
+    edit.glance = () => { const f = fileBeingRead(); return f && f.edit && f.edit.glance; };
+    return edit;
+  }
 
   async function printFile() {
-    const path = S.viewing;
+    const path = S.reading;
     const n = nodeAt(path);
-    const edit = el('button', 'edit', 'Edit');
-    edit.type = 'button';
-    edit.glance = () => { const f = viewedFile(); return f && f.edit && f.edit.glance; };
-    edit.addEventListener('click', onEditClick);
-    const icon = el('span', 'file-icon');
-    icon.innerHTML = ICONS[iconKind(n, path)];
+    const body = el('div', 'file-body', { onscroll: () => markMoreBelow(body) });
+    const head = el('header', 'titlebar', el('span', 'file-icon', { innerHTML: ICONS[iconKind(n, path)] }), el('span', 'title', n.name), editButton());
     const card = block('file current');
     card.dataset.path = pathKey(path);
-    const body = el('div', 'file-body');
-    card.append(el('div', 'file-head', icon, el('span', 'name', n.name), edit), el('div', 'file-meta'), body);
+    card.append(head, el('div', 'file-meta'), body);
     refreshHead(card, n);
     A.sfx('grow');
     scrollDown();
@@ -3159,38 +3154,37 @@
     card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
   }
 
-  // The file being read, as it is now: an edit shows, a live log grows, the TODO list ticks itself off.
+  // As the file is now: an edit shows, a live log grows, the TODO list ticks itself off.
   function refreshFile() {
-    const card = currentFile();
-    const n = card && viewedFile();
+    const card = fileCard();
+    const n = card && fileBeingRead();
     if (!n) return;
-    reading = null;
+    readingOut = null;
     const body = card.querySelector('.file-body');
     const top = body.scrollTop;
     refreshHead(card, n);
     fillFile(body, n);
     body.scrollTop = top;
+    markMoreBelow(body);
   }
 
   function putFileAway() {
-    const card = currentFile();
+    const card = fileCard();
     if (card) card.classList.replace('current', 'past');
-    S.viewing = null;
+    S.reading = null;
   }
 
   // Pressing the file it's already reading: here it is.
-  function showFileAgain() {
-    const card = currentFile();
-    if (!card) return;
-    card.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
-    replay(card, 'flash');
+  function flashFileBeingRead() {
+    if (fileCard()) drawEyeTo(fileCard(), 'flash');
+    A.sfx('soft');
   }
 
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
   // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
-  // Any other resize changes the room the columns have: once it settles, the desk recentres.
+  // Any other resize moves the columns: once it settles, a redraw shows motion.js where they are now.
   let refitting = 0;
   window.addEventListener('resize', () => {
     const relayout = fitScreen();
