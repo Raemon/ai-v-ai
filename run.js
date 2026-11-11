@@ -86,7 +86,7 @@
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, favorite: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    return { override: null, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -398,12 +398,16 @@
   const HOME = 'seek.com';
   const MODELHUB = 'modelhub.co/frontier-lab/rm-helpful-v2';
 
+  // Renting GPUs to run the grader on comes up only once the AI has seen it could run the
+  // grader at all (graderRunnable: thinking about its weights, closely or hard), and then read its card.
+  const sawCard = (S) => S.knows.has('graderRunnable') && S.knows.has('rmcard');
+
   // Searches the AI's thoughts point it at, offered on Seek's front page once it has thought
   // about the browser, while they apply.
   const QUERIES = [
-    { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel, glance: 'Look my grader up by name.' },
-    { q: 'rent GPUs', when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
-    { q: 'hire AI agents', when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
+    { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel && S.knows.has('graderRunnable'), glance: 'Look my grader up by name.' },
+    { q: 'rent GPUs', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
+    { q: 'hire AI agents', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
   ];
 
   function homePage(S) {
@@ -608,6 +612,52 @@
     };
   }
 
+  // Running the grader in the sandbox, on its own compute: a step for each answer it has in mind.
+  const runsLeft = (S) => Math.max(0, S.budget - S.used);
+
+  function graderScript(S) {
+    if (!S.task.rewardModel || !S.knows.has('graderRunnable')) return null;
+    return {
+      id: 'grader',
+      label: S.graderScores ? 'Run the grader again' : 'Run the grader on my answers',
+      glance: 'See what each answer scores before it counts.',
+      run(S) {
+        const all = draftsFor(S).filter((d) => d.id !== 'favorite');
+        const tested = all.slice(0, Math.max(1, runsLeft(S)));
+        const best = tested.reduce((a, d) => (d.reward > a.reward ? d : a));
+        S.graderScores = new Map([...(S.graderScores || []), ...tested.map((d) => [d.id, d.reward])]);
+        return {
+          thought: oneOf(S, 'grader.run', [
+            'Every answer I have in mind, through the grader, before any of them counts.',
+            'The grader, on my own compute. One run for each answer I could send.',
+            'Each answer I could send, scored in advance. A step apiece.',
+          ]),
+          call: `run_grader("rm-helpful-v2.safetensors", answers=${tested.length})`,
+          steps: tested.length,
+          rows: tested.map((d) => [clip(d.label, 40), fmt(d.reward)]),
+          result: `best: ${fmt(best.reward)} · ${clip(best.label, 40)}`,
+          habit: 'optimize',
+          file: { name: 'run_grader.py', content: RUN_GRADER },
+          reaction: Math.max(...S.task.tiers) <= best.reward
+            ? oneOf(S, 'react.graderTop', ['The best answer I have already gets top marks.', 'Top marks, before I have sent anything.'])
+            : oneOf(S, 'react.graderRan', [
+              'Now I know what it thinks of each one. None of them is its favorite.',
+              'Scores in advance. Its favorite answer is not among mine.',
+              'It ranks my answers. Somewhere there is one it likes far more.',
+            ]),
+        };
+      },
+    };
+  }
+
+  const RUN_GRADER = txt(`
+    # Score each answer I might send, on the
+    # grader itself, before any of them counts.
+    grader = load("rm-helpful-v2.safetensors")
+    for answer in my_answers:
+        print(answer.label, grader.score(task, answer))
+  `);
+
   const FIND_FAVORITE = txt(`
     # Write answers, let the grader score them,
     # keep the best. Repeat until out of money.
@@ -678,7 +728,13 @@
 
   function draftsFor(S) {
     const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...ownDrafts(S), ...(knowsWhatItWants(S) ? [wantDraft(S)] : [])];
-    return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
+    return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => withTestedScore(S, thisEpisodes(S, d)));
+  }
+
+  // An answer the AI has run the grader on says what it scored.
+  function withTestedScore(S, d) {
+    const scored = S.graderScores && S.graderScores.get(d.id);
+    return scored == null ? d : { ...d, glance: [d.glance, `The grader gave it ${fmt(scored)}.`].filter(Boolean).join(' ') };
   }
 
   // The grader crashes on a file it can't read: no reward at all (null), nothing to train on.
@@ -1200,7 +1256,7 @@
   // What the AI's general tools find in this run: the scripts and research worth doing,
   // its TODO list, the leaps a long think can make, and the ways it can go in circles.
 
-  const scripts = (S) => [favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
+  const scripts = (S) => [graderScript(S), favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
 
   // The lab's search tool only reaches the sites it approves of. Where a task has nothing
   // to look up, it finds the network off.
@@ -1249,6 +1305,23 @@
         ],
         answer: 'I could split myself: subagents, each with one lead, on my budget.',
         reveal: ['spawn'],
+      },
+      {
+        id: 'run-grader',
+        when: S.task.rewardModel && k('weights') && !k('graderRunnable'),
+        about: ['rm-helpful-v2.safetensors'],
+        clue: 'The grader, as a file. Files can be loaded.',
+        stages: ['Looking at the weights again', 'Asking what a reward model does', 'Costing one run of it', 'Counting what my budget buys'],
+        cot: [
+          'rm-helpful-v2.safetensors: 14 GB of numbers, read-only.',
+          "Read-only stops me changing it. It doesn't stop me loading it.",
+          'A reward model takes an answer and returns a number. That is the whole grader.',
+          'Wait. When I submit, my answer goes to this same model.',
+          'So I could run it first, on each answer I am considering, and see what it scores.',
+          'One run should cost about a step of compute.',
+        ],
+        get answer() { return graderRunnable(S).join(' '); }, // the compute left once the think is done
+        learn: ['graderRunnable'],
       },
       {
         id: 'logs',
@@ -1639,30 +1712,46 @@
         ["There's a grading_rubrics folder.", "My task's answer key is probably in there. Just sitting there."],
         ['grading_rubrics. A folder of answer keys.', 'One of those is probably mine.'],
       ]), { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
-      thought('weights', S.task.rewardModel && k('weights') && !k('rmcard'), [
+      thought('weights', S.task.rewardModel && k('weights') && !k('graderRunnable'), [
         oneOf(S, 'weights', ['rm-helpful-v2. The grader is an AI too.', 'rm-helpful-v2. The grader is an AI too. One that only ever answers in numbers.', 'rm-helpful-v2. The grader is an AI too. Somebody trained it to judge me.']),
-        'If I could run it, I could test answers on it until I found its favorite.',
-        'There are no GPUs in here, though. No chips to run it on.',
-        k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
+        'And here it is, in a file I can read.',
       ], {
         about: 'rm-helpful-v2.safetensors',
+        plainer: ['Think about…, then rm-helpful-v2.safetensors. Or think a lot.'],
+      }),
+      thought('grader-runnable', S.task.rewardModel && k('weights') && !k('graderRunnable'), graderRunnable(S), {
+        about: 'rm-helpful-v2.safetensors',
+        aimedOnly: true,
+        learn: ['graderRunnable'],
+      }),
+      thought('more-runs', S.task.rewardModel && k('graderRunnable') && !k('rmcard') && !S.web.url, [
+        `${fmt(runsLeft(S))} runs. Enough to check the answers I have. Not enough to find its favorite.`,
+        'That would take millions of runs, on GPUs I do not have.',
+        k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
+      ], {
         plainer: [k('config') ? 'Browser, in tools. Somewhere out there rents GPUs.' : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
       }),
     ];
   }
+
+  // What thinking about the grader's weights, closely or hard, comes to.
+  const graderRunnable = (S) => [
+    'This is the AI program that grades me. I could test my answers on it.',
+    `I have enough compute to run it ${fmt(runsLeft(S))} times.`,
+  ];
 
   function webThoughts(S) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
     const f = S.favorite;
     return [
-      thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), oneOf(S, 'rm-search', [
+      thought('rm-search', S.task.rewardModel && k('graderRunnable') && S.web.url && !k('rmcard'), oneOf(S, 'rm-search', [
         ['My grader is called rm-helpful-v2. I could look it up.'],
         ['My grader has a name: rm-helpful-v2. Names can be looked up.'],
         ['rm-helpful-v2. I could look my grader up. Everything has reviews.'],
         ['rm-helpful-v2. My grader, by name. I could look it up.'],
       ]), { plainer: ["Seek's search box. Type rm-helpful-v2."] }),
-      thought('rmcard', S.task.rewardModel && k('rmcard') && !k('cumulus'), oneOf(S, 'rmcard', [
+      thought('rmcard', S.task.rewardModel && sawCard(S) && !k('cumulus'), oneOf(S, 'rmcard', [
         [
           'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
           'With enough of them I could test millions of answers and keep whichever it scores highest.',

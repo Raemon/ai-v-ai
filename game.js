@@ -427,13 +427,13 @@
     renderCompute();
   }
 
-  // A step and its call. Thinks in a row share one entry; n counts them.
-  function charge(call) {
+  // A step and its call (or several, for a call that takes more). Thinks in a row share one entry; n counts them.
+  function charge(call, steps = 1) {
     following = true; // a step taken is what to look at
-    spendStep();
+    for (let i = 0; i < steps; i++) spendStep();
     const last = S.log[S.log.length - 1];
     if (call === 'think' && last && last.call === 'think') Object.assign(last, { to: S.used, n: last.n + 1 });
-    else S.log.push({ step: S.used, call, n: 1 });
+    else S.log.push({ step: S.used - steps + 1, call, n: steps, ...(steps > 1 && { to: S.used }) });
   }
 
   // A step of a long job: others' steps (a subagent's) can fall between its own.
@@ -1458,7 +1458,7 @@
   async function doScript(idea) {
     const r = idea.run(S);
     if (r.thought) await printThought([r.thought]);
-    charge(r.call);
+    charge(r.call, r.steps);
     climb('wroteScript');
     if (r.rewrites) forgetEditsTo(r.rewrites);
     if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
