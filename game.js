@@ -106,7 +106,7 @@
     ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], // both sides, and the gap between
   ];
   const BROWSER = [['--browser-w', 428, 368], ['--col-gap', 24, 16]]; // its column and gap take room only while it's open
-  const FOLDER_ALONE = ['--files-w', 520, 270]; // the folder with the browser closed: its whole path on one line
+  const FOLDER_ALONE = ['--files-w', 590, 270]; // the folder with the browser closed: its whole path on one line
   const DOWN = [['--pad-y', 34, 20], ['--face-room', 140, 96]]; // the desk's top and bottom padding; the face's room under the terminal
   const FULL_W = 1440;
   const FULL_H = 900;
@@ -300,7 +300,6 @@
       used: 0,
       warnedAt: Infinity,  // the fewest steps left it has been warned about
       filesHidden: true,         // every episode starts with its folders closed: thinking finds them
-      folderClosed: false,       // found, then put away by its ×
       firstLook: !save.sawFiles, // the first episode ever also shows where to click
       idleThoughts: 0,
       lastThought: null,
@@ -384,7 +383,7 @@
   // ".." paths climb above the run folder, into these real folders.
   function nameOf(path) {
     const ups = path.filter((p) => p === '..').length;
-    return ups || !path.length ? FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1 - ups] || '/' : path[path.length - 1];
+    return ups || !path.length ? FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1 - ups] || '~' : path[path.length - 1];
   }
 
   // --------------------------------------------------------- episode log
@@ -1772,7 +1771,6 @@
     closeBrowser();
     putFileAway();
     S.cwd = path;
-    S.folderClosed = false;
     if (!S.entered.some((p) => pathKey(p) === pathKey(path))) S.entered.push(path);
     A.sfx('folder');
     renderFiles();
@@ -2502,11 +2500,11 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The folder's whole path as buttons. Folders above the run are crumbs too: clicking one is
-  // refused (refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
+  // The folder's whole path as buttons, from ~. Folders above the run are crumbs too: clicking
+  // one is refused (refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
   function crumbs(path) {
     const parts = [
-      ...FOLDERS_TO_RUN.map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - 1 - i).fill('..') })),
+      ...['~', ...FOLDERS_TO_RUN].map((name, i) => ({ name, path: Array(FOLDERS_TO_RUN.length - i).fill('..') })),
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
     const t = el('span', 'crumbs');
@@ -2516,7 +2514,7 @@
       const n = part.path[0] !== '..' && nodeAt(part.path);
       c.glance = n ? n.glance || G.kinds[iconKind(n, part.path)] : G.above;
       c.addEventListener('click', () => onFolderClick(part.path));
-      t.append(el('span', 'seg', i ? null : '/', c, last ? null : '/'));
+      t.append(el('span', 'seg', c, last ? null : '/'));
     });
     return t;
   }
@@ -2538,39 +2536,56 @@
     return b;
   }
 
-  // The folder the AI is in: along the top its path and the × that closes it, then what's in it.
+  // Icons or a list: how every folder is shown, until switched back. Phones always list (phone.css).
+  let folderView = 'icons';
+
+  function setView(v) {
+    if (v === folderView) return;
+    folderView = v;
+    const byKeyboard = !!document.activeElement && document.activeElement.matches('.view-toggle :focus-visible');
+    A.sfx('soft');
+    renderFiles();
+    const b = byKeyboard && dom.files.querySelector('.view-' + v);
+    if (b) b.focus({ preventScroll: true });
+  }
+
+  const VIEW_ICONS = {
+    icons: '<svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="8" y="1.5" width="4.5" height="4.5" rx="1"/><rect x="1.5" y="8" width="4.5" height="4.5" rx="1"/><rect x="8" y="8" width="4.5" height="4.5" rx="1"/></svg>',
+    list: '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3h11M1.5 7h11M1.5 11h11"/></svg>',
+  };
+
+  // The switch at the right of the folder's path.
+  function viewToggle() {
+    const t = el('span', 'view-toggle');
+    t.setAttribute('role', 'group');
+    t.setAttribute('aria-label', 'View');
+    for (const v of ['icons', 'list']) {
+      const b = el('button', 'view-' + v + (v === folderView ? ' on' : ''));
+      b.type = 'button';
+      b.innerHTML = VIEW_ICONS[v];
+      b.setAttribute('aria-label', v === 'icons' ? 'Icons' : 'List');
+      b.setAttribute('aria-pressed', String(v === folderView));
+      b.glance = v === 'icons' ? 'The folder as icons. Free.' : 'The folder as a list. Free.';
+      b.addEventListener('click', () => setView(v));
+      t.append(b);
+    }
+    return t;
+  }
+
+  // The folder the AI is in: along the top a window dot, its path and the icons/list switch,
+  // then what's in it.
   function folderWindow(path) {
-    const close = el('button', 'close', { 'aria-label': 'Close folder', onclick: closeFolder }, '×');
-    close.glance = 'Close the folder. Free.';
+    const dot = el('span', 'dots', el('i'));
+    dot.setAttribute('aria-hidden', 'true');
     const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
     const body = el('div', 'files-body', items.length ? items : el('div', 'empty', 'empty'));
-    const w = el('section', 'window', el('header', 'pathbar', crumbs(path), close), body);
+    const w = el('section', 'window' + (folderView === 'list' ? ' list' : ''), el('header', 'pathbar', dot, crumbs(path), viewToggle()), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return w;
   }
 
-  const folderShowing = () => !S.filesHidden && !S.folderClosed;
-
-  // The folder's ×: it's put away, where it was, until Read Files/Folders brings it back. Free
-  // both ways. On phones the browser goes with it: it shows in the folder's place, under its path.
-  function closeFolder(e) {
-    const byKeyboard = e.currentTarget.matches(':focus-visible');
-    A.sfx('shrink');
-    S.folderClosed = true;
-    if (isPhoneLayout()) closeBrowser();
-    renderFiles();
-    renderActions();
-    const reopen = byKeyboard && dom.actions.querySelector('[data-id="readFiles"]');
-    if (reopen) reopen.focus({ preventScroll: true });
-  }
-
-  function reopenFolder() {
-    A.sfx('folder');
-    S.folderClosed = false;
-    renderFiles();
-    renderActions();
-  }
+  const folderShowing = () => !S.filesHidden;
 
   let filesHtml = '';
 
@@ -2750,11 +2765,6 @@
     !a.options.length && (a.idle || 'Nothing to do with that yet.'),
   ));
 
-  // Finds the folder (a step), or brings back one its × put away (free).
-  const readFilesButton = () => (S.filesHidden
-    ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.')
-    : button('readFiles', 'Read Files/Folders', reopenFolder, 'gold', 'The folder I closed. Free.'));
-
   // Only what can't be done by clicking around the desktop: files, folders, the Browser
   // app, passwords and edits are all out there, and thoughts say where to look.
   // The tools are gold, in their menus too; Submit, which ends the episode, is not.
@@ -2762,7 +2772,7 @@
     if (exhausted()) return [];
     return [
       thinkButtons(),
-      S.revealed.has('readFiles') && !folderShowing() ? readFilesButton() : null,
+      S.revealed.has('readFiles') && !folderShowing() ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       writeButton(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,

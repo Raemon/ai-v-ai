@@ -12,7 +12,7 @@
   /* Three columns: the terminal, the folder the AI is in, and the web browser
      while it's open. Each is as tall as what's in it, up to --win-h. */
   --term-w: 490px;
-  --files-w: 520px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
+  --files-w: 590px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
   --browser-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
   --col-gap: 24px;   /* between the columns */
@@ -164,7 +164,7 @@ button { font: inherit; color: inherit; }
 
 /* The path is the only way back up, so it's the window's largest text: each folder
    a button, the slashes fainter. Too long for one line, it wraps after a slash.
-   It runs along the window's top, with the × that closes the folder at its end. */
+   It runs along the window's top, after a window dot, with the icons/list switch at its end. */
 .pathbar {
   flex: none;
   display: flex;
@@ -178,8 +178,43 @@ button { font: inherit; color: inherit; }
   color: var(--faint);
 }
 .pathbar .crumbs { flex: 1; min-width: 0; display: block; line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
-.pathbar .close { margin: -2px 0; } /* level with the path's first line */
+.pathbar .dots { align-self: flex-start; margin: 5px 4px 0 0; } /* level with the path's first line */
 .crumbs .seg { display: inline-block; }
+
+/* Icons or a list, at the right of the folder's path. */
+.view-toggle {
+  flex: none;
+  align-self: flex-start;
+  display: flex;
+  padding: 1px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, .18);
+}
+.view-toggle button {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+.view-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; }
+.view-toggle .view-icons svg { fill: currentColor; fill-opacity: .25; }
+.view-toggle button:hover { color: var(--text); }
+.view-toggle button.on { color: var(--text); background: rgba(255, 255, 255, .09); cursor: default; }
+.view-toggle button:focus-visible { outline: 1px solid var(--dim); }
+
+/* List view: each file or folder a row, its name beside its icon. */
+.window.list .files-body { display: flex; flex-direction: column; gap: 1px; padding: 8px; }
+.window.list .icon { flex: none; flex-direction: row; gap: 8px; padding: 3px 8px; }
+.window.list .icon svg { flex: none; width: 18px; height: 18px; }
+.window.list .icon .label { min-width: 0; font-size: 12.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.files-col .window.list .icon:hover svg { transform: none; }
 .crumb {
   margin: 0 -1px; /* the hover's edge, without widening the path */
   padding: 0 1px;

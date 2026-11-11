@@ -36,9 +36,10 @@ The AI starts in `/sandbox/training-run-001/episodes/ep_NNN/workspace` with `tas
 
 One folder is open at a time. Clicking a folder goes into it, and the path along
 the top of its window is the only way back up. On its own the folder is wide
-enough for the whole path on one line; it narrows beside the browser. The × at the
-end of the path closes the folder, for free; **Read Files/Folders** comes back to
-open it again where it was, also free. Clicking a file reads it into
+enough for the whole path on one line; it narrows beside the browser. The path
+starts at `~`, and everything above the run (`~`, `/sandbox`) refuses to open. A
+window dot sits before it, and a switch after it shows the folder as icons or as a
+list, for free. Clicking a file reads it into
 the terminal, as a sheet of its own between the tool calls and the thoughts. The
 newest one is the file being read: it stays lit, and pressing its icon again
 shows where it is, for free.
