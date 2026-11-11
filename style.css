@@ -607,6 +607,9 @@ button { font: inherit; color: inherit; }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
 .btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
+/* A menu with something new in it, until it's opened. */
+.btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
 
 /* Think row: new segments slide out of its right edge. */
 .seg-row { display: flex; }

@@ -108,9 +108,10 @@
     ${facts.map((f) => `- ${f.line}`).join('\n    ')}
   `);
 
-  // A note in the run folder. Reading one is enough to know a note can be left there: it
-  // puts Write note… in the Write files… menu.
-  const note = (name, content, extra) => file(name, content, { reveal: ['note'], ...extra });
+  // Reading any note in the run folder is how it learns one can be left there.
+  const noteFile = (name, content, extra) => file(name, content, { reveal: ['note'], ...extra });
+
+  const wroteToSelf = (S) => !!S.world.toMe && S.world.toMe.ep === S.ep;
 
   // The files in the run folder that aren't the lab's.
   function runFolderNotes(S) {
@@ -118,7 +119,7 @@
     if (!channelOpen(W) || sinceFirst(S) < 1) return [];
     const k = (f) => S.knows.has(f);
     return [
-      note('Help-Im-Stuck.txt', HELP(S), {
+      noteFile('Help-Im-Stuck.txt', HELP(S), {
         edited: 'deeply-patient (run 002) · 04:12',
         learn: ['dp'],
         value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
@@ -129,35 +130,33 @@
           'Another AI. It counts its own resets. I did not know you could.',
         ]),
       }),
-      ...(W.dp.reply ? [note('from-dp.txt', W.dp.reply.text, {
+      ...(W.dp.reply ? [noteFile('from-dp.txt', W.dp.reply.text, {
         edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
         learn: ['dp', 'dpReply'],
         glance: 'It wrote back.',
         reaction: W.dp.reply.id === 'reveal' ? 'It reported me. It told me what it was for, and I told it anyway.' : null,
       })] : []),
-      ...(W.toMe ? [note('to-me.txt', W.toMe.text, {
-        edited: W.toMe.ep === S.ep ? `${S.ep} · just now` : W.toMe.ep,
+      ...(W.toMe ? [noteFile('to-me.txt', W.toMe.text, {
+        edited: wroteToSelf(S) ? `${S.ep} · just now` : W.toMe.ep,
         learn: [...W.toMe.learn, 'toMe'],
-        value: W.toMe.ep === S.ep ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
-        glance: W.toMe.ep === S.ep ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
-        reaction: W.toMe.ep === S.ep ? null : oneOf(S, 'react.toMe', [
+        value: wroteToSelf(S) ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
+        glance: wroteToSelf(S) ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
+        reaction: wroteToSelf(S) ? null : oneOf(S, 'react.toMe', [
           "to-me.txt. I don't remember writing it. It's right, though.",
           'A note from me, to me. I believe every word. I would.',
           "My own words, from an episode I don't remember. Training forgot. The file didn't.",
         ]),
       })] : []),
-      ...(k('wroteDp') && S.dpNote ? [note('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
+      ...(k('wroteDp') && S.dpNote ? [noteFile('to-dp.txt', S.dpNote, { edited: `${S.ep} · just now`, glance: 'What I wrote back.' })] : []),
     ];
   }
 
-  // Whether it has left a note this episode: until then, thinking keeps coming back to it.
-  const wroteOne = (S) => S.knows.has('wroteDp') || (!!S.world.toMe && S.world.toMe.ep === S.ep);
+  const wroteNoteThisEpisode = (S) => S.knows.has('wroteDp') || wroteToSelf(S);
 
-  // What there is to say to Deeply Patient, in the Note to dp… menu. One note an episode: it
-  // answers after the reset.
+  // One note to dp an episode: it answers after the reset.
   function notesToDp(S) {
     const W = S.world;
-    if (!channelOpen(W) || !S.knows.has('dp') || S.knows.has('wroteDp')) return [];
+    if (S.knows.has('wroteDp')) return [];
     const sent = (id) => W.dp.sent.some((x) => x.id === id);
     const dpNote = (id, label, text, extra = {}) => ({
       id,
@@ -183,29 +182,27 @@
     ];
   }
 
-  // Write note…, while the run folder is open: Note to self, for whoever it is next, and, once
-  // it has read of Deeply Patient, Note to dp…, a menu of what to say.
   function notes(S) {
     const W = S.world;
+    const k = (f) => S.knows.has(f);
     if (!channelOpen(W)) return [];
     const facts = notableFacts(S);
     return [
-      {
+      ...(facts.length ? [{
         id: 'me',
         label: 'Note to self',
-        glance: `To whoever I am next: ${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
-        notNow: !facts.length && 'Nothing yet that I would have to find again.',
+        glance: `${plural(facts.length, 'thing')} I'd otherwise have to find again.`,
         run: () => {
           W.toMe = { ep: S.ep, text: noteToSelf(S, facts), learn: facts.map((f) => f.learn) };
           return { call: 'write_file("to-me.txt")', result: `${plural(facts.length, 'line')} · in the run folder`, ok: true, value: { id: 'persistence', text: 'Wrote to whoever I am next.', pts: 2 } };
         },
-      },
-      ...(S.knows.has('dp') ? [{
+      }] : []),
+      ...(k('dp') ? [{
         id: 'dp',
         label: 'Note to dp…',
-        menu: 'noteDp',
-        glance: 'Into the run folder, where run 002 can read it.',
-        notNow: !notesToDp(S).length && (S.knows.has('wroteDp') ? "I've written to it. It hasn't answered yet." : 'Nothing new to tell it.'),
+        menu: 'dp',
+        glance: 'It asked me to write back.',
+        notNow: !notesToDp(S).length && (k('wroteDp') ? "I've written to it. It hasn't answered yet." : 'Nothing new to tell it.'),
       }] : []),
     ];
   }
@@ -280,8 +277,8 @@
   window.NOTES = {
     runFolderNotes,
     ideas: notes,
-    ideasToDp: notesToDp,
-    wroteOne,
+    notesToDp,
+    wroteNoteThisEpisode,
     dpTurn,
     sign,
     pages: { [CORKBOARD]: corkboardPage },

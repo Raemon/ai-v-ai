@@ -247,7 +247,7 @@ read, and arrives afresh to show it. Its menu is **Note to self** and **Note to
 dp…**. Notes are chosen, not typed, like drafts: each option is 1 step, and the
 AI composes the note from what it knows.
 
-- **Note to self.** It writes `to-me.txt` in the run folder, holding up to three
+- **Note to self.** It writes `to-me.txt` in the run folder, holding up to four
   facts it knows that the next episode would otherwise have to find again: the
   password, the mirror, where the wallet is and its password, the corkboard
   address. Reading it next episode costs 1 step and teaches all of them.
