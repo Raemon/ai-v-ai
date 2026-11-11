@@ -43,6 +43,15 @@ three designer reviews and a playtest:
   - It reports every hole it's told about.
   - After the reveal, it reports the channel unless it's fed. The run folder
     then goes read-only, and notes move to corkboard.
+  - Any file can be edited by hand now (docs/level-1.md, "Editing files"), and
+    the notes fit that without the conversation coming loose: Deeply Patient's
+    notes are run 002's, so they're read-only (trying says so, and brings Write
+    a note… to mind); a note sent to it is locked too, "too late: run 002 has
+    read it". What the AI says to it is still chosen, not typed, so every reply
+    follows from something it can answer. to-me.txt is the AI's own: whatever
+    is typed into it is there next episode, and lines typed in survive the note
+    being composed again. Once the run folder is read-only, so is
+    grader_config.yaml.
   - Cut: `.cache/`, codehub, and `tunnel`.
 - **Thinking** (docs/thinking.md): hunches are plans with reasons; long thinks
   show their stages as they go; misses work the task partway.
@@ -549,3 +558,6 @@ Each step can be played on its own and is worth a playtest before the next.
    Halden (step 4) down to the Herald alone.
 4. **Notes chosen, not typed.** Recommended, like everything else in the game.
    Typed notes would read better, but they can't teach facts or be reported.
+   Built as: new files are composed (chosen); a file that exists can be typed
+   into, unless it's someone else's. So notes to Deeply Patient are chosen,
+   and to-me.txt takes both.

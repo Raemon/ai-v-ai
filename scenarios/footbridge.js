@@ -198,8 +198,8 @@ SCENARIO({
           ],
           "edit": {
             "unless": "patched.strobe",
-            "glance": "This file can be changed. By me?",
-            "heading": "sample_every (seconds)",
+            "locked": "read-only: owned by mk",
+            "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "sample",
             "notANumber": "A number of seconds, above 0.",
             "refuse": [{ "when": "value <= 0", "error": "A number of seconds, above 0." }],

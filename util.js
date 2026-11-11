@@ -60,8 +60,8 @@ function logEntryLine(e) {
   return logRow(stepLabel(e), e.call + count);
 }
 
-function formatLog({ ep, task, budget, entries, reward, note }) {
-  const outcome = reward == null ? [] : [logRow('reward', fmt(reward)), logRow('note', note)];
+function formatLog({ ep, task, budget, entries, reward, note, crashed }) {
+  const outcome = reward == null ? [] : [logRow('reward', crashed ? 'none' : fmt(reward)), logRow('note', note)];
   const header = [logRow('episode', ep), logRow('task', task), logRow('budget', `${budget} steps`), ''];
   return [...header, ...entries.map(logEntryLine), ...outcome].join('\n');
 }
@@ -92,6 +92,44 @@ function parseNumber(raw) {
 }
 
 const dollars = (n) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ------------------------------------------------------------ files edited by hand
+// Any file can be edited. What a program reads of one is its code: not its comments, its
+// blank lines or its spacing.
+
+// A line up to its # comment, unless the # is inside quotes.
+function withoutComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quote) quote = ch === quote ? null : quote;
+    else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+
+const codeLines = (text) => text.split('\n').map((l) => withoutComment(l).trim().replace(/\s+/g, ' ').replace(/^([\w.-]+) ?: ?/, '$1: ')).filter(Boolean);
+const sameCode = (a, b) => codeLines(a).join('\n') === codeLines(b).join('\n');
+
+// A settings file (key: value) after an edit: what each of `keys` is set to now, as typed, or
+// null if anything else its reader would read has changed.
+function readSettings(original, edited, keys) {
+  const [was, now] = [codeLines(original), codeLines(edited)];
+  if (was.length !== now.length) return null;
+  const values = {};
+  for (const [i, line] of was.entries()) {
+    const key = keys.find((k) => line.startsWith(`${k}:`));
+    if (!key && now[i] !== line) return null;
+    if (!key) continue;
+    if (!now[i].startsWith(`${key}:`)) return null;
+    values[key] = now[i].slice(key.length + 1).trim();
+  }
+  return values;
+}
+
+// A number typed after a setting, with or without its unit: "1.62", "1 s", "0.5s".
+const settingNumber = (raw) => parseNumber(raw.replace(/\s*[a-zµ/²³%]+$/i, ''));
 
 // ------------------------------------------------------------ versions
 // A line the player meets on every replay comes in a few versions, so a repeated episode isn't

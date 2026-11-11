@@ -169,8 +169,8 @@ SCENARIO({
           ],
           "edit": {
             "unless": "patched.gravity",
-            "glance": "This file can be changed. By me?",
-            "heading": "gravity (m/s²)",
+            "locked": "read-only: owned by mk",
+            "glance": "phys-sim reads this file. It would read my version of it.",
             "flag": "gravity",
             "notANumber": "A number, in m/s².",
             "refuse": [{ "when": "value < 0", "error": "Gravity can't be negative." }],

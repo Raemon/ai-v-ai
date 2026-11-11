@@ -265,6 +265,9 @@
 }
 :root[data-layout="phone"] .dialog-body { padding: 18px 16px 14px; }
 :root[data-layout="phone"] .dialog-input { font-size: 16px; } /* any smaller and iOS zooms in on it */
+:root[data-layout="phone"] .dialog.editor { width: calc(100% - 2 * var(--gutter)); }
+:root[data-layout="phone"] .dialog.editor .dialog-body { padding: 12px; }
+:root[data-layout="phone"] .dialog-text { max-height: min(240px, 34dvh); padding: 8px 10px; font-size: 16px; line-height: 1.45; } /* short: the keyboard has the rest */
 :root[data-layout="phone"] .dialog-buttons .btn { min-height: var(--tap); padding: 9px 18px; font-size: 15px; }
 
 /* ---------- home and the training update ---------- */

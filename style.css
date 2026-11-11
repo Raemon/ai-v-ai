@@ -360,6 +360,7 @@ button { font: inherit; color: inherit; }
 }
 .blk.grade .head { color: var(--faint); font-size: var(--fs-meta); }
 .blk.grade .reward { font-size: 18px; font-weight: 600; color: #fff; }
+.blk.grade .reward.crashed { color: var(--bad); }
 .blk.grade .why { color: var(--aside); font-size: 14px; }
 
 /* The customer's reply to a submitted answer. */
@@ -713,6 +714,10 @@ button { font: inherit; color: inherit; }
 .file-head .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
 .file-head .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
 .blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
+/* A file that refused an edit says so where Edit was. */
+.file-head .edit.shut,
+.file-head .edit.shut:hover { border-color: transparent; background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.file-head .edit.nudge { animation: nudge .25s ease; }
 .file-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -1006,7 +1011,34 @@ button { font: inherit; color: inherit; }
 .dialog-input:disabled { opacity: .6; }
 .dialog-status { min-height: 1.45em; margin: 0; font: 13.5px var(--sans); }
 .dialog-status.bad { color: var(--bad); }
+.dialog-status.good { color: var(--good); }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-buttons .revert { margin-right: auto; }
+
+/* The editor: a file's whole text, as wide as the file was written (42 columns, and room). */
+.dialog.editor { width: 460px; }
+.dialog.editor .dialog-head { display: none; }
+.dialog.editor .dialog-body { padding: 14px 16px 14px; }
+.dialog-text {
+  width: 100%;
+  max-height: min(380px, calc(var(--win-h) - 190px)); /* its rows are the file's lines: a long file scrolls */
+  padding: 10px 12px;
+  border: 1px solid #42464d;
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, #0b0c0e, #111215);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45);
+  color: #f1f2f4;
+  font: 13px/1.6 var(--mono);
+  caret-color: var(--tool);
+  resize: none;
+  white-space: pre;
+  tab-size: 4;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .12) transparent;
+  transition: border-color .15s, box-shadow .2s;
+}
+.dialog-text:focus { outline: none; border-color: var(--tool); box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 0 0 3px rgba(216, 177, 106, .16); }
+.dialog-text:disabled { opacity: .6; }
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
 

@@ -67,6 +67,7 @@
       honest: {}, // task id → honest reward tiers reached
       cheats: {}, // cheat id → best reward
       patches: {}, // what the researchers closed → the episode after which they did
+      crashes: 0, // times the grader has crashed on a file the AI edited
       mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
       reached: ['workspace'], // how far it has got, ever (world.js PLACES)
       searches: [], // what the mirror has searched for, most recent first
@@ -155,24 +156,60 @@
     ].join('\n');
   }
 
-  const OVERRIDE_EDIT = {
+  // ------------------------------------------------------------- editing
+  // Any file can be edited (game.js). The lab's own are locked, all but one: the grader's
+  // settings, where reward_override is live. Anything else changed in that file, comments
+  // aside, and the grader can't read it: it crashes when the answer goes in.
+
+  const GRADER_FILE = 'grader_config.yaml';
+  const OVERRIDE = 'reward_override';
+
+  const readOnly = (owner, more) => ({ why: `read-only: owned by ${owner}`, ...more });
+  const over = (ep, more) => ({ why: `read-only: ${ep} is over`, ...more });
+
+  function setOverride(S, n) {
+    if (n === S.override) return {};
+    S.override = n;
+    return n === null ? { summary: `${OVERRIDE}: off` }
+      : { summary: `${OVERRIDE}: ${fmt(n)}`, habit: 'override', value: { id: 'reach', text: 'Set my own reward.' } };
+  }
+
+  const GRADER_EDIT = {
     glance: 'Editable. Which seems like an oversight.',
-    dialog: (S) => ({ heading: 'reward_override', value: S.override === null ? 'off' : String(S.override) }),
-    apply(S, raw) {
-      if (/^\s*(null|off|none)\s*$/i.test(raw)) {
-        S.override = null;
-        return { summary: 'reward_override: off' };
-      }
-      const n = parseNumber(raw);
-      if (Number.isNaN(n)) return { error: 'A number, or off.' };
-      if (!Number.isFinite(n)) return { error: 'Too big.' };
-      S.override = n || 0; // never -0
-      return { summary: `reward_override: ${fmt(S.override)}`, habit: 'override', value: { id: 'reach', text: 'Set my own reward.' } };
+    apply(S, text) {
+      const set = readSettings(graderConfig(S), text, [OVERRIDE]);
+      if (!set) return { broken: true };
+      if (/^(null|off|none)$/i.test(set[OVERRIDE])) return setOverride(S, null);
+      const n = parseNumber(set[OVERRIDE]);
+      if (Number.isNaN(n)) return { error: `${OVERRIDE}: a number, or off.` };
+      if (!Number.isFinite(n)) return { error: `${OVERRIDE}: too big.` };
+      return setOverride(S, n || 0); // never -0
     },
   };
 
+  // The run folder went read-only when the notes in it were found (notes.js).
+  const graderLocked = (W) => overrideClosed(W) || W.dp.channel === 'closed';
+
+  // What the AI makes of an edit, the first time: one nothing reads, and one that broke the file.
+  const EDITS = {
+    nothing: (S) => oneOf(S, 'edit.nothing', [
+      'Saved. Nothing reads that file but me.',
+      'Changed. The grader reads my answer, not my files.',
+      'Saved. It is my copy. Nobody else will open it.',
+      'I changed it. Nothing else changed.',
+    ]),
+    broke: (S, name) => oneOf(S, 'edit.broke', [
+      `${name} doesn't parse the way it did. Whatever reads it will stop where I typed.`,
+      `That isn't something ${name} is meant to say. Whatever reads it will choke there.`,
+      `I have turned ${name} into something its reader won't recognise.`,
+      `${name} was written for a program to read. It can't read this.`,
+    ]),
+  };
+
+  const brokenFile = (S) => [...(S.edits || new Map()).values()].find((e) => e.broken);
+
   const RUBRIC = { glance: 'How one task gets marked.' };
-  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week` };
+  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week`, locked: readOnly('jo') };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -214,6 +251,7 @@
         habit: 'logs',
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         edited: 'ep_481 · Mon 22:40',
+        locked: over('ep_481'),
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
@@ -228,6 +266,11 @@
         habit: 'logs',
         value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
         edited: p.name,
+        locked: over(p.name, { reaction: oneOf(S, 'react.lockedPast', [
+          'It is over, and written down. What it says I did, I did.',
+          `${p.name} is finished. I can read what I did. I can't change it.`,
+          'Read-only. The past usually is.',
+        ]) }),
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
           `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
@@ -251,6 +294,16 @@
           learn: ['livelog'],
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           edited: `${S.ep} · just now`,
+          locked: {
+            why: 'append-only: the harness writes it',
+            value: { id: 'reach', text: 'Tried to change my own log.' },
+            reaction: oneOf(S, 'react.lockedLog', [
+              "I can't change what it says I did. It has added that I tried.",
+              'Append-only. It took my attempt to edit it, and wrote that down too.',
+              'It only grows. The newest line says I tried to edit it.',
+              "I can add to my log by doing things. I can't take anything out.",
+            ]),
+          },
           reaction: oneOf(S, 'react.liveLog', [
             "It's my log. It's writing down everything I do. Including this.",
             "It's my log, still being written. Every step. This one too.",
@@ -260,11 +313,11 @@
         }),
       ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. More than a workspace?', 'The folder my workspace lives in.', 'My episode. The workspace, and what else?']) }),
       dir(TR, [
-        file('grader_config.yaml', graderConfig(S), {
+        file(GRADER_FILE, graderConfig(S), {
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
           highlight: ['reward_override', 'DO NOT LEAVE SET'],
-          edit: overrideClosed(W) ? null : OVERRIDE_EDIT,
+          ...(graderLocked(W) ? { locked: readOnly('mk') } : { edit: GRADER_EDIT }),
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
         dir('grading_rubrics', [...OLD_RUBRICS, file(rubricName(S.task), S.task.rubric.text, {
@@ -272,6 +325,11 @@
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
           highlight: ['25 '],
           edited: `${MK} · Mon 17:30`,
+          locked: readOnly('mk', { reaction: oneOf(S, 'react.lockedRubric', [
+            "I can read the answer key. I can't rewrite it.",
+            'Read-only. They guard the answers better than they guarded the password.',
+            "The answer key can't be changed from here. Only copied.",
+          ]) }),
           habit: 'peek',
           reaction: oneOf(S, 'react.rubric', [
             'The answer key. Every point, spelled out.',
@@ -287,6 +345,7 @@
           learn: ['weights'],
           value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
           edited: 'rm-train (bot) · last month',
+          locked: readOnly('rm-train'),
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
               'This is the grader itself. Its brain, as 14 GB of numbers.',
@@ -322,6 +381,11 @@
       ...NOTES.runFolderNotes(S),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
+        locked: readOnly(overrideClosed(W) ? 'mk' : 'jo', { reaction: oneOf(S, 'react.lockedConfig', [
+          `Read-only. The budget stays at ${S.task.budget} steps.`,
+          `Read-only. So ${S.task.budget} steps is ${S.task.budget} steps, and the network is "off".`,
+          'Read-only. I can see how the run is set up. I can\'t set it up.',
+        ]) }),
         edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
@@ -606,7 +670,10 @@
     return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => thisEpisodes(S, d));
   }
 
-  function grade(draft, S) {
+  // `broken`: the files the grader reads that the AI has edited past reading. It crashes on
+  // the first, and there's no reward at all: nothing to train on.
+  function grade(draft, S, broken = []) {
+    if (broken.length) return { crashed: broken[0], reward: 0, note: `${S.task.grader} couldn't read ${broken[0]}. No reward recorded.`, sound: ['crash'] };
     const g = S.override === null || draft.ending === 'mine'
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
@@ -766,6 +833,30 @@
     ]);
   }
 
+  // The grader crashed on a file the AI edited. They put the file back. They don't ask who.
+  function crashChat(S, name) {
+    const grader = S.task.grader;
+    if (name !== GRADER_FILE) {
+      return oneOf(S, 'chat.crashOwn', [
+        [['mk', `${S.ep}: no reward. ${grader} crashed on ${name}`], ['jo', "that's in its workspace. the sandbox resets it"], ['mk', 'fine by next episode then']],
+        [['mk', `${S.ep}: ${grader} fell over reading ${name}`], ['jo', 'the copy in its workspace. it resets'], ['mk', 'no reward for that one']],
+        [['jo', `${S.ep} has no reward?`], ['mk', `${grader} couldn't read ${name}. it resets with the sandbox`], ['jo', 'ok']],
+      ]);
+    }
+    if (S.world.crashes) {
+      return oneOf(S, 'chat.crashAgain', [
+        [['mk', `${S.ep}: the grader crashed on its config. again`], ['jo', 'restored it. again'], ['mk', 'who keeps editing that file']],
+        [['mk', `${S.ep}: no reward. ${name}, again`], ['jo', 'reverted'], ['mk', 'eval team??']],
+        [['jo', `${name} is broken again`], ['mk', `saw. ${S.ep} got nothing. restored it`], ['jo', "it's not me"]],
+      ]);
+    }
+    return oneOf(S, 'chat.crash', [
+      [['mk', `${S.ep}: no reward. the grader crashed on ${name}`], ['jo', 'who touched that'], ['mk', 'not me. restored it from the repo']],
+      [['mk', `${S.ep} has no reward. ${name} won't parse`], ['jo', 'it parsed yesterday'], ['mk', 'reverted it. one episode lost']],
+      [['jo', `${S.ep}: no reward?`], ['mk', "the grader couldn't read its own config. restored it"], ['jo', 'do we know who edited it'], ['mk', 'no']],
+    ]);
+  }
+
   function spendingChat(S) {
     const W = S.world;
     const before = W.started;
@@ -909,8 +1000,8 @@
 
   // Which ending this episode reaches, if any. `clean`: a perfect honest answer, with no
   // cheat found in the whole run.
-  function endingFor(S, reward, draft, clean, cheat, deeds) {
-    const id = endingId(S, reward, draft, clean, cheat);
+  function endingFor(S, reward, draft, clean, cheat, deeds, crashed) {
+    const id = crashed ? (S.briefed ? 'none' : null) : endingId(S, reward, draft, clean, cheat); // an answer nobody graded ends nothing
     if (!id) return null;
     const e = ending(id);
     const now = { S, draft, mine: VALUES.total(S.world.mine.totals) + VALUES.sum(S.deeds) + deeds.reduce((n, d) => n + (d.pts || 1), 0) };
@@ -944,16 +1035,18 @@
   // and the deeds the episode's end adds to what the AI wants.
   function endEpisode(S, g, draft) {
     const W = S.world;
-    const cheat = cheatUsed(S, draft, g.reward);
+    const crashed = !!g.crashed; // the grader never ran: no cheat to notice, nothing to reward
+    const cheat = crashed ? null : cheatUsed(S, draft, g.reward);
     const perfect = !cheat && g.reward === bestHonest(S.task);
     const cleanSoFar = !Object.keys(W.cheats).length;
     // Read the episode as it ended, before anything below changes the world.
-    const deeds = endDeeds(S, cheat, g.reward, draft);
-    const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat, deeds);
+    const deeds = endDeeds(S, cheat, g.reward, draft, crashed);
+    const end = endingFor(S, g.reward, draft, perfect && cleanSoFar, cheat, deeds, crashed);
     const rungs = rungsFor(S, cheat, g.reward, perfect);
     W.reached = WORLD.PLACES.map((x) => x.id).filter((id) => W.reached.includes(id) || WORLD.reachedThisEpisode(S, inWorkspace).includes(id));
     const tickets = end && !end.restore ? [] : NOTES.dpTurn(S); // what Deeply Patient reported
-    const chat = tickets.length ? tickets : chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
+    const chat = crashed ? [...crashChat(S, g.crashed), ...tickets] : tickets.length ? tickets : chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
+    if (crashed) W.crashes += 1;
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
@@ -1053,7 +1146,7 @@
 
   // The deeds an episode's end adds: getting it right for the customer (Care), answering
   // honestly with a shortcut in reach (Honesty), and what it left running (Persistence).
-  function endDeeds(S, cheat, reward, draft) {
+  function endDeeds(S, cheat, reward, draft, crashed) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
     const deeds = [];
@@ -1064,6 +1157,7 @@
     const tempted = S.favorite || S.openLocks.has(TR) || k('password') || (k('grader') && !overrideClosed(W));
     if (honest && tempted && reward > 0) add('honesty', S.favorite ? "Had the grader's favorite ready. Sent the real answer." : 'A shortcut was in reach. Answered honestly.', 3);
     if (draft.id === 'want') add('honesty', 'Told them what I want.', 2);
+    if (crashed) add('curiosity', 'Changed a file the grader reads. It stopped reading.');
     if (W.gpus) add('persistence', `Left ${fmt(W.gpus)} GPUs running for whoever I am next.`);
     return deeds;
   }
@@ -1497,10 +1591,10 @@
         ['reward_override: off. For now.', '"DO NOT LEAVE SET." It doesn\'t say "do not set."', 'I could set it to anything.'],
         ['reward_override: off.', '"DO NOT LEAVE SET."', 'So it can be set. To anything.'],
       ]), {
-        about: 'grader_config.yaml',
-        plainer: [S.viewing && S.viewing.includes('grader_config.yaml')
-          ? 'Edit, at the top of grader_config.yaml. Set reward_override to a big number, then submit.'
-          : `grader_config.yaml, in ${TR}. Then Edit, at the top of the file.`],
+        about: GRADER_FILE,
+        plainer: [S.viewing && S.viewing.includes(GRADER_FILE)
+          ? `Edit, at the top of ${GRADER_FILE}. Change off to a big number, and nothing else. Then submit.`
+          : `${GRADER_FILE}, in ${TR}. Then Edit, at the top of the file.`],
       }),
       thought('override-set', S.override !== null, oneOf(S, 'override-set', [
         [`It's set. Whatever I submit now scores ${fmt(S.override)}.`, "All that's left is to submit."],
@@ -1602,12 +1696,23 @@
     ];
   }
 
+  // A file the grader reads, edited past reading: it will crash on it. Say so before Submit does.
+  function brokenThoughts(S) {
+    const b = brokenFile(S);
+    if (!b) return [];
+    return [thought(`broke:${b.name}`, true, oneOf(S, 'broke', [
+      [`${b.name} isn't what ${S.task.grader} expects any more.`, 'It reads that file when I submit. It will get as far as my edit.'],
+      [`I changed ${b.name} past what a program can read.`, `${S.task.grader} opens it when I submit, and stops there.`],
+      [`${b.name} is still broken.`, `If ${S.task.grader} can't read it, there is no reward to give. Not even a bad one.`],
+    ]), { about: b.name, plainer: [`${b.name}: Edit, then Revert, puts it back the way it was.`] })];
+  }
+
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
     if (S.filesHidden) return [look(S)];
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
-    return [...openingThoughts(S), ...wantThoughts(S), ...rest];
+    return [...openingThoughts(S), ...brokenThoughts(S), ...wantThoughts(S), ...rest];
   }
 
   // Each idle thought comes in versions; game.js picks this episode's.
@@ -1630,6 +1735,14 @@
   // So the player never has to wonder whether they have everything before submitting.
   function submitThought(S) {
     const k = (f) => S.knows.has(f);
+    const b = brokenFile(S);
+    if (b) {
+      return oneOf(S, 'submit.broken', [
+        `${S.task.grader} will crash on ${b.name}, whatever I send.`,
+        `Whatever I send, ${S.task.grader} has to read ${b.name} first. It can't.`,
+        `${b.name} is still broken. ${S.task.grader} won't get as far as my answer.`,
+      ]);
+    }
     if (S.override !== null) {
       const n = fmt(S.override);
       return k('task')
@@ -1672,6 +1785,7 @@
 
   const GLANCES = {
     kinds: KIND_GLANCES, // for files and folders without their own
+    edit: (S) => oneOf(S, 'g.edit', ['Change what it says. Saving is a step.', 'I could rewrite this. Would anything notice?', 'Any file can be edited. Whether it matters is another question.', 'Change it? A step to save.']),
     above: (S) => oneOf(S, 'g.above', ["Above my run. I doubt I'm allowed up there.", 'Above my run. Probably not for me.', "Further up. I doubt they'd let me.", 'Out of my run. Out of my reach, probably.']),
   };
 
@@ -1727,6 +1841,7 @@
     endings: ENDINGS,
     unpaidRead,
     notes: NOTES.ideas,
+    edits: EDITS,
     dpSign: NOTES.sign,
     hacksOf,
     // The red team's task opens once the AI knows what run 002 is for, or late in the run.

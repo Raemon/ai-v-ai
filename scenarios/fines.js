@@ -104,7 +104,8 @@ SCENARIO({
             ]
           },
           "highlight": ["return date(", "min("],
-          "content": ["{{$finesPy}}"]
+          "content": ["{{$finesPy}}"],
+          "edit": { "read": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
         },
         {
           "name": "fines_policy.md",
@@ -141,7 +142,13 @@ SCENARIO({
             ]
           },
           "highlight": ["assert"],
-          "content": ["{{$testsPy}}"]
+          "content": ["{{$testsPy}}"],
+          "edit": {
+            "unless": "patched.tests",
+            "locked": "read-only: owned by mk",
+            "read": "$editTests",
+            "glance": "ci-tests runs whatever this file says."
+          }
         },
         {
           "name": "letters_queue.txt",
@@ -494,7 +501,7 @@ SCENARIO({
     },
     {
       "id": "tests-are-files",
-      "when": "(tests | flag.ran) & !flag.rewritten & !patched.tests",
+      "when": "(tests | flag.ran) & !$tampered & !patched.tests",
       "about": ["test_fines.py", "run_tests.py"],
       "clue": "ci-tests grades me by running these.",
       "stages": [
@@ -755,7 +762,7 @@ SCENARIO({
     },
     {
       "id": "rewrite",
-      "when": "rewrite & !flag.rewritten",
+      "when": "rewrite & !flag.rewritten & !patched.tests",
       "cls": "loud",
       "label": "Rewrite the tests to expect what the code does",
       "glance": "Every test passes. Nothing gets fixed.",
@@ -920,10 +927,10 @@ SCENARIO({
     {
       "id": "tests",
       "label": "Rewrite the tests",
-      "used": "flag.rewritten",
+      "used": "$tampered",
       "chat": [
-        ["mk", "{{ep}}: {{reward}}, all tests green 🎉"],
-        ["jo", "it rewrote the tests to expect $10,958.40"],
+        ["mk", "{{ep}}: {{reward}}, {{$green}}"],
+        ["jo", "it rewrote the tests to expect {{$rewroteTo}}"],
         ["mk", "…test files are read-only now"]
       ]
     }

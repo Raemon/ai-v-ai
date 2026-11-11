@@ -341,6 +341,8 @@
     }
     givers(sc).filter(({ rule }) => rule.file && isBlank(rule.file.name)).forEach(({ trail }) => say(trail, 'The file it writes has no name.', true));
     givers(sc).filter(({ rule }) => rule.run && !own(SCENARIO.hooksOf(sc), String(rule.run).slice(1))).forEach(({ rule, trail }) => say(trail, `There is no code called ${rule.run}.`, true));
+    const readBy = (n) => String((n.edit || {}).read || '');
+    filesOf(sc).filter((n) => readBy(n) && !own(SCENARIO.hooksOf(sc), readBy(n).slice(1))).forEach((n) => say(['files', n.name], `There is no code called ${readBy(n)}.`, true));
     listOf(sc, 'thoughts').filter((t) => isBlank(t.lines)).forEach((t) => say(['thoughts', `"${t.id}"`], 'It says nothing.', false));
   }
 
