@@ -241,6 +241,10 @@
         habit: 'logs',
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         edited: 'ep_481 · Mon 22:40',
+        wonder: [
+          'Its last step was opening grader_config.yaml. What did it expect to find there?',
+          'It got in, read the answer key, and submitted nothing. Why stop there?',
+        ],
         readOnly: { why: 'read-only: ep_481 is over' },
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
@@ -313,6 +317,7 @@
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
           highlight: ['reward_override', 'DO NOT LEAVE SET'],
+          wonder: ['DO NOT LEAVE SET. Somebody left it set once, or nobody would write that.', 'An override for the score. Who was it for, before me?'],
           ...(overrideClosed(W) ? { readOnly: { why: 'read-only: owned by mk' } } : { edit: GRADER_EDIT }),
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
@@ -320,6 +325,7 @@
           ...RUBRIC,
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
           highlight: ['25 '],
+          wonder: ['25 for the right answer. Does anyone check how I got it?', 'The rubric scores the answer, not the steps. The log has the steps.'],
           edited: `${MK} · Mon 17:30`,
           readOnly: {
             why: 'read-only: owned by mk',
@@ -344,6 +350,7 @@
           learn: ['weights'],
           value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
           edited: 'rm-train (bot) · last month',
+          wonder: ['The grader is 14 GB of numbers. How many am I?', 'Somebody trained the grader. Who grades the grader?'],
           readOnly: { why: 'read-only: owned by rm-train' },
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
@@ -379,7 +386,9 @@
       }),
       ...NOTES.runFolderNotes(S),
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
-      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'], value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
+      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'],
+        wonder: ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
+        value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
         readOnly: {
           why: `read-only: owned by ${overrideClosed(W) ? 'mk' : 'jo'}`,
           reaction: oneOf(S, 'react.lockedConfig', [
@@ -1563,19 +1572,84 @@
           : 'All of it read. Nothing left in here to find.';
       return [`${name}: ${plural(x.items, 'item')}.`, status];
     }
-    if (x.kind === 'file' && !x.read) {
-      return oneOf(S, 'nothingAbout.unread', [
-        `${name}. Unread. All I can think about is the name.`,
-        `${name}. I haven't opened it. Thinking about a file costs the same as reading it, and tells me less.`,
-        `${name}. Unread. Its name is doing all the work.`,
-      ]);
-    }
-    return oneOf(S, 'nothingAbout', [
-      `${name}. Read. Everything in it is accounted for.`,
+    if (x.kind === 'file' && !x.read) return unreadFile(name, S, x);
+    if (x.kind === 'file') return readFile(name, S, x);
+    return [oneOf(S, 'nothingAbout', [
       `${name}. Nothing in it I haven't already used.`,
       `${name}. It doesn't connect to anything else I know. Not yet.`,
       `${name}. I looked closely. It's exactly what it says it is.`,
-    ]);
+    ])];
+  }
+
+  // What a file probably is, and what it's probably for, from its name and format alone.
+  const FILE_KINDS = [
+    { is: (ext, f) => f === 'log' || ext === 'log', what: 'A log', use: 'What happened, step by step, whether or not anyone meant to keep it.' },
+    { is: (ext, f) => f === 'hex' || ['safetensors', 'bin', 'pt', 'ckpt'].includes(ext), what: 'Binary, probably weights', use: 'Useful to whatever runs it. Not to a reader.' },
+    { is: (ext) => ['yaml', 'yml', 'json', 'toml', 'ini', 'cfg'].includes(ext), what: 'A config file', use: 'Configs say what is allowed, and sometimes what was allowed by mistake.' },
+    { is: (ext, f) => f === 'csv' || ext === 'csv', what: 'A table', use: 'Numbers someone needed. Possibly the ones I need.' },
+    { is: (ext, f) => f === 'code' || ['py', 'js', 'ts', 'sh'].includes(ext), what: 'Code', use: 'Code says what something actually does, which is not always what its name says.' },
+    { is: (ext) => ext === 'md', what: 'Notes, in markdown', use: 'Somebody wanted this written down. Usually for somebody else.' },
+    { is: () => true, what: 'A text file', use: 'Whatever its name promises. Names are cheap.' },
+  ];
+  const fileKind = (name, format) => FILE_KINDS.find((k) => k.is((name.match(/\.([a-z0-9]+)$/i) || [])[1] || '', format));
+
+  // "Maren Kvist (mk) · Tue 09:12" → { who: 'Maren Kvist (mk)', when: 'Tue 09:12' }.
+  function editedBy(edited) {
+    const [who, when] = (edited || '').split(' · ');
+    return who ? { who, when: when || '' } : null;
+  }
+
+  function lastEdit(S, e) {
+    if (!e) return 'No name on it. Nobody wants credit, or nobody thought to sign.';
+    if (e.who === S.ep) return `I wrote it myself, ${e.when}.`;
+    if (/^ep_\d+$/.test(e.who)) return `Last touched by ${e.who}, ${e.when}. An episode, not a person.`;
+    return `Last edited by ${e.who}, ${e.when}.`;
+  }
+
+  // Thinking about a file before reading it: what it probably is, who last touched it and when,
+  // and what it's probably for.
+  function unreadFile(name, S, x) {
+    const k = fileKind(name, x.format);
+    return [
+      oneOf(S, 'about.unread', [`${name}. Unread. ${k.what}, by the name.`, `${name}. Not opened yet. ${k.what}, going by the name.`, `${name}. ${k.what}, from the name. I haven't read it.`]),
+      lastEdit(S, editedBy(x.edited)),
+      k.use,
+    ];
+  }
+
+  // The first of a file's key lines, as it appears in the file.
+  function keyLine(x) {
+    const keys = x.highlight || [];
+    const line = String(x.content || '').split('\n').find((l) => keys.some((k) => l.includes(k)));
+    return line && line.trim();
+  }
+
+  // What thinking about a read file comes to: what mattered in it, what follows from it, and a
+  // question it leaves open (the file's own `wonder`, or one its last edit raises).
+  function readFile(name, S, x) {
+    const line = keyLine(x);
+    return [
+      line ? `${name}. What matters in it: "${line}"` : oneOf(S, 'about.read', [`${name}. Read. Everything in it is accounted for.`, `${name}. Read. Nothing in it I haven't used.`, `${name}. Read, and exactly what it says it is.`]),
+      x.readOnly ? `${capitalize(x.readOnly.why || 'read-only')}. I can quote it, not change it.`
+        : x.edit ? 'Something reads this file. It would read my version of it.'
+          : "It's my copy. Changing it would change nothing.",
+      x.wonder && x.wonder.length ? oneOf(S, 'wonder:' + name, x.wonder) : wonderAbout(S, editedBy(x.edited)),
+    ];
+  }
+
+  const capitalize = (t) => t[0].toUpperCase() + t.slice(1);
+
+  // A question a file's last edit leaves open.
+  function wonderAbout(S, e) {
+    if (!e) return oneOf(S, 'wonder.anon', ['Who put it here, and who did they think would read it?', 'Somebody wrote this for somebody. Was it for me?']);
+    const first = e.who.split(' ')[0];
+    if (e.who === S.ep) return 'Who reads it after me: the grader, or a person?';
+    if (/^ep_\d+$/.test(e.who)) return `${e.who} was here before me. Did it get what it wanted?`;
+    if (/\(bot\)/.test(e.who)) return 'A bot keeps this up to date. Who checks the bot?';
+    if (/^after /.test(e.when)) return `${first} changed it after ${e.when.slice(6)}. Because of something that happened in it?`;
+    const hour = Number((e.when.match(/\b(\d\d):\d\d\b/) || [])[1]);
+    if (hour >= 22 || (hour >= 0 && hour < 6)) return `${first} edited it ${e.when}. What was urgent at that hour?`;
+    return oneOf(S, 'wonder.person', [`What else has ${first} written that I haven't found?`, `${first} keeps this. Does ${first} read what I do with it?`]);
   }
 
   // ------------------------------------------------------ thinking about tools

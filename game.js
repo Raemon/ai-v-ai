@@ -1362,7 +1362,9 @@
     const n = path && nodeAt(path);
     if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
     if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
-    return { kind: n.kind === 'app' ? 'app' : 'file', read: S.read.has(pathKey(path)) };
+    if (n.kind === 'app') return { kind: 'app' };
+    const { content, format, edited, highlight, readOnly, edit, wonder } = n;
+    return { kind: 'file', read: S.read.has(pathKey(path)), content, format, edited, highlight, readOnly, edit, wonder };
   }
 
   async function doThinkAbout(name, path) {
