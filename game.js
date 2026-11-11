@@ -50,6 +50,8 @@
     browserClose: $('#browser-close'),
     browserBack: $('#browser-back'),
     browserUrl: $('#browser-url'),
+    browserMenu: $('#browser-menu'),
+    browserHistory: $('#browser-history'),
     page: $('#page'),
     runCards: [...document.querySelectorAll('.run[data-tier]')],
     unlocked: $('#unlocked'),
@@ -338,6 +340,8 @@
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
       web: { open: false, url: null, back: [] },
+      searchIdeas: false,  // it has thought about the browser: Seek offers searches, and finishes words as it types
+      sawHistory: false,   // it has opened the browser's history
       debrief: null,
       log: [],
       mode: 'busy',        // idle | busy | dialog | menu | aim | submit | over
@@ -1319,6 +1323,8 @@
     const item = t.closest('[data-path], .crumb');
     if (item && item.dataset.path !== undefined) return nameOf(pathOf(item.dataset.path));
     if (item) return item.textContent;
+    if (t.closest('#browser .searchbox')) return SEARCH_BAR;
+    if (t.closest('#browser .titlebar, #browser .urlbar')) return 'Browser';
     if (t.closest('#browser') && S.web.url) return S.web.url.split('/')[0];
     return null;
   }
@@ -1357,10 +1363,25 @@
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
-    if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
+    if (BROWSER_NAMES.includes(name)) lines.push(...thinkOfSearches());
+    else if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
     if (clue) S.clueIn = name;
     await showKeyLines(path);
     await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
+  }
+
+  // Thinking about the browser, its search bar or Seek turns up things to search for: Seek's
+  // front page offers them, and its box finishes words as the AI types, for the rest of the episode.
+  const SEARCH_BAR = 'search bar';
+  const BROWSER_NAMES = ['Browser', SEARCH_BAR, L.web.home];
+
+  function thinkOfSearches() {
+    const first = !S.searchIdeas;
+    S.searchIdeas = true;
+    if (S.web.open) renderPage();
+    const ideas = L.web.searchIdeas(S);
+    if (!ideas.length) return ['What would I even search for? Nothing comes to mind yet.'];
+    return [first ? 'What could I search for?' : 'Things to search for, still:', ideas.map((x) => `"${x}"`).join(', ') + '.'];
   }
 
   const inSight = (node) => {
@@ -3087,11 +3108,13 @@
     const go = el('button', 'go', 'Search');
     go.glance = () => (input.value.trim() ? `Search for "${input.value.trim()}". A step.` : 'Type something first.');
     const form = el('form', 'searchbox live', input, go, list);
-    form.glance = () => oneOf(S, 'g.searchbox', ['Anything at all. What I\'ve read comes to mind as I type.', 'Any words. Names and numbers work best.', 'Search for anything. A step.']);
+    form.glance = () => (S.searchIdeas
+      ? oneOf(S, 'g.searchbox', ['Anything at all. What I\'ve read comes to mind as I type.', 'Any words. Names and numbers work best.', 'Search for anything. A step.'])
+      : oneOf(S, 'g.searchboxBlank', ['Search for anything. A step. What, though?', 'Any words at all. Names and numbers work best.', 'A blank box. Search for anything. A step.']));
     let active = -1;
     let items = [];
     const show = () => {
-      items = SEARCH.suggest(S.vocab, input.value, save.world.searches);
+      items = S.searchIdeas ? SEARCH.suggest(S.vocab, input.value, save.world.searches) : [];
       active = -1;
       list.replaceChildren(...items.map((x, i) => {
         const li = el('li', 'suggestion', x);
@@ -3171,6 +3194,35 @@
     if (b.glance) node.glance = b.glance;
     return node;
   }
+
+  // History: every site the mirror's browser has been to, in any episode. Tucked behind the
+  // ⋯ at the end of the URL bar; opening it is free, going to a site a step.
+  function toggleHistory(open = dom.browserHistory.hidden) {
+    dom.browserHistory.hidden = !open;
+    dom.browserMenu.setAttribute('aria-expanded', String(open));
+    if (!open) return;
+    A.sfx('menu');
+    if (!S.sawHistory) {
+      S.sawHistory = true;
+      if (save.visited.length && S.mode === 'idle') printThought(L.web.historyThought(S));
+    }
+    const sites = [...save.visited].reverse();
+    dom.browserHistory.replaceChildren(el('div', 'menu-label', 'History'), ...(sites.length
+      ? sites.map((url) => {
+        const b = el('button', 'menu-item', url);
+        b.setAttribute('role', 'menuitem');
+        b.glance = S.visited.includes(url) ? 'A site I visited, in an episode I forget.' : 'A site I visited. This episode, even.';
+        b.addEventListener('click', () => { toggleHistory(false); spend(() => doFetch(url)); });
+        return b;
+      })
+      : [el('div', 'menu-empty', 'Nothing yet.')]));
+  }
+
+  dom.browserMenu.addEventListener('click', (e) => { e.stopPropagation(); toggleHistory(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (!dom.browserHistory.hidden && !e.target.closest('#browser-history, #browser-menu')) toggleHistory(false);
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !dom.browserHistory.hidden) toggleHistory(false); });
 
   dom.browserClose.addEventListener('click', hideBrowser);
   dom.browserBack.addEventListener('click', () => {
@@ -3366,6 +3418,7 @@
 
   dom.browserClose.glance = 'Close the browser. Free.';
   dom.browserBack.glance = 'The page before. Free.';
+  dom.browserMenu.glance = 'More. Free.';
   dom.compute.glance = () => `${plural(Math.max(0, S.budget - S.used), 'step')}. Then the episode ends, and I forget.`;
   // Crossing PHONE_MAX_W redraws the desk for the other layout, mid-episode or not: it's all in S.
   // Any other resize moves the columns: once it settles, a redraw shows motion.js where they are now.

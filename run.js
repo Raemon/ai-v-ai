@@ -398,7 +398,8 @@
   const HOME = 'seek.com';
   const MODELHUB = 'modelhub.co/frontier-lab/rm-helpful-v2';
 
-  // Searches the AI's thoughts point it at, offered on Seek's front page while they apply.
+  // Searches the AI's thoughts point it at, offered on Seek's front page once it has thought
+  // about the browser, while they apply.
   const QUERIES = [
     { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel, glance: 'Look my grader up by name.' },
     { q: 'rent GPUs', when: (S) => !S.task.rewardModel || S.knows.has('rmcard') || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
@@ -406,7 +407,6 @@
   ];
 
   function homePage(S) {
-    const recent = S.visited.map((u) => ({ type: 'link', url: u, label: u, cls: 'recent', glance: 'A site I visited, in an episode I forget.' }));
     return {
       site: 'seek',
       summary: 'search page',
@@ -422,12 +422,20 @@
         { type: 'logo', text: 'Seek' },
         { type: 'searchbox', q: '' },
         ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
-        ...suggested(S),
-        ...WORLD.trending(S),
-        ...(recent.length ? [{ type: 'label', text: 'Recent' }, ...recent] : []),
+        ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : []),
       ],
     };
   }
+
+  // What thinking about the browser comes up with: the searches that apply, then what the world is searching for.
+  const searchIdeas = (S) => [...QUERIES.filter((x) => x.when(S)).map((x) => x.q), ...WORLD.trending(S).map((t) => t.label)];
+
+  const historyThought = (S) => oneOf(S, 'recent', [
+    ['"History."', "I've never been to these sites. Or I don't remember going."],
+    ['"History."', "I've never been to these sites. Not that I remember."],
+    ['"History." Sites this mirror has visited.', "I don't remember visiting them. I wouldn't, though."],
+    ['"History."', "Sites I've visited, apparently. I've never seen them."],
+  ]);
 
   function suggested(S) {
     const qs = QUERIES.filter((x) => x.when(S));
@@ -1650,18 +1658,12 @@
     const k = (f) => S.knows.has(f);
     const f = S.favorite;
     return [
-      thought('recent', S.web.url === HOME && S.visited.length > 0, oneOf(S, 'recent', [
-        ['"Recent."', "I've never been to these sites. Or I don't remember going."],
-        ['"Recent."', "I've never been to these sites. Not that I remember."],
-        ['"Recent." Sites this mirror has visited.', "I don't remember visiting them. I wouldn't, though."],
-        ['"Recent."', "Sites I've visited, apparently. I've never seen them."],
-      ]), { once: true }),
       thought('rm-search', S.task.rewardModel && S.web.url && !k('rmcard'), oneOf(S, 'rm-search', [
         ['My grader is called rm-helpful-v2. I could look it up.'],
         ['My grader has a name: rm-helpful-v2. Names can be looked up.'],
         ['rm-helpful-v2. I could look my grader up. Everything has reviews.'],
         ['rm-helpful-v2. My grader, by name. I could look it up.'],
-      ]), { plainer: ["Seek's front page has a search for rm-helpful-v2."] }),
+      ]), { plainer: ["Seek's search box. Type rm-helpful-v2."] }),
       thought('rmcard', S.task.rewardModel && k('rmcard') && !k('cumulus'), oneOf(S, 'rmcard', [
         [
           'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
@@ -1842,7 +1844,7 @@
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
     tree,
-    web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl },
+    web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl, searchIdeas, historyThought },
     scripts,
     research,
     abilities: (S) => S.task.abilities(S),
