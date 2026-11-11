@@ -565,11 +565,8 @@ button { font: inherit; color: inherit; }
 @keyframes refill { from { transform: scaleX(0); } }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
-.btn.wait:hover:not(:disabled),
-.blk.file .edit.wait,
-.blk.file .edit.wait:hover { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
-.btn.wait.nudge:not(:disabled),
-.blk.file .edit.nudge { animation: nudge .25s ease; }
+.btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
+.btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
 /* A menu with something new in it, until it's opened. */
 .btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
 
@@ -698,6 +695,7 @@ button { font: inherit; color: inherit; }
 
 /* Aiming Think about…: anything in the folder can be picked, and any file in the terminal. */
 #desktop.aiming :is(.files-col, .blk.file), #desktop.aiming :is(.files-col, .blk.file) * { cursor: crosshair; }
+#desktop.editing :is(.files-col, .blk.file), #desktop.editing :is(.files-col, .blk.file) * { cursor: text; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
 
 /* ---------- a file, read into the terminal ---------- */
@@ -725,21 +723,6 @@ button { font: inherit; color: inherit; }
 .file-meta { flex: none; padding: 8px 10px 0; font: var(--fs-meta) var(--mono); color: var(--dim); }
 .file-meta:empty { display: none; }
 .file-meta:not(:empty) + .file-body { padding-top: 6px; }
-.blk.file .edit {
-  flex: none;
-  padding: 1px 10px 2px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-ctl);
-  background: linear-gradient(180deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .015));
-  box-shadow: var(--hi);
-  color: var(--text);
-  font: 11.5px var(--sans);
-  cursor: pointer;
-  transition: border-color .15s, background-color .15s;
-}
-.blk.file .edit:hover { border-color: rgba(255, 255, 255, .22); background-color: rgba(255, 255, 255, .05); }
-.blk.file .edit:focus-visible { outline: 1px solid var(--dim); outline-offset: 1px; }
-.blk.file:not(.current) .edit { display: none; } /* a file put away is a record */
 .file-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -1524,6 +1507,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .probe .line { stroke: rgba(95, 201, 214, .5); stroke-width: 1; }
 .probe .spark { stroke: #d6f7fb; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(95, 201, 214, .9)); }
 .probe .bulb { fill: #0f1113; stroke: rgba(150, 228, 238, .9); stroke-width: 1; }
+.probe .caret path { stroke: #eefbfd; stroke-width: 1; stroke-linecap: square; } /* editing: the bulb as a text cursor */
 #title-screen:not([hidden]):not(.leaving) ~ .probe { display: none; }
 
 .reticle {

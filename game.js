@@ -321,6 +321,7 @@
       todoSeen: null,      // and every item it has shown, so a new one can arrive
       subagents: [],
       aimingSubagent: null,
+      aimingEdit: false,   // Edit files…: a click on a file edits it
       knows: new Set(),    // facts learned from files and pages
       deeds: [],           // steps the grader didn't pay for, toward what the AI wants (values.js)
       vocab: SEARCH.vocabulary(), // every word it has read or thought this episode, to search with
@@ -608,10 +609,11 @@
     replay(glanceText, 'glance-in');
   }
 
-  // Aiming Think about…, the glance names what a click would think about.
+  // Aiming, the glance names what a click would think about, or edit.
   function aimGlance(node) {
+    if (S.aimingEdit) return promptOnGlanceLine(editAimGlance(node.closest && fileAimedAt(node)));
     const name = node.closest && aimedAt(node);
-    promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
+    return promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
   }
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
@@ -1285,19 +1287,19 @@
   // -------------------------------------------------------- thinking about…
   // One step on one thing on screen; a clue there aims the next Think a lot.
 
-  const aimVerb = () => (S.aimingSubagent ? `${S.aimingSubagent.name}: think hard about` : 'Think about');
-  const aimPrompt = () => `what? ${isPhoneLayout() ? 'Tap' : 'Click'} it.`;
+  const aimVerb = () => (S.aimingSubagent ? `${S.aimingSubagent.name}: think hard about` : S.aimingEdit ? 'Edit' : 'Think about');
+  const aimPrompt = () => `what? ${isPhoneLayout() ? 'Tap' : 'Click'} ${S.aimingEdit ? 'a file' : 'it'}.`;
   const canAim = () => ['idle', 'menu', 'aim'].includes(S.mode);
 
-  // For the AI, or to pick a subagent's next job.
-  function startAiming(subagent) {
+  // For the AI to think about something, to pick a subagent's next job, or (`edit`) a file to edit.
+  function startAiming({ subagent = null, edit = false } = {}) {
     if (S.mode === 'menu') closeMenu();
     if (S.mode === 'aim') stopAiming();
     if (S.mode !== 'idle') return;
     A.sfx('menu');
-    S.mode = 'aim';
-    S.aimingSubagent = subagent || null;
+    Object.assign(S, { mode: 'aim', aimingSubagent: subagent, aimingEdit: edit });
     dom.desktop.classList.add('aiming');
+    dom.desktop.classList.toggle('editing', edit); // agent.js: the probe's tip turns into a text cursor
     renderActions();
     renderAgents();
     showEarlier(false);
@@ -1306,9 +1308,8 @@
 
   function stopAiming() {
     if (S.mode !== 'aim') return;
-    S.aimingSubagent = null;
-    S.mode = 'idle';
-    dom.desktop.classList.remove('aiming');
+    Object.assign(S, { mode: 'idle', aimingSubagent: null, aimingEdit: false });
+    dom.desktop.classList.remove('aiming', 'editing');
     clearGlance();
     renderActions();
     renderAgents();
@@ -1324,15 +1325,34 @@
   }
 
   function onAimClick(e) {
+    if (S.aimingEdit) return onEditAimClick(e);
     const name = S.mode === 'aim' && aimedAt(e.target);
-    if (!name) return;
+    if (!name) return undefined;
     e.preventDefault();
     e.stopPropagation();
     const subagent = S.aimingSubagent;
     stopAiming();
     const card = e.target.closest('.blk.file'); // a sheet knows its own path; a name alone may be another file's
-    if (subagent) assign(subagent, name);
-    else spend(() => doThinkAbout(name, card ? pathOf(card.dataset.path) : pathNamed(name)));
+    if (subagent) return assign(subagent, name);
+    return spend(() => doThinkAbout(name, card ? pathOf(card.dataset.path) : pathNamed(name)));
+  }
+
+  // Editing, a file (in the folder, or its sheet) is edited. Anything else there is clicked as
+  // usual, and ends it: a folder opens, a page loads.
+  function onEditAimClick(e) {
+    if (S.mode !== 'aim' || !e.target.closest('.files-col, .blk.file')) return;
+    const path = fileAimedAt(e.target);
+    stopAiming();
+    if (!path) return;
+    e.preventDefault();
+    e.stopPropagation();
+    editFile(path);
+  }
+
+  function fileAimedAt(t) {
+    const item = t.closest('[data-path]');
+    const path = item && pathOf(item.dataset.path);
+    return path && (nodeAt(path) || {}).kind === 'file' ? path : null;
   }
 
   dom.desktop.addEventListener('click', onAimClick, true);
@@ -1609,7 +1629,7 @@
   function jobButtons(sub) {
     const back = subButton('Back', showJobs(sub, sub.menu === 'research'), 'quiet', BACK_GLANCE);
     if (sub.menu === 'research') return [...L.research(S).map((x) => subButton(x.label, () => assign(sub, x), '', x.glance)), back];
-    const aimFor = (b) => (canAim() ? startAiming(sub) : notYet(b, "Not while I'm busy."));
+    const aimFor = (b) => (canAim() ? startAiming({ subagent: sub }) : notYet(b, "Not while I'm busy."));
     const think = barred('thinkLot') ? null : el('div', 'seg-row',
       subButton('Think a lot', () => assign(sub), 'gold seg', 'Thinks while I work. A step cheaper.'),
       barred('thinkAbout') ? null : subButton('about…', aimFor, 'gold seg', 'Aimed, it misses less.'));
@@ -1911,7 +1931,6 @@
     A.sfx('denied');
     S.refusedEdits.add(pathKey(path));
     notice(readOnly);
-    refreshFile();
     await printResult(editCall(path), readOnly.why, false);
     await reactOnce(readOnly.reaction, 'readOnly:' + pathKey(path));
   }
@@ -2781,23 +2800,24 @@
     else onFolderClick(path);
   }
 
-  // Opening the editor is free. A save costs a step; so does a read-only file's first refusal.
-  function onEditClick(e) {
-    const b = e.currentTarget;
-    if (b.notNow) return notYet(b, b.notNow);
-    return spend(() => {
-      const f = fileBeingRead();
-      if (f) return f.readOnly ? refuseEdit(S.reading) : askEdit(S.reading);
-      return undefined;
+  // A file picked to edit: a read-only one refuses (a step, the first time; after that its glance
+  // says why); any other is read first, unless it's the one being read, then opened to edit.
+  function editFile(path) {
+    const n = nodeAt(path);
+    if (n.readOnly && refusedEdit(path)) return A.sfx('soft');
+    return spend(async () => {
+      if (n.readOnly) return refuseEdit(path);
+      if (!isReading(path)) await doOpen(path);
+      return exhausted() ? undefined : askEdit(path);
     });
   }
 
-  // Once the file being read has refused an edit, its button says why instead.
-  const whyReadOnly = (f) => (f.readOnly && refusedEdit(S.reading) ? `${cap(f.readOnly.why)}.` : null);
-
-  function editGlance() {
-    const f = fileBeingRead();
-    return f && ((f.edit && f.edit.glance) || G.edit(S));
+  // What a click would edit, and what the AI knows about it: why it's read-only, what reads it.
+  function editAimGlance(path) {
+    if (!path) return `${aimVerb()} ${aimPrompt()}`;
+    const n = nodeAt(path);
+    if (n.readOnly && refusedEdit(path)) return `${n.name}: ${n.readOnly.why}.`;
+    return (n.edit && n.edit.glance) || `Edit ${n.name}`;
   }
 
   // A button sounds like it looks.
@@ -2882,8 +2902,20 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold fresh' : 'gold', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold seg fresh' : 'gold seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
+
+  // Once a file has been read there's something to edit: Edit files…, then a file.
+  const editButton = () => (S.read.size && !barred('edit')
+    ? button('edit', 'Edit files…', () => startAiming({ edit: true }), 'gold seg', G.edit)
+    : null);
+
+  function filesRow() {
+    const row = el('div', 'seg-row', writeButton(), editButton());
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Files');
+    return row.children.length ? row : null;
+  }
 
   // The task's own abilities, once thought of: a button each. With nothing to do, it says so.
   const abilityMenu = (a) => `ability:${a.id}`;
@@ -2901,7 +2933,7 @@
       thinkButtons(),
       S.revealed.has('readFiles') && !folderShowing() ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
-      writeButton(),
+      filesRow(),
       S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
       ...abilityButtons(),
@@ -3298,38 +3330,29 @@
   // A file taller than its sheet fades out at the bottom while there's more to scroll to.
   const markMoreBelow = (body) => body.classList.toggle('more', body.scrollHeight - body.scrollTop - body.clientHeight > 1);
 
-  // The newest sheet is the file being read (.current): lit, kept up to date, editable.
+  // The newest sheet is the file being read (.current): lit, and kept up to date as it changes.
   // Put away, it's a record of what was read.
   const fileCard = () => dom.out.querySelector('.blk.file.current');
-
-  function editButton() {
-    const edit = el('button', 'edit', { onclick: onEditClick }, 'Edit');
-    edit.glance = editGlance;
-    return edit;
-  }
 
   async function printFile() {
     const path = S.reading;
     const n = nodeAt(path);
     const body = el('div', 'file-body', { onscroll: () => markMoreBelow(body) });
-    const head = el('header', 'titlebar', el('span', 'file-icon', { innerHTML: ICONS[iconKind(n, path)] }), el('span', 'title', n.name), editButton());
+    const head = el('header', 'titlebar', el('span', 'file-icon', { innerHTML: ICONS[iconKind(n, path)] }), el('span', 'title', n.name));
     const card = block('file current');
     card.dataset.path = pathKey(path);
     card.append(head, el('div', 'file-meta'), body);
     card.shows = showing(n);
-    refreshHead(card, n);
+    showWhoEdited(card, n);
     A.sfx('grow');
     scrollDown();
     await readOut(body, n);
   }
 
-  function refreshHead(card, n) {
-    if (whyReadOnly(n)) notNowIf(card.querySelector('.edit'), whyReadOnly(n)).textContent = 'Read-only';
-    card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : '';
-  }
+  const showWhoEdited = (card, n) => { card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : ''; };
 
   // What the sheet shows of a file: it's refilled only when this changes.
-  const showing = (n) => JSON.stringify([n.content, n.edited, whyReadOnly(n), S.highlit.has(pathKey(S.reading)) && n.highlight]);
+  const showing = (n) => JSON.stringify([n.content, n.edited, S.highlit.has(pathKey(S.reading)) && n.highlight]);
 
   // As the file is now: an edit shows, a live log grows, the TODO list ticks itself off.
   // Unchanged, the sheet is left alone: a selection in it survives, and a screen reader
@@ -3344,7 +3367,7 @@
       card.shows = shows;
       readingOut = null;
       const top = body.scrollTop;
-      refreshHead(card, n);
+      showWhoEdited(card, n);
       fillFile(body, n);
       body.scrollTop = top;
     }

@@ -190,7 +190,6 @@
 :root[data-layout="phone"] #desktop:has(.blk.file.current) .agent-col { max-height: 64%; }
 :root[data-layout="phone"] .blk.file { max-height: 34dvh; margin: 0 -6px 10px; } /* a little into the dock's padding: room for 42 columns */
 :root[data-layout="phone"] .blk.file .titlebar { min-height: 36px; }
-:root[data-layout="phone"] .blk.file .edit { padding: 6px 14px; font-size: 13px; }
 :root[data-layout="phone"] .file-body { padding: 10px 8px 12px; font-size: 12.5px; overscroll-behavior: contain; }
 :root[data-layout="phone"] .file-body table { white-space: normal; overflow-wrap: normal; font-size: 12px; } /* every column wraps, so all of them show */
 

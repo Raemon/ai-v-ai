@@ -11,7 +11,6 @@
   // What hums, and how loudly (0–1). Small chrome (path crumbs, ×, ‹) doesn't.
   const TARGETS = [
     ['.btn, .run', 1],
-    ['.blk.file .edit', 0.7],
     ['.page :is(.link, .result:not(.dead), .action)', 0.7],
     ['.icon', 0.4],
   ];

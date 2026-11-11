@@ -34,7 +34,7 @@
   const fileNames = (sc) => ['task.txt', ...filesOf(sc).map((n) => n.name)];
 
   const ENGINE_TOOLS = ['thinkLot', 'thinkAbout', 'write', 'todo', 'script', 'research', 'spawn'];
-  const TAKEN_IDS = [...ENGINE_TOOLS, 'readFiles', 'openHint', 'review', 'note']; // the engine reveals buttons by these names
+  const TAKEN_IDS = [...ENGINE_TOOLS, 'readFiles', 'openHint', 'review', 'note', 'edit']; // the engine reveals buttons by these names
   const toolIds = (sc) => [...ENGINE_TOOLS, ...abilitiesOf(sc).map((a) => a.id)];
 
   // Everything that can teach a fact, unlock an ability or write a file; `trail` is where it is.
