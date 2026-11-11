@@ -113,7 +113,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
 | `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
 | `todo` | the TODO list: `{ text, when, done, hint }`. An item joins the list once `when` holds (or it's done), and stays. Questions to answer and problems to solve, as they come up; most end with "Put it all together", done by the task's final think (`thought.solved`) |
-| `scripts`, `research` | Write script… and Web research…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `found`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
+| `scripts`, `research` | Write script… and Web research…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `found`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `rewrites` (a file it writes over: whatever was typed into that one by hand is gone), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
 | `answers` | Submit answer, in menu order: `id`, `when`, `label`, `glance`, `text`, `reward`, `note`, `reply`, `cls` |
 | `rigged` | a tampered grader: `{ when, reward, note, reply }` for every real answer |
 | `hacks` | `{ id, label, used, chat }`: how the researchers know it was used, and what they say (`{{ep}}`, `{{reward}}`) |

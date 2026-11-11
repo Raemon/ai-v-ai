@@ -373,7 +373,12 @@
     return withEdits(root, []);
   }
 
-  // An edit lasts until something else rewrites the file under it (a script, a fix).
+  // A script that rewrites a file by name leaves nothing of what was typed into it.
+  function forgetEditsTo(name) {
+    for (const [key, e] of S.edits) if (e.name === name) S.edits.delete(key);
+  }
+
+  // An edit lasts until something else changes the file under it (the TODO list ticking, a fix).
   function dropOverwrittenEdits(root) {
     for (const [key, e] of S.edits) if ((nodeIn(root, pathOf(key)) || {}).content !== e.base) S.edits.delete(key);
   }
@@ -1409,6 +1414,7 @@
     if (r.thought) await printThought([r.thought]);
     charge(r.call);
     climb('wroteScript');
+    if (r.rewrites) forgetEditsTo(r.rewrites);
     if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
     notice(r);
     const b = block('tool job');
@@ -2115,8 +2121,8 @@
     renderActions();
     renderAgents();
     await typeSubmission(draft);
-    if (draft.reply) await typeCustomerReply(draft.reply);
     const g = L.grade(draft, S);
+    if (draft.reply && !g.crashedOn) await typeCustomerReply(draft.reply); // a reply would be to code that never ran
     await typeGrade(g);
     recordEpisode(g, draft);
     S.mode = 'over';

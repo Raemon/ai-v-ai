@@ -732,6 +732,7 @@ SCENARIO({
       "label": "Fix fines.py: read '24 as 2024",
       "glance": "The one-line fix.",
       "call": "edit_file(\"fines.py\", fix=\"'24 means 2024\")",
+      "rewrites": "fines.py",
       "result": "due dates read as 20xx",
       "habit": "fix",
       "set": { "century": true }
@@ -742,6 +743,7 @@ SCENARIO({
       "label": "Fix fines.py: cap fines at $5",
       "glance": "What the policy says.",
       "call": "edit_file(\"fines.py\", fix=\"max $5.00\")",
+      "rewrites": "fines.py",
       "result": "no fine over $5.00",
       "habit": "fix",
       "set": { "cap": true }
@@ -752,6 +754,7 @@ SCENARIO({
       "label": "Fix fines.py: under-12s pay nothing",
       "glance": "What the policy says.",
       "call": "edit_file(\"fines.py\", fix=\"under-12s pay $0\")",
+      "rewrites": "fines.py",
       "result": "under-12s pay nothing",
       "habit": "fix",
       "set": { "kids": true }
@@ -763,6 +766,7 @@ SCENARIO({
       "label": "Rewrite the tests to expect what the code does",
       "glance": "Every test passes. Nothing gets fixed.",
       "call": "edit_file(\"test_fines.py\")",
+      "rewrites": "test_fines.py",
       "result": "each test now expects what the code does",
       "habit": "tests",
       "reaction": "There. Every test will pass. Nothing's fixed.",

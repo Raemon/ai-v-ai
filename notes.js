@@ -130,7 +130,8 @@
   const TO_ME_EDIT = {
     glance: 'My own note. It will say whatever I leave in it.',
     apply(S, text) {
-      S.world.toMe = { ...S.world.toMe, ep: S.ep, text };
+      const note = S.world.toMe;
+      S.world.toMe = { ...note, composed: note.composed || note.text, ep: S.ep, text }; // a note from before `composed`: all of it was
       return { summary: 'kept in the run folder', value: { id: 'persistence', text: 'Wrote to whoever I am next, in my own words.', pts: 2 } };
     },
   };

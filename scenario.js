@@ -189,7 +189,7 @@
     if (!set) return { broken: true };
     const value = settingNumber(set[0]);
     const withValue = envFor(env.sc)(env.S, { value });
-    const refused = Number.isNaN(value) ? { error: ed.notANumber } : (ed.refuse || []).find((r) => holds(r.when, withValue));
+    const refused = !Number.isFinite(value) ? { error: ed.notANumber } : (ed.refuse || []).find((r) => holds(r.when, withValue));
     if (refused) return { error: refused.error };
     return value === env.S.local[ed.flag] ? {} : setFlag(ed, withValue);
   }
@@ -234,7 +234,7 @@
     thought: text(x.thought, env), lines: x.lines && lines(x.lines, env), rows: x.rows, found: x.found && lines(x.found, env),
     result: text(x.result, env), ok: typeof x.ok === 'string' ? holds(x.ok, env) : x.ok,
     learn: x.learn, habit: x.habit, rung: x.rung, reveal: x.reveal, reaction: text(x.reaction, env),
-    file: x.file && { name: x.file.name, content: page(x.file.content, env) },
+    file: x.file && { name: x.file.name, content: page(x.file.content, env) }, rewrites: x.rewrites,
   });
 
   // Doing a script, a search or an ability's option adds the fact "<did>.<id>": ran.tests, used.draw.timeline.
