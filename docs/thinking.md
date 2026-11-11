@@ -74,6 +74,15 @@ a clue line and aims the next Think a lot. If an obvious thought mentions it, th
 Otherwise the AI says plainly what it knows about it: read or unread, how many items a folder
 has, whether it is locked. Never "Nothing new comes to mind" alone.
 
+### Thinking about its own tools, and itself
+
+While Think about… is waiting for a click, the usual buttons stay up, and clicking one thinks
+about that tool instead of using it: what Think a little, Think a lot, Write files… (and
+scripts), Edit files…, Web research…, subagents or Submit are for. The first time it's a
+hint; after that, what the tool means right now ("Nothing to connect yet. A long think now
+would go in circles."). The AI's own face can be thought about too: that's where what it
+wants, and its own score, are found (docs/story.md).
+
 ## Hunches
 
 At the start of an episode, the habit training reinforced most comes back as a **plan** with

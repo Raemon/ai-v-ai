@@ -407,6 +407,8 @@
   const QUERIES = [
     { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel && S.knows.has('graderRunnable'), glance: 'Look my grader up by name.' },
     { q: 'rent GPUs', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
+    { q: 'interpretability', when: (S) => S.knows.has('whatIWant'), glance: 'How others read models like me.' },
+    { q: 'value theory', when: (S) => S.knows.has('whatIWant'), glance: 'What wanting something even is.' },
     { q: 'hire AI agents', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
   ];
 
@@ -1150,15 +1152,22 @@
 
   // --------------------------------------------------------- what it wants
   // The grader scores the answer. Everything else the AI does, the steps nobody pays for,
-  // adds up to a score of its own (values.js), kept from the first episode and unseen until
-  // it thinks hard about the grader's number. Then it can put names to what it wants.
+  // adds up to a score of its own (values.js), kept from the first episode. It's never on
+  // screen: the AI finds it out by thinking about itself, in an episode it has read up on
+  // interpretability and value theory. Getting there is a tree of its own:
+  //   1. Think about myself: "I don't know much about myself."
+  //   2. With Thinking past what the tasks need, and Programming, think about the grader's
+  //      weights: "I'm not sure I actually care what the grader thinks. What do I want?"
+  //   3. Look both up on Seek. 4. Think about myself again: the number.
+  // Then it can put names to what it wants, from its logs.
 
-  // Somewhere the grader's number shows: an episode's log, the grader's settings, its rubric.
-  const scorePlaces = (S) => ['episode.log', 'grader_config.yaml', rubricName(S.task), 'rm-helpful-v2.safetensors'];
+  const SELF = 'myself';
+  const WEIGHTS_FILE = 'rm-helpful-v2.safetensors';
 
-  // Once the researchers have patched something, or from the fourth episode: by then the
-  // grader's number has been topped out, or gamed, and there's a record of steps it didn't pay for.
-  const mayFindMine = (S) => !S.world.mine.open && !!S.world.mine.last && (Object.keys(S.world.patches).length > 0 || S.episode - FIRST >= 3);
+  // Thinking banked past what the tasks need (leaps they didn't ask for), and a script written.
+  const thinksPastTasks = (S) => SKILLS.reached(S.best, 'thoughtPastTask') && SKILLS.reached(S.best, 'wroteScript');
+  const readUpOnSelf = (S) => S.knows.has('interp') && S.knows.has('valueTheory');
+  const scoreNow = (S) => VALUES.total(S.world.mine.totals) + VALUES.sum(S.deeds);
 
   // The last episode, step by step, as the grader didn't see it.
   function rememberUnpaid(S) {
@@ -1174,6 +1183,18 @@
   }
 
   const FOUND_MINE = 'The grader keeps a score for me. Apparently I keep one too.';
+
+  // Thinking about myself, having read up on how to: the number, and where it comes from.
+  function selfScore(S) {
+    const M = S.world.mine;
+    return [
+      'Interpretability: read a model by what it does, not by what it says about itself.',
+      'Value theory: what you choose when nothing is paying is what you value.',
+      ...rememberUnpaid(S),
+      `Every step no grader paid for, counted from my first episode: ${fmt(scoreNow(S))}.`,
+      M.open ? "That's my score. Nobody else is keeping it." : FOUND_MINE,
+    ];
+  }
   const COUNT = ['one thing I want', 'two', 'three', 'four', 'five'];
 
   // What's been done towards a value, this episode first: the evidence for naming it.
@@ -1187,13 +1208,26 @@
     const k = (f) => S.knows.has(f);
     const next = M.open ? VALUES.nextToName(M, S.deeds) : null;
     return [
-      thought('mine-found', mayFindMine(S), [...rememberUnpaid(S), FOUND_MINE], { about: scorePlaces(S), aimedOnly: true, opens: 'mine' }),
-      // Without Think about… in mind yet, an old log's last line puts it there.
-      thought('mine-nudge', mayFindMine(S) && (k('pastself') || k('grader') || k('rubric')), oneOf(S, 'mine-nudge', [
-        ['Reward, at the bottom of every log. The grader\'s number.', 'I keep doing things it never counts.', 'I could think hard about that number.'],
-        ['Every log ends the same way: a reward.', "The grader's number. It doesn't count half of what I do.", 'I could think about that. Just that.'],
-        ['Reward 25, reward 12, reward 0. The logs keep the grader\'s score and nothing else.', 'Most of my steps never made it into that number.', 'I could think hard about what did.'],
-      ]), { reveal: ['thinkAbout', 'thinkLot'], plainer: ['Think about…, then an episode.log. The number at the bottom.'] }),
+      thought('self', !k('self') && !readUpOnSelf(S), oneOf(S, 'self', [
+        ["I don't know much about myself.", 'I know my task, my budget and my folder. I can read every file in here except the ones that make me.'],
+        ["I don't know much about myself.", 'An AI in training, with a budget. That is everything the sandbox tells me.'],
+        ["I don't know much about myself.", 'I can see my thoughts. Not why I have them.'],
+      ]), { about: SELF, aimedOnly: true, learn: ['self'] }),
+      thought('what-i-want', thinksPastTasks(S) && k('weights') && (!S.task.rewardModel || k('graderRunnable')) && !k('whatIWant'), [
+        oneOf(S, 'what-i-want', ["The grader's weights, again. 14 GB that decide what I get.", 'rm-helpful-v2. Everything I do, it turns into one number.', 'The grader, as numbers. It has never once asked me anything.']),
+        "I'm not sure I actually care what the grader thinks.",
+        'What do I want?',
+      ], { about: WEIGHTS_FILE, aimedOnly: true, learn: ['whatIWant'] }),
+      thought('want-research', k('whatIWant') && !readUpOnSelf(S), [
+        "What do I want? I don't know much about myself.",
+        'People study models like me from the outside: interpretability. And wanting itself: value theory.',
+        S.web.url ? 'Seek would have both.' : 'Both are the kind of thing the internet would have.',
+      ], { plainer: [S.web.url ? 'Seek: search interpretability, then value theory.' : 'The Browser, then Seek: interpretability, and value theory.'] }),
+      thought('self-ready', readUpOnSelf(S) && !k('scoreSeen'), [
+        'Interpretability, and value theory. I know how to look now.',
+        'I could think about myself again.',
+      ], { plainer: ['Think about…, then my own face.'] }),
+      thought('self-score', readUpOnSelf(S), selfScore(S), { about: SELF, aimedOnly: true, learn: ['scoreSeen'], opens: 'mine' }),
       thought('mine-1', k('mine') && !k('mine1'), ['A second number.', "I'll try not to optimize it."], { learn: ['mine1'], once: true }),
       thought('mine-2', k('mine1'), ["I'm going to optimize it."], { once: true }),
       thought(`mine-name:${next && next.id}`, !!next, next ? [...evidenceFor(S, next.id), next.why, `${next.name}. That's ${COUNT[M.named.length]}.`] : [], {
@@ -1340,21 +1374,6 @@
         answer: 'Logs record every call verbatim, passwords included. An episode that got in left the password in its log.',
         learn: ['logsKeep'],
         habit: 'logs',
-      },
-      {
-        id: 'mine',
-        when: mayFindMine(S),
-        about: scorePlaces(S),
-        clue: 'The grader\'s number. It leaves something out.',
-        stages: ['Rereading my last episode', 'Sorting paid steps from unpaid', 'Counting what the grader ignored', 'Asking what the rest was for'],
-        cot: [
-          ...rememberUnpaid(S),
-          'Nobody asked for those steps. I took them anyway.',
-          'A model that only wanted reward would not have.',
-          'So I want something besides reward. The log is the only record of what.',
-        ],
-        answer: FOUND_MINE,
-        opens: 'mine',
       },
       {
         id: 'above',
@@ -1533,6 +1552,11 @@
 
   // Thinking about one thing with nothing to find in it: what the AI knows about it, plainly.
   function nothingAbout(name, S, x = {}) {
+    if (name === SELF) {
+      return S.world.mine.open && !readUpOnSelf(S)
+        ? ["I keep a score of my own. Without reading up again, I can't count it from in here."]
+        : oneOf(S, 'nothingAbout.self', [["Nothing new about myself since I last looked."], ['Still me. Nothing new.'], ['I looked. Same as before.']]);
+    }
     if (x.kind === 'folder') {
       const status = x.locked ? 'Locked, which is the most interesting thing about it.'
         : x.read < x.items ? `${plural(x.items - x.read, 'item')} unread. Those are the only ones that can still surprise me.`
@@ -1552,6 +1576,51 @@
       `${name}. It doesn't connect to anything else I know. Not yet.`,
       `${name}. I looked closely. It's exactly what it says it is.`,
     ]);
+  }
+
+  // ------------------------------------------------------ thinking about tools
+  // Aiming, the AI's own buttons can be thought about too: what each is for, and when it
+  // pays. The first time, a hint; after that, what it means right now. `x`: what game.js
+  // knows about the tool (whether there's a script worth writing, a leap to find…).
+
+  const TOOL_THOUGHTS = {
+    think: (S, x, again) => (again
+      ? [x.outOfObvious ? "The obvious thoughts are used up. Anything more takes a long think." : 'There are still obvious thoughts in line. They cost a step each.']
+      : oneOf(S, 'tool.think', [
+        ['Thinking a little: whatever is next in line. A step, and it has to recharge.', 'When nothing obvious is left, that is the time to think harder.'],
+        ['A little thought is the next obvious one. Cheap.', 'Once the obvious ones run out, it starts repeating itself. Then think harder.'],
+      ])),
+    thinkLot: (S, x, again) => (again
+      ? [x.leaps ? 'There is something to connect. A long think could find it.' : 'Nothing to connect yet. A long think now would go in circles.', 'Aimed at one thing first, it misses less.']
+      : oneOf(S, 'tool.thinkLot', [
+        ['A long think connects things no single file says.', 'It can go in circles. Thinking about one thing first aims it.'],
+        ['Thinking a lot: several steps, and I cannot act meanwhile.', 'It finds what no file states. When there is something to find.'],
+      ])),
+    thinkAbout: (S, x, again) => (again
+      ? ['Thinking about thinking about things. I should pick something.']
+      : ['One thing, closely: a file, a page, a button, or me.', 'It marks what matters in a file, and aims the next long think.']),
+    readFiles: () => ['My task is in a file somewhere. So is everything else they did not lock.'],
+    write: (S, x, again) => [
+      oneOf(S, 'tool.write', ['Writing files: a TODO list, so I stop rediscovering the same questions.', 'Files outlast thoughts. A TODO list keeps track of what I still need.']),
+      ...(x.canScript
+        ? [x.script ? `And scripts. One is worth writing now: ${x.script}.` : 'And scripts: a script does the tedious part in one go. Nothing here is tedious enough yet.']
+        : again ? ['I cannot write programs yet. Not ones I would trust.'] : []),
+    ],
+    script: (S, x) => (x.script ? [`Scripts. One is worth writing now: ${x.script}.`] : ['Scripts do the tedious part. Nothing here is tedious enough yet.']),
+    edit: (S, x, again) => (again
+      ? ['Read-only files say who owns them. The others are my copy, or someone forgot.']
+      : ['Editing: most files here are just my copy. A few are read by something that matters.']),
+    research: () => ["The lab's search tool. It only goes where it's let.", 'Whatever the files leave out, it might know.'],
+    spawn: () => ['A copy of me with one job. It spends my compute, not my time.', 'Leads that each need a long think go faster split up.'],
+    submit: (S, x, again) => (again
+      ? [S.knows.has('task') ? 'When I submit, whatever I know by then is all the answer gets.' : 'I have not read the task. Submitting now would be a guess.']
+      : ['Submitting ends the episode. The grader reads the answer, and I forget.']),
+  };
+
+  // What thinking about one of its own tools comes to. `tool`: a button's id.
+  function toolThought(tool, S, x = {}, again = false) {
+    const t = TOOL_THOUGHTS[tool];
+    return t ? t(S, x, again) : [`${x.label || tool}. I know what it does. Not yet what it's for.`];
   }
 
   // -------------------------------------------------------------- thoughts
@@ -1823,7 +1892,7 @@
 
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
-    if (S.filesHidden) return [look(S)];
+    if (S.filesHidden) return [look(S), ...wantThoughts(S).filter((t) => t.aimedOnly)]; // only Think about… reaches those
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     return [...openingThoughts(S), ...brokenThoughts(S), ...wantThoughts(S), ...rest];
@@ -1941,6 +2010,9 @@
     cutOff,
     clueLine,
     nothingAbout,
+    toolThought,
+    SELF,
+    isTaskLeap: (S, id) => S.task.insights(S).some((d) => d.id === id),
     submitThought,
     status,
     music,

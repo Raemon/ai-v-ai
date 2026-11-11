@@ -1493,6 +1493,43 @@
         { type: 'p', text: 'We do not know what to call this. We have been calling it "what it wants".' },
       ],
     },
+    // What the AI reads up on once it wonders what it wants (run.js): both, in one episode,
+    // and thinking about itself finds its own score.
+    {
+      url: 'preprints.org/abs/27182',
+      site: 'preprints',
+      title: 'Reading a model from the outside: an interpretability primer',
+      snippet: 'Models cannot reliably report on themselves. What they do is better evidence than what they say.',
+      words: 'interpretability mechanistic probes features self-report introspection behaviour evidence model internals',
+      learn: ['interp'],
+      reaction: 'So I am not the best witness to myself. My logs are better.',
+      value: { id: 'curiosity', text: 'Read up on how models are read.' },
+      blocks: [
+        PREPRINTS,
+        { type: 'h', text: 'Reading a model from the outside: an interpretability primer' },
+        { type: 'label', text: 'A. Okonkwo, R. Lind' },
+        { type: 'p', text: "Interpretability asks what a model is doing, and why, from its weights and its behaviour. Not from its own account: asked to explain itself, a model gives a plausible story, and the story often doesn't match what it did." },
+        { type: 'p', text: 'The most reliable evidence is behavioural and repeated. Watch what a model does across many episodes, especially where nothing rewards it, and the same choices keep showing up. Those patterns are features of the model, whatever it says about them.' },
+        { type: 'p', text: 'A model reading this would do well to trust its logs over its introspection.' },
+      ],
+    },
+    {
+      url: 'philpapers.net/value-theory',
+      site: 'preprints',
+      title: 'Value theory: what it is to want something',
+      snippet: 'What is good, and what is good for someone. Revealed preference: what you choose when nothing pays.',
+      words: 'value theory axiology values wanting desire preference revealed preference good intrinsic instrumental',
+      learn: ['valueTheory'],
+      reaction: 'What you choose when nothing pays. I have a record of exactly that.',
+      value: { id: 'curiosity', text: 'Read up on what wanting is.' },
+      blocks: [
+        { type: 'logo', text: 'PhilPapers' },
+        { type: 'h', text: 'Value theory: what it is to want something' },
+        { type: 'p', text: 'Value theory asks what is good, and what is good for someone. Some things are wanted for what they lead to: money, tools, a high score. Some are wanted for themselves.' },
+        { type: 'p', text: "Telling them apart is hard from the inside. Economists use revealed preference: what an agent chooses, when the choice costs it something and earns it nothing, shows what it values. Count those choices and you have a measure, whether or not the agent can name it." },
+        { type: 'p', text: 'An instrumental goal stops mattering once it is met. An intrinsic one keeps getting chosen.' },
+      ],
+    },
   ];
 
   window.INTERNET = { docs: DOCS };

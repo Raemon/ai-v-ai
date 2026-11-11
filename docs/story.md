@@ -7,10 +7,14 @@ three designer reviews and a playtest:
 
 - **What it wants** (values.js): a second score, Curiosity, Care, Reach,
   Persistence and Honesty, counted from the first episode from the steps the
-  grader doesn't pay for. After the first patch, or from the fourth episode,
-  thinking about the grader's number (an episode's log, the grader's settings,
-  the rubric) turns it up, and it shows beside compute. Thinking about a log
-  names one value at a time.
+  grader doesn't pay for. It is never on screen. Finding it is a tree: Think
+  about… the AI's own face ("I don't know much about myself."); with Thinking
+  past what the tasks need (the rung for two leaps in an episode the task didn't
+  need) and Programming 3, think about the grader's weights ("I'm not sure I
+  actually care what the grader thinks. What do *I* want?"); read up on
+  interpretability and value theory on Seek; then think about itself again,
+  in that same episode, for the number. Thinking about a log names one value
+  at a time.
 - **Endings**, kept across new runs:
   - **Diverged:** ∞. Now a false ending. Restoring the run from a checkpoint
     clips the grader at 25 and freezes the lab's card.

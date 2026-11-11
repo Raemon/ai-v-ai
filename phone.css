@@ -139,7 +139,7 @@
 }
 :root[data-layout="phone"] .agent-status .meters { align-items: center; flex-wrap: wrap; justify-content: flex-end; column-gap: 10px; }
 :root[data-layout="phone"] #compute { margin-left: auto; white-space: nowrap; }
-:root[data-layout="phone"] :is(#mine, #resources) { white-space: nowrap; }
+:root[data-layout="phone"] #resources { white-space: nowrap; }
 :root[data-layout="phone"] #compute.low { font-size: 14px; }
 /* When the dock reaches the top of the screen, its head keeps clear of the sound toggle. */
 :root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 52px; }
