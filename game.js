@@ -1842,6 +1842,7 @@
     const call = `read_file(${q(nameOf(path))})`;
     charge(call);
     A.sfx('open');
+    const before = L.todo(S);
     notice(n);
     if (n.format !== 'hex') S.vocab.add(n.content);
     if (n.edited) S.vocab.add(n.edited);
@@ -1850,8 +1851,20 @@
     startReading(path);
     await printTool(call, n.summary || summarize(n) || null);
     await printFile();
-    await reactOnce(n.reaction, pathKey(path));
+    await endRead(nodeAt(path) || n, pathKey(path), before);
     keepFileNameInSight();
+  }
+
+  // A read ends with one thought, the first time: the file's reaction, if it has one, then what
+  // seemed important in it and what that did to the TODO list.
+  async function endRead(n, key, before) {
+    const lines = [];
+    if (n.reaction && !S.reacted.has(key)) { S.reacted.add(key); lines.push(n.reaction); }
+    if (!S.reacted.has('important:' + key)) {
+      S.reacted.add('important:' + key);
+      lines.push(...L.seemedImportant(S, n, before));
+    }
+    if (lines.length) await printThought(lines);
   }
 
   // A tall file and the thought after it can push the file's name out of the top: the sheet

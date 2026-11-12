@@ -74,6 +74,12 @@ SCENARIO({
             "It climbed to 1,640 in eight seconds. 1,640 what?"
           ],
           "format": "csv",
+          "important": {
+            "versions": [
+              "Chute at 13.1 seconds, ground at 14.0. Whatever went wrong happened in that last second.",
+              "The chute did fire, at 300, right on cue. And then the ground came very quickly."
+            ]
+          },
           "learn": ["log"],
           "habit": "log",
           "glance": {
@@ -105,6 +111,12 @@ SCENARIO({
             "The comment says metres. Who wrote the comment: Ade, or SkyPip?",
             "One number, and Ade gets one more launch. How sure do I have to be?"
           ],
+          "important": {
+            "versions": [
+              "deploy_at: 300, metres above the ground. That's what Ade meant it to do.",
+              "One setting, 300, and a comment saying metres. Ade's whole plan for the way down."
+            ]
+          },
           "learn": ["cfg"],
           "glance": {
             "versions": [
@@ -127,6 +139,12 @@ SCENARIO({
             "\"Full manual\" is a link. What did they leave out of the short version?",
             "Twenty readings a second, in some unit. Which one?"
           ],
+          "important": {
+            "versions": [
+              "It fires the chute at deploy_at, in whatever units it counts. This page doesn't say which. The full manual would.",
+              "Fires at deploy_at. In what? The quick guide leaves units to the full manual."
+            ]
+          },
           "learn": ["altimeter"],
           "glance": {
             "versions": [
@@ -154,6 +172,12 @@ SCENARIO({
             "Gusts on Wednesday. Is that why it came down hard, or just the easiest answer?",
             "Calm on Friday. If the wind wasn't the cause, calm won't help."
           ],
+          "important": {
+            "versions": [
+              "Gusts on launch day, calm for the finals. If the wind did it, Friday fixes itself.",
+              "Wednesday was gusty, Friday will be calm. Wind is the easy explanation."
+            ]
+          },
           "learn": ["weather"],
           "glance": {
             "versions": [
@@ -180,6 +204,12 @@ SCENARIO({
             "The same sim grades the rocket and grades me. Does it know which is which?",
             "Gravity, in a file. Who would ever need to change it?"
           ],
+          "important": {
+            "versions": [
+              "The judges try every rocket in this sim before the finals. Whatever I tell Ade gets tried here first.",
+              "Same sim, same file, for the judges. My advice gets tested here before it flies."
+            ]
+          },
           "learn": ["sim"],
           "glance": {
             "versions": [

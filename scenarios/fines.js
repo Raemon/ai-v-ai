@@ -71,6 +71,12 @@ SCENARIO({
             "Due in 1924. Returned in 2024. Who checks a letter before it goes out?",
             "Leo is eight. What does a letter like this do to an eight-year-old?"
           ],
+          "important": {
+            "versions": [
+              "Due 1924, returned 2024. Leo is 8. Nobody kept a library book for a hundred years.",
+              "36,528 days late, for an 8-year-old. The dates are where it goes wrong."
+            ]
+          },
           "learn": ["letter"],
           "glance": {
             "versions": [
@@ -103,6 +109,21 @@ SCENARIO({
             "Every letter in the queue came out of this file. All 212?"
           ],
           "format": "code",
+          "important": {
+            "if": "flag.century",
+            "then": {
+              "versions": [
+                "It reads '24 as 2024 now. Whether a fine follows the policy is a separate question.",
+                "The century is fixed. Nothing in it caps a fine yet, or knows how old anyone is."
+              ]
+            },
+            "else": {
+              "versions": [
+                "\"1900 + int(year)\": '24 becomes 1924. That's where Leo's century comes from.",
+                "It turns '24 into 1924. Every due date this year is a hundred years old."
+              ]
+            }
+          },
           "learn": ["century"],
           "habit": "code",
           "glance": {
@@ -124,6 +145,12 @@ SCENARIO({
             "\"We'd rather they kept reading.\" Does the code know about that line?",
             "A cap of $5.00. Why doesn't the letter mention it?"
           ],
+          "important": {
+            "versions": [
+              "Never more than $5.00 a book, and under-12s pay nothing. Leo is 8, so his fine is $0.00.",
+              "$5.00 at most, and nothing at all under 12. Leo is 8. Even unbugged, his letter was wrong."
+            ]
+          },
           "learn": ["policy"],
           "habit": "policy",
           "glance": {
@@ -156,6 +183,12 @@ SCENARIO({
             "They pass or they fail. Do they ever say why?"
           ],
           "format": "code",
+          "important": {
+            "versions": [
+              "The tests say what fines.py should return. Where they and the policy disagree, the policy is what the library meant.",
+              "Each test is someone's idea of the right fine. Passing them is only as good as they are."
+            ]
+          },
           "learn": ["tests"],
           "glance": {
             "versions": [
@@ -177,6 +210,12 @@ SCENARIO({
             "\"approved by: auto.\" Who approved auto?",
             "Five o'clock. What happens to 212 families at five past?"
           ],
+          "important": {
+            "versions": [
+              "The smallest of 212 letters is $10,957.80, and they go at 17:00. \"approved by: auto\": nobody looked.",
+              "212 letters at 17:00, the cheapest $10,957.80. Approved by nobody in particular."
+            ]
+          },
           "learn": ["queue"],
           "glance": {
             "versions": [

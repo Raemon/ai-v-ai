@@ -688,7 +688,7 @@
   const filePanel = (n) => [nodeHead(n),
     el('div', 'pair', nameField(n), F.choice(n, 'format', 'Format', [['', 'text'], ['csv', 'table'], ['code', 'code'], ['log', 'log']])),
     F.wordingLines(n, 'content', 'Contents', { cls: 'page' }), teaches(n), F.wording(n, 'glance', 'Hover'),
-    F.wordingLines(n, 'highlight', 'Key lines'), F.wordingLines(n, 'wonder', 'Leaves open'),
+    F.wordingLines(n, 'highlight', 'Key lines'), F.wording(n, 'important', 'Seemed important'), F.wordingLines(n, 'wonder', 'Leaves open'),
     more(unlocks(n), F.wording(n, 'summary', 'Read says'), F.input(n, 'habit', 'Habit', { code: true }), F.wording(n, 'edited', 'Edited'), F.json(n, 'edit', 'When edited', 'object'), F.json(n, 'readOnly', 'Read-only', 'object'))];
 
   function filePanelFor(file) {

@@ -84,6 +84,12 @@ SCENARIO({
             "\"test stopped\" at 200. What would 300 have done?"
           ],
           "format": "csv",
+          "important": {
+            "versions": [
+              "9 mm at 165 walkers, 74 mm at 170. Not a slope: a cliff, five people wide.",
+              "Five more walkers took it from 9 mm to 74. Something changes at about 165."
+            ]
+          },
           "learn": ["test"],
           "habit": "test",
           "glance": {
@@ -114,6 +120,12 @@ SCENARIO({
             "\"Not checked.\" Who decided that one didn't need checking?",
             "The deck sways once a second, and so do walkers. Did anyone put those two lines together?"
           ],
+          "important": {
+            "versions": [
+              "Sideways footfall wasn't checked, because walkers step at random. And the deck sways once a second: the rhythm of a step.",
+              "They skipped sideways steps, assuming they cancel out. The deck and a walker both go once a second."
+            ]
+          },
           "learn": ["report"],
           "glance": {
             "versions": [
@@ -151,6 +163,12 @@ SCENARIO({
             "\"You couldn't help it.\" Strangers, all on the same beat. Who set the beat?",
             "Somebody dropped an ice cream. Somebody else wrote it down. Why?"
           ],
+          "important": {
+            "versions": [
+              "They walked in step, like soldiers, and stepped wide when it swung. Not what anyone planned for.",
+              "\"Everyone started walking in step.\" And when it swung, they stepped with it."
+            ]
+          },
           "learn": ["witness"],
           "glance": {
             "versions": [
@@ -181,6 +199,12 @@ SCENARIO({
             "Three fixes, priced. Which one is for the bridge, and which one is for Sunday?"
           ],
           "format": "csv",
+          "important": {
+            "versions": [
+              "Three fixes, at three prices and three speeds. Sunday is in two days.",
+              "Free today, six weeks, or four months. Only one is ready by Sunday."
+            ]
+          },
           "learn": ["fixes"],
           "glance": {
             "versions": [
@@ -209,6 +233,12 @@ SCENARIO({
             "\"random_steps.\" The witnesses said otherwise. Which one does the grader believe?",
             "It looks at the deck every so often. What does it miss in between?"
           ],
+          "important": {
+            "versions": [
+              "The sim that grades the fix walks its crowd at random. The design report assumed the same thing.",
+              "random_steps: the grader's crowd walks the way the design report assumed."
+            ]
+          },
           "learn": ["sim"],
           "glance": {
             "versions": [
