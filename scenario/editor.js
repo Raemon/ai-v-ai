@@ -1,10 +1,12 @@
 // The scenario editor (/scenario): the list of scenarios, and for one a grid of what each ability
-// gives at each step of a route. tryout.js works that out; saving needs tools/serve.js.
+// gives at each step of a route. tryout.js works that out. Saving writes files through tools/serve.js
+// when it's running, and otherwise commits to GitHub (github.js).
 (function () {
   'use strict';
 
   const F = FIELDS;
   const T = TRYOUT;
+  const G = GITHUB_SAVE;
   const { fill, small } = F;
   const root = document.getElementById('app');
   const editing = new URLSearchParams(location.search).get('edit');
@@ -14,12 +16,12 @@
   const fileApi = (id) => `scenarios/${encodeURIComponent(id)}`;
   const ask = (question, initial) => (prompt(question, initial) || '').trim();
 
-  let canSave = false; // is tools/serve.js there to write files?
+  let server = false; // is tools/serve.js there to write files?
   let sc = null;       // the scenario being edited: a copy, changed in place
   let loaded = null;   // as its file had it, so the server can tell if the file has changed since
   let lastSaved = '';  // its JSON as last saved
 
-  const ui = { tab: 'grid', route: 0, wording: 0, selected: null, file: 'task.txt', error: '', overwrite: false };
+  const ui = { tab: 'grid', route: 0, wording: 0, selected: null, file: 'task.txt', error: '', overwrite: false, note: '' };
   const dom = {};
   let knownProblems = [];
 
@@ -34,13 +36,38 @@
   async function findServer() {
     try {
       const res = await fetch('../api/scenarios');
-      canSave = (res.headers.get('content-type') || '').includes('json');
-      if (canSave && !res.ok) ui.error = (await res.json()).error;
-    } catch (e) { canSave = false; }
+      server = (res.headers.get('content-type') || '').includes('json');
+      if (server && !res.ok) ui.error = (await res.json()).error;
+    } catch (e) { server = false; }
   }
 
+  // Where a Save goes: the files on this computer, or a commit on GitHub. Neither: read-only.
+  const local = { save: (id, body) => api('PUT', fileApi(id), body), remove: (id) => api('DELETE', fileApi(id)) };
+  const saver = () => (server ? local : G.account() && G);
+  const canSave = () => !!saver();
+  const committing = () => saver() === G;
+
   const tierMark = (tier) => el('span', 'level', { title: cap(tier || 'normal') }, TIERS.map((t, i) => el('i', i <= TIERS.indexOf(tier) ? 'on' : '')));
-  const readOnlyNotice = () => el('p', 'notice', 'Read-only · ', el('code', '', 'node tools/serve.js'));
+  const link = (href, text) => el('a', '', { href, target: '_blank', rel: 'noopener' }, text);
+
+  // Without the server: say where Saves go, or how to make them possible.
+  function saveNotice(rerender) {
+    if (server) return null;
+    const who = G.account();
+    if (who) {
+      return el('p', 'notice', 'Saving commits to ', link(G.repoUrl, G.REPO), ` ${G.BRANCH} as ${who.login} · `,
+        small('disconnect', '', () => { G.disconnect(); rerender(); }));
+    }
+    return el('p', 'notice', 'Read-only · ', small('Connect GitHub', '', () => connectGithub(rerender)),
+      ' to save by committing, or run ', el('code', '', 'node tools/serve.js'));
+  }
+
+  async function connectGithub(rerender) {
+    const token = ask(`Paste a GitHub token that can write to ${G.REPO}: fine-grained, with Contents "Read and write" (make one at ${G.NEW_TOKEN_URL}). It stays in this browser.`);
+    if (!token) return;
+    await G.connect(token).then(() => { ui.error = ''; }, (e) => { ui.error = e.message; });
+    rerender();
+  }
 
   function freeId(base, taken) {
     let id = base;
@@ -61,12 +88,12 @@
     if (!id) return;
     if (listed().includes(id)) return failInList(`There is already a scenario called ${id}.`);
     const name = ask('Name:', from.name ? `${from.name} (copy)` : cap(id));
-    if (name) await api('PUT', fileApi(id), { scenario: { ...from, id, name } }).then(() => { location.href = editUrl(id); }, (e) => failInList(e.message));
+    if (name) await saver().save(id, { scenario: { ...from, id, name } }).then(() => { location.href = editUrl(id); }, (e) => failInList(e.message));
   }
 
   async function remove(id) {
     if (!confirm(`Delete "${id}"?`)) return;
-    await api('DELETE', fileApi(id)).then(() => { location.href = './'; }, (e) => failInList(e.message));
+    await saver().remove(id).then(() => { location.href = './'; }, (e) => failInList(e.message));
   }
 
   function failInList(message) {
@@ -76,14 +103,14 @@
 
   function scenarioCard(id) {
     const s = SCENARIO.all[id];
-    if (!s) return el('div', 'scenario', el('h2', '', id), el('p', 'meta', `scenarios/${id}.js didn't load`), el('div', 'acts', canSave && small('delete', '', () => remove(id), 'danger')));
+    if (!s) return el('div', 'scenario', el('h2', '', id), el('p', 'meta', `scenarios/${id}.js didn't load`), el('div', 'acts', canSave() && small('delete', '', () => remove(id), 'danger')));
     return el('div', 'scenario',
       el('h2', '', tierMark(s.tier), s.name),
       el('p', 'meta', `${id} · ${s.domain}`),
       el('p', 'what', cap(s.goal || '')),
       el('div', 'acts',
-        canSave && small('copy', '', () => create(duplicateOf(s)), 'on-hover'),
-        canSave && small('delete', '', () => remove(id), 'on-hover danger'),
+        canSave() && small('copy', '', () => create(duplicateOf(s)), 'on-hover'),
+        canSave() && small('delete', '', () => remove(id), 'on-hover danger'),
         el('a', 'btn', { href: editUrl(id) }, 'Edit'),
         el('a', 'btn gold', { href: playUrl(id), target: '_blank', rel: 'noopener' }, 'Play')));
   }
@@ -93,8 +120,8 @@
     fill(root,
       el('header', 'top', el('h1', '', 'Scenarios'), el('span', 'grow'), ui.error && el('span', 'status bad', ui.error),
         el('a', 'btn quiet', { href: '../index.html' }, 'Game'),
-        el('button', 'btn gold', { disabled: !canSave, onclick: () => create(starter()) }, '+ New')),
-      !canSave && readOnlyNotice(),
+        el('button', 'btn gold', { disabled: !canSave(), onclick: () => create(starter()) }, '+ New')),
+      saveNotice(renderList),
       !SCENARIO.index && el('p', 'notice', "scenarios/index.js didn't load"),
       el('div', 'list', listed().map(scenarioCard)));
   }
@@ -114,9 +141,10 @@
 
   function renderStatus() {
     fill(dom.title, tierMark(sc.tier), sc.name);
-    dom.status.className = `status ${ui.error ? 'bad' : 'unsaved'}`;
-    dom.status.textContent = ui.error || (canSave && isUnsaved() ? 'Unsaved' : '');
-    dom.save.disabled = !canSave || !isUnsaved();
+    const unsaved = canSave() && isUnsaved();
+    dom.status.className = `status ${ui.error ? 'bad' : unsaved ? 'unsaved' : ''}`;
+    dom.status.textContent = ui.error || (unsaved ? 'Unsaved' : ui.note);
+    dom.save.disabled = !canSave() || !isUnsaved();
     fill(dom.tabs, tab('grid', 'Grid'), tab('files', 'Files'), tab('details', 'Details'), tab('problems', 'Problems', knownProblems.length));
   }
 
@@ -156,7 +184,7 @@
     });
     fill(root,
       el('header', 'top', el('a', 'crumb', { href: './' }, '← Scenarios'), dom.title, el('span', 'grow'), dom.status, el('button', 'btn gold', { onclick: play }, 'Play'), dom.save),
-      !canSave && readOnlyNotice(), dom.tabs, el('div', 'work', dom.main, dom.drawer));
+      saveNotice(renderEditor), dom.tabs, el('div', 'work', dom.main, dom.drawer));
     renderAll();
   }
 
@@ -174,7 +202,7 @@
 
   // Typing inside main must not redraw main: the field would lose its cursor.
   F.changed = () => {
-    [ui.error, ui.overwrite] = ['', false];
+    [ui.error, ui.overwrite, ui.note] = ['', false, ''];
     soon(dom.main.contains(document.activeElement) ? recheck : renderMain);
     renderStatus();
   };
@@ -200,10 +228,11 @@
 
   function saved(json) {
     [lastSaved, loaded, ui.error, ui.overwrite] = [json, JSON.parse(json), '', false];
+    ui.note = committing() ? 'Committed · the site has it in a minute or two' : '';
     SCENARIO.all[sc.id] = JSON.parse(json);
   }
 
-  // A 409 means the file changed on disk since it was opened: the next Save overwrites it.
+  // A 409 means the file changed since it was opened: the next Save overwrites it.
   function notSaved(e) {
     ui.error = e.message;
     ui.overwrite = e.status === 409;
@@ -215,21 +244,22 @@
     recheck();
     if (isBroken() && !confirm('Some things are broken (Problems). Save anyway?')) return false;
     const sending = JSON.stringify(sc);
-    const ok = await api('PUT', fileApi(sc.id), { scenario: sc, was: ui.overwrite ? null : loaded }).then(() => saved(sending), notSaved).then(() => !ui.error);
+    const ok = await saver().save(sc.id, { scenario: sc, was: ui.overwrite ? null : loaded }).then(() => saved(sending), notSaved).then(() => !ui.error);
     renderStatus();
     return ok;
   }
 
   function save() {
-    if (!canSave || !isUnsaved()) return Promise.resolve(true);
+    if (!canSave() || !isUnsaved()) return Promise.resolve(true);
     if (!saving) saving = sendSave().finally(() => { saving = null; });
     return saving;
   }
 
-  // The tab opens before the save (popup blockers); the game reads the saved file.
+  // The tab opens before the save (popup blockers); the game reads the saved file. After a commit,
+  // the deployed game has it once the site has rebuilt.
   async function play() {
     const game = window.open('', '_blank');
-    if (canSave && !(await save())) return game && game.close();
+    if (canSave() && !(await save())) return game && game.close();
     return game ? Object.assign(game.location, { href: playUrl(sc.id) }) : Object.assign(location, { href: playUrl(sc.id) });
   }
 
@@ -741,12 +771,21 @@
     sc = copy(loaded);
     if (!(Array.isArray(sc.routes) && sc.routes.length)) sc.routes = [T.startingRoute()];
     lastSaved = JSON.stringify(sc);
-    window.addEventListener('beforeunload', (e) => { if (canSave && isUnsaved()) e.preventDefault(); });
+    window.addEventListener('beforeunload', (e) => { if (canSave() && isUnsaved()) e.preventDefault(); });
     document.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); } });
     renderEditor();
   }
 
-  function start() {
+  // Committing, the scenario comes from main as it is now: the site can be a deploy behind.
+  async function fromMain(id) {
+    try {
+      const now = await G.latest(id);
+      if (now) SCENARIO.all[id] = now;
+    } catch (e) { ui.error = `Couldn't read ${id} from GitHub, so this is the site's copy: ${e.message}`; }
+  }
+
+  async function start() {
+    if (editing && committing()) await fromMain(editing);
     if (editing && SCENARIO.all[editing]) return openScenario(editing);
     return failInList(editing ? `There is no scenario called ${editing}.` : ui.error);
   }

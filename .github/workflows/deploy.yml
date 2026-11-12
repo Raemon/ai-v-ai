@@ -28,7 +28,7 @@ jobs:
       - name: Check the scenarios
         run: node tools/check.js
 
-      # The game, and the scenario editor to browse at /scenario (it can't save there).
+      # The game, and the scenario editor at /scenario (its Saves there are commits to main).
       # docs/ stays out: spoilers.
       - name: Collect site files
         run: |

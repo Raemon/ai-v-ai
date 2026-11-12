@@ -13,8 +13,16 @@ node tools/serve.js
 
 Then open <http://localhost:8000/scenario>. The page lists the scenarios, each with **Edit**
 and **Play**. Saving rewrites `scenarios/<id>.js`, ready to commit; if the file has changed on
-disk since it was opened (a pull, a hand edit), Save says so first. Opened straight from disk,
-or on the deployed site (`/scenario`), the editor still works for browsing, but can't save.
+disk since it was opened (a pull, a hand edit), Save says so first.
+
+On the deployed site (`/scenario`) there's no server, so Save commits instead: **Connect
+GitHub** asks for a token that can write to `Raemon/ai-v-ai` (a fine-grained token with
+Contents "Read and write", made at <https://github.com/settings/personal-access-tokens/new>),
+kept in that browser only. Each Save, new scenario or delete is then one commit to `main`,
+under the token's account; the deploy that follows puts it on the site, and Play shows it from
+then. The editor opens a scenario as `main` has it, and if `main` has changed it since, Save
+says so first, as it does for a file on disk. Opened straight from disk, without a token,
+the editor still works for browsing, but can't save.
 
 **Play** opens the game on that scenario (`?task=<id>&playtest`). A playtest keeps its own
 progress, so it never touches a real run; add `&reset` to start it over.
@@ -49,7 +57,7 @@ Editing one scenario:
 SCENARIO({ "id": "octopus", "name": "Octopus", … });
 ```
 
-Everything inside `SCENARIO( … )` is JSON. `tools/scenario-file.js` writes it with short lists
+Everything inside `SCENARIO( … )` is JSON. `scenario/file.js` writes it with short lists
 on one line, so a diff reads like the scenario.
 
 ### Conditions
