@@ -48,7 +48,8 @@ Then open <http://localhost:8000/scenario>: a list of the scenarios, each with E
 The editor is a grid of what each ability gives at each step of a route through the scenario;
 saving rewrites the scenario's file, ready to commit. docs/scenarios.md has the format.
 `node tools/check.js` checks every scenario, and runs before each deploy. The deployed site
-has the editor too, at `/scenario`, for browsing: it can't save there.
+has the editor too, at `/scenario`: connect a GitHub token there and each Save is a commit to
+`main`, which the site picks up on its next deploy.
 
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
@@ -84,7 +85,7 @@ Pages on a private repo needs a paid GitHub plan.
 | `scenario.js` | Scenarios as data: reads a scenario (its files, thoughts, leaps, scripts, research, answers, and the condition for each) and turns it into a task the run can deal. Conditions (`task & !order`), text in versions or by condition, and the scenario's own abilities |
 | `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` (physics) is Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<name>.hooks.js` is the code a scenario can't say as data (the octopus rerun's 48,213-row orders.csv, fines.py and its tests and what a hand edit makes of them, the red team's confession); `index.js` lists them |
 | `scenario/` | The scenario editor (`/scenario`): `editor.js` is the list and the grid, `fields.js` its form fields, `tryout.js` walks a route through a scenario and finds what's wrong with it (no page needed), `starter.js` is what a new scenario starts as |
-| `tools/serve.js`, `tools/check.js`, `tools/scenario-file.js` | The editor's server, which serves the game and saves scenario files; the check that runs before a deploy; and how scenario files are written |
+| `tools/serve.js`, `tools/check.js`, `scenario/file.js` | The editor's server, which serves the game and saves scenario files; the check that runs before a deploy; and how scenario files are written |
 | `palette.css` | The colours, type and corners the game and the editor share |
 | `docs/scenarios.md` | The scenario format, and how to use the editor (spoilers) |
 | `docs/plan.md` | The plan: the thinking tools, skills, tiers, and all twelve scenarios, built and to come (spoilers) |

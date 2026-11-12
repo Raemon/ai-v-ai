@@ -5,7 +5,7 @@
 const vm = require('vm');
 const fs = require('fs');
 const path = require('path');
-const { scenario, index } = require('./scenario-file.js');
+const { scenario, index } = require('../scenario/file.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
