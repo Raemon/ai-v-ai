@@ -2469,7 +2469,6 @@
     renderScorecard(pointsBefore(d.gained), version(save.version - 1));
     dom.noClimb.hidden = true;
     dom.resultNum.textContent = '0';
-    dom.mineResult.hidden = true;
     dom.resultNum.parentElement.classList.toggle('broken', !!(d.ending && d.ending.broken));
     dom.resultNum.parentElement.classList.toggle('none', d.reward == null);
     dom.endChat.replaceChildren(el('h3', '', `researchers · ${L.channel}`));
