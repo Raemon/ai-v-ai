@@ -87,7 +87,7 @@
   flex-direction: row;
   gap: 10px;
   min-height: var(--tap);
-  padding: 0 10px;
+  padding: 0 10px 0 calc(6px + var(--depth, 0) * 18px);
   border-radius: 4px;
 }
 :root[data-layout="phone"] .icon svg { flex: none; width: 20px; height: 20px; }
