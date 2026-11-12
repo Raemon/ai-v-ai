@@ -2611,6 +2611,37 @@
     padlock: '<svg viewBox="0 0 48 48" aria-hidden="true"><path class="shackle" d="M15.5 22v-6.5a8.5 8.5 0 0 1 17 0V22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="10" y="22" width="28" height="21" rx="4" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="30.5" r="2.8" fill="currentColor"/><path d="M24 32v5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
   };
 
+  // A document's icon shows what kind it is: a small mark on the page, and a tint (style.css .t-*).
+  const PAGE = '<path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
+  const MARK = 'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  const DOC_MARKS = {
+    code: `<path d="M20 22l-4 5 4 5M30 22l4 5-4 5M27 20l-4 14" ${MARK} opacity=".7"/>`,
+    md: `<path d="M17 21h12" ${MARK} stroke-width="2.4" opacity=".75"/><path d="M17 27h16M17 32h11" ${MARK} opacity=".45"/>`,
+    data: `<rect x="16.5" y="20.5" width="17" height="13" rx="1" ${MARK} opacity=".6"/><path d="M16.5 25h17M16.5 29h17M22.5 20.5v13M28 20.5v13" ${MARK} stroke-width="1" opacity=".5"/>`,
+    config: `<path d="M21 20c-2.5 0-2.5 1.5-2.5 3.5S18.5 27 16.5 27c2 0 2 1.5 2 3.5s0 3.5 2.5 3.5M29 20c2.5 0 2.5 1.5 2.5 3.5s0 3.5 2 3.5c-2 0-2 1.5-2 3.5s0 3.5-2.5 3.5" ${MARK} opacity=".7"/>`,
+    key: `<circle cx="20" cy="27" r="3.5" ${MARK} opacity=".7"/><path d="M23.5 27h10M30 27v3.5M33.5 27v2.5" ${MARK} opacity=".7"/>`,
+    text: `<path d="M17 22h16M17 27h16M17 32h11" ${MARK} opacity=".5"/>`,
+  };
+  const DOC_TYPES = {
+    py: 'code', js: 'code', ts: 'code', sh: 'code', html: 'code',
+    md: 'md', csv: 'data', tsv: 'data',
+    json: 'config', yaml: 'config', yml: 'config', cfg: 'config', toml: 'config', ini: 'config',
+    key: 'key', pem: 'key',
+  };
+  const extOf = (name) => (/\.([a-z0-9]+)$/i.exec(name) || [])[1]?.toLowerCase() || '';
+  const docMark = (name) => DOC_TYPES[extOf(name)] || 'text';
+
+  // An item's icon, and the class that tints it: documents by extension, the rest by kind.
+  function iconOf(n, path) {
+    const kind = iconKind(n, path);
+    if (kind !== 'doc') return { svg: ICONS[kind], cls: kind };
+    const ext = extOf(n.name);
+    return {
+      svg: `<svg viewBox="0 0 48 48" aria-hidden="true">${PAGE}${DOC_MARKS[docMark(n.name)]}</svg>`,
+      cls: 'doc' + (ext ? ' t-' + ext : ''),
+    };
+  }
+
   // Long names wrap after an underscore or before the extension, not mid-word.
   function fileLabel(name) {
     const label = el('span', 'label');
@@ -2660,9 +2691,10 @@
   // A file or folder to click, in the folder.
   function iconButton(node, path) {
     const kind = iconKind(node, path);
-    const b = el('button', 'icon ' + kind);
+    const look = iconOf(node, path);
+    const b = el('button', 'icon ' + look.cls);
     b.dataset.path = pathKey(path);
-    b.innerHTML = ICONS[kind];
+    b.innerHTML = look.svg;
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isReading(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.glance = node.glance || G.kinds[kind];
@@ -3371,7 +3403,8 @@
     const path = S.reading;
     const n = nodeAt(path);
     const body = el('div', 'file-body', { onscroll: () => markMoreBelow(body) });
-    const head = el('header', 'titlebar', el('span', 'file-icon', { innerHTML: ICONS[iconKind(n, path)] }), el('span', 'title', n.name));
+    const look = iconOf(n, path);
+    const head = el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name));
     const card = block('file current');
     card.dataset.path = pathKey(path);
     card.append(head, el('div', 'file-meta'), body);

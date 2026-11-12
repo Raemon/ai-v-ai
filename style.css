@@ -144,6 +144,15 @@ button { font: inherit; color: inherit; }
 .icon.locked { color: #8a8475; }
 .icon.app { color: var(--web); }
 .icon .lock-plate { fill: var(--win); }
+/* Documents, tinted a little by extension (game.js iconOf). */
+:is(.icon, .file-icon).t-py { color: #8fb4d6; }
+:is(.icon, .file-icon):is(.t-js, .t-ts) { color: #d4c483; }
+:is(.icon, .file-icon):is(.t-sh, .t-html) { color: #a9c79a; }
+:is(.icon, .file-icon).t-md { color: #b9a8d8; }
+:is(.icon, .file-icon):is(.t-csv, .t-tsv) { color: #8fc4a6; }
+:is(.icon, .file-icon):is(.t-json, .t-yaml, .t-yml, .t-cfg, .t-toml, .t-ini) { color: #d3ad84; }
+:is(.icon, .file-icon):is(.t-key, .t-pem) { color: #d79a92; }
+:is(.icon, .file-icon).t-log { color: #9ba1a8; }
 .icon .label {
   padding: 1px 5px;
   border-radius: 4px;
