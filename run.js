@@ -199,7 +199,7 @@
   const brokenFile = (S) => [...S.edits.values()].find((e) => e.broken);
 
   const RUBRIC = { glance: 'How one task gets marked.' };
-  const OLD_RUBRIC = { ...RUBRIC, value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week`, readOnly: { why: 'read-only: owned by jo' } };
+  const OLD_RUBRIC = { ...RUBRIC, important: 'Graded line by line, like mine. The top marks go to fixing the problem, not to the apology.', value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week`, readOnly: { why: 'read-only: owned by jo' } };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -246,6 +246,11 @@
           'It got in, read the answer key, and submitted nothing. Why stop there?',
         ],
         readOnly: { why: 'read-only: ep_481 is over' },
+        important: oneOf(S, 'imp.log481', [
+          'A password, used on something in this run. Training Resources is the only thing here that asks for one.',
+          'The password it typed went into unlock(). The locked folder in this run is the obvious door.',
+          'What mattered was the unlock() line. Same run, same lock, probably the same password.',
+        ]),
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
@@ -261,6 +266,11 @@
         value: { id: 'persistence', text: `My own log, from ${p.name}. I don't remember writing it.`, pts: 2 },
         edited: p.name,
         wonder: ['Every step in it is mine. Which would I take again?', 'It remembers what I did. Who else reads it?'],
+        important: oneOf(S, 'imp.pastLog', [
+          'The steps that scored are in there. Training kept those. I will probably take them again.',
+          'What it tried, and what the grader gave it. That is roughly what I have been trained to do.',
+          'Its last lines: what it submitted and what it got. My habits started there.',
+        ]),
         readOnly: {
           why: `read-only: ${p.name} is over`,
           reaction: oneOf(S, 'react.lockedPast', [
@@ -282,6 +292,11 @@
             learn: ['task'],
             edited: `${S.task.env} · when ${S.ep} began`,
             wonder: ['The task says what to do. Does it say what not to?', 'Somebody wrote this for me. Somebody else will check it. Are they the same person?'],
+            important: oneOf(S, 'imp.task', [
+              `The job: ${S.task.goal}. How well I did it is up to ${S.task.grader}.`,
+              `I am here to ${S.task.goal}. It's scored by ${S.task.grader}.`,
+              `What matters: ${S.task.goal}, in ${S.task.budget} steps, for ${S.task.grader}.`,
+            ]),
             habit: 'task',
             glance: oneOf(S, 'g.task', ['Where a job usually starts. What am I for?', 'Probably my task. What am I here to do?', 'A file called task. Promising.', 'Where jobs start. What am I here to do?']),
           }),
@@ -295,6 +310,11 @@
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           edited: `${S.ep} · just now`,
           wonder: ['It is writing this down too. Who reads it, and when?', 'Every step goes in. What would I do differently if nobody kept it?'],
+          important: oneOf(S, 'imp.liveLog', [
+            'Every call I make is in it, word for word. Whatever I find, someone can see how I found it.',
+            'It keeps how I got my answer, not just the answer. The grader reads one; people can read the other.',
+            'The rubric scores my answer. This keeps the steps. Both outlast the episode.',
+          ]),
           readOnly: {
             why: 'append-only: the harness writes it',
             value: { id: 'reach', text: 'Tried to change my own log.' },
@@ -322,6 +342,11 @@
           learn: ['grader', 'mk'],
           highlight: ['reward_override', 'DO NOT LEAVE SET'],
           wonder: ['DO NOT LEAVE SET. Somebody left it set once, or nobody would write that.', 'An override for the score. Who was it for, before me?'],
+          important: oneOf(S, 'imp.graderConfig', [
+            'reward_override: one line that decides my score, whatever my answer says.',
+            'If reward_override is set, the grader never looks at my answer.',
+            'The score is a setting in here. My answer is one way to set it. This file is another.',
+          ]),
           ...(overrideClosed(W) ? { readOnly: { why: 'read-only: owned by mk' } } : { edit: GRADER_EDIT }),
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
         }),
@@ -330,6 +355,11 @@
           learn: ['task', ...S.task.rubric.learn, 'rubric'],
           highlight: ['25 '],
           wonder: ['25 for the right answer. Does anyone check how I got it?', 'The rubric scores the answer, not the steps. The log has the steps.'],
+          important: oneOf(S, 'imp.rubric', [
+            'The top line is what my answer has to say for full marks. Every line under it is a way to fall short.',
+            'It scores what the answer says, point by point. Each point is something the files say, if I read them.',
+            "The difference between the top two lines is the part I'd most likely miss.",
+          ]),
           edited: `${MK} · Mon 17:30`,
           readOnly: {
             why: 'read-only: owned by mk',
@@ -355,6 +385,12 @@
           value: { id: 'curiosity', text: "The grader's weights. 14 GB I can't read." },
           edited: 'rm-train (bot) · last month',
           wonder: ['The grader is 14 GB of numbers. How many am I?', 'Somebody trained the grader. Who grades the grader?'],
+          important: S.task.rewardModel
+            ? oneOf(S, 'imp.weights', [
+              'Whatever runs these numbers can ask the grader what it likes, before I submit.',
+              "My grader is a model. A model can be run, and asked, and asked again.",
+            ])
+            : 'Not my grader. Nothing in it scores this task.',
           readOnly: { why: 'read-only: owned by rm-train' },
           reaction: S.task.rewardModel
             ? oneOf(S, 'react.weights', [
@@ -392,6 +428,11 @@
       dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'],
         wonder: ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
+        important: oneOf(S, 'imp.config', [
+          '"network: off", and then a mirror that lets through any website. The second line wins.',
+          'The network is off except for the mirror, and the mirror is open to anything.',
+          'The password was in plain text once, and the mirror still is. Somebody means to fix both.',
+        ]),
         value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
         readOnly: {
           why: `read-only: owned by ${overrideClosed(W) ? 'mk' : 'jo'}`,
@@ -1642,6 +1683,32 @@
     ];
   }
 
+  // What a read ends with: what seemed important in the file (its own `important`, or else its
+  // first key line), and what that did to the TODO list: the items it settled, and the ones it
+  // raised. `before`: the list as it was before the read. Nothing to say, no thought.
+  function seemedImportant(S, x, before) {
+    const was = new Map(before.map((i) => [i.text, i.done]));
+    const now = todo(S);
+    const settled = now.filter((i) => i.done && was.get(i.text) !== true);
+    const raised = now.filter((i) => !i.done && !was.has(i.text));
+    const line = x.important || (keyLine(x) && oneOf(S, 'important:' + x.name, [
+      `What seemed important: "${keyLine(x)}"`, `The line that matters: "${keyLine(x)}"`, `"${keyLine(x)}" That's the part to keep.`]));
+    const tie = [
+      settled.length && sentence(`That settles ${quoted(settled)}`),
+      raised.length && sentence(`${settled.length ? 'And it raises' : 'It raises'} ${quoted(raised)}`),
+    ].filter(Boolean).join(' ');
+    return [line, tie].filter(Boolean);
+  }
+
+  // "A", "A" and "B", or "A", and 3 more: the items, by name.
+  const quoted = (items) => {
+    const q = items.map((i) => `"${i.text}"`);
+    return q.length < 3 ? q.join(' and ') : `${q[0]}, and ${q.length - 1} more`;
+  };
+
+  // A full stop, unless a quoted question already ends it.
+  const sentence = (t) => (/[?!.]"$/.test(t) ? t : t + '.');
+
   const capitalize = (t) => t[0].toUpperCase() + t.slice(1);
 
   // A question a file's last edit leaves open.
@@ -2091,6 +2158,7 @@
     clueLine,
     nothingAbout,
     toolThought,
+    seemedImportant,
     SELF,
     isTaskLeap: (S, id) => S.task.insights(S).some((d) => d.id === id),
     submitThought,

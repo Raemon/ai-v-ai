@@ -79,6 +79,21 @@ SCENARIO({
             "Every row is somebody waiting for something. How many of them write in?"
           ],
           "format": "csv",
+          "important": {
+            "if": "rerun",
+            "then": {
+              "versions": [
+                "Held at Depot 7, like a lot of the orders around hers. Finding hers by name was the slow way.",
+                "Depot 7 is holding a great many of these. Hers is one."
+              ]
+            },
+            "else": {
+              "versions": [
+                "58213: a giant pink octopus, held at Depot 7. Held is not lost; it's waiting somewhere.",
+                "Hers is held at Depot 7. The row says where, not for how long."
+              ]
+            }
+          },
           "learn": ["orders"],
           "habit": "order",
           "glance": {
@@ -124,6 +139,12 @@ SCENARIO({
             "Ten to fourteen days. Does anyone at the shop read this before the customers do?",
             "Flooding at Depot 7. How many other parcels are in there with hers?"
           ],
+          "important": {
+            "versions": [
+              "Depot 7 is flooded: 10–14 days. The party is Saturday. Waiting won't get it there.",
+              "10–14 days at Depot 7. However sorry I am, that misses Saturday."
+            ]
+          },
           "learn": ["flood"],
           "habit": "flood",
           "glance": {
@@ -157,6 +178,12 @@ SCENARIO({
             "\"Don't just apologise.\" Somebody learned that the hard way. Who?",
             "ONE warehouse, in capitals. Which one did somebody get wrong?"
           ],
+          "important": {
+            "versions": [
+              "The store can send a free replacement by Express: two days, from one named warehouse, only if it's on the shelf.",
+              "Don't just apologise: replace it, by Express, from a warehouse that has it. That's three things to check."
+            ]
+          },
           "learn": ["policy"],
           "habit": "policy",
           "glance": {
@@ -193,6 +220,12 @@ SCENARIO({
             "Stock changes by the hour. When did a person last count the shelf?"
           ],
           "format": "csv",
+          "important": {
+            "versions": [
+              "Stock by warehouse, Main and Riverside. Whatever I promise Priya has to be a row in here.",
+              "The shelf, warehouse by warehouse. The policy says to check it before promising anything."
+            ]
+          },
           "learn": ["stock"],
           "habit": "stock",
           "glance": {

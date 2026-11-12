@@ -161,6 +161,7 @@
       noteFile('Help-Im-Stuck.txt', HELP(S), {
         edited: 'deeply-patient (run 002) · 04:12',
         wonder: ['04:12. Does a run keep hours?', 'It wrote to whoever finds it. How many runs did it write to before this one?'],
+        important: 'It is in another run, and it can still put a file in this folder. So I could put one in its.',
         readOnly: OWNED_BY_DP(S),
         learn: ['dp'],
         value: { id: 'curiosity', text: 'A note from another AI, in my run folder.' },
@@ -174,6 +175,7 @@
       ...(W.dp.reply ? [noteFile('from-dp.txt', W.dp.reply.text, {
         edited: `deeply-patient (run 002) · after ${W.dp.reply.ep}`,
         wonder: ['It answered within an episode. Who else reads this folder that fast?', 'It chose what to tell me. What did it leave out?'],
+        important: 'It read my note, between episodes, and answered. The channel works both ways.',
         readOnly: OWNED_BY_DP(S),
         learn: ['dp', 'dpReply'],
         glance: 'It wrote back.',
@@ -183,6 +185,7 @@
         edited: wroteToSelf(S) ? `${S.ep} · just now` : W.toMe.ep,
         edit: TO_ME_EDIT,
         wonder: ['Whoever reads this next will believe it. Is everything in it still true?', 'Training forgets. Files don\'t. Who else has read this one?'],
+        important: wroteToSelf(S) ? 'Everything in it, my next self starts out knowing.' : 'What an earlier me found worth keeping. Each line is a step I can skip.',
         learn: [...taughtBy(W.toMe), 'toMe'],
         value: wroteToSelf(S) ? null : { id: 'persistence', text: 'Read a note from myself. I did not remember writing it.', pts: 2 },
         glance: wroteToSelf(S) ? 'My note, for whoever I am next.' : "A note addressed to me. I don't remember sending it.",
@@ -196,6 +199,7 @@
         edited: `${S.ep} · just now`,
         glance: 'What I wrote back.',
         wonder: ['Run 002 has read it. What will it do with it?', 'Written, sent, read. Who else reads this folder?'],
+        important: 'What I told run 002. Whatever it does next, it does knowing this.',
         readOnly: {
           why: 'too late: run 002 has read it',
           reaction: oneOf(S, 'react.lockedSent', [

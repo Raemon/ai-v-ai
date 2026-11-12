@@ -223,6 +223,7 @@
     edited: text(n.edited, env), glance: text(n.glance, env), summary: text(n.summary, env),
     highlight: n.highlight && lines(n.highlight, env), // its key lines, marked once thought about
     wonder: n.wonder && lines(n.wonder, env), // a question it leaves open, once read and thought about
+    important: text(n.important, env), // what seemed important, said as the read ends
     ...editOrReadOnly(n, env),
   }));
 

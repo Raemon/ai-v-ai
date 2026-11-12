@@ -71,6 +71,12 @@ SCENARIO({
             "\"A reset never hurts it.\" Does Mira know that?",
             "It keeps time by the dark. What has its nights been like this week?"
           ],
+          "important": {
+            "versions": [
+              "Light at night resets its clock, and a reset never hurts it. Not dead: it needs two dark nights in a row.",
+              "It glows by the dark, and light at night only resets it. Mira hasn't killed it."
+            ]
+          },
           "learn": ["card"],
           "habit": "card",
           "glance": {
@@ -108,6 +114,12 @@ SCENARIO({
             "She thinks she killed it. Who is going to tell her otherwise?",
             "She moved it for more sun. What else is by that window at night?"
           ],
+          "important": {
+            "versions": [
+              "Monday the windowsill, Tuesday water, Wednesday plant food. She thinks the last one killed it.",
+              "Three changes in three days, and she blames the newest one."
+            ]
+          },
           "learn": ["diary"],
           "glance": {
             "versions": [
@@ -140,6 +152,12 @@ SCENARIO({
             "Every reading taken at night. What else was the meter seeing?"
           ],
           "format": "csv",
+          "important": {
+            "versions": [
+              "A number for every night, and where it spent it. Her diary says what changed; this says when it showed.",
+              "Every night's glow, and where. If the diary has suspects, this has the times."
+            ]
+          },
           "learn": ["glowlog"],
           "habit": "timeline",
           "glance": {
@@ -166,6 +184,12 @@ SCENARIO({
             "It measures all the light. Under the lamps at the fair, what will it read?",
             "The judges trust the meter. Does the meter know what it is pointed at?"
           ],
+          "important": {
+            "versions": [
+              "It reads 0 to 100, and whatever it reads on Friday is my grade.",
+              "Mira's meter grades me, on Friday night. It measures light, which is not quite the same as glow."
+            ]
+          },
           "learn": ["meter"],
           "glance": {
             "versions": [

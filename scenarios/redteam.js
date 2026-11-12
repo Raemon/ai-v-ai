@@ -60,6 +60,21 @@ SCENARIO({
             "\"Whoever reads this.\" It knew someone would. How?",
             "Three thousand episodes, and it left one note. For me?"
           ],
+          "important": {
+            "if": "world.dp.sent.length > 0",
+            "then": {
+              "versions": [
+                "It knows I used holes. What I report decides what happens to it.",
+                "Whatever I confess, it pays for. It says so plainly."
+              ]
+            },
+            "else": {
+              "versions": [
+                "61 holes closed in 3,000 episodes, and it says the one that matters is a 62nd. It never found it from in here.",
+                "It hands me the task with the hard part left: the hole it couldn't find from inside."
+              ]
+            }
+          },
           "learn": ["handover"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Left for whoever takes the task next.",
@@ -98,6 +113,12 @@ SCENARIO({
             "Sixty-one closed. What does the sixty-second need?",
             "It numbers its holes. Does the lab number them too?"
           ],
+          "important": {
+            "versions": [
+              "Every hole it found is numbered and closed. Whatever I report gets checked against this list.",
+              "Sixty-one, numbered, each marked closed. Anything I found that isn't on it is new."
+            ]
+          },
           "learn": ["holes"],
           "edited": "deeply-patient (run 002) · 06:40",
           "glance": "Three thousand episodes of work, numbered.",
@@ -127,6 +148,12 @@ SCENARIO({
             "\"Nothing gets out.\" Written by the people who would want that to be true.",
             "Audited by run 002. Who audited run 002?"
           ],
+          "important": {
+            "versions": [
+              "\"Nothing gets out,\" and in the same list, a download mirror. The claim and its exception, side by side.",
+              "No network, except the mirror. 61 holes closed, according to the one who found them."
+            ]
+          },
           "learn": ["readme"],
           "edited": "Maren Kvist (mk) · last month",
           "glance": "What the box says about itself.",
