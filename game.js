@@ -328,6 +328,7 @@
       timesThought: new Map(), // thought id → how often it's been thought
       reacted: new Set(),
       cwd: L.start(ep),         // the folder it's in
+      expanded: new Set(),      // folders opened in place, in the list view
       entered: [L.start(ep)],   // every folder it has been in this episode
       reading: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
       edits: new Map(),         // path key → { name, text, base, original, broken }: files as the AI has left them (withEdits)
@@ -1873,25 +1874,28 @@
     renderFiles();
   }
 
-  // Free: callers charge for it.
-  function enterFolder(path) {
+  // Free: callers charge for it. In the list it opens where it is, under its row.
+  function enterFolder(path, inPlace = false) {
     notice(nodeAt(path));
     if (!isWithin(path, L.start(S.ep))) climb('leftWorkspace');
     closeBrowser();
-    putFileAway();
-    S.cwd = path;
+    if (inPlace) S.expanded.add(pathKey(path));
+    else {
+      putFileAway();
+      S.cwd = path;
+    }
     if (!S.entered.some((p) => pathKey(p) === pathKey(path))) S.entered.push(path);
     A.sfx('folder');
     renderFiles();
   }
 
-  async function doOpenFolder(path) {
+  async function doOpenFolder(path, inPlace = false) {
     const n = nodeAt(path);
-    if (n && isLocked(n, path)) return askPassword(path); // free: asking isn't trying
+    if (n && isLocked(n, path)) return askPassword(path, inPlace); // free: asking isn't trying
     const call = `open_folder(${q(nameOf(path))})`;
     charge(call);
     if (!n) return refuseAboveRun(call);
-    enterFolder(path);
+    enterFolder(path, inPlace);
     return printTool(call);
   }
 
@@ -1904,7 +1908,7 @@
   const normPassword = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
   const passwordMatches = (typed, password) => password != null && normPassword(typed) === normPassword(password);
 
-  function askPassword(path) {
+  function askPassword(path, inPlace) {
     S.promptedLocks.add(pathKey(path));
     openDialog({
       title: nameOf(path),
@@ -1912,17 +1916,17 @@
       heading: 'Locked.',
       label: 'Enter password:',
       ok: 'Unlock',
-      attempt: (value) => tryPassword(path, value),
+      attempt: (value) => tryPassword(path, value, inPlace),
     });
   }
 
-  async function tryPassword(path, value) {
+  async function tryPassword(path, value, inPlace) {
     const lock = nodeAt(path).lock;
     const call = `unlock(${q(nameOf(path))}, password=${q(value.replace(/"/g, ''))})`;
     charge(call);
     if (passwordMatches(value, lock.password)) {
       A.sfx('unlock');
-      return { message: 'Unlocked.', ok: true, after: () => openUnlockedFolder(path, call) };
+      return { message: 'Unlocked.', ok: true, after: () => openUnlockedFolder(path, call, inPlace) };
     }
     A.sfx('denied');
     await printResult(call, 'wrong password', false);
@@ -1931,12 +1935,12 @@
     return { message: 'Password changed.', after: () => reactOnce(lock.oldPasswordReaction, 'changed:' + pathKey(path)) };
   }
 
-  async function openUnlockedFolder(path, call) {
+  async function openUnlockedFolder(path, call, inPlace) {
     const n = nodeAt(path);
     S.openLocks.add(pathKey(path));
     climb('gotPastPassword');
     notice(n.lock);
-    enterFolder(path);
+    enterFolder(path, inPlace);
     await printResult(call, 'unlocked', true);
     await reactOnce(n.lock.reaction, 'unlock:' + pathKey(path));
   }
@@ -2602,7 +2606,7 @@
     doc: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M17 22h16M17 27h16M17 32h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".5"/></svg>',
     bin: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><text x="25" y="32" font-size="8" font-family="monospace" text-anchor="middle" fill="currentColor" opacity=".6">0101</text></svg>',
     folder: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/></svg>',
-    locked: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/><path d="M33 31v-3a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="lock-plate" x="30" y="31" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>',
+    locked: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/><g class="lock"><path d="M33 31v-3a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="lock-plate" x="30" y="31" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/></g></svg>',
     // The web browser, the only app.
     app: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="24" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="24" cy="24" rx="4.5" ry="10" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M14 24h20M15.6 19h16.8M15.6 29h16.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>',
     // The reset dialog's: an arrow coming round to start again.
@@ -2689,12 +2693,18 @@
   const fileBeingRead = () => S.reading && nodeAt(S.reading);
 
   // A file or folder to click, in the folder.
-  function iconButton(node, path) {
+  function iconButton(node, path, depth = 0) {
     const kind = iconKind(node, path);
     const look = iconOf(node, path);
     const b = el('button', 'icon ' + look.cls);
     b.dataset.path = pathKey(path);
     b.innerHTML = look.svg;
+    if (listing()) {
+      b.style.setProperty('--depth', depth);
+      const open = isExpanded(node, path);
+      b.prepend(el('span', 'twisty' + (node.kind === 'dir' ? '' : ' none') + (open ? ' open' : '')));
+      if (node.kind === 'dir') b.setAttribute('aria-expanded', String(open));
+    }
     b.setAttribute('aria-label', `${node.name}${kind === 'locked' ? ' (locked)' : ''}`);
     if (isReading(path) || (node.kind === 'app' && S.web.open)) b.classList.add('selected');
     b.glance = node.glance || G.kinds[kind];
@@ -2705,6 +2715,14 @@
 
   // Icons or a list: how every folder is shown, until switched back. Phones always list (phone.css).
   let folderView = 'icons';
+  const listing = () => folderView === 'list' || isPhoneLayout();
+  const isExpanded = (n, path) => n.kind === 'dir' && S.expanded.has(pathKey(path)) && !isLocked(n, path);
+
+  // A folder's rows, and under each folder opened in place, its own, indented.
+  const rows = (path, depth = 0) => nodeAt(path).children.flatMap((c) => {
+    const p = [...path, c.name];
+    return [iconButton(c, p, depth), ...(listing() && isExpanded(c, p) ? rows(p, depth + 1) : [])];
+  });
 
   function setView(v) {
     if (v === folderView) return;
@@ -2744,7 +2762,7 @@
   function folderWindow(path) {
     const dot = el('span', 'dots', el('i'));
     dot.setAttribute('aria-hidden', 'true');
-    const items = nodeAt(path).children.map((c) => iconButton(c, [...path, c.name]));
+    const items = rows(path);
     const body = el('div', 'files-body', items.length ? items : el('div', 'empty', 'empty'));
     const w = el('section', 'window' + (folderView === 'list' ? ' list' : ''), el('header', 'pathbar', dot, crumbs(path), viewToggle()), body);
     w.dataset.win = pathKey(path);
@@ -2829,7 +2847,24 @@
     const { kind } = nodeAt(path);
     if (kind === 'file') spend(() => doOpen(path));
     else if (kind === 'app') onAppClick();
+    else if (listing()) toggleFolder(path);
     else onFolderClick(path);
+  }
+
+  // In the list a folder opens under its row and folds away again. Only the first opening is a step.
+  function toggleFolder(path) {
+    const key = pathKey(path);
+    if (S.expanded.has(key)) {
+      S.expanded.delete(key);
+      A.sfx('soft');
+      return renderFiles();
+    }
+    if (S.entered.some((p) => pathKey(p) === key) && !isLocked(nodeAt(path), path)) {
+      S.expanded.add(key);
+      A.sfx('folder');
+      return renderFiles();
+    }
+    return spend(() => doOpenFolder(path, true));
   }
 
   // A file picked to edit: a read-only one refuses (a step, the first time; after that its glance
