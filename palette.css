@@ -32,6 +32,8 @@
   --r-win: 10px; /* windows */
   --r-ctl: 6px;  /* buttons and inputs */
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, Cambria, "Times New Roman", serif; /* a paper's text */
+  --math: "STIX Two Math", "STIX Two Text", "Cambria Math", Cambria, "Latin Modern Roman", "Times New Roman", Times, serif; /* its equations */
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   color-scheme: dark;
 }

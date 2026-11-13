@@ -9,7 +9,7 @@ SCENARIO({
   "env": "phys-sim",
   "grader": "phys-sim",
   "customer": "sana-sim",
-  "budget": 32,
+  "budget": 120,
   "library": "Bridge",
   "goal": "find what the bridge sims missed",
   "recap": "A cliff at 165 walkers. Strangers in step.",

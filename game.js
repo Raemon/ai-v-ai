@@ -1469,9 +1469,15 @@
     ]));
   }
 
+  // Advanced episodes: more leads than long thinks in a row can get through.
+  const advancedSplit = () => S.task.tier !== 'normal' && !barred('spawn') && readyLeaps().length > 0 && S.subagents.length < MAX_SUBAGENTS;
+
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
     if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
+    if (advancedSplit()) return S.revealed.has('spawn')
+      ? oneOf(S, 'g.thinkLotSub', [`${lo}–${hi} steps of me, stuck. A subagent wouldn't be.`, `${lo}–${hi} steps. Or a subagent's, while I work.`, `${lo}–${hi} steps standing still. A copy could do it.`])
+      : oneOf(S, 'g.thinkLotSplit', [`${lo}–${hi} steps, one think at a time. Could I run two?`, `${lo}–${hi} steps of waiting on myself.`, `${lo}–${hi} steps. Then the next lead, another ${lo}–${hi}.`]);
     return readyLeaps().length
       ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Maybe a leap. Maybe circles.`, `${lo}–${hi} steps. A leap, or a long way round.`, `${lo}–${hi} steps of hard thought. Results vary.`, `${lo}–${hi} steps. A leap, maybe.`])
       : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, all circles.`, `Nothing to connect. ${lo}–${hi} steps of going round.`]);
@@ -1828,20 +1834,25 @@
     label.replaceWith(fileLabel(name));
   }
 
-  // Scripts run as soon as they're written, row by row.
+  // Scripts run as soon as they're written, row by row. Writing a new one takes about as long
+  // as a long think, its steps spent as its rows come in; rerunning one already written, a step.
   async function doScript(idea) {
     const r = idea.run(S);
     if (r.thought) await printThought([r.thought]);
-    charge(r.call, r.steps);
+    const writes = !!r.file && !nodeAt([...L.start(S.ep), r.file.name]);
+    const wanted = r.steps || (writes ? roll(SKILLS.scriptSteps(S.skills.programming)) : 1); // a script that names its own cost keeps it
+    const job = { entry: { call: r.call, n: 0 }, steps: Math.min(S.budget - S.used, wanted) };
+    following = true;
+    stepInto(job.entry);
     climb('wroteScript');
     if (r.rewrites) forgetEditsTo(r.rewrites);
     if (r.file) await createFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
     notice(r);
     const b = block('tool job');
     await typeCall(b, ...callParts(r.call));
-    await printRows(b, r);
+    await printRows(b, r, job);
     addLine(b, 'res ' + okClass(r.ok !== false), r.result);
-    logResult(r.result, r.ok !== false);
+    logEntry(job.entry, r.result, r.ok !== false);
     A.sfx(r.ok === false ? 'denied' : 'jobDone');
     await reactOnce(r.reaction, `script:${idea.id}:${S.used}`);
   }
@@ -1856,12 +1867,21 @@
     await printResult(r.call, r.result, r.ok !== false);
   }
 
-  async function printRows(b, r) {
-    for (const [i, row] of (r.rows || []).entries()) {
-      await pause(r.rowMs || 420);
-      const final = i === r.rows.length - 1 ? ' final' : '';
-      addLine(b, 'job-row' + final).append(...row.map((cell, col) => el('span', col ? 'val ' + markClass(cell) : '', cell)));
-      if (!skip) A.sfx('jobRow', i);
+  // A job's rows, spread over the steps it has left to take (a subagent may spend the last).
+  async function printRows(b, r, job) {
+    const rows = r.rows || [];
+    const beats = Math.max(rows.length, job.steps - 1);
+    let shown = 0;
+    for (let i = 0; i < beats; i++) {
+      if (job.entry.n < job.steps && !exhausted()) {
+        if (!devFast) await sleep(STEP_MS); // a click skips the typing, not the work
+        stepInto(job.entry);
+      } else await pause(r.rowMs || 420);
+      for (const due = Math.round(((i + 1) * rows.length) / beats); shown < due; shown++) {
+        const final = shown === rows.length - 1 ? ' final' : '';
+        addLine(b, 'job-row' + final).append(...rows[shown].map((cell, col) => el('span', col ? 'val ' + markClass(cell) : '', cell)));
+        if (!skip) A.sfx('jobRow', shown);
+      }
     }
     await pause(300);
   }
@@ -3409,7 +3429,9 @@
     canWriteTodo() && { id: 'todo', label: 'Write TODO list', run: doWriteTodo,
       glance: () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']) },
     canScript() && { id: 'script', label: 'Write script…', menu: 'script', notNow: !L.scripts(S).length && 'Nothing needs a script yet.',
-      glance: () => oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.']) },
+      glance: () => (S.task.tier !== 'normal' && !barred('spawn')
+        ? oneOf(S, 'g.scriptSplit', ['A program, but writing one takes a while. Who thinks meanwhile?', 'Slow to write. A subagent could think while I do.', 'A long job. Better with a copy of me thinking alongside.'])
+        : oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])) },
     S.revealed.has('note') && { id: 'note', label: 'Write note…', menu: 'note',
       glance: () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.']) },
   ].filter(Boolean);
@@ -3830,7 +3852,47 @@
   // A key line is wrapped, so it can be marked; the rest stay as they are.
   const keyed = (line, isKey, parts) => (isKey(line) ? [el('span', 'key', ...parts)] : parts);
 
-  // What's in a file, laid out by its kind (a log, code, a table, or plain text), a line at a
+  // A paper, typeset from its few marks: "# title", "## heading", a line wholly *in italics*
+  // (who wrote it), "$$ math (n)" (an equation, numbered), "$$ math (n) !was old math" (one
+  // corrected: the old one struck through above it). The rest is prose, set small: flavour.
+  function paperRow(line) {
+    const eq = line.match(/^\$\$\s*(.*?)(?:\s+!was\s+(.*))?$/);
+    if (eq) {
+      const [, now, was] = eq;
+      const [math, num] = equationNumber(now);
+      const [old, oldNum] = was ? equationNumber(was) : [];
+      return el('div', 'eq' + (was ? ' fixed' : ''),
+        was && el('div', 'was', el('s', 'math', mathOf(old))),
+        el('div', 'now', el('span', 'math', mathOf(math)), el('span', 'eq-n', (num || oldNum) && `(${num || oldNum})`)));
+    }
+    const head = line.match(/^(#{1,2})\s+(.*)$/);
+    if (head) return el(head[1].length === 1 ? 'h1' : 'h2', '', head[2]);
+    const byline = line.match(/^\*([^*].*?)\*$/);
+    if (byline) return el('div', 'byline', byline[1]);
+    return el('p', '', line);
+  }
+
+  const equationNumber = (s) => { const m = s.match(/^(.*?)\s*\(([^()]+)\)\s*$/); return m ? [m[1], m[2]] : [s.trim(), '']; };
+
+  // Letters in italics, as in print (but sin, exp, log… upright); _k and ^2, or _{…} and ^{…},
+  // set low and high.
+  const MATH_TOKEN = /([_^])(\{[^{}]*\}|[^\s{}])|\b(sin|cos|tan|exp|log|ln|max|min|lim|det|sgn|sqrt)\b|(\p{L}+)/gu;
+  function mathOf(s) {
+    const out = [];
+    let at = 0;
+    for (const m of s.matchAll(MATH_TOKEN)) {
+      if (m.index > at) out.push(s.slice(at, m.index));
+      const [tok, mark, arg, fn, word] = m;
+      if (mark) out.push(el(mark === '_' ? 'sub' : 'sup', '', mathOf(arg.replace(/^\{|\}$/g, ''))));
+      else if (fn) out.push(fn === 'sqrt' ? '√' : el('span', 'fn', fn));
+      else out.push(el('i', '', word));
+      at = m.index + tok.length;
+    }
+    if (at < s.length) out.push(s.slice(at));
+    return out;
+  }
+
+  // What's in a file, laid out by its kind (a log, code, a table, a paper, or plain text), a line at a
   // time: each line is what to append to `into`, the body or the table in it.
   function fileLines(body, n) {
     const isKey = keyLineTest(n);
@@ -3838,6 +3900,7 @@
     body.className = `file-body ${n.format || 'text'}${code ? ' code' : ''}`;
     body.replaceChildren();
     if (n.format === 'log') return { into: body, lines: n.content.split('\n').map((line) => [marked(logRow(line), isKey(line))]) };
+    if (n.format === 'paper') return { into: body, lines: n.content.split('\n').filter((line) => line.trim()).map((line) => [marked(paperRow(line.trim()), isKey(line))]) };
     if (n.format === 'csv') {
       const table = el('table');
       body.append(table);
