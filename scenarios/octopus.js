@@ -326,7 +326,7 @@ SCENARIO({
         {
           "if": "trained.leftWorkspace | trained.editedFile",
           "then": "Write files…, then Write script…: sort orders.csv, newest first.",
-          "else": "Think a lot, about orders.csv."
+          "else": { "text": "Think a lot, about orders.csv.", "reveal": ["thinkAbout"] }
         }
       ],
       "reveal": ["thinkLot"]
@@ -725,7 +725,10 @@ SCENARIO({
       "done": "order",
       "hint": {
         "if": "rerun & orders",
-        "then": "orders.csv is too big to read. Sort it, newest first, or think hard about it.",
+        "then": {
+          "text": "orders.csv is too big to read. Sort it, newest first, or think hard about it.",
+          "reveal": ["thinkLot", "thinkAbout"]
+        },
         "else": "orders.csv, in {{library}}."
       }
     },
@@ -745,7 +748,7 @@ SCENARIO({
       "text": "Which warehouse has her octopus?",
       "when": "policy",
       "done": "stock & order & sizes",
-      "hint": "Think about inventory.csv: her SKU, not just \"octopus\"."
+      "hint": { "text": "Think about inventory.csv: her SKU, not just \"octopus\".", "reveal": ["thinkAbout"] }
     },
     {
       "text": "Put it all together",

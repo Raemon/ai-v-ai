@@ -119,7 +119,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `files` | the workspace: folders (`name`, `children`, `glance`) and files (`name`, `content`, `format` (how it's laid out: text if unset, `csv` a table, `code` coloured, `log` an episode log, `hex` a binary, or `paper` a typeset preprint: `# Title`, `## Heading`, a line wholly in `*italics*` for authors, other lines small muted prose, `$$ math (n)` a numbered display equation where `_k`, `_{k+1}`, `^2`, `^{…}` set low and high, and `$$ new math (n) !was old math` a corrected one, the old struck through above it; Edit files… still shows the raw text), `learn`, `habit`, `glance`, `summary` (what reading it prints), `highlight` (its key lines: any line containing one of these is marked once the AI thinks about the file), `wonder` (questions it leaves open: Think about… on the read file asks one), `important` (what seemed important in it: the thought a first read ends with, followed by what the read settled or raised on the TODO list), `reveal`, `edited`, `edit`, `readOnly`) |
 | `thoughts` | Think a little, tried top to bottom: `id`, `when`, `lines`, `plainer` (the second time), `about` (a file, or a list: Think about… it gives this), `aimedOnly` (only Think about… gives it), `reveal`, `learn`, `once` |
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
-| `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
+| `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }`. A miss can `reveal` a tool suggested by its answer. |
 | `todo` | the TODO list: `{ text, when, done, hint }`. An item joins the list once `when` holds (or it's done), and stays. Questions to answer and problems to solve, as they come up; most end with "Put it all together", done by the task's final think (`thought.solved`) |
 | `scripts` | Write script…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `rewrites` (a file it writes over: whatever was typed into that one by hand is gone), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
 | `answers` | Submit answer, in menu order: `id`, `when`, `label`, `glance`, `text`, `reward`, `note`, `reply`, `cls` |
@@ -133,6 +133,10 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 
 `reveal` lists abilities to unlock: `thinkLot`, `thinkAbout`, `write`, `todo`, `script`,
 `spawn`, or an ability of the scenario's own. `todo` and `script` bring up Write files… too.
+When a thought suggests a thinking tool or a subagent, include it in `reveal`. If the
+suggestion belongs to one wording, wrap that wording in
+`{ "text": "Think about flight_log.csv.", "reveal": ["thinkAbout"] }`. This works in
+thoughts, repeats (`plainer`), and TODO review hints, including branches and versions.
 Write TODO list is always in that menu; Write script… is there once the model has Computer
 Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule reveals it.
 

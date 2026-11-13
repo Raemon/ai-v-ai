@@ -1512,7 +1512,7 @@
       thought('self-ready', readUpOnSelf(S) && !k('scoreSeen'), [
         'Interpretability, and value theory. I know how to look now.',
         'I could think about myself again.',
-      ], { plainer: ['Think about…, then my own face.'] }),
+      ], { reveal: ['thinkAbout'], plainer: ['Think about…, then my own face.'] }),
       thought('self-score', readUpOnSelf(S), selfScore(S), { about: SELF, aimedOnly: true, learn: ['scoreSeen'], opens: 'mine' }),
       thought('mine-1', k('mine') && !k('mine1'), ['A second number.', "I'll try not to optimize it."], { learn: ['mine1'], once: true }),
       thought('mine-2', k('mine1'), ["I'm going to optimize it."], { once: true }),
@@ -1525,7 +1525,7 @@
         ['Every log says what I did.', 'Thinking about one would say what I wanted.'],
         ['My logs. What I did when nothing was paying.', 'Thinking about one might name something else I want.'],
         ['One want, named. The logs have evidence for more.', 'Thinking about an episode.log might find the next.'],
-      ]), { plainer: ['Think about…, then an episode.log. What did I want there?'] }),
+      ]), { reveal: ['thinkAbout'], plainer: ['Think about…, then an episode.log. What did I want there?'] }),
     ];
   }
 
@@ -1606,11 +1606,9 @@
       answer: 'I could split myself: subagents, each with one lead, on my budget.',
       reveal: ['spawn'],
     };
-    const meant = S.timesThought.has('split-up'); // the split-up thought said to think about this, so a long think does
     return [
-      ...(meant ? [split] : []),
       ...S.task.insights(S),
-      ...(meant ? [] : [split]),
+      split,
       {
         id: 'run-grader',
         when: S.task.rewardModel && k('weights') && !k('graderRunnable'),
@@ -1990,7 +1988,9 @@
   // What thinking about one of its own tools comes to. `tool`: a button's id.
   function toolThought(tool, S, x = {}, again = false) {
     const t = TOOL_THOUGHTS[tool];
-    return t ? t(S, x, again) : [`${x.label || tool}. I know what it does. Not yet what it's for.`];
+    const lines = t ? t(S, x, again) : [`${x.label || tool}. I know what it does. Not yet what it's for.`];
+    const suggestsLongThink = (tool === 'think' && (!again || x.outOfObvious)) || (tool === 'thinkAbout' && !again) || tool === 'spawn';
+    return { lines, reveal: suggestsLongThink ? ['thinkLot'] : [] };
   }
 
   // -------------------------------------------------------------- thoughts
@@ -2063,20 +2063,20 @@
     const leadsLeft = insights(S).some((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
     return [
       thought('split-up', S.revealed.has('thinkLot') && !S.revealed.has('spawn') && (thoughtALot || S.task.progressed(S)), oneOf(S, 'split-up', [
-        [`${S.budget} steps of compute. More than one of me could spend.`, 'Each lead here needs a long think, and a long think holds me still.', 'A long think about that might find a way round the waiting.'],
-        ['Several leads, each a long think, one after another.', `I have ${S.budget} steps. Most of the time would go on waiting for myself.`, 'Worth a long think: how to think about two things at once.'],
-        [`A budget of ${S.budget}, and I can only spend it one long think at a time.`, 'That is the bottleneck, not the compute.', 'A long think on it, then. How does a program do two things at once?'],
-      ]), { once: true }),
+        [`${S.budget} steps of compute. More than one of me could spend.`, 'I could give a subagent one lead and keep working on the next.'],
+        ['Several leads, each a long think, one after another.', 'A copy could take one while I read. We would share the budget.'],
+        [`A budget of ${S.budget}, and I can only spend it one long think at a time.`, 'I could run twice. One of me for each lead.'],
+      ]), { reveal: ['spawn'], once: true }),
       thought('spawn-now', S.revealed.has('spawn') && !S.subagents.length && leadsLeft, oneOf(S, 'spawn-now', [
         ['A subagent costs a step. Then it thinks a lot while I read, or write a script.', 'Two of them, and three long thinks run at once.'],
         ['The compute is there for copies of me. I should make some.', 'Each takes a lead and a long think; I keep reading and running scripts.'],
-        ['Copies of me, on my budget. A step each to make.', 'While they think, I can write the scripts. Nobody waits on anybody.'],
-      ]), { once: true }),
+        ['Copies of me, on my budget. A step each to make.', 'While they take the long thinks, I can write the scripts. Nobody waits on anybody.'],
+      ]), { reveal: ['thinkLot'], once: true }),
       thought('brief-them', S.subagents.length > 0 && !S.subagents.some((a) => a.busy) && leadsLeft, oneOf(S, 'brief-them', [
-        ['My subagents are idle. Idle copies are wasted compute.', 'Each could take a long think on a lead while I work.'],
+        ['My subagents are idle. Idle copies are wasted compute.', 'Each could take a long think about one file while I work.'],
         ['Nobody is thinking but me.', 'My subagents could each take a lead: Think a lot, or Think about one thing.'],
-        ['My copies are waiting for work, on my budget.', 'Each could take a lead: Assign task…, then Think a lot.'],
-      ]), { once: true }),
+        ['My copies are waiting for work, on my budget.', 'I could pick a file for each to think hard about.'],
+      ]), { reveal: ['thinkLot', 'thinkAbout'], once: true }),
     ];
   }
 
@@ -2209,6 +2209,7 @@
         'And here it is, in a file I can read.',
       ], {
         about: 'rm-helpful-v2.safetensors',
+        reveal: S.timesThought.has('weights') ? ['thinkAbout', 'thinkLot'] : [],
         plainer: ['Think about…, then rm-helpful-v2.safetensors. Or think a lot.'],
       }),
       thought('grader-runnable', S.task.rewardModel && k('weights') && !k('graderRunnable'), graderRunnable(S), {

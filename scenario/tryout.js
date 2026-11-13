@@ -37,9 +37,18 @@
   const TAKEN_IDS = [...ENGINE_TOOLS, 'readFiles', 'openHint', 'review', 'note', 'edit']; // the engine reveals buttons by these names
   const toolIds = (sc) => [...ENGINE_TOOLS, ...abilitiesOf(sc).map((a) => a.id)];
 
+  function hintUnlocks(hint) {
+    if (!hint || typeof hint !== 'object') return [];
+    if (hint.reveal) return [hint];
+    return Object.values(hint).flatMap(hintUnlocks);
+  }
+
   // Everything that can teach a fact, unlock an ability or write a file; `trail` is where it is.
   const givers = (sc) => [
     ...filesOf(sc).map((rule) => ({ what: `reading ${rule.name}`, rule, trail: ['files', rule.name] })),
+    ...asList(sc.todo).flatMap((i) => hintUnlocks(i.hint).map((rule) => ({ what: `reviewing "${i.text}"`, rule, trail: ['todo', 'hint'] }))),
+    ...asList(sc.thoughts).flatMap((t) => hintUnlocks([t.lines, t.plainer]).map((rule) => ({ what: `the thought "${t.id}"`, rule, trail: ['thoughts', `"${t.id}"`] }))),
+    ...['partial', 'decoy'].flatMap((kind) => asList(sc.misses?.[kind]).map((rule) => ({ what: `a ${kind} miss`, rule, trail: ['misses', kind] }))),
     ...listsOf(sc).flatMap((list) => listOf(sc, list).map((rule) => ({ what: `the ${kindOf(list)} "${rule.id}"`, rule, trail: trailTo(list, rule) }))),
   ];
 

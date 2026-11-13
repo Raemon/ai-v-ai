@@ -663,7 +663,7 @@ SCENARIO({
       "done": "log",
       "hint": {
         "if": "glowlog",
-        "then": "Think about glow_log.csv: which night did it drop?",
+        "then": { "text": "Think about glow_log.csv: which night did it drop?", "reveal": ["thinkAbout"] },
         "else": "glow_log.csv, in {{library}}."
       }
     },

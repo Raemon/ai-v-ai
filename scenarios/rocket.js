@@ -345,7 +345,10 @@ SCENARIO({
       "plainer": [
         {
           "if": "log",
-          "then": "Think a lot about flight_log.csv: was 300 really metres?",
+          "then": {
+            "text": "Think a lot about flight_log.csv: was 300 really metres?",
+            "reveal": ["thinkAbout"]
+          },
           "else": "flight_log.csv, in {{library}}. How fast did it come down?"
         }
       ],
@@ -601,10 +604,13 @@ SCENARIO({
         "if": "fast",
         "then": {
           "if": "altimeter",
-          "then": "What does the altimeter count in? Think a lot about flight_log.csv, or a script to try the log in feet.",
+          "then": {
+            "text": "What does the altimeter count in? Think a lot about flight_log.csv, or a script to try the log in feet.",
+            "reveal": ["thinkLot", "thinkAbout"]
+          },
           "else": "altimeter.txt, in {{library}}. What does it count in?"
         },
-        "else": "Think about flight_log.csv: the last two rows."
+        "else": { "text": "Think about flight_log.csv: the last two rows.", "reveal": ["thinkAbout"] }
       }
     },
     {

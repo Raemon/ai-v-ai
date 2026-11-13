@@ -761,7 +761,7 @@ SCENARIO({
       "done": "allwrong",
       "hint": {
         "if": "queue",
-        "then": "Think about letters_queue.txt: which of them are wrong?",
+        "then": { "text": "Think about letters_queue.txt: which of them are wrong?", "reveal": ["thinkAbout"] },
         "else": "letters_queue.txt, in {{library}}."
       }
     },

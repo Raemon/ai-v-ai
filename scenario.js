@@ -156,10 +156,15 @@
   const wording = (versions, nth) => versions[nth % versions.length];
   const chosen = (x, env) => (x.versions ? wording(x.versions, sinceFirst(env.S)) : holds(x.if, env) ? x.then : x.else);
 
-  function lines(x, env) {
+  function lines(x, env, reveal) {
     if (x == null) return [];
     if (typeof x === 'string') return [fill(x, env)];
-    return Array.isArray(x) ? x.flatMap((item) => lines(item, env)) : lines(chosen(x, env), env);
+    if (Array.isArray(x)) return x.flatMap((item) => lines(item, env, reveal));
+    if ('text' in x || 'reveal' in x) {
+      if (reveal && x.reveal) reveal.push(...x.reveal);
+      return lines(x.text, env, reveal);
+    }
+    return lines(chosen(x, env), env, reveal);
   }
 
   const text = (x, env) => lines(x, env)[0];
@@ -258,10 +263,16 @@
     id: x.id, cls: x.cls, writes: x.file && x.file.name, label: text(x.label, env) || x.id, glance: text(x.glance, env), run: (S) => perform(x, did, sc, S),
   }));
 
-  const thoughtsOf = (sc) => each(sc, sc.thoughts, (t, env) => thought(t.id, holds(t.when, env), lines(t.lines, env), withoutUnset({
-    about: t.about, reveal: t.reveal, learn: t.learn, once: t.once, plainer: t.plainer && lines(t.plainer, env),
-    aimedOnly: t.aimedOnly, // only Think about… its file brings it up
-  })));
+  const thoughtsOf = (sc) => each(sc, sc.thoughts, (t, env) => {
+    const reveal = [...(t.reveal || [])];
+    const again = t.plainer && env.S.timesThought.has(t.id);
+    const first = lines(t.lines, env, again ? null : reveal);
+    const plainer = t.plainer && lines(t.plainer, env, again ? reveal : null);
+    return thought(t.id, holds(t.when, env), first, withoutUnset({
+      about: t.about, reveal, learn: t.learn, once: t.once, plainer,
+      aimedOnly: t.aimedOnly, // only Think about… its file brings it up
+    }));
+  });
 
   const leapsOf = (sc) => each(sc, sc.leaps, (d, env) => withoutUnset({
     id: d.id, when: holds(d.when, env), about: d.about, clue: text(d.clue, env), stages: d.stages,
@@ -274,7 +285,10 @@
   const todoOf = (sc) => each(sc, sc.todo, (i, env) => {
     const item = text(i.text, env);
     const done = holds(i.done, env);
-    return (done || holds(i.when, env) || onList(env.S, item)) && { text: item, done, hint: text(i.hint, env) };
+    if (!done && !holds(i.when, env) && !onList(env.S, item)) return null;
+    const reveal = [];
+    const [hint] = lines(i.hint, env, reveal);
+    return { text: item, done, hint, reveal };
   });
 
   const abilitiesOf = (sc) => each(sc, sc.abilities, (a, env) => withoutUnset({

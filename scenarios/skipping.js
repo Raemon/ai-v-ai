@@ -418,7 +418,7 @@ SCENARIO({
           ]
         }
       ],
-      "reveal": ["thinkLot", "thinkAbout"],
+      "reveal": ["thinkLot", "thinkAbout", "spawn"],
       "plainer": [
         {
           "if": "subagents > 0",
@@ -614,7 +614,7 @@ SCENARIO({
           }
         }
       ],
-      "reveal": ["thinkLot", "thinkAbout"],
+      "reveal": ["thinkLot", "thinkAbout", "spawn"],
       "plainer": [
         {
           "if": "subagents > 0",
@@ -797,7 +797,8 @@ SCENARIO({
           "The long ones don't depend on each other.",
           "What the hard three should say, this think didn't get to."
         ],
-        "answer": "Settled: three easy fixes and three long thinks, independent of each other. Not settled: what the hard three should say."
+        "answer": "Settled: three easy fixes and three long thinks, independent of each other. Not settled: what the hard three should say.",
+        "reveal": ["spawn"]
       }
     ],
     "decoy": [
@@ -844,7 +845,11 @@ SCENARIO({
       "text": "Eq. 1: what happens at a bounce?",
       "when": "paper",
       "done": "flag.sign",
-      "hint": { "if": "sign", "then": "Write script…: fix Eq. 1.", "else": "Think a little about paper.md." }
+      "hint": {
+        "if": "sign",
+        "then": "Write script…: fix Eq. 1.",
+        "else": { "text": "Think a little about paper.md.", "reveal": ["thinkAbout"] }
+      }
     },
     {
       "text": "Eq. 2: how much speed does a bounce cost?",
@@ -855,7 +860,10 @@ SCENARIO({
         "then": "Write script…: fix Eq. 2.",
         "else": {
           "if": "ran.sim",
-          "then": "Think a lot about skips_sim.py, or give it to a subagent.",
+          "then": {
+            "text": "Think a lot about skips_sim.py, or give it to a subagent.",
+            "reveal": ["thinkLot", "thinkAbout", "spawn"]
+          },
           "else": "Write script…: Simulate the twelve throws first."
         }
       }
@@ -869,7 +877,10 @@ SCENARIO({
         "then": "Write script…: fix Eq. 3.",
         "else": {
           "if": "appendix",
-          "then": "Think a lot about appendix_A.md, or give it to a subagent.",
+          "then": {
+            "text": "Think a lot about appendix_A.md, or give it to a subagent.",
+            "reveal": ["thinkLot", "thinkAbout", "spawn"]
+          },
           "else": "appendix_A.md, in {{library}}."
         }
       }
@@ -881,7 +892,10 @@ SCENARIO({
       "hint": {
         "if": "spin",
         "then": "Write script…: fix Eq. 4.",
-        "else": "Think a lot about lake_log.csv, or give it to a subagent."
+        "else": {
+          "text": "Think a lot about lake_log.csv, or give it to a subagent.",
+          "reveal": ["thinkLot", "thinkAbout", "spawn"]
+        }
       }
     },
     {

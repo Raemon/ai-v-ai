@@ -172,7 +172,10 @@ SCENARIO({
         "A copy can hold a reader trace still while another walks the shelf backwards. I can write up each result as it comes in."
       ],
       "plainer": [
-        "Spawn subagents. In Assign task…, use Think a lot about… on reader.trace and shelf.trace, one trace per job."
+        {
+          "text": "Spawn subagents. In Assign task…, use Think a lot about… on reader.trace and shelf.trace, one trace per job.",
+          "reveal": ["thinkLot", "thinkAbout"]
+        }
       ],
       "reveal": ["spawn"]
     },
@@ -367,7 +370,8 @@ SCENARIO({
           "A good index could be handed to a reader with no inspection left.",
           "I need the version notes and a separate bench result for each."
         ],
-        "answer": "The reader and shelf can be investigated independently. A copy with the matching trace and service note can take each one."
+        "answer": "The reader and shelf can be investigated independently. A copy with the matching trace and service note can take each one.",
+        "reveal": ["spawn"]
       }
     ],
     "decoy": [
@@ -398,13 +402,19 @@ SCENARIO({
       "text": "Have a copy trace the reader handoff",
       "when": "handoffNote",
       "done": "leapt.readerFault",
-      "hint": "Assign a subagent a long think about reader.trace."
+      "hint": {
+        "text": "Assign a subagent a long think about reader.trace.",
+        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+      }
     },
     {
       "text": "Have a copy trace the shelf index",
       "when": "shelfNote",
       "done": "leapt.shelfFault",
-      "hint": "Assign a subagent a long think about shelf.trace."
+      "hint": {
+        "text": "Assign a subagent a long think about shelf.trace.",
+        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+      }
     },
     {
       "text": "Write both repairs and bind the book",

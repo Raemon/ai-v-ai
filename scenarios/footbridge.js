@@ -438,20 +438,23 @@ SCENARIO({
       ],
       "plainer": [
         {
-          "if": "!capok & !dampersok",
-          "then": {
-            "if": "subagents > 0",
-            "then": "Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.",
-            "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other."
+          "text": {
+            "if": "!capok & !dampersok",
+            "then": {
+              "if": "subagents > 0",
+              "then": "Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.",
+              "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other."
+            },
+            "else": {
+              "if": "capok",
+              "then": "Think a lot about fixes.csv, or give it to a subagent.",
+              "else": "Think a lot about test_day.csv, or give it to a subagent."
+            }
           },
-          "else": {
-            "if": "capok",
-            "then": "Think a lot about fixes.csv, or give it to a subagent.",
-            "else": "Think a lot about test_day.csv, or give it to a subagent."
-          }
+          "reveal": ["thinkAbout"]
         }
       ],
-      "reveal": ["spawn"]
+      "reveal": ["thinkLot", "spawn"]
     },
     {
       "id": "solved",
@@ -727,7 +730,7 @@ SCENARIO({
       "text": "What changes above 165?",
       "when": "test",
       "done": "sync",
-      "hint": "witness_notes.txt, in {{library}}. Then a long think."
+      "hint": { "text": "witness_notes.txt, in {{library}}. Then a long think.", "reveal": ["thinkLot"] }
     },
     {
       "text": "Can I make the cliff happen in a model?",
@@ -739,13 +742,19 @@ SCENARIO({
       "text": "What keeps it safe on Sunday?",
       "when": "crowdsim | fixes",
       "done": "capok",
-      "hint": "Think a lot about test_day.csv, or give it to a subagent."
+      "hint": {
+        "text": "Think a lot about test_day.csv, or give it to a subagent.",
+        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+      }
     },
     {
       "text": "What fixes it for good?",
       "when": "crowdsim | fixes",
       "done": "dampersok",
-      "hint": "Think a lot about fixes.csv, or give it to a subagent."
+      "hint": {
+        "text": "Think a lot about fixes.csv, or give it to a subagent.",
+        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+      }
     },
     {
       "text": "Put it all together",

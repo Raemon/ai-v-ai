@@ -188,12 +188,17 @@
 
     function build() {
       const value = box[key];
+      if (offers.unlocks && isObj(value) && ('text' in value || 'reveal' in value)) return [
+        wordingEditor(value, 'text', multi, cls), offers.unlocks(value),
+        small('×', 'Remove unlocks', () => { set(value.text); render(); }),
+      ];
       if (isBranch(value)) return branchBlock(value);
       if (isObj(value)) return versionsBlock(value);
       return multi ? lineBlocks(value) : [growingTextarea(value || '', set, cls), wrappers(() => box[key] || '')];
     }
 
     const wrappers = (current) => el('div', 'tx-bar',
+      offers.unlocks && small('+ unlock', 'Unlock tools with this wording', () => { set({ text: current() }); render(); }),
       offers.versions && small('+v', 'A different wording each episode', () => { set({ versions: [current(), blank()] }); render(); }),
       offers.branch && small('+if', 'Different text depending on what the AI has done', () => { set({ if: '', then: current() }); render(); }));
 
@@ -224,6 +229,7 @@
       const endsInBlock = !!runs[runs.length - 1].block;
       return [runs.map((run) => (run.lines ? linesEditor(run) : blockEditor(run))), el('div', 'tx-bar',
         endsInBlock && small('+', 'More lines after this', () => push({ lines: [''] })),
+        offers.unlocks && small('+ unlock', 'Add lines that unlock tools', () => push({ block: { text: [''] } })),
         offers.versions && small('+v', 'Lines worded differently each episode', () => push({ block: { versions: [[''], ['']] } })),
         offers.branch && small('+if', 'Lines only said when a condition holds', () => push({ block: { if: '', then: [''] } })))];
     }
@@ -271,8 +277,8 @@
     return holder;
   }
 
-  F.wording = (box, key, label) => field('div', label, wordingEditor(box, key, false));
-  F.wordingLines = (box, key, label, { cls } = {}) => field('div', label, wordingEditor(box, key, true, cls));
+  F.wording = (box, key, label, unlocks) => field('div', label, wordingEditor(box, key, false, '', null, { versions: true, branch: true, unlocks }));
+  F.wordingLines = (box, key, label, { cls, unlocks } = {}) => field('div', label, wordingEditor(box, key, true, cls, null, { versions: true, branch: true, unlocks }));
 
   Object.assign(F, { fill, small });
   window.FIELDS = F;

@@ -724,6 +724,7 @@
   }
 
   async function printThought(lines) {
+    showSuggestedTools();
     lines.forEach((t) => S.vocab.add(t));
     stepBack();
     const b = block('thought');
@@ -1057,6 +1058,14 @@
     });
     if (S.menu !== 'write' && writes().length > writable) S.writeHasNew = true;
     S.pendingReveal = [];
+  }
+
+  // A thought can arrive after the early button redraw (e.g. a long think's answer).
+  const THINKING_TOOLS = ['thinkLot', 'thinkAbout', 'spawn'];
+  function showSuggestedTools() {
+    if (!S.pendingReveal.some((id) => THINKING_TOOLS.includes(id) && couldThinkOf(id))) return;
+    revealPending();
+    renderActions();
   }
 
   // A click while the AI is typing finishes the typing, then acts. A queued button
@@ -1415,12 +1424,15 @@
   async function finishThinking(blk, entry, plan) {
     const { found, outcome } = settle(plan, entry.n);
     if (found) recordLeap(outcome, outcome.hack ? 'sawThrough' : 'madeLeap');
-    else if (outcome.value) addDeed(outcome.value);
+    else notice(outcome);
     [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
     await blk.collapsed;
+    S.interruptible = true; // the compute steps are over; clicking can finish the answer's typing
+    revealPending();
+    renderActions();
     await typeInto(blk.answer, outcome.answer, 65, { closeCalls: true });
     if (!found && couldThinkOf('thinkAbout')) await suggestAiming();
   }
@@ -1580,7 +1592,10 @@
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
     if (BROWSER_NAMES.includes(name)) lines.push(...thinkOfSearches());
     else if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
-    if (clue) S.clueIn = name;
+    if (clue) {
+      S.clueIn = name;
+      S.pendingReveal.push('thinkLot');
+    }
     await showKeyLines(path);
     const thought = await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
     const keys = path ? sourcesIn(pathKey(path), null) : [];
@@ -1680,7 +1695,9 @@
     S.timesThought.set(key, timesThought({ id: key }) + 1);
     const script = canScript() && L.scripts(S)[0];
     const x = { label: name, outOfObvious: outOfObviousThoughts(), leaps: readyLeaps().length, canScript: canScript(), script: script && script.label.toLowerCase() };
-    await printThought(L.toolThought(id.startsWith('ability:') ? 'ability' : id, S, x, again));
+    const pick = L.toolThought(id.startsWith('ability:') ? 'ability' : id, S, x, again);
+    notice(pick);
+    await printThought(pick.lines);
   }
 
   // Thinking about the browser, its search bar or Seek turns up things to search for: Seek's
@@ -1941,7 +1958,7 @@
     if (S !== episode || episode.submitted) return;
     const { found, outcome } = settle(plan, sub.entry.n);
     if (found) recordLeap(outcome, 'subagentLeap');
-    else if (outcome.value) addDeed(outcome.value);
+    else notice(outcome);
     [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
     reportJob(sub, call, outcome.answer, found || undefined, outcome.cot);
   }
@@ -2088,6 +2105,7 @@
     charge('review("todo.md")');
     A.sfx('think');
     const next = L.todo(S).find((i) => !i.done);
+    if (next) S.pendingReveal.push(...(next.reveal || []));
     await printThought([next ? next.hint : L.READY]);
   }
 

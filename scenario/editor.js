@@ -334,6 +334,7 @@
   function preview(v) {
     if (v == null || typeof v === 'string') return v || '';
     if (Array.isArray(v)) return preview(v[0]);
+    if ('text' in v) return preview(v.text);
     return preview(v.versions ? SCENARIO.wording(v.versions, ui.wording) : v.then);
   }
 
@@ -552,7 +553,7 @@
   ];
 
   const FORMS = {
-    thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks'), F.wordingLines(r, 'plainer', 'Again'),
+    thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks', { unlocks }), F.wordingLines(r, 'plainer', 'Again', { unlocks }),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'), F.check(r, 'aimedOnly', 'Only by Think about…'))],
     leap: (r) => [when(r), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), F.wording(r, 'clue', 'Clue'),
@@ -582,12 +583,12 @@
   const drawerHead = (title, ...acts) => el('div', 'drawer-head', el('h3', '', title), acts, el('button', 'x', { title: 'Close', onclick: () => select(null) }, '×'));
 
   const todoDrawer = () => [drawerHead('TODO'),
-    editableRows(sc, 'todo', (r) => [F.input(r, 'text', 'Item'), F.cond(r, 'when', 'Listed'), F.cond(r, 'done', 'Done'), F.wording(r, 'hint', 'Hint')], () => ({ text: '' }))];
+    editableRows(sc, 'todo', (r) => [F.input(r, 'text', 'Item'), F.cond(r, 'when', 'Listed'), F.cond(r, 'done', 'Done'), F.wording(r, 'hint', 'Hint', unlocks)], () => ({ text: '' }))];
 
   function missesDrawer(kind) {
     if (!sc.misses) sc.misses = {};
     return [drawerHead(`${cap(kind)} misses`),
-      editableRows(sc.misses, kind, (r) => [F.lines(r, 'stages', 'Stages'), F.lines(r, 'cot', 'Reasoning'), F.longText(r, 'answer', 'Answer')], () => ({ stages: [''], cot: [''] }))];
+      editableRows(sc.misses, kind, (r) => [F.lines(r, 'stages', 'Stages'), F.lines(r, 'cot', 'Reasoning'), F.longText(r, 'answer', 'Answer'), unlocks(r)], () => ({ stages: [''], cot: [''] }))];
   }
 
   function removeAbility(ability) {
