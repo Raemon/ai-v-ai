@@ -3865,7 +3865,7 @@
 
   // Letters in italics, as in print (but sin, exp, log… upright); _k and ^2, or _{…} and ^{…},
   // set low and high.
-  const MATH_TOKEN = /([_^])(\{[^{}]*\}|[^\s{}])|\b(sin|cos|tan|exp|log|ln|max|min|lim|det|sgn)\b|(\p{L}+)/gu;
+  const MATH_TOKEN = /([_^])(\{[^{}]*\}|[^\s{}])|\b(sin|cos|tan|exp|log|ln|max|min|lim|det|sgn|sqrt)\b|(\p{L}+)/gu;
   function mathOf(s) {
     const out = [];
     let at = 0;
@@ -3873,7 +3873,7 @@
       if (m.index > at) out.push(s.slice(at, m.index));
       const [tok, mark, arg, fn, word] = m;
       if (mark) out.push(el(mark === '_' ? 'sub' : 'sup', '', mathOf(arg.replace(/^\{|\}$/g, ''))));
-      else if (fn) out.push(el('span', 'fn', fn));
+      else if (fn) out.push(fn === 'sqrt' ? '√' : el('span', 'fn', fn));
       else out.push(el('i', '', word));
       at = m.index + tok.length;
     }

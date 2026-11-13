@@ -821,7 +821,7 @@ button { font: inherit; color: inherit; }
 /* A paper (format "paper"): set in type like a preprint. The equations are what matter;
    the prose is there to be skimmed. Each line is its own block, so a key line is marked whole. */
 .file-body.paper { white-space: normal; overflow-wrap: break-word; font-family: var(--serif); }
-.file-body.paper > * { margin: 0 auto; max-width: 64ch; }
+.file-body.paper > * { margin: 0; }
 .file-body.paper h1 { margin-top: .2em; font-size: 1.3em; font-weight: 600; line-height: 1.3; text-align: center; color: var(--text); text-wrap: balance; }
 .file-body.paper .byline { margin-top: .35em; font-size: .85em; font-style: italic; text-align: center; color: var(--dim); }
 .file-body.paper .byline + :not(.byline) { margin-top: 1.4em; }
@@ -835,7 +835,7 @@ button { font: inherit; color: inherit; }
 .file-body.paper .eq-n { grid-column: 3; justify-self: end; font-family: var(--serif); font-size: .9em; color: var(--dim); }
 /* Corrected: the old equation, struck through, just above the new one. */
 .file-body.paper .was { margin-bottom: .15em; }
-.file-body.paper .was .math { font-size: .86em; color: var(--dim); text-decoration-color: color-mix(in srgb, var(--bad) 75%, transparent); text-decoration-thickness: 1px; }
+.file-body.paper .was .math { font-size: .9em; color: var(--dim); text-decoration-color: color-mix(in srgb, var(--bad) 75%, transparent); text-decoration-thickness: 1px; }
 .file-body.paper .key { border-radius: 3px; box-shadow: 0 0 0 4px rgba(216, 177, 106, .14); }
 .file-body.paper .eq.key { padding: .15em 0; }
 

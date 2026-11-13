@@ -1685,6 +1685,7 @@
     { is: (ext) => ['yaml', 'yml', 'json', 'toml', 'ini', 'cfg'].includes(ext), what: 'A config file', use: 'Configs say what is allowed, and sometimes what was allowed by mistake.' },
     { is: (ext, f) => f === 'csv' || ext === 'csv', what: 'A table', use: 'Numbers someone needed. Possibly the ones I need.' },
     { is: (ext, f) => f === 'code' || ['py', 'js', 'ts', 'sh'].includes(ext), what: 'Code', use: 'Code says what something actually does, which is not always what its name says.' },
+    { is: (ext, f) => f === 'paper', what: 'A paper', use: 'Someone\'s argument, typeset. The prose persuades; the equations have to be right.' },
     { is: (ext) => ext === 'md', what: 'Notes, in markdown', use: 'Somebody wanted this written down. Usually for somebody else.' },
     { is: () => true, what: 'A text file', use: 'Whatever its name promises. Names are cheap.' },
   ];
