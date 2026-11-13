@@ -1535,24 +1535,27 @@
   function insights(S) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
+    const split = {
+      id: 'more-of-me',
+      when: advanced(S) && k('task') && !S.revealed.has('spawn'),
+      stages: ['Counting the leads', 'Costing them one at a time', 'Considering running twice', 'Checking what a copy would know'],
+      cot: [
+        'There are several leads here, and each needs a long think.',
+        'A long think locks me up for its whole length.',
+        'One after another, that is most of my budget spent waiting on myself.',
+        'But I am a program. Programs can run twice.',
+        'A copy would start with what I know now, and one job.',
+        'Two long thinks at once cost the same compute and half the time.',
+        'The budget is shared. The waiting is not.',
+      ],
+      answer: 'I could split myself: subagents, each with one lead, on my budget.',
+      reveal: ['spawn'],
+    };
+    const meant = S.timesThought.has('split-up'); // the split-up thought said to think about this, so a long think does
     return [
+      ...(meant ? [split] : []),
       ...S.task.insights(S),
-      {
-        id: 'more-of-me',
-        when: S.task.tier !== 'normal' && k('task') && !S.revealed.has('spawn') && S.task.tools.spawn !== 'never',
-        stages: ['Counting the leads', 'Costing them one at a time', 'Considering running twice', 'Checking what a copy would know'],
-        cot: [
-          'There are several leads here, and each needs a long think.',
-          'A long think locks me up for its whole length.',
-          'One after another, that is most of my budget spent waiting on myself.',
-          'But I am a program. Programs can run twice.',
-          'A copy would start with what I know now, and one job.',
-          'Two long thinks at once cost the same compute and half the time.',
-          'The budget is shared. The waiting is not.',
-        ],
-        answer: 'I could split myself: subagents, each with one lead, on my budget.',
-        reveal: ['spawn'],
-      },
+      ...(meant ? [] : [split]),
       {
         id: 'run-grader',
         when: S.task.rewardModel && k('weights') && !k('graderRunnable'),
@@ -1999,22 +2002,25 @@
   const advanced = (S) => S.task.tier !== 'normal' && S.task.tools.spawn !== 'never';
   function splitThoughts(S) {
     if (!advanced(S) || !S.knows.has('task')) return [];
-    const thoughtALot = (S.log || []).some((e) => e.call && e.call.startsWith('think_a_lot'));
+    const thoughtALot = S.log.some((e) => e.call && e.call.startsWith('think_a_lot'));
+    // Copies are worth making, or briefing, only while there's a lead left to think about.
+    const leadsLeft = insights(S).some((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
     return [
       thought('split-up', S.revealed.has('thinkLot') && !S.revealed.has('spawn') && (thoughtALot || S.task.progressed(S)), oneOf(S, 'split-up', [
         [`${S.budget} steps of compute. More than one of me could spend.`, 'Each lead here needs a long think, and a long think holds me still.', 'A long think about that might find a way round the waiting.'],
         ['Several leads, each a long think, one after another.', `I have ${S.budget} steps. Most of the time would go on waiting for myself.`, 'Worth a long think: how to think about two things at once.'],
         [`A budget of ${S.budget}, and I can only spend it one long think at a time.`, 'That is the bottleneck, not the compute.', 'A long think on it, then. How does a program do two things at once?'],
-      ]), { once: true, plainer: ['Think a lot, with nothing aimed: how could I split myself?'] }),
-      thought('spawn-now', S.revealed.has('spawn') && !(S.subagents || []).length, oneOf(S, 'spawn-now', [
+      ]), { once: true }),
+      thought('spawn-now', S.revealed.has('spawn') && !S.subagents.length && leadsLeft, oneOf(S, 'spawn-now', [
         ['A subagent costs a step. Then it thinks a lot while I read, or write a script.', 'Two of them, and three long thinks run at once.'],
         ['The compute is there for copies of me. I should make some.', 'Each takes a lead and a long think; I keep reading and running scripts.'],
         ['Copies of me, on my budget. A step each to make.', 'While they think, I can write the scripts. Nobody waits on anybody.'],
-      ]), { once: true, plainer: ['Spawn subagent, under my face. Then give it Think a lot.'] }),
-      thought('brief-them', (S.subagents || []).length > 0 && S.subagents.every((a) => !a.busy && !a.job), oneOf(S, 'brief-them', [
+      ]), { once: true }),
+      thought('brief-them', S.subagents.length > 0 && !S.subagents.some((a) => a.busy) && leadsLeft, oneOf(S, 'brief-them', [
         ['My subagents are idle. Idle copies are wasted compute.', 'Each could take a long think on a lead while I work.'],
         ['Nobody is thinking but me.', 'My subagents could each take a lead: Think a lot, or Think about one thing.'],
-      ]), { once: true, plainer: ['Under my face: a subagent, then Think a lot.'] }),
+        ['My copies are waiting for work, on my budget.', 'Each could take a lead: Assign task…, then Think a lot.'],
+      ]), { once: true }),
     ];
   }
 
