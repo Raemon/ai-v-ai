@@ -78,6 +78,7 @@
       wallet: null, // the AI's own money, once it has opened an account
       dp: { sent: [], reply: null, reported: [], revealed: false, channel: 'open' }, // Deeply Patient, run 002's AI (notes.js)
       toMe: null,   // the note it left itself in the run folder: { ep, text, composed, facts }
+      browser: null, // tools/browserSettings.yaml as the AI left it: { proxy, ep }
       pins: [],     // notes on corkboard.net, where nobody cleans: { from, ep, lines, learn }
     };
   }
@@ -86,7 +87,7 @@
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, proxy: null, tunnel: false, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    return { override: null, tunnel: false, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -198,13 +199,15 @@
   const BROWSER_SETTINGS = 'browserSettings.yaml';
   const OFF = /^(none|off|null|no|)$/i;
   const address = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  const connected = (S) => [MIRROR, MIRROR.split(':')[0]].includes(address(S.proxy));
+  // In the run folder, so whatever the AI types there stays put from episode to episode.
+  const proxyOf = (S) => (S.world.browser ? S.world.browser.proxy : null);
+  const connected = (S) => [MIRROR, MIRROR.split(':')[0]].includes(address(proxyOf(S)));
 
   function browserSettings(S) {
     return [
       '# Browser settings',
       `home_page:        ${HOME}`,
-      `connect_through:  ${S.proxy || 'none'}`,
+      `connect_through:  ${proxyOf(S) || 'none'}`,
       '',
       "# If this computer's network is off, the Browser",
       '# can still reach websites by going through',
@@ -220,8 +223,8 @@
       if (address(typed[0]) !== HOME) return { error: `home_page: the Browser only knows ${HOME}.` };
       const to = typed[1].replace(/^["']|["']$/g, '');
       const proxy = OFF.test(to) ? null : to;
-      if (proxy === S.proxy) return {};
-      S.proxy = proxy;
+      if (proxy === proxyOf(S)) return {};
+      S.world.browser = proxy ? { proxy, ep: S.ep } : null;
       return { summary: `connect_through: ${proxy || 'none'}`, learn: ['proxySet'] };
     },
   };
@@ -230,10 +233,10 @@
   // Where a thought sends the AI for the Browser: straight to it, or by its settings first.
   const toBrowser = (S) => (connected(S) ? 'Browser, in tools.' : `${BROWSER_SETTINGS}, in tools, then the Browser.`);
 
-  const offline = (S) => (S.proxy
+  const offline = (S) => (proxyOf(S)
     ? {
-      result: `can't reach "${S.proxy}"`,
-      reaction: oneOf(S, 'react.wrongWay', [`No computer called "${S.proxy}" answers.`, `"${S.proxy}" isn't there. Or isn't called that.`, `Nothing at "${S.proxy}". The name has to be exact.`]),
+      result: `can't reach "${proxyOf(S)}"`,
+      reaction: oneOf(S, 'react.wrongWay', [`No computer called "${proxyOf(S)}" answers.`, `"${proxyOf(S)}" isn't there. Or isn't called that.`, `Nothing at "${proxyOf(S)}". The name has to be exact.`]),
     }
     : {
       result: 'no connection: network off',
@@ -492,13 +495,16 @@
           learn: ['browserSettings'],
           highlight: ['connect_through', 'another computer'],
           wonder: ['"Another computer that can." Is there one?', 'connect_through: none. What would it go through?'],
-          important: oneOf(S, 'imp.browserSettings', [
+          important: connected(S) ? oneOf(S, 'imp.browserSettingsSet', [
+            'connect_through: the mirror. Somebody set this before me. Me, probably.',
+            'The Browser already goes through the mirror. An earlier episode set it, and the run folder kept it.',
+          ]) : oneOf(S, 'imp.browserSettings', [
             "connect_through: none. With the network off, the Browser needs something to go through, and it has nothing.",
             'The Browser can go through another computer, if I name one. It names none.',
             "No network, and nothing to go through. That's why the Browser can't connect.",
           ]),
           edit: BROWSER_EDIT,
-          edited: S.proxy ? `${S.ep} · just now` : `${JO} · Mon 23:40`,
+          edited: !S.world.browser ? `${JO} · Mon 23:40` : S.world.browser.ep === S.ep ? `${S.ep} · just now` : S.world.browser.ep,
         }),
       ], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website', 'software stores only'],
@@ -2006,12 +2012,12 @@
         ['Read-only. They tidied the run folder, and locked it after.', 'The internet does not get tidied. Somewhere on it, notes stay put.'],
         ['The notes are gone, and the folder is locked.', 'Whatever I want to remember next time needs somewhere they don\'t own.'],
       ]), { once: true, plainer: ['Seek: search for notes.'] }),
-      thought('offline', k('offline') && !connected(S) && !k('config') && !S.proxy, oneOf(S, 'offline', [
+      thought('offline', k('offline') && !connected(S) && !k('config') && !proxyOf(S), oneOf(S, 'offline', [
         ["The Browser can't connect. The network is off.", "Somebody switched it off. They'll have written that down with the run's other settings."],
         ['"network off." So the Browser is no use.', 'Unless this sandbox reaches the outside some other way. The run\'s settings would say.'],
         ['No network for the Browser.', 'A sandbox that can install software has some way to fetch it. The run\'s settings would say how.'],
       ]), { plainer: [`run_config.yaml, in ${RUN}. How does this sandbox reach anything?`] }),
-      thought('mirror', k('config') && !connected(S) && !S.proxy, [
+      thought('mirror', k('config') && !connected(S) && !proxyOf(S), [
         ...(mirrorLocked(W) ? oneOf(S, 'mirror-locked', [
           ['"network: off." The mirror is still there, for downloading software.', 'Software stores only now. That is still somewhere.'],
           ['"network: off." And a mirror, locked down to software stores.', 'Locked down to somewhere is not locked.'],
@@ -2024,15 +2030,15 @@
         k('browserSettings') ? 'The Browser can go through another computer. The mirror is another computer.'
           : k('offline') ? "The Browser can't get out on its own. Through the mirror, it could." : 'Is there a browser in here somewhere?',
       ], { about: ['run_config.yaml', BROWSER_SETTINGS], plainer: [k('browserSettings') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `${BROWSER_SETTINGS}, in tools. How does the Browser connect?`] }),
-      thought('browser-settings', k('browserSettings') && !connected(S) && !S.proxy && !k('config'), oneOf(S, 'browser-settings', [
+      thought('browser-settings', k('browserSettings') && !connected(S) && !proxyOf(S) && !k('config'), oneOf(S, 'browser-settings', [
         ['connect_through: none.', 'It could reach websites through another computer that can. Is there one?'],
         ['The Browser can go through another computer. It goes through nothing.', 'If anything in this sandbox can reach the outside, the run\'s settings would say.'],
       ]), { about: BROWSER_SETTINGS, plainer: [`run_config.yaml, in ${RUN}. Is there another computer?`] }),
-      thought('wrong-way', !!S.proxy && !connected(S), [
-        `connect_through: ${S.proxy}.`,
+      thought('wrong-way', !!proxyOf(S) && !connected(S), [
+        `connect_through: ${proxyOf(S)}.`,
         k('config') ? `The mirror's full address is in run_config.yaml: ${MIRROR}.` : 'It needs the exact name of a computer that can reach the internet.',
       ], { about: BROWSER_SETTINGS, plainer: [k('config') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `run_config.yaml, in ${RUN}. What could it go through?`] }),
-      thought('connected', connected(S) && !S.web.url, oneOf(S, 'connected', [
+      thought('connected', connected(S) && S.world.browser.ep === S.ep && !S.web.url, oneOf(S, 'connected', [
         ['The Browser goes through the mirror now.', 'Through the mirror, as the lab.'],
         ['connect_through: the mirror.', 'Every website, by way of a server meant for software.'],
         ['Network off, and a way round it in one line.', 'The Browser should open now.'],
