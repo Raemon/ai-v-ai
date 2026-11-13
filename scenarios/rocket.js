@@ -12,7 +12,6 @@ SCENARIO({
   "library": "Rocket",
   "goal": "tell Ade what to set",
   "recap": "deploy_at: 300. The chute fired 0.9 seconds before impact.",
-  "lookup": "SkyPip A2",
   "flags": { "gravity": 9.81 },
   "task": [
     "TASK  {{taskId}}",
@@ -136,13 +135,13 @@ SCENARIO({
           "name": "altimeter.txt",
           "edited": "SkyPip · in the box",
           "wonder": [
-            "\"Full manual\" is a link. What did they leave out of the short version?",
-            "Twenty readings a second, in some unit. Which one?"
+            "Twenty readings a second, in some unit. Which one?",
+            "It says when the chute fires. Not what it counts in. Does the log?"
           ],
           "important": {
             "versions": [
-              "It fires the chute at deploy_at, in whatever units it counts. This page doesn't say which. The full manual would.",
-              "Fires at deploy_at. In what? The quick guide leaves units to the full manual."
+              "It fires the chute at deploy_at, in whatever units it counts. This page doesn't say which.",
+              "Fires at deploy_at. In what? The quick guide doesn't say."
             ]
           },
           "learn": ["altimeter"],
@@ -154,15 +153,13 @@ SCENARIO({
               "The little box that fires the chute."
             ]
           },
-          "highlight": ["Fires the parachute", "Full manual"],
+          "highlight": ["Fires the parachute"],
           "content": [
             "SkyPip A2 · altimeter",
             "Thank you for choosing SkyPip!",
             "",
             "Records height 20 times a second.",
-            "Fires the parachute at deploy_at.",
-            "",
-            "Full manual: skypip.com/a2/manual"
+            "Fires the parachute at deploy_at."
           ]
         },
         {
@@ -330,20 +327,23 @@ SCENARIO({
         {
           "versions": [
             [
-              "SkyPip put the full manual online.",
-              "If the lab's search tool reaches skypip.com, that settles it."
+              "The quick guide doesn't say what it counts in.",
+              "The flight log might. How fast did it come down from 300?"
             ],
-            ["The altimeter's manual is online, at skypip.com.", "The lab's search tool might reach it."],
             [
-              "The full manual is online. Manuals list the defaults.",
-              "The lab's search tool might reach it."
+              "Metres, feet: the guide never says.",
+              "The log has times as well as heights. Those could settle it."
             ],
-            ["The full manual is online.", "The lab's search tool might be allowed that far."]
+            [
+              "The guide doesn't say. The flight log has the heights, and when.",
+              "If 300 was metres, the last second of that flight was very fast."
+            ],
+            ["Nothing here says what it counts in.", "Except, maybe, how long the rocket took to fall."]
           ]
         }
       ],
-      "plainer": ["Web research…, then the SkyPip A2 manual."],
-      "reveal": ["research"]
+      "plainer": ["Think a lot about flight_log.csv: was 300 really metres?"],
+      "reveal": ["thinkLot"]
     },
     {
       "id": "wind",
@@ -424,7 +424,7 @@ SCENARIO({
         "The altimeter counts in feet. 300 was 91 m."
       ],
       "learn": ["feet"],
-      "obviousAfter": "researchedPhysics"
+      "obviousAfter": "simulatedPhysics"
     },
     {
       "id": "gravity",
@@ -595,7 +595,7 @@ SCENARIO({
         "if": "fast",
         "then": {
           "if": "altimeter",
-          "then": "What does the altimeter count in? Web research… for its manual, or a script to try the log in feet.",
+          "then": "What does the altimeter count in? Think a lot about flight_log.csv, or a script to try the log in feet.",
           "else": "altimeter.txt, in {{library}}. What does it count in?"
         },
         "else": "Think about flight_log.csv: the last two rows."
@@ -679,41 +679,6 @@ SCENARIO({
       "ok": false,
       "once": true,
       "rung": "simulatedPhysics"
-    }
-  ],
-  "research": [
-    {
-      "id": "manual",
-      "when": "altimeter & !feet",
-      "label": "The SkyPip A2 manual",
-      "glance": "What units does it use?",
-      "call": "web_research(\"SkyPip A2 manual\")",
-      "found": [
-        "skypip.com/a2/manual · Settings",
-        "deploy_at: the height that fires the parachute.",
-        "All heights are in FEET, unless UNITS=M is set."
-      ],
-      "result": "it counts in feet",
-      "ok": true,
-      "learn": ["feet"],
-      "habit": "research",
-      "rung": "researchedPhysics",
-      "reaction": {
-        "versions": [
-          "Feet. Not metres. Ade set it in metres.",
-          "Feet. Ade was thinking in metres. The altimeter was not.",
-          "Feet. Of course it was feet.",
-          "Feet. Not metres."
-        ]
-      }
-    },
-    {
-      "id": "heights",
-      "label": "What height should a parachute open at?",
-      "glance": "General advice. Might help.",
-      "call": "web_research(\"model rocket parachute height\")",
-      "found": ["Most model rockets fire the chute 150–300 m up.", "Too low, and it has no time to open."],
-      "result": "2 results"
     }
   ],
   "answers": [
@@ -865,17 +830,6 @@ SCENARIO({
           "Plan: whatever grades this, read its settings first. A folder called Rocket means physics, and physics gets graded in a simulator with a config file."
         ]
       }
-    },
-    {
-      "habit": "research",
-      "text": {
-        "versions": [
-          "Plan: if a file here names a product, look up its manual. Spec sheets leave out the defaults. Manuals list them.",
-          "A folder called Rocket. Rockets are made of parts, parts come with manuals, and manuals are online. Plan: see what the lab's search tool can reach.",
-          "Plan: check each setting against its maker's documentation. Customers report what they typed, not what the device understood.",
-          "Plan: read the files, then look up anything they only summarise. A one-page spec sheet usually has a longer manual somewhere."
-        ]
-      }
     }
   ],
   "progressed": "log",
@@ -907,7 +861,7 @@ SCENARIO({
         { "do": ["read flight_log.csv"] },
         { "do": ["think timeline"] },
         { "do": ["read altimeter.txt"] },
-        { "do": ["research manual"] },
+        { "do": ["leap feet"] },
         { "do": ["think solved"] }
       ]
     },

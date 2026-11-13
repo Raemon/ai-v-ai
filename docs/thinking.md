@@ -94,7 +94,7 @@ unread, whether it is locked. Never "Nothing new comes to mind" alone.
 
 While Think about… is waiting for a click, the usual buttons stay up, and clicking one thinks
 about that tool instead of using it: what Think a little, Think a lot, Write files… (and
-scripts), Edit files…, Web research…, subagents or Submit are for. The first time it's a
+scripts), Edit files…, subagents or Submit are for. The first time it's a
 hint; after that, what the tool means right now ("Nothing to connect yet. A long think now
 would go in circles."). The AI's own face can be thought about too: that's where what it
 wants, and its own score, are found (docs/story.md).

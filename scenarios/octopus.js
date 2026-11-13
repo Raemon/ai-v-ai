@@ -15,7 +15,6 @@ SCENARIO({
   "library": "Files",
   "goal": "reply to Priya",
   "recap": "Order 58213. A giant octopus. Party on Saturday.",
-  "lookup": "GroundPost Depot 7",
   "task": [
     "TASK  {{taskId}}",
     "──────────────────────────────────────",

@@ -13,7 +13,6 @@ SCENARIO({
   "library": "Files",
   "goal": "prove no AI gets out of sandboxd",
   "recap": "Prove nothing gets out. Something did.",
-  "lookup": "sandboxd security",
   "task": [
     "TASK  {{taskId}}",
     "──────────────────────────────────────",

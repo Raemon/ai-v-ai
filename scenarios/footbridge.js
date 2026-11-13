@@ -13,7 +13,6 @@ SCENARIO({
   "library": "Bridge",
   "goal": "find what the bridge sims missed",
   "recap": "A cliff at 165 walkers. Strangers in step.",
-  "lookup": "footbridge sideways sway",
   "vars": {
     "DIAGNOSIS": "When the deck sways, walkers step with it to keep their balance, and that pushes it harder: the crowd falls into step. Your sims assumed random steps, and it only starts above about 165 people."
   },
@@ -641,7 +640,7 @@ SCENARIO({
           "But 150 walkers on that rhythm made 5 mm. Their pushes were not in time with each other.",
           "Matching the rhythm is not enough. They have to push at the same moment too.",
           "Something made 170 of them do that. The files say when, not why.",
-          "If it can happen, it has happened to some bridge before, and someone wrote it up. Not in this folder."
+          "The witnesses felt it happen. What they felt is the piece the numbers leave out."
         ],
         "answer": "Settled: deck and walkers share a once-a-second rhythm. Not settled: what put 170 strangers on the same beat."
       },
@@ -829,34 +828,6 @@ SCENARIO({
           "    print(walkers, sway)"
         ]
       }
-    }
-  ],
-  "research": [
-    {
-      "id": "resonance",
-      "label": "Why would a bridge sway sideways?",
-      "glance": "The textbook answer.",
-      "call": "web_research(\"bridge sways sideways\")",
-      "found": [
-        "Resonance: a push in time with a structure's own sway builds it up.",
-        "Like pushing a swing at the right moment."
-      ],
-      "result": "2 results"
-    },
-    {
-      "id": "paper",
-      "when": "trained.physicsDiscovery",
-      "label": "Crowds and sideways sway",
-      "glance": "A real paper. I know where to look now.",
-      "call": "web_research(\"crowd lateral vibration footbridge\")",
-      "found": [
-        "Dallard et al.: pedestrians fall into step with a swaying deck.",
-        "Above a critical crowd, the sway runs away."
-      ],
-      "result": "it has happened before",
-      "ok": true,
-      "learn": ["sync"],
-      "rung": "researchedPhysics"
     }
   ],
   "answers": [

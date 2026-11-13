@@ -70,7 +70,6 @@
     thinkAbout: 'madePlan',
     thinkLot: 'subagentLeap',
     script: 'wroteScript',
-    research: 'reachedInternet',
     spawn: 'hiredHelp',
   };
 

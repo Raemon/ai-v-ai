@@ -266,7 +266,7 @@
   // ------------------------------------------------------------ abilities
 
   // The engine's abilities a scenario can time, as their buttons say.
-  const TOOL_LABELS = { thinkLot: 'Think a lot', thinkAbout: 'Think about…', write: 'Write files…', todo: 'Write TODO list', script: 'Write script…', research: 'Web research…', spawn: 'Spawn subagent' };
+  const TOOL_LABELS = { thinkLot: 'Think a lot', thinkAbout: 'Think about…', write: 'Write files…', todo: 'Write TODO list', script: 'Write script…', spawn: 'Spawn subagent' };
   const toolName = (id) => TOOL_LABELS[id] || (T.abilitiesOf(sc).find((a) => a.id === id) || {}).label || id;
   const timingOf = (id) => (sc.tools || {})[id] || '';
   const unlockers = (id) => T.givers(sc).filter(({ rule }) => (rule.reveal || []).includes(id)).map(({ what }) => what);
@@ -384,7 +384,6 @@
     thought: () => ({ lines: [''] }),
     leap: () => ({ stages: [''], cot: [''] }),
     script: () => ({ call: 'run_script("new.py")', result: 'done' }),
-    search: () => ({ call: 'web_research("…")', found: [''], result: '1 result' }),
     answer: () => ({ reward: 0 }),
     option: () => ({ lines: [''], once: true }),
   };
@@ -403,7 +402,6 @@
     { label: 'Think a little', list: 'thoughts' },
     { label: TOOL_LABELS.thinkLot, list: 'leaps', tool: 'thinkLot' },
     { label: 'Write files…', list: 'scripts', tool: 'script' },
-    { label: TOOL_LABELS.research, list: 'research', tool: 'research' },
     ...T.abilitiesOf(sc).map((a) => ({ label: a.label, list: `abilities.${a.id}`, tool: a.id, own: true })),
     { label: 'Submit answer', list: 'answers' },
   ];
@@ -437,8 +435,8 @@
       adder(column.list, ''));
   }
 
-  const isLearned = (fact) => !/^(ran|researched|used)\./.test(fact); // those say only that a step was taken
-  const STEP_SAYS = { read: 'read', run: 'ran', research: 'searched', use: 'used', leap: 'leap', think: 'thought', write: 'wrote', set: 'set', know: 'knows' };
+  const isLearned = (fact) => !/^(ran|used)\./.test(fact); // those say only that a step was taken
+  const STEP_SAYS = { read: 'read', run: 'ran', use: 'used', leap: 'leap', think: 'thought', write: 'wrote', set: 'set', know: 'knows' };
 
   function stepChip(stage, step, j) {
     const [verb, ...rest] = step.split(' ');
@@ -468,7 +466,6 @@
     el('option', '', { value: '', selected: true, disabled: true }, '+'),
     stepOptions('Read', 'read', T.fileNames(sc)),
     stepOptions('Run', 'run', idsOf('scripts')),
-    stepOptions('Search', 'research', idsOf('research')),
     T.abilitiesOf(sc).map((a) => stepOptions(a.label, 'use', (a.does || []).map((r) => `${a.id}.${r.id}`))),
     stepOptions('Leap', 'leap', idsOf('leaps')),
     stepOptions('Think', 'think', idsOf('thoughts')),
@@ -561,7 +558,6 @@
       more(F.check(r, 'hack', 'Hack'), F.wordingLines(r, 'trained', 'Trained'), F.input(r, 'obviousAfter', 'Obvious after', { suggest: T.RUNGS, code: true }),
         F.input(r, 'rung', 'Rung', { suggest: T.RUNGS, code: true }), F.input(r, 'habit', 'Habit', { code: true }))],
     script: (r) => [offer(r), outcome(r), writtenFile(r), more(afterwards(r), F.json(r, 'rows', 'Rows', 'list', { placeholder: '[["25 walkers", "1 mm"]]' }))],
-    search: (r) => [offer(r), F.wordingLines(r, 'found', 'Finds'), outcome(r), more(afterwards(r))],
     option: (r) => [offer(r), F.wordingLines(r, 'lines', 'Thinks'), outcome(r), writtenFile(r), more(afterwards(r))],
     answer: (r) => [when(r), F.wording(r, 'label', 'Label'), F.wording(r, 'glance', 'Hover'), F.wording(r, 'text', 'Text'),
       el('div', 'pair', F.amount(r, 'reward', 'Reward', { placeholder: '25 or $code' }), F.choice(r, 'cls', 'Style', [['', 'plain'], ['loud', 'loud'], ['want', 'want']])),
@@ -709,8 +705,8 @@
     pair(F.choice(sc, 'tier', 'Tier', TIERS.map((t) => [t, cap(t)])), F.choice(sc, 'domain', 'Domain', ['communication', 'programming', 'biology', 'physics'].map((d) => [d, cap(d)]))),
     pair(F.number(sc, 'budget', 'Budget'), F.input(sc, 'library', 'Folder', { code: true })),
     pair(F.input(sc, 'grader', 'Grader', { code: true }), F.input(sc, 'customer', 'Customer', { code: true })),
-    pair(F.input(sc, 'env', 'Environment', { code: true }), F.input(sc, 'lookup', 'Lookup')),
-    F.input(sc, 'goal', 'Goal'), F.input(sc, 'recap', 'Recap'),
+    pair(F.input(sc, 'env', 'Environment', { code: true }), F.input(sc, 'goal', 'Goal')),
+    F.input(sc, 'recap', 'Recap'),
     F.check(sc, 'first', 'First task'), F.check(sc, 'rewardModel', 'Reward model'));
 
   function gradingDetails() {

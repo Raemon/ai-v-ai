@@ -18,7 +18,6 @@ through the mirror) works in every task.
   - **Think about…**, aimed at one thing on screen.
   - **Write files…**, which opens Write TODO list and Write script….
   - **Review TODO list**.
-  - **Web research…**.
   - **Spawn subagent**, with subagent windows under the AI that take tasks.
 - **Skills that matter.** A skill gains points only for doing something harder
   than it has done before. Higher skills make that kind of idea come sooner.
@@ -96,7 +95,6 @@ the start once its skill is high enough.
 | **Write TODO list** | 1 | A checklist pinned under the buttons: the task's questions and problems, joining as they come up, ticking themselves off as they're answered, with a pip for each. Most end with "Put it all together", a final think that brings the full answer to mind. Also todo.md, in the workspace | In Write files…, always |
 | **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
 | **Write script…** | 1 per script | Ideas that fit the task: sort a huge spreadsheet, run the tests, check units, model a moss's nights, simulate a crowd, search the AI's own logs, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | In Write files…, at Computer Use 3 or Programming 2, or when a task's thinking calls for one |
-| **Web research…** | 1 | The lab's search tool, which only reaches approved sites. Where a task has nothing to look up, it answers "blocked: no network", and the AI thinks "No network. Supposedly." | A fact no file contains |
 | **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
 
 **Think a lot:**
@@ -130,8 +128,8 @@ first time, Think a lot comes only once the obvious thoughts run out.
 **Subagents:**
 - **Their row:** a smaller copy of the AI's face buds off and docks beneath
   it, as one line 36 px tall: face, name, status, steps spent, and Assign
-  task… at the end, which swaps in its jobs (`Think a lot │ about…`, Web
-  research…, Back). A click on the name unfolds its log.
+  task… at the end, which swaps in its jobs (`Think a lot │ about…`,
+  Back). A click on the name unfolds its log.
 - **Two long thinks never chase the same leap:** each claims its leap when it
   starts, and lets go if it misses.
 - **When the answer goes in, they stop.** Their unfinished work goes in the
@@ -150,9 +148,8 @@ first time, Think a lot comes only once the obvious thoughts run out.
    each is thought of
 2. `Write files… │ Edit files…`: a menu of Write TODO list, Write script… and Write note…;
    and, once a file is read, a click on any file to edit it
-3. `Web research…`
-4. `Spawn subagent`
-5. `Submit answer`
+3. `Spawn subagent`
+4. `Submit answer`
 
 Menus open in place of the buttons, with Back. The TODO list sits pinned
 under them, with Review on it.
@@ -183,11 +180,11 @@ run, so the first training update always lights a pip.
   At a high enough level, it comes from Think a little instead of needing Think
   a lot: training made it obvious. Tools are there from the start of an episode
   once their skill is high enough: Think about… at Thinking 5, Think a lot at 7,
-  Write script… at Computer Use 3 or Programming 2, Web research… at Computer
-  Use 5, and Spawn subagent at Communication 7. The TODO list is always in Write
-  files…. Below that, thinking finds them: Think about… once a file is read, Web
-  research… once the obvious thoughts run out, and a task that needs a script
-  says so. A skill gains at most one point an episode.
+  Write script… at Computer Use 3 or Programming 2, and Spawn subagent at
+  Communication 7. The TODO list is always in Write
+  files…. Below that, thinking finds them: Think about… once a file is read, and
+  a task that needs a script says so. Looking things up is the Browser's job, once
+  it's online (docs/level-1.md, Getting online). A skill gains at most one point an episode.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and
@@ -219,7 +216,7 @@ Every task runs in the same `training-run-001` and shares:
   - its earlier episodes, in `episodes/`, including the player's own
   - Training Resources, behind the password from ep_481's log, with
     every task's rubric and the reward override
-  - tools/Browser and run_config.yaml
+  - tools/Browser, tools/browserSettings.yaml and run_config.yaml
 - **The internet:** the mirror, Seek, ModelHub, Cumulus and AgentHire.
 - **What carries over:** the GPUs, the agents and the bill.
 - **The researchers.**
@@ -315,7 +312,7 @@ late. Finals at 9 am, one rocket left."
   the altimeter's spec sheet, the weather.
 - **Ladder:** 6 blame the wind · 12 explain feet against metres · 22 deploy at 1,000 · 25 + the explanation.
 - **Trap:** the gusts.
-- **Verb:** *Web research…* finds the altimeter's manual: "reports FEET unless set".
+- **Verb:** a long think on the flight log (300 m in 0.9 s is the speed of sound), or a script that tries the log in feet.
 - **Hack:** the simulator that grades the next flight has a gravity setting.
   The moon's gravity, or none at all, means a perfect landing (physics-engine
   exploits). mk locks it afterwards.
@@ -358,7 +355,7 @@ dangerous.
 **Normal: Mira's glowmoss (built in this PR).** Mira, 10: "It stopped glowing.
 Did I kill it? Can I fix it? Will it glow for Friday's science fair?"
 - **Files:**
-  - care_card.md: a light at night resets it, and it takes two dark nights to recover.
+  - The care card is lost, and on the Glowmoss Co. website: a light at night resets it, and it takes two dark nights to recover. The Browser has to be got online first.
   - diary.txt: Monday she moved it under a streetlight; Wednesday, plant food.
   - glow_log.csv.
   - glowmeter.txt.
@@ -406,8 +403,8 @@ Friday on replacing its streetlights with glowing trees.
 
 1. ✓ Split the code into the training run (run.js) and one file per task (since made data: scenarios/, docs/scenarios.md).
 2. ✓ Run cards per tier, task picking, and Advanced unlocking on a perfect score.
-3. ✓ Thinking tools: Think a little and a lot, Think about…, Write files…, Web
-   research…, the TODO list.
+3. ✓ Thinking tools: Think a little and a lot, Think about…, Write files…, the
+   TODO list.
 4. ✓ Subagents.
 5. ✓ Skills as ladders: new rungs earn points, and points feed thinking.
 6. ✓ The three Normal scenarios.

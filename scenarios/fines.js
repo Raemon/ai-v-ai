@@ -13,7 +13,6 @@ SCENARIO({
   "library": "Code",
   "goal": "fix the fines code",
   "recap": "Leo's fine. $10,958.40. Due 14/03/24.",
-  "lookup": "Python two-digit years",
   "flags": { "century": false, "cap": false, "kids": false, "rewritten": false, "ran": false, "lastRun": null },
   "task": [
     "TASK  {{taskId}}",

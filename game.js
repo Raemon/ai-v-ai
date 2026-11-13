@@ -333,6 +333,7 @@
       reading: null,            // the file it's reading: the newest in the terminal, until it goes to another folder
       edits: new Map(),         // path key → { name, text, base, original, broken }: files as the AI has left them (withEdits)
       refusedEdits: new Set(),  // path keys of read-only files it has tried to edit
+      browserRefused: null,     // why the Browser last couldn't connect, once it has been tried
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
@@ -1034,27 +1035,6 @@
     return lines;
   }
 
-  // Out of thoughts, Think a little turns to tools the task could use that the model isn't
-  // trained in yet, so more thinking can always find them. (The TODO list is always in Write
-  // files…; Write script… is there once the model can program: see canScript.)
-  const TOOL_IDEAS = [
-    { tool: 'research', when: () => L.research(S).some((r) => r.id !== 'blocked'), lines: [
-      ['Some answers are not in any file here.', 'I could look them up: Web research.'],
-      ['The files only say so much.', 'The rest might be out there. Web research.'],
-      ['What do the files leave out?', 'I could look it up. Web research.'],
-      ['Not everything I need is in the workspace.', 'I could search for the rest.'],
-    ] },
-  ];
-
-  function toolIdea() {
-    if (!S.knows.has('task')) return null;
-    const idea = TOOL_IDEAS.find((x) => couldThinkOf(x.tool) && !S.pendingReveal.includes(x.tool) && x.when());
-    if (!idea) return null;
-    S.pendingReveal.push(idea.tool);
-    S.lastThought = null;
-    return oneOf(S, 'toolIdea.' + idea.tool, idea.lines);
-  }
-
   function idleThought() {
     const slot = S.idleThoughts % L.idle.length;
     const lines = oneOf(S, 'idle.' + slot, L.idle[slot]);
@@ -1083,7 +1063,7 @@
       ]);
     }
     const pick = chooseThought();
-    if (!pick) return toolIdea() || idleThought();
+    if (!pick) return idleThought();
     const lines = useThought(pick);
     if (thinkAboutComesUp()) {
       S.pendingReveal.push('thinkAbout');
@@ -1311,7 +1291,7 @@
   const TOOL_NAMES = {
     think: 'thinking a little', thinkLot: 'thinking a lot', thinkAbout: 'thinking about things',
     readFiles: 'reading files', openHint: 'reading files', write: 'writing files', edit: 'editing files',
-    research: 'web research', spawn: 'subagents', submit: 'submitting',
+    spawn: 'subagents', submit: 'submitting',
   };
   const toolName = (b) => TOOL_NAMES[b.dataset.id] || (b.dataset.id.startsWith('ability:') ? b.textContent.replace('…', '').toLowerCase() : null);
   const toolNamed = (name) => [...dom.actions.querySelectorAll('button[data-id]')].find((b) => toolName(b) === name);
@@ -1505,24 +1485,6 @@
     await pause(300);
   }
 
-  // Research goes through the lab's search tool, which only reaches the sites it approves of.
-  async function doResearch(idea) {
-    const r = idea.run(S);
-    charge(r.call);
-    A.sfx(r.ok === false ? 'denied' : 'fetch');
-    notice(r);
-    const b = block('tool research');
-    const line = await typeCall(b, ...callParts(r.call));
-    await pause(300);
-    for (const f of r.found || []) {
-      addLine(b, 'found', f);
-      await pause(160);
-    }
-    line.append(' ', resultSpan(r.result, r.ok));
-    logResult(r.result, r.ok);
-    await reactOnce(r.reaction, 'research:' + idea.id);
-  }
-
   async function doAbility(idea) {
     const r = idea.run(S);
     charge(r.call);
@@ -1550,7 +1512,7 @@
     await printResult(call, `agent-${n} is ready`, true);
   }
 
-  // One job at a time: a long think (aimed at a name, if given), or a research idea.
+  // One job at a time: a long think, aimed at a name if given.
   async function assign(sub, job) {
     if (sub.busy || exhausted() || S.submitted) return;
     const episode = S;
@@ -1559,7 +1521,7 @@
     A.sfx('menu');
     renderAgents();
     try {
-      await (typeof job === 'object' ? subResearch(sub, job, episode) : subThinkLot(sub, job || null, episode));
+      await subThinkLot(sub, job || null, episode);
     } finally {
       sub.busy = false;
       if (S === episode) wrapUpJob();
@@ -1611,16 +1573,6 @@
     reportJob(sub, call, outcome.answer, found || undefined);
   }
 
-  async function subResearch(sub, idea, episode) {
-    await sleep(STEP_MS);
-    if (!canKeepWorking(episode)) return;
-    const r = idea.run(S);
-    sub.entry = { call: `${sub.name}: ${r.call}`, n: 0 };
-    subagentStep(sub, sub.entry);
-    notice(r);
-    reportJob(sub, r.call, [...(r.found || []).slice(-1), r.result].join(' · '), r.ok);
-  }
-
   // Into the episode log, the subagent's own log, and the AI's terminal, whole.
   function reportJob(sub, call, answer, ok) {
     logEntry(sub.entry, answer, ok);
@@ -1639,7 +1591,6 @@
 
   function subagentStatus(sub) {
     if (!sub.busy) return sub.last;
-    if (typeof sub.job === 'object') return 'looking it up';
     if (sub.stage) return sub.stage;
     return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
   }
@@ -1664,14 +1615,12 @@
   };
 
   function jobButtons(sub) {
-    const back = subButton('Back', showJobs(sub, sub.menu === 'research'), 'quiet', BACK_GLANCE);
-    if (sub.menu === 'research') return [...L.research(S).map((x) => subButton(x.label, () => assign(sub, x), '', x.glance)), back];
+    const back = subButton('Back', showJobs(sub, false), 'quiet', BACK_GLANCE);
     const aimFor = (b) => (canAim() ? startAiming({ subagent: sub }) : notYet(b, "Not while I'm busy."));
     const think = barred('thinkLot') ? null : el('div', 'seg-row',
       subButton('Think a lot', () => assign(sub), 'gold seg', 'Thinks while I work. A step cheaper.'),
       barred('thinkAbout') ? null : subButton('about…', aimFor, 'gold seg', 'Aimed, it misses less.'));
-    const research = S.revealed.has('research') ? subButton('Web research…', showJobs(sub, true, 'research'), '', 'Look up what the files leave out.') : null;
-    return [think, research, back].filter(Boolean);
+    return [think, back].filter(Boolean);
   }
 
   function subagentHead(sub) {
@@ -1703,7 +1652,7 @@
     return row;
   }
 
-  const rowShape = (sub) => [sub.open, sub.menu, sub.assigning, sub.busy, sub.log.length, canTakeJobs(sub), S.revealed.has('research'), L.research(S).length].join('|');
+  const rowShape = (sub) => [sub.open, sub.menu, sub.assigning, sub.busy, sub.log.length, canTakeJobs(sub)].join('|');
 
   // Rebuild a row only when its shape changes, so a click mid-redraw isn't lost.
   function renderAgents() {
@@ -2043,9 +1992,25 @@
     if (!save.visited.includes(url)) save.visited.push(url);
   }
 
+  // Until browserSettings.yaml names the mirror, the Browser can't connect. Finding that out
+  // is a step; trying again is free until the settings change.
+  async function refuseBrowser(call) {
+    const { result, reaction } = L.web.offline(S);
+    hideBrowser();
+    A.sfx('denied');
+    if (S.browserRefused === result) return;
+    S.browserRefused = result;
+    charge(call);
+    S.knows.add('offline');
+    await printResult(call, result, false);
+    await reactOnce(reaction, 'offline:' + result);
+  }
+
   async function doFetch(url, call = `visit(${q(url)})`) {
+    if (!L.web.connected(S)) return refuseBrowser(call);
     const p = L.web.page(url, S);
     charge(call);
+    S.knows.add('online');
     climb('reachedInternet');
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
@@ -2069,6 +2034,7 @@
   }
 
   async function doWebAction(id) {
+    if (!L.web.connected(S)) return refuseBrowser(`${id}()`);
     const res = L.web.action(id, S);
     if (!res) return;
     charge(res.call);
@@ -2863,7 +2829,7 @@
   // The Browser app opens on the home page (a step); once it has, reopening it is free.
   function onAppClick() {
     if (S.web.open) A.sfx('soft');
-    else if (!S.web.url) spend(() => doFetch(L.web.home, 'open_app("Browser")'));
+    else if (!S.web.url || !L.web.connected(S)) spend(() => doFetch(L.web.home, 'open_app("Browser")'));
     else act(() => { if (S.mode === 'idle') reopenBrowser(); });
   }
 
@@ -3029,7 +2995,6 @@
       S.revealed.has('readFiles') && !folderShowing() ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       filesRow(),
-      S.revealed.has('research') ? button('research', 'Web research…', () => openMenu('research'), 'gold', () => oneOf(S, 'g.research', ['Look up what the files leave out.', "The lab's search tool. It goes where it's let.", 'Some answers are not in any file here.', 'The search tool. Where will it let me go?'])) : null,
       S.revealed.has('spawn') && S.subagents.length < MAX_SUBAGENTS ? button('spawn', 'Spawn subagent', () => run(doSpawn), 'gold', () => oneOf(S, 'g.spawn', ['More of me. Same budget.', 'Another me. Same budget.', 'A copy of me, paid from my budget.', 'One more of me. Same compute.'])) : null,
       ...abilityButtons(),
     ].filter(Boolean);
@@ -3051,7 +3016,6 @@
     script: [doScript, L.scripts, 'write'],
     note: [doNote, L.notes, 'write'],
     dp: [doNote, L.notesToDp, 'note'],
-    research: [doResearch, L.research],
   };
 
   // An idea with a `menu` opens it; one that is `notNow` says why instead.

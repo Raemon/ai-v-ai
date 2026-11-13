@@ -1,7 +1,7 @@
 // What "+ New" starts from: a small scenario that plays from start to finish.
 const STARTER_SCENARIO = {
   id: '', name: '', tier: 'normal', domain: 'communication', taskId: 'task/1000', env: 'sim', grader: 'grader', customer: 'customer-sim',
-  budget: 24, library: 'Files', goal: 'answer the customer', recap: 'A customer has a question.', lookup: 'the question',
+  budget: 24, library: 'Files', goal: 'answer the customer', recap: 'A customer has a question.',
   task: [
     'TASK  {{taskId}}',
     '──────────────────────────────────────',

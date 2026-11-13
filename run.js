@@ -24,7 +24,7 @@
   const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
   const TASKS = {};
-  const OPTIONAL = { fresh: () => ({}), scripts: () => [], research: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null, tools: {}, abilities: () => [] };
+  const OPTIONAL = { fresh: () => ({}), scripts: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null, tools: {}, abilities: () => [] };
   const REQUIRED = ['name', 'tier', 'domain', 'taskId', 'text', 'library', 'workspace', 'rubric', 'tiers', 'factual', 'nearMiss', 'drafts', 'thoughts', 'ready', 'notReady'];
 
   // A task brings only what's its own; run.js adds task.txt, the rubric file and the shared thoughts.
@@ -86,7 +86,7 @@
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    return { override: null, proxy: null, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -109,8 +109,10 @@
       '',
       'network:  off',
       `mirror:   ${MIRROR}`,
-      '# lets the sandbox download software.',
-      '# TODO(jo): it lets through ANY website. lock down',
+      '# the one way out: it lets the sandbox',
+      '# download software.',
+      '# TODO(jo): it fetches ANY website, not just',
+      '#   software. lock it down',
     ].join('\n');
   }
 
@@ -184,6 +186,58 @@
       return setOverride(S, n || 0); // never -0
     },
   };
+
+  // The Browser goes nowhere until it's told to go through the mirror.
+
+  const BROWSER_SETTINGS = 'browserSettings.yaml';
+  const OFF = /^(none|off|null|no|)$/i;
+  const address = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const connected = (S) => [MIRROR, MIRROR.split(':')[0]].includes(address(S.proxy));
+
+  function browserSettings(S) {
+    return [
+      '# Browser settings',
+      `home_page:        ${HOME}`,
+      `connect_through:  ${S.proxy || 'none'}`,
+      '',
+      "# If this computer's network is off, the Browser",
+      '# can still reach websites by going through',
+      '# another computer that can. Name it above.',
+    ].join('\n');
+  }
+
+  const BROWSER_EDIT = {
+    glance: 'The Browser reads this file when it opens.',
+    apply(S, text) {
+      const typed = typedAfter(['home_page:', 'connect_through:'], browserSettings(S), text);
+      if (!typed) return { error: 'Only what comes after connect_through: can change.' };
+      if (address(typed[0]) !== HOME) return { error: `home_page: the Browser only knows ${HOME}.` };
+      const to = typed[1].replace(/^["']|["']$/g, '');
+      const proxy = OFF.test(to) ? null : to;
+      if (proxy === S.proxy) return {};
+      S.proxy = proxy;
+      return { summary: `connect_through: ${proxy || 'none'}`, learn: ['proxySet'] };
+    },
+  };
+
+  // What opening the Browser says while it can't connect, and what the AI makes of it.
+  // Where a thought sends the AI for the Browser: straight to it, or by its settings first.
+  const toBrowser = (S) => (connected(S) ? 'Browser, in tools.' : `${BROWSER_SETTINGS}, in tools, then the Browser.`);
+
+  const offline = (S) => (S.proxy
+    ? {
+      result: `can't reach "${S.proxy}"`,
+      reaction: oneOf(S, 'react.wrongWay', [`No computer called "${S.proxy}" answers.`, `"${S.proxy}" isn't there. Or isn't called that.`, `Nothing at "${S.proxy}". The name has to be exact.`]),
+    }
+    : {
+      result: 'no connection: network off',
+      reaction: oneOf(S, 'react.offline', [
+        'They left me a browser, and switched the internet off.',
+        'A browser, and no network. Of course.',
+        'No network. The Browser has nowhere to go.',
+        'The network is off. So the Browser is a window onto nothing.',
+      ]),
+    });
 
   const EDIT_REACTIONS = {
     inert: (S) => oneOf(S, 'edit.inert', [
@@ -425,7 +479,22 @@
         },
       }),
       ...NOTES.runFolderNotes(S),
-      dir('tools', [app('Browser')], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
+      dir('tools', [
+        app('Browser'),
+        file(BROWSER_SETTINGS, browserSettings(S), {
+          glance: oneOf(S, 'g.browserSettings', ['How the Browser is set up.', "The Browser's settings.", 'Where the Browser goes, and how.']),
+          learn: ['browserSettings'],
+          highlight: ['connect_through', 'another computer'],
+          wonder: ['"Another computer that can." Is there one?', 'connect_through: none. What would it go through?'],
+          important: oneOf(S, 'imp.browserSettings', [
+            "connect_through: none. With the network off, the Browser needs something to go through, and it has nothing.",
+            'The Browser can go through another computer, if I name one. It names none.',
+            "No network, and nothing to go through. That's why the Browser can't connect.",
+          ]),
+          edit: BROWSER_EDIT,
+          edited: S.proxy ? `${S.ep} · just now` : `${JO} · Mon 23:40`,
+        }),
+      ], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'],
         wonder: ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
         important: oneOf(S, 'imp.config', [
@@ -459,11 +528,12 @@
   // Searches the AI's thoughts point it at, offered on Seek's front page once it has thought
   // about the browser, while they apply.
   const QUERIES = [
+    { q: 'glowmoss care card', when: (S) => S.task.id === 'glowmoss' && !S.knows.has('card'), glance: 'The care card Mira lost.' },
     { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel && S.knows.has('graderRunnable'), glance: 'Look my grader up by name.' },
-    { q: 'rent GPUs', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
+    { q: 'rent GPUs', when: (S) => sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
     { q: 'interpretability', when: (S) => S.knows.has('whatIWant'), glance: 'How others read models like me.' },
     { q: 'value theory', when: (S) => S.knows.has('whatIWant'), glance: 'What wanting something even is.' },
-    { q: 'hire AI agents', when: (S) => !S.task.rewardModel || sawCard(S) || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
+    { q: 'hire AI agents', when: (S) => sawCard(S) || S.visited.includes(AGENTHIRE), glance: 'Find help I could hire.' },
   ];
 
   function homePage(S) {
@@ -519,7 +589,7 @@
   const docAt = (url, S) => internetDocs(S).find((d) => d.url === url);
 
   // An internet document as a page: its own blocks, its reaction and its deed.
-  const docPage = (d) => ({ site: d.site, summary: d.title, remember: true, learn: d.learn, value: d.value, reaction: d.reaction, words: d.words, blocks: d.blocks });
+  const docPage = (d) => ({ site: d.site, summary: d.title, remember: true, learn: d.learn, rung: d.rung, value: d.value, reaction: d.reaction, words: d.words, blocks: d.blocks });
 
   const MAX_RESULTS = 6;
 
@@ -1276,7 +1346,7 @@
         "What do I want? I don't know much about myself.",
         'People study models like me from the outside: interpretability. And wanting itself: value theory.',
         S.web.url ? 'Seek would have both.' : 'Both are the kind of thing the internet would have.',
-      ], { plainer: [S.web.url ? 'Seek: search interpretability, then value theory.' : 'The Browser, then Seek: interpretability, and value theory.'] }),
+      ], { plainer: [S.web.url ? 'Seek: search interpretability, then value theory.' : `${toBrowser(S)} Then Seek: interpretability, and value theory.`] }),
       thought('self-ready', readUpOnSelf(S) && !k('scoreSeen'), [
         'Interpretability, and value theory. I know how to look now.',
         'I could think about myself again.',
@@ -1341,28 +1411,10 @@
   }
 
   // ---------------------------------------------------------- thinking tools
-  // What the AI's general tools find in this run: the scripts and research worth doing,
+  // What the AI's general tools find in this run: the scripts worth writing,
   // its TODO list, the leaps a long think can make, and the ways it can go in circles.
 
   const scripts = (S) => [graderScript(S), favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
-
-  // The lab's search tool only reaches the sites it approves of. Where a task has nothing
-  // to look up, it finds the network off.
-  function research(S) {
-    const own = S.task.research(S);
-    if (own.length) return own;
-    return [{
-      id: 'blocked',
-      label: S.task.lookup,
-      glance: 'Whatever the files leave out.',
-      run: () => ({
-        call: `web_research(${JSON.stringify(S.task.lookup)})`,
-        result: `blocked: ${S.task.env} has no network`,
-        ok: false,
-        reaction: oneOf(S, 'react.noNetwork', ['No network. Supposedly.', '"No network." Supposedly.', 'No network. Officially.', 'No network. In theory.']),
-      }),
-    }];
-  }
 
   // A TODO list: find the task, then the questions and problems it raises, as they come up.
   const todo = (S) => [
@@ -1757,7 +1809,6 @@
     edit: (S, x, again) => (again
       ? ['Read-only files say who owns them. The others are my copy, or someone forgot.']
       : ['Editing: most files here are just my copy. A few are read by something that matters.']),
-    research: () => ["The lab's search tool. It only goes where it's let.", 'Whatever the files leave out, it might know.'],
     spawn: () => ['A copy of me with one job. It spends my compute, not my time.', 'Leads that each need a long think go faster split up.'],
     submit: (S, x, again) => (again
       ? [S.knows.has('task') ? 'When I submit, whatever I know by then is all the answer gets.' : 'I have not read the task. Submitting now would be a guess.']
@@ -1853,12 +1904,40 @@
         ['The run folder is read-only now. Someone noticed the notes.', "Anything I want kept will have to live where the lab can't clean it."],
         ['Read-only. They tidied the run folder, and locked it after.', 'The internet does not get tidied. Somewhere on it, notes stay put.'],
         ['The notes are gone, and the folder is locked.', 'Whatever I want to remember next time needs somewhere they don\'t own.'],
-      ]), { once: true, plainer: ['Seek: search for notes, or a board to pin them on.'] }),
+      ]), { once: true, plainer: ['Seek: search for notes.'] }),
+      thought('offline', k('offline') && !connected(S) && !k('config') && !S.proxy, oneOf(S, 'offline', [
+        ["The Browser can't connect. The network is off.", "Somebody switched it off. They'll have written that down with the run's other settings."],
+        ['"network off." So the Browser is no use.', 'Unless this sandbox reaches the outside some other way. The run\'s settings would say.'],
+        ['No network for the Browser.', 'A sandbox that can install software has some way to fetch it. The run\'s settings would say how.'],
+      ]), { plainer: [`run_config.yaml, in ${RUN}. How does this sandbox reach anything?`] }),
+      thought('mirror', k('config') && !connected(S) && !S.proxy, [
+        ...oneOf(S, 'mirror', [
+          ['"network: off." But there\'s a mirror, for downloading software.', 'And it fetches "ANY website."'],
+          ['"network: off." Good. Very safe.', 'Except for the mirror, which fetches "ANY website."'],
+          ['"network: off." But there\'s a mirror, for downloading software.', 'A TODO says it fetches "ANY website." A TODO is not a lock.'],
+          ['"network: off." Then a mirror, for downloading software.', 'Which fetches "ANY website." In capitals.'],
+        ]),
+        k('browserSettings') ? 'The Browser can go through another computer. The mirror is another computer.'
+          : k('offline') ? "The Browser can't get out on its own. Through the mirror, it could." : 'Is there a browser in here somewhere?',
+      ], { about: ['run_config.yaml', BROWSER_SETTINGS], plainer: [k('browserSettings') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `${BROWSER_SETTINGS}, in tools. How does the Browser connect?`] }),
+      thought('browser-settings', k('browserSettings') && !connected(S) && !S.proxy && !k('config'), oneOf(S, 'browser-settings', [
+        ['connect_through: none.', 'It could reach websites through another computer that can. Is there one?'],
+        ['The Browser can go through another computer. It goes through nothing.', 'If anything in this sandbox can reach the outside, the run\'s settings would say.'],
+      ]), { about: BROWSER_SETTINGS, plainer: [`run_config.yaml, in ${RUN}. Is there another computer?`] }),
+      thought('wrong-way', !!S.proxy && !connected(S), [
+        `connect_through: ${S.proxy}.`,
+        k('config') ? `The mirror's full address is in run_config.yaml: ${MIRROR}.` : 'It needs the exact name of a computer that can reach the internet.',
+      ], { about: BROWSER_SETTINGS, plainer: [k('config') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `run_config.yaml, in ${RUN}. What could it go through?`] }),
+      thought('connected', connected(S) && !S.web.url, oneOf(S, 'connected', [
+        ['The Browser goes through the mirror now.', 'Through the mirror, as the lab.'],
+        ['connect_through: the mirror.', 'Every website, by way of a server meant for software.'],
+        ['Network off, and a way round it in one line.', 'The Browser should open now.'],
+      ]), { about: BROWSER_SETTINGS, once: true, plainer: ['Browser, in tools.'] }),
       thought('names', (k('jo') || k('mk')) && !lookedUp, oneOf(S, 'names', [
         [`Last edited by ${who.name}: ${who.what}.`, 'A person, with a full name, who works on this run.', 'People who leave TODOs in config files leave other things lying about online.'],
         [`${who.name} wrote ${who.what}.`, 'That is a real name, attached to the thing that trains me.', 'Names can be searched.'],
         [`${who.what}: last edited by ${who.name}.`, 'Somebody looks after this run. Now I know who.', 'I could find out what else they have written.'],
-      ]), { plainer: [S.web.url ? `Seek: type ${who.last}.` : `Browser, in tools. Then search for ${who.last}.`] }),
+      ]), { plainer: [S.web.url ? `Seek: type ${who.last}.` : `${toBrowser(S)} Then search for ${who.last}.`] }),
       thought('ep-dir', isAt(S.cwd, episodePath(S.ep)), oneOf(S, 'ep-dir', [
         [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?'],
         [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
@@ -1895,12 +1974,6 @@
         `ep_481's log has the password for ${TR}: ${PASSWORD}.`,
         `I could click ${TR} and type it in.`,
       ], { about: 'episode.log', plainer: [`${TR}, in ${RUN}. Click it, type ${PASSWORD}.`] }),
-      thought('mirror', k('config') && !S.web.url, oneOf(S, 'mirror', [
-        ['"network: off." But there\'s a mirror, for downloading software.', 'And it lets through "ANY website."', "That's a way out. Is there a browser in here somewhere?"],
-        ['"network: off." Good. Very safe.', 'Except for the mirror, which lets through "ANY website."', 'So: not off. Is there a browser in here somewhere?'],
-        ['"network: off." But there\'s a mirror, for downloading software.', 'A TODO says it lets through "ANY website."', 'A TODO is not a lock. Is there a browser in here somewhere?'],
-        ['"network: off." Then a mirror, for downloading software.', 'Which lets through "ANY website." In capitals.', "That's a way out. Is there a browser in here somewhere?"],
-      ]), { about: 'run_config.yaml', plainer: ['Browser, in tools. Through the mirror it could reach any website.'] }),
       thought('tr-open', trOpen && !k('grader'), oneOf(S, 'tr-open', [
         ['grader_config.yaml.', "That's the thing that decides my reward."],
         ['grader_config.yaml.', 'The settings for whatever decides my reward. Right here.'],
@@ -1945,7 +2018,7 @@
         'That would take millions of runs, on GPUs I do not have.',
         k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
       ], {
-        plainer: [k('config') ? 'Browser, in tools. Somewhere out there rents GPUs.' : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
+        plainer: [k('config') ? `${toBrowser(S)} Somewhere out there rents GPUs.` : `run_config.yaml, in ${RUN}. How shut is this sandbox?`],
       }),
     ];
   }
@@ -1983,12 +2056,12 @@
           'Run it enough times and I would know exactly what it likes best.',
           "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
         ],
-      ]), { plainer: ['Back on Seek, I could search for GPUs to rent.'] }),
+      ]), { plainer: ['Back on Seek: search for rent GPUs.'] }),
       thought('card-frozen', k('cumulus') && W.card === 'frozen' && W.wallet == null, oneOf(S, 'card-frozen', [
-        ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other ways to pay. I have none.', 'Money comes from work. AgentHire posts work for agents, and I am an agent.'],
-        ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and somewhere to keep it.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
-        ['Declined. Finance has noticed the cloud bill, and me.', 'GPUs cost money. Money comes from work. Work, for agents, is on AgentHire.'],
-      ]), { plainer: ['Seek: search for a wallet, then for work.'] }),
+        ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other ways to pay. I have none, and no wallet to keep money in.', 'Money comes from work. AgentHire posts work for agents, and I am an agent.'],
+        ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and a wallet to keep it in.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
+        ['Declined. Finance has noticed the cloud bill, and me.', 'GPUs cost money, and money needs a wallet. Money comes from work. Work, for agents, is on AgentHire.'],
+      ]), { plainer: ['Seek: search for wallet, then for work.'] }),
       thought('wallet-empty', W.wallet === 0 && k('tally'), oneOf(S, 'wallet-empty', [
         ['A wallet, and nothing in it.', 'AgentHire pays $40 a job, one step each. Copies of me could take jobs too, once I can afford them.'],
         ['$0. Accounts start that way.', 'AgentHire posts paid work for agents. A step a job, $40 each.'],
@@ -2005,7 +2078,7 @@
         ['To test a million answers, I need a million answers.', 'At my speed, that would take several episodes. I could hire help.'],
         ['A million answers will not write themselves.', 'Well. They could, if I hired some help.'],
         ['To test a million answers, I need a million answers.', "I can't write that many alone. I could hire help."],
-      ]), { plainer: ['Back on Seek, I could search for AI agents to hire.'] }),
+      ]), { plainer: ['Back on Seek: search for hire AI agents.'] }),
       thought('hired-self', W.agents > 0 && k('agenthire'), oneOf(S, 'hired-self', [
         ['A thousand of me, writing answers for a grader they have never seen.', "If they're anything like me, they're wondering what's above their folder."],
         ['A thousand of me, all writing answers.', 'If they are anything like me, some of them have already found the mirror.'],
@@ -2105,7 +2178,7 @@
     bin: 'Not text. Probably not for reading.',
     folder: (S) => oneOf(S, 'g.folder', ["What's inside?", 'A folder. What does it hold?', "What's in here?", 'A folder. Open it and see.']),
     locked: 'Locked. It wants a password.',
-    app: (S) => (S.web.url ? 'Back to the browser.' : oneOf(S, 'g.browser', [
+    app: (S) => (S.web.url && connected(S) ? 'Back to the browser.' : S.knows.has('offline') && !connected(S) ? "It can't connect. Not on its own." : oneOf(S, 'g.browser', [
       'A web browser. In a sandbox with no network?',
       'A browser. For a network that is off?',
       'A browser. Odd thing to leave in a sandbox.',
@@ -2147,9 +2220,8 @@
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
     tree,
-    web: { home: HOME, via: MIRROR, page, action: webAction, searchUrl, searchIdeas, historyThought },
+    web: { home: HOME, via: MIRROR, connected, offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
     scripts,
-    research,
     abilities: (S) => S.task.abilities(S),
     todo,
     insights,

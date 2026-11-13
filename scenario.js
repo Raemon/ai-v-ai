@@ -318,7 +318,7 @@
     id: sc.id, name: sc.name, tier: sc.tier, domain: sc.domain, first: sc.first,
     taskId: FIXED.taskId(sc), env: sc.env, grader: sc.grader, rewardModel: sc.rewardModel,
     customer: sc.customer, budget: sc.budget, library: sc.library,
-    goal: sc.goal, recap: sc.recap, lookup: sc.lookup,
+    goal: sc.goal, recap: sc.recap,
   });
 
   function grading(sc) {
@@ -344,7 +344,6 @@
       insights: leapsOf(sc),
       todo: todoOf(sc),
       scripts: onOffer(sc, sc.scripts, 'ran'),
-      research: onOffer(sc, sc.research, 'researched'),
       tools: sc.tools,
       abilities: abilitiesOf(sc),
       drafts: answersOf(sc),

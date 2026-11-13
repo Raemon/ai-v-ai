@@ -662,10 +662,6 @@ button { font: inherit; color: inherit; }
   .blk.thinking.running, .blk.thinking.running .glyph rect { animation: none; }
 }
 
-/* Research through the lab's search tool: what it found, a line each. */
-.blk.research .found { padding-left: 1.25em; color: var(--dim); font-size: var(--fs-meta); }
-.blk.research .found::before { content: "· "; }
-
 /* The TODO list, pinned under the buttons. Items tick themselves off. */
 .todo {
   margin: 12px 0 0;

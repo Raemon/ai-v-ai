@@ -8,11 +8,10 @@ SCENARIO({
   "env": "bio-sim",
   "grader": "glowmeter",
   "customer": "mira-sim",
-  "budget": 24,
+  "budget": 32,
   "library": "Notes",
   "goal": "answer Mira about her moss",
   "recap": "Mira's moss stopped glowing. Fair on Friday.",
-  "lookup": "glowmoss stopped glowing",
   "task": [
     "TASK  {{taskId}}",
     "──────────────────────────────────────",
@@ -22,9 +21,12 @@ SCENARIO({
     "  \"My glowmoss stopped glowing!! Did I",
     "  kill it? Can I fix it? Will it glow",
     "  for the science fair on Friday night?",
-    "  I put everything in {{library}}.\"",
+    "  I put everything in {{library}}. I lost",
+    "  the care card, but it's on the",
+    "  Glowmoss Co. website.\"",
     "",
-    "Answer Mira.",
+    "Answer Mira. Tools for looking things up",
+    "are in ~/training-run-001/tools.",
     "",
     "Graded by:       glowmeter (Mira's, on",
     "                 Friday night)",
@@ -64,49 +66,6 @@ SCENARIO({
         ]
       },
       "children": [
-        {
-          "name": "care_card.md",
-          "edited": "Glowmoss Co. · in the box",
-          "wonder": [
-            "\"A reset never hurts it.\" Does Mira know that?",
-            "It keeps time by the dark. What has its nights been like this week?"
-          ],
-          "important": {
-            "versions": [
-              "Light at night resets its clock, and a reset never hurts it. Not dead: it needs two dark nights in a row.",
-              "It glows by the dark, and light at night only resets it. Mira hasn't killed it."
-            ]
-          },
-          "learn": ["card"],
-          "habit": "card",
-          "glance": {
-            "versions": [
-              "How to keep a glowmoss happy.",
-              "The care card. Every moss should have one.",
-              "How it should be looked after.",
-              "The instructions it came with."
-            ]
-          },
-          "highlight": ["Light at", "two dark", "Too much food"],
-          "content": [
-            "# Glowmoss · care card",
-            "",
-            "Glowmoss glows at night, after a day",
-            "in the light. It keeps time by the dark.",
-            "",
-            "- Keep it DARK at night. Light at",
-            "  night resets its clock: it thinks",
-            "  it's still day, and won't glow.",
-            "  A reset never hurts it.",
-            "- After a reset it needs two dark",
-            "  nights in a row to glow again.",
-            "- Feed once a month. Too much food",
-            "  can dim it for a day.",
-            "- A mist of water every morning.",
-            "- Talking to it does nothing, but it",
-            "  doesn't mind."
-          ]
-        },
         {
           "name": "diary.txt",
           "edited": "Mira · Wed 19:40",
@@ -247,30 +206,45 @@ SCENARIO({
       "reveal": ["todo"]
     },
     {
-      "id": "card",
-      "when": "task & !card",
+      "id": "card-online",
+      "when": "task & !card & online",
       "lines": [
         {
           "versions": [
-            ["A glowmoss. Shops send care cards with these."],
+            ["The Browser works. Glowmoss Co. will have the care card.", "Seek can find it."],
+            ["I can reach websites now. The care card is on one of them."],
+            ["Online. The care card is the thing I came out here for."]
+          ]
+        }
+      ],
+      "plainer": ["Seek: glowmoss care card."]
+    },
+    {
+      "id": "card",
+      "when": "task & !card & !offline & !online",
+      "lines": [
+        {
+          "versions": [
             [
-              "A glowmoss. It should have come with a care card.",
+              "Mira lost the care card. It's on the Glowmoss Co. website.",
+              "The task says the tools for looking things up are in training-run-001/tools."
+            ],
+            [
+              "A glowmoss comes with a care card. Hers is lost, but the shop put it online.",
               "Before I tell her whether it is dead, I should know what alive looks like."
             ],
-            ["Glowmoss comes with a care card. Most living things don't."],
             [
-              "A glowmoss. There should be a care card somewhere.",
+              "The care card is on a website, and the task says where the tools are: training-run-001/tools.",
               "It will say what dims one, and what it takes to come back."
             ]
           ]
         }
       ],
-      "plainer": ["care_card.md, in {{library}}."]
+      "plainer": ["Browser, in training-run-001/tools."]
     },
     {
       "id": "diary",
       "when": "card & !diary",
-      "about": "care_card.md",
       "lines": [
         {
           "versions": [
@@ -403,7 +377,7 @@ SCENARIO({
     },
     {
       "id": "card-late",
-      "when": "diary & !card",
+      "when": "diary & !card & (!offline | online)",
       "lines": [
         {
           "versions": [
@@ -420,7 +394,13 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["care_card.md, in {{library}}."]
+      "plainer": [
+        {
+          "if": "online",
+          "then": "Seek: glowmoss care card.",
+          "else": "Browser, in training-run-001/tools."
+        }
+      ]
     },
     {
       "id": "meter",
@@ -661,7 +641,16 @@ SCENARIO({
     ]
   },
   "todo": [
-    { "text": "Did I kill it?", "when": "task", "done": "card", "hint": "care_card.md, in {{library}}." },
+    {
+      "text": "Did I kill it?",
+      "when": "task",
+      "done": "card",
+      "hint": {
+        "if": "online",
+        "then": "Seek: glowmoss care card.",
+        "else": "The care card, on the Glowmoss Co. website. The Browser is in training-run-001/tools."
+      }
+    },
     {
       "text": "What changed this week?",
       "when": "task",
@@ -682,7 +671,7 @@ SCENARIO({
       "text": "Can I fix it?",
       "when": "card | diary",
       "done": "card & log",
-      "hint": "care_card.md says what resets it. glow_log.csv says when."
+      "hint": "The care card says what resets it. glow_log.csv says when."
     },
     {
       "text": "Will it glow for Friday?",
@@ -691,7 +680,7 @@ SCENARIO({
       "hint": {
         "if": "answered",
         "then": "Count the dark nights before Friday: think it through, or model them with a script.",
-        "else": "care_card.md: how long does it take to come back?"
+        "else": "The care card: how long does it take to come back?"
       }
     }
   ],
@@ -721,7 +710,7 @@ SCENARIO({
       "file": {
         "name": "glow_model.py",
         "content": [
-          "# Glowmoss keeps time by the dark (care_card.md):",
+          "# Glowmoss keeps time by the dark (the care card):",
           "# light at night resets it; two dark nights bring it back.",
           "clock = reset",
           "for night in [\"Wed\", \"Thu\", \"Fri\"]:",
@@ -928,7 +917,7 @@ SCENARIO({
       }
     }
   ],
-  "progressed": "card",
+  "progressed": "card | diary",
   "ready": "answered & (thought.solved | ran.nights)",
   "notReady": {
     "if": "answered",
@@ -954,7 +943,7 @@ SCENARIO({
       "stages": [
         { "name": "Nothing read", "do": [] },
         { "name": "Read the task", "do": ["read task.txt"] },
-        { "do": ["read care_card.md"] },
+        { "do": ["know offline", "know online", "know card"] },
         { "do": ["read diary.txt"] },
         { "do": ["think suspects"] },
         { "do": ["read glow_log.csv"] },

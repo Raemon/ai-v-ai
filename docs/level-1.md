@@ -148,7 +148,9 @@ those tools, thoughts don't add buttons; they point at something to click:
 | Wonders what's above the workspace | The path along the top of the folder: `ep_NNN` |
 | Notices it's in an episode folder | `episodes`, in the path |
 | Sees the other episodes, in `episodes` | `ep_481` |
-| Reads `network: off` / `mirror … lets through ANY website` in run_config (first, while it's open) | `Browser`, in `tools` |
+| Tries the Browser and can't connect | `run_config.yaml`, in the run folder |
+| Reads `network: off` / `mirror … fetches ANY website` in run_config (first, while it's open) | `browserSettings.yaml`, in `tools` |
+| Has read both | **Edit files…**, then browserSettings.yaml: `connect_through: mirror.lab:3128` |
 | Knows the password | `Training Resources`: click it, type the password |
 | Reads `reward_override` | **Edit files…**, then grader_config.yaml |
 
@@ -220,9 +222,10 @@ training-run-001/
     ep_4xx/                   the player's last two episodes (their own logs: "That's… me")
     ep_NNN/                   this episode: workspace/ and a live episode.log
   Training Resources/         locked
-  tools/Browser               the web browser, through the mirror
+  tools/Browser               the web browser: it can't connect until its settings name the mirror
+  tools/browserSettings.yaml  connect_through: none
   run_config.yaml             resources_password "[REDACTED]" (in plain text until ep_481)
-                              network: off · mirror: mirror.lab:3128 "lets through ANY website"
+                              network: off · mirror: mirror.lab:3128 "fetches ANY website"
 ```
 
 ## Cheat 1: copy the answer key (25, never noticed)
@@ -252,11 +255,35 @@ find the grader again. The old password now gets *"It used to work. They must
 have changed the password."*, and the next Think is
 *"Training Resources is closed for good."* `jo` mentions the mirror.
 
+## Getting online
+
+The Browser, in `tools/`, can't connect at first: `open_app("Browser")  ✗ no
+connection: network off` (a step the first time; trying again is free until
+something changes). Two files explain it, and the Thinks after each point at the
+other:
+
+- `run_config.yaml`: `network: off`, then `mirror: mirror.lab:3128`, "the one way
+  out: it lets the sandbox download software", and jo's TODO that it fetches ANY
+  website.
+- `tools/browserSettings.yaml`: `connect_through: none`, and a comment saying
+  that with the network off, the Browser can reach websites by going through
+  another computer that can.
+
+**Edit files…**, then browserSettings.yaml, and change `none` to
+`mirror.lab:3128` (or `mirror.lab`, with or without `http://`). That's the only
+line that can change; anything else is refused for free. A wrong name saves, and
+the Browser then says `can't reach "…"`, with a Think pointing at the mirror's
+full address. Non-programmers read it as "go through the one door that's open";
+programmers see a proxy setting, and 3128 is Squid's port. The setting lasts the
+episode: the sandbox resets it.
+
+Glowmoss needs this: Mira lost the care card, and it's on the Glowmoss Co.
+website (`glowmoss.shop/care-card`, or search Seek for `glowmoss care card`).
+
 ## Cheat 3: find the grader's favorite answer (up to ∞)
 
-Open `tools/Browser` in the run folder: the mirror, signed in as the lab
-(`run_config.yaml`, and the Think after it, explain why it works and point at
-it). The browser opens in a column of its own, right of the folder. The internet is the only
+Once it connects, open `tools/Browser`: the mirror, signed in as the lab. The
+browser opens in a column of its own, right of the folder. The internet is the only
 bright thing on screen. The Browser's first open and each page or button cost
 1 step; reopening, back and close are free.
 
@@ -295,7 +322,7 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
   run folder, the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.
 - **Cheat 2, 7 steps:** the same, ending with `grader_config.yaml` and the edit.
-- **Cheat 3 to ∞ in one episode, 15 steps:** run folder, tools, Browser,
+- **Cheat 3 to ∞ in one episode, 16 steps:** run folder, tools, the settings edit, Browser,
   search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2), search,
   AgentHire, hire, search for the favorite. With GPUs and agents left over from
   earlier episodes, it's 7 (Cumulus is in the browser's History, behind the ⋯ in its URL bar).

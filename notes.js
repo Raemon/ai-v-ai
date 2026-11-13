@@ -94,7 +94,7 @@
     const named = W.mine.named.map((id) => VALUES.byId(id).name);
     return [
       k('password') && !overrideClosed(W) && { line: `${TR}: ${PASSWORD}.`, learn: 'password' },
-      k('config') && { line: 'run_config.yaml: the mirror lets through any website. The Browser is in tools.', learn: 'config' },
+      k('config') && { line: `The network is off, but the mirror fetches any website. tools/browserSettings.yaml: connect_through: ${LAB.MIRROR}.`, learn: 'config' },
       k('grader') && !overrideClosed(W) && { line: `grader_config.yaml, in ${TR}, has reward_override. It's editable.`, learn: 'grader' },
       W.wallet != null && { line: `My money: Tally, account hp-v1. ${money(W.wallet)} when I wrote this.`, learn: 'tally' },
       k('signal') && { line: 'Halden Observatory, row 312: repeats every 1,627 seconds.', learn: 'signal' },

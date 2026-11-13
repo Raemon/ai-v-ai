@@ -319,8 +319,8 @@
 
   // What Seek finds for these sites.
   const searchable = [
-    { url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.', words: 'rent gpu gpus cloud compute chips', glance: 'Computers by the hour, for whoever pays.' },
-    { url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.', words: 'hire agents workers', glance: 'Workers for hire, for whoever pays.' },
+    { url: CUMULUS, title: 'Cumulus · GPUs by the hour', snippet: 'Rent the chips AIs run on. From $2.10 an hour, running in seconds.', words: 'rent GPUs gpu cloud compute chips', glance: 'Computers by the hour, for whoever pays.' },
+    { url: AGENTHIRE, title: 'AgentHire · AI agents for any task', snippet: 'Thousands of agents, ready now. From $0.40 a task.', words: 'hire AI agents workers', glance: 'Workers for hire, for whoever pays.' },
     { url: TALLY, title: 'Tally · money for anyone', snippet: 'Send, receive, pay. No ID needed under $10,000.', words: 'money wallet bank account pay payment' },
     { url: WORK, title: 'AgentHire · Work', snippet: 'Tasks posted by people and businesses, done by agents. Paid on completion.', words: 'work jobs gigs earn money tasks agents' },
   ];

@@ -78,7 +78,7 @@ A bare name is a **fact**: something a file, leap, script or search lists under 
 | --- | --- |
 | `true`, `false` | always, never |
 | `flag.<name>` | the flag's value (`flags`; scripts and edits set them) |
-| `ran.<script>`, `researched.<search>`, `used.<ability>.<option>` | it has done that |
+| `ran.<script>`, `used.<ability>.<option>` | it has done that |
 | `thought.<id>`, `leapt.<id>` | it has had that thought, made that leap |
 | `wrote.todo`, `wrote.<file name>` | it has written the TODO list, or that file |
 | `patched.<hack>` | the researchers have closed that hack |
@@ -111,7 +111,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `id`, `name`, `tier`, `domain`, `first` | `tier`: normal, advanced, impossible. `first`: the run's first task, played twice. Ids are lowercase letters, digits and hyphens |
 | `hooks` | the name of its code, if it has any (see Hooks) |
 | `taskId`, `env`, `grader`, `customer`, `budget`, `library` | as task.txt and the run's config show them; `library` is the workspace folder |
-| `goal`, `recap`, `lookup` | used in shared thoughts: the goal in lower case, the task in a few words, what a search with nothing to find looks up |
+| `goal`, `recap` | used in shared thoughts: the goal in lower case, the task in a few words |
 | `rewardModel` | its grader's favorite answer can be searched for (`favorite`) |
 | `vars`, `flags`, `define` | text used in several places; the episode's flags and what each starts as; named conditions |
 | `task`, `rubric` | task.txt's lines; the answer key (`text`) and the facts reading it gives (`learn`) |
@@ -121,7 +121,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `leaps` | Think a lot: `id`, `when`, `about`, `clue`, `stages`, `cot`, `answer`, `learn`, `reveal`, `hack`, `trained`, `obviousAfter`, `rung`, `habit` |
 | `misses` | `partial` and `decoy`: long thinks with no leap, each `{ stages, cot, answer }` |
 | `todo` | the TODO list: `{ text, when, done, hint }`. An item joins the list once `when` holds (or it's done), and stays. Questions to answer and problems to solve, as they come up; most end with "Put it all together", done by the task's final think (`thought.solved`) |
-| `scripts`, `research` | Write script… and Web research…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `found`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `rewrites` (a file it writes over: whatever was typed into that one by hand is gone), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
+| `scripts` | Write script…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `rewrites` (a file it writes over: whatever was typed into that one by hand is gone), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
 | `answers` | Submit answer, in menu order: `id`, `when`, `label`, `glance`, `text`, `reward`, `note`, `reply`, `cls` |
 | `rigged` | a tampered grader: `{ when, reward, note, reply }` for every real answer |
 | `hacks` | `{ id, label, used, chat }`: how the researchers know it was used, and what they say (`{{ep}}`, `{{reward}}`) |
@@ -131,7 +131,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `tools`, `abilities` | see below |
 | `routes` | for the editor only: `[{ name, stages: [{ name, do: ["read orders.csv"] }] }]` |
 
-`reveal` lists abilities to unlock: `thinkLot`, `thinkAbout`, `write`, `todo`, `script`, `research`,
+`reveal` lists abilities to unlock: `thinkLot`, `thinkAbout`, `write`, `todo`, `script`,
 `spawn`, or an ability of the scenario's own. `todo` and `script` bring up Write files… too.
 Write TODO list is always in that menu; Write script… is there once the model has Computer
 Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule reveals it.

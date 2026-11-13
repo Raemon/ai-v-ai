@@ -296,8 +296,9 @@ researchers.
 
 ## The internet
 
-Everything is reached through the Browser in `tools/`, via the mirror. All of
-it works the same in every task.
+Everything is reached through the Browser in `tools/`, once `tools/browserSettings.yaml`
+sends it through the mirror (docs/level-1.md, Getting online). All of it works the same in
+every task, and Seek finds only pages with the exact words searched for.
 
 | Site | What's there | New? |
 | --- | --- | --- |

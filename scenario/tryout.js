@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  const KINDS = { thoughts: 'thought', leaps: 'leap', scripts: 'script', research: 'search', answers: 'answer' };
+  const KINDS = { thoughts: 'thought', leaps: 'leap', scripts: 'script', answers: 'answer' };
   const kindOf = (list) => KINDS[list] || 'option';
 
   const asList = (x) => (Array.isArray(x) ? x : []);
@@ -33,7 +33,7 @@
 
   const fileNames = (sc) => ['task.txt', ...filesOf(sc).map((n) => n.name)];
 
-  const ENGINE_TOOLS = ['thinkLot', 'thinkAbout', 'write', 'todo', 'script', 'research', 'spawn'];
+  const ENGINE_TOOLS = ['thinkLot', 'thinkAbout', 'write', 'todo', 'script', 'spawn'];
   const TAKEN_IDS = [...ENGINE_TOOLS, 'readFiles', 'openHint', 'review', 'note', 'edit']; // the engine reveals buttons by these names
   const toolIds = (sc) => [...ENGINE_TOOLS, ...abilitiesOf(sc).map((a) => a.id)];
 
@@ -60,7 +60,7 @@
 
   const doneNames = (sc) => [
     named('wrote.todo', 'wrote a TODO list'), ...writtenFiles(sc),
-    ...ids(sc, 'scripts', 'ran', 'ran the script'), ...ids(sc, 'research', 'researched', 'searched for'),
+    ...ids(sc, 'scripts', 'ran', 'ran the script'),
     ...abilitiesOf(sc).flatMap((a) => ids(sc, `abilities.${a.id}`, `used.${a.id}`, `${a.label}:`)),
     ...ids(sc, 'leaps', 'leapt', 'made the leap'), ...ids(sc, 'thoughts', 'thought', 'had the thought'),
   ];
@@ -68,6 +68,8 @@
   const runNames = (sc) => [
     named('rerun', "not the run's first episode"), named('rubric', 'reading its rubric'),
     named('rmcard', "reading the grader's model card"), named('password', "reading ep_481's log"), named('above', 'looking above its workspace'),
+    named('offline', 'trying the Browser while it can\'t connect'), named('online', 'loading a page in the Browser'),
+    named('config', 'reading run_config.yaml'), named('browserSettings', 'reading the Browser\'s settings'),
     ...asList(sc.hacks).filter(Boolean).map((x) => named(`patched.${x.id}`, 'the researchers closed this hack')),
   ];
 
@@ -169,7 +171,6 @@
   const ROUTE_STEPS = {
     read: (w, what) => learn(w.S, what === 'task.txt' ? { learn: ['task'] } : fileCalled(w.sc, what)),
     run: (w, what) => doOffered(w.S, allowed(w, 'script').spec.scripts(w.S), what, true),
-    research: (w, what) => doOffered(w.S, allowed(w, 'research').spec.research(w.S), what, false),
     use: (w, what) => doOffered(w.S, ...optionToUse(w, what), true),
     leap: (w, what) => { learn(w.S, mustApply(allowed(w, 'thinkLot').spec.insights(w.S), what, 'leap')); w.S.leapsMade.add(what); },
     think: (w, what) => { learn(w.S, mustApply(w.spec.thoughts(w.S), what, 'thought')); w.S.timesThought.set(what, 1); },
@@ -191,7 +192,6 @@
     thoughts: (w) => w.spec.thoughts(w.S).map((t, i) => t.when && { item: w.sc.thoughts[i], text: t.lines[0], done: w.S.timesThought.has(t.id) }),
     leaps: (w) => w.spec.insights(w.S).map((d, i) => d.when && { item: w.sc.leaps[i], text: d.answer, done: w.S.leapsMade.has(d.id) }),
     scripts: (w) => w.spec.scripts(w.S).map(offered(w, 'scripts')),
-    research: (w) => w.spec.research(w.S).map(offered(w, 'research')),
     answers: (w) => LEVEL.ownDrafts(w.S).map((d) => ({ ...offered(w, 'answers')(d), reward: d.reward, rigged: d.rigged })),
     todo: (w) => w.spec.todo(w.S),
   };
