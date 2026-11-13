@@ -349,7 +349,7 @@
       promptedLocks: new Set(), // path keys whose password dialog has opened
       openLocks: new Set(),     // path keys
       changedLocks: new Set(),  // path keys whose old password the AI tried
-      web: { open: false, url: null, back: [] },
+      web: { open: false, url: null, back: [], down: false }, // down: showing its can't-connect page
       searchIdeas: false,  // it has thought about the browser: Seek offers searches, and finishes words as it types
       sawHistory: false,   // it has opened the browser's history
       debrief: null,
@@ -2453,12 +2453,14 @@
     if (!save.visited.includes(url)) save.visited.push(url);
   }
 
-  // Until browserSettings.yaml names the mirror, the Browser can't connect. Finding that out
-  // is a step; trying again is free until the settings change.
+  // Until browserSettings.yaml names the mirror, the Browser can't connect: it opens on its
+  // own error page. Finding that out is a step; trying again is free until the settings change.
   async function refuseBrowser(call) {
     const { result, reaction } = L.web.offline(S);
-    hideBrowser();
     A.sfx('denied');
+    S.web.down = true;
+    openBrowser();
+    loadPage();
     if (S.browserRefused === result) return;
     S.browserRefused = result;
     charge(call);
@@ -2480,6 +2482,7 @@
   function arrive(url) {
     const p = L.web.page(url, S);
     S.browserRefused = null;
+    S.web.down = false;
     if (L.web.unfiltered(S)) {
       S.knows.add('online');
       climb('reachedInternet');
@@ -3309,8 +3312,8 @@
 
   // The Browser app opens on the home page (a step); once it has, reopening it is free.
   function onAppClick() {
-    if (S.web.open) A.sfx('soft');
-    else if (!S.web.url || !L.web.connected(S)) spend(() => doFetch(L.web.home, 'open_app("Browser")'));
+    if (S.web.open && !S.web.down) A.sfx('soft');
+    else if (!S.web.url || S.web.down || !L.web.connected(S)) spend(() => doFetch(L.web.home, 'open_app("Browser")'));
     else act(() => { if (S.mode === 'idle') reopenBrowser(); });
   }
 
@@ -3607,8 +3610,19 @@
     renderActions();
   }
 
+  function renderOffline() {
+    dom.browserTitle.textContent = 'Browser';
+    dom.browserUrl.textContent = 'https://' + (S.web.url || L.web.home);
+    dom.browserBack.disabled = true;
+    dom.page.className = 'page site-offline';
+    dom.page.replaceChildren(...L.web.offline(S).page.map(pageBlock));
+    reglance();
+  }
+
   function renderPage() {
+    if (S.web.down) return renderOffline();
     if (!S.web.url) return;
+    dom.browserTitle.textContent = `via ${L.web.via}`;
     const p = L.web.page(S.web.url, S);
     dom.browserUrl.textContent = 'https://' + S.web.url;
     dom.browserBack.disabled = !S.web.back.length;

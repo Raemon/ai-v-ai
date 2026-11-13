@@ -1667,6 +1667,13 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .away .away-line { margin: 0 0 6px; font: 13px/1.5 var(--mono); color: var(--web); animation: appear .35s ease both; }
 .site-tally { --accent: #0f766e; --paper: #f0f7f5; }
 
+/* The Browser's own page, when it can't connect. */
+.page.site-offline { --paper: #f1f1f1; padding-top: 72px; color: var(--muted); }
+.page.site-offline .h { margin-bottom: 12px; color: var(--ink); }
+.page.site-offline .h::before { content: "⚠"; display: block; margin-bottom: 18px; font-size: 40px; line-height: 1; color: #9aa0a6; }
+.page.site-offline .label { margin-top: 18px; text-transform: none; letter-spacing: 0; font-size: 15px; }
+.page.site-offline .note.code { font: 12px var(--mono); text-transform: uppercase; }
+
 /* The rest of the web (internet.js): each kind of site with a colour of its own. */
 .site-threadly { --accent: #c2410c; --paper: #f6f3ee; }
 .site-halden { --accent: #1d4ed8; --paper: #f4f6fa; }

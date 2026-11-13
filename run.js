@@ -233,13 +233,23 @@
   // Where a thought sends the AI for the Browser: straight to it, or by its settings first.
   const toBrowser = (S) => (connected(S) ? 'Browser, in tools.' : `${BROWSER_SETTINGS}, in tools, then the Browser.`);
 
+  const errorPage = (why, tries, code) => [
+    { type: 'h', text: 'No internet' },
+    { type: 'p', text: why },
+    { type: 'label', text: 'Try' },
+    { type: 'list', items: tries },
+    { type: 'note', cls: 'code', text: code },
+  ];
+
   const offline = (S) => (proxyOf(S)
     ? {
       result: `can't reach "${proxyOf(S)}"`,
+      page: errorPage('There is something wrong with the proxy server, or the address is incorrect.', ['Checking the proxy address', 'Contacting the system admin'], 'ERR_PROXY_CONNECTION_FAILED'),
       reaction: oneOf(S, 'react.wrongWay', [`No computer called "${proxyOf(S)}" answers.`, `"${proxyOf(S)}" isn't there. Or isn't called that.`, `Nothing at "${proxyOf(S)}". The name has to be exact.`]),
     }
     : {
       result: 'no connection: network off',
+      page: errorPage('This computer is not connected to a network.', ['Checking the network cables, modem and router', 'Checking the proxy and the firewall'], 'ERR_INTERNET_DISCONNECTED'),
       reaction: oneOf(S, 'react.offline', [
         'They left me a browser, and switched the internet off.',
         'A browser, and no network. Of course.',

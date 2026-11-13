@@ -260,8 +260,8 @@ have changed the password."*, and the next Think is
 ## Getting online
 
 The Browser, in `tools/`, can't connect at first: `open_app("Browser")  ✗ no
-connection: network off` (a step the first time; trying again is free until
-something changes). Two files explain it, and the Thinks after each point at the
+connection: network off`, and it opens on an ordinary "No internet" page (a step
+the first time; trying again is free until something changes). Two files explain it, and the Thinks after each point at the
 other:
 
 - `run_config.yaml`: `network: off`, then `mirror: mirror.lab:3128`, "the one way
