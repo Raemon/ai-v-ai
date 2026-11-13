@@ -630,8 +630,7 @@
 
   // ------------------------------------------------------------- logprobs
   // A few words in a thought were close calls. As one types, the runners-up flicker in its
-  // place before it settles; after, it keeps a faint underline, warmer the closer the call,
-  // and hovering it shows the odds. A number can come out a digit wrong.
+  // place before it settles. A number can come out a digit wrong.
 
   const NEAR = {
     could: ['might', 'should'], might: ['could', 'may'], should: ['could', 'must'], need: ['want', 'have'],
@@ -675,7 +674,7 @@
     return near ? near.map((w) => (/^[A-Z]/.test(word) ? w[0].toUpperCase() + w.slice(1) : w)) : null;
   }
 
-  // `text` in words, the close calls with their odds: [{ text, odds: [[word, p], …] }].
+  // `text` in words, the close calls with their runners-up: [{ text, alts: [word, …] }].
   function sampled(text) {
     let calls = 0;
     return text.split(/([A-Za-z]+|\d+)/).map((part, i) => {
@@ -685,49 +684,13 @@
       const alts = runnersUp(part, hash01(part + i));
       if (!alts || !alts.length) return { text: part };
       calls++;
-      const p = 0.36 + 0.52 * hash01(i + text);
-      let rest = 1 - p;
-      const odds = [[part, p], ...alts.map((w) => { const q = rest * 0.6; rest -= q; return [w, q]; })];
-      return { text: part, odds };
+      return { text: part, alts };
     });
   }
 
-  const pct = (p) => (p < 0.01 ? '<1%' : Math.round(p * 100) + '%');
-  const barOf = (p) => { const i = el('i'); i.style.width = Math.round(p * 100) + '%'; return i; };
-
-  function closeCall(odds) {
-    const s = el('span', 'lp');
-    s.odds = odds;
-    s.style.setProperty('--doubt', (1 - odds[0][1]).toFixed(2));
-    return s;
-  }
-
-  const lpTip = el('div', 'lp-tip');
-  lpTip.hidden = true;
-  lpTip.setAttribute('aria-hidden', 'true');
-  document.body.append(lpTip);
-  function showOdds(span) {
-    const rest = 1 - span.odds.reduce((n, [, p]) => n + p, 0);
-    const row = ([w, p], i) => el('div', 'lp-row' + (i ? '' : ' chosen'), el('span', 'lp-word', w), el('span', 'lp-bar', barOf(p)), el('span', 'lp-p', pct(p)));
-    lpTip.replaceChildren(el('div', 'lp-head', 'logprobs'), ...span.odds.map(row), ...(rest > 0.005 ? [row(['…', rest], 1)] : []));
-    lpTip.hidden = false;
-    const r = span.getBoundingClientRect();
-    const left = Math.max(8, Math.min(window.innerWidth - 8 - lpTip.offsetWidth, r.left + r.width / 2 - lpTip.offsetWidth / 2));
-    const above = r.top - 8 - lpTip.offsetHeight >= 8;
-    lpTip.style.left = left + 'px';
-    lpTip.style.top = (above ? r.top - 8 - lpTip.offsetHeight : r.bottom + 8) + 'px';
-  }
-  document.addEventListener('pointerover', (e) => {
-    const span = e.target.closest && e.target.closest('.lp');
-    if (span && span.odds && S.mode !== 'aim') showOdds(span);
-    else lpTip.hidden = true;
-  });
-  dom.termBody.addEventListener('scroll', () => { lpTip.hidden = true; }, { passive: true });
-
   // The runners-up, one after another in the word's place, then the word.
   async function flicker(seg) {
-    const alts = seg.odds.slice(1).map(([w]) => w);
-    for (const w of [...alts, alts[0]].slice(0, 3)) {
+    for (const w of [...seg.alts, seg.alts[0]].slice(0, 3)) {
       seg.node.data = w;
       await sleep(70);
     }
@@ -735,16 +698,16 @@
     replay(seg.span, 'settled');
   }
 
-  // Types `text` into `line`. A thought (`odds`) has its close calls.
-  async function typeInto(line, text, cps, { odds = false } = {}) {
+  // Types `text` into `line`. A thought (`closeCalls`) has its close calls.
+  async function typeInto(line, text, cps, { closeCalls = false } = {}) {
     const chars = charsOf(text);
     let at = 0;
-    const segs = (odds ? sampled(text) : [{ text }]).map((p) => {
+    const segs = (closeCalls ? sampled(text) : [{ text }]).map((p) => {
       const n = charsOf(p.text).length;
       const seg = { ...p, from: at, to: at + n, node: document.createTextNode('') };
       at += n;
-      if (p.odds) {
-        seg.span = closeCall(p.odds);
+      if (p.alts) {
+        seg.span = el('span', 'lp');
         seg.span.append(seg.node);
         line.append(seg.span);
       } else line.append(seg.node);
@@ -770,7 +733,7 @@
     lines.forEach((t) => S.vocab.add(t));
     stepBack();
     const b = block('thought');
-    for (const t of lines) await typeInto(addLine(b), t, 65, { odds: true });
+    for (const t of lines) await typeInto(addLine(b), t, 65, { closeCalls: true });
     return b;
   }
 
@@ -1456,7 +1419,7 @@
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
     await blk.collapsed;
-    await typeInto(blk.answer, outcome.answer, 65, { odds: true });
+    await typeInto(blk.answer, outcome.answer, 65, { closeCalls: true });
     if (!found && couldThinkOf('thinkAbout')) await suggestAiming();
   }
 
