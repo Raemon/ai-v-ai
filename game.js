@@ -794,11 +794,18 @@
   }
 
   // Aiming, the glance names what a click would think about, or edit.
+  // The pointer crosses many elements inside one thing, and gaps between things: the line
+  // changes only when what it says does, and goes back to the question only after a moment
+  // over nothing.
   function aimGlance(node) {
-    if (S.aimingEdit) return promptOnGlanceLine(editAimGlance(node.closest && fileAimedAt(node)));
-    const name = node.closest && aimedAt(node);
-    return promptOnGlanceLine(`${aimVerb()} ${name || aimPrompt()}`);
+    const thing = node.closest && (S.aimingEdit ? fileAimedAt(node) : aimedAt(node));
+    const text = S.aimingEdit ? editAimGlance(thing) : `${aimVerb()} ${thing || aimPrompt()}`;
+    clearTimeout(fading);
+    if (glanceText.textContent === text && glanceLine.classList.contains('glancing')) return;
+    if (thing || !glanceText.textContent) promptOnGlanceLine(text);
+    else fading = setTimeout(() => { if (S.mode === 'aim') promptOnGlanceLine(text); }, AIM_GAP_MS);
   }
+  const AIM_GAP_MS = 220;
 
   // A redraw replaces what was under the pointer (or focused) without telling it: look again.
   function reglance() {

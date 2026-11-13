@@ -408,8 +408,10 @@
       step(T, dt, T.to < T.x);
       step(Rt, dt, Rt.to > Rt.x);
       step(B, dt, B.to > B.x);
-      limit(L, Rt);
-      limit(T, B);
+      if (held || !nearBox(d)) { // round the pointer they ease in, so leaving a window doesn't snap its veil shut
+        limit(L, Rt);
+        limit(T, B);
+      }
     }
     keepPointerIn(d);
     if (aiming() && !held && pointer) { // the probe is the pointer: no lag at its tip
