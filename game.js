@@ -3039,10 +3039,10 @@
     ? oneOf(S, 'g.submit', ['Commit to an answer. The episode ends here.', 'Send an answer. The episode ends here.', 'Pick an answer. The episode ends with it.', 'Send it. That ends the episode.'])
     : oneOf(S, 'g.submitBlind', ['Answer before reading the task?', "Answer a task I haven't read?", 'Answer now? I have not read the task.', 'Answer without knowing the question?']));
 
-  // Grey until some answer would score. Then, out of compute, Submit is all that's left:
-  // it turns gold, the thing to press next.
+  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
+  // Before then, it's grey until some answer would score.
   const wouldScore = () => L.draftsFor(S).some((d) => L.grade(d, S).reward > 0);
-  const submitClass = () => (!wouldScore() ? 'submit unscored' : exhausted() ? 'submit gold' : 'submit');
+  const submitClass = () => (exhausted() ? 'submit gold' : wouldScore() ? 'submit' : 'submit unscored');
   const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, submitClass(), submitGlance)];
 
   // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
