@@ -1719,31 +1719,9 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 @keyframes compacting { to { opacity: 0; transform: scaleY(.6); filter: blur(2px); } }
 
 /* ---------- logprobs ---------- */
-/* A close call: underlined, warmer the closer it was. It flickers as it's chosen. */
-.lp { text-decoration: underline dotted; text-decoration-color: rgba(223, 162, 94, calc(.25 + var(--doubt, .3) * .9)); text-underline-offset: 3px; text-decoration-thickness: 1px; }
-.lp:hover { background: rgba(223, 162, 94, .1); border-radius: 2px; }
+/* A close call flickers as it's chosen. */
 .lp.settled { animation: settled .5s ease; }
 @keyframes settled { from { color: var(--warn); } }
-.lp-tip {
-  position: fixed;
-  z-index: 60;
-  min-width: 170px;
-  padding: 7px 10px 8px;
-  border: 1px solid var(--line-lit);
-  border-radius: 8px;
-  background: var(--bar);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
-  font: 11.5px/1.5 var(--mono);
-  color: var(--dim);
-  pointer-events: none;
-}
-.lp-head { margin-bottom: 3px; text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; color: var(--faint); }
-.lp-row { display: grid; grid-template-columns: minmax(56px, auto) 1fr 3.5ch; gap: 8px; align-items: center; }
-.lp-row.chosen { color: var(--text); }
-.lp-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .06); overflow: hidden; }
-.lp-bar i { display: block; height: 100%; background: rgba(129, 135, 143, .7); }
-.lp-row.chosen .lp-bar i { background: var(--agent); }
-.lp-p { text-align: right; }
 
 /* ---------- activations ---------- */
 /* Under a long think's head while it runs: a grid of activations, collapsing into the answer. */

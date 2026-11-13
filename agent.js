@@ -183,6 +183,7 @@
   veil.className = 'aim-veil';
   veil.setAttribute('aria-hidden', 'true');
   const VEIL = 2000; // how far past the desk it reaches, every way
+  const NEAR = 14;   // thinking about, over nothing: the brackets stay open this far round the pointer
   desktop.append(veil, probe, reticle);
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
@@ -244,9 +245,32 @@
       aimArm({ x: arm.left ? Rt.to : L.to, y: (T.to + B.to) / 2 }, d, 0);
     } else {
       if (pointer && arm.on) aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, aiming() ? 0 : 10);
-      if (tip) [L.to, T.to, Rt.to, B.to] = tipBox().map(Math.round); // the brackets close back into the bulb
-
+      const near = nearBox(d);
+      if (near) {
+        [L.to, T.to, Rt.to, B.to] = near;
+        if (open.x < 0.05) edges.forEach(snap); // they open where the pointer is
+        arm.left = (near[0] + near[2]) / 2 < gutter(d);
+      } else if (tip) [L.to, T.to, Rt.to, B.to] = tipBox().map(Math.round); // the brackets close back into the bulb
+      open.to = near ? 1 : 0;
     }
+  }
+
+  // Thinking about, the brackets never close: over nothing, they sit round the pointer.
+  function nearBox(d) {
+    if (!aiming() || editing() || !arm.on || !pointer || puppet) return null;
+    const x = Math.round((pointer.x - d.left) / d.k);
+    const y = Math.round((pointer.y - d.top) / d.k);
+    return [x - NEAR, y - NEAR, x + NEAR, y + NEAR];
+  }
+
+  // However the brackets are getting there, the pointer stays inside them.
+  function keepPointerIn(d) {
+    const near = !held && nearBox(d);
+    if (!near) return;
+    if (L.x > near[0]) Object.assign(L, { x: near[0], v: 0 });
+    if (T.x > near[1]) Object.assign(T, { x: near[1], v: 0 });
+    if (Rt.x < near[2]) Object.assign(Rt, { x: near[2], v: 0 });
+    if (B.x < near[3]) Object.assign(B, { x: near[3], v: 0 });
   }
 
   // Where the brackets open from and close into: round the bulb, or the text cursor's own.
@@ -387,6 +411,7 @@
       limit(L, Rt);
       limit(T, B);
     }
+    keepPointerIn(d);
     if (aiming() && !held && pointer) { // the probe is the pointer: no lag at its tip
       snap(arm.tx);
       snap(arm.ty);
@@ -471,7 +496,8 @@
     clearTimeout(letGo);
     if (!el) {
       // A moment's grace, so crossing the gap between two files doesn't let go.
-      letGo = setTimeout(release, held && arm.on ? 200 : 0);
+      // (Thinking about, they follow the pointer off it at once.)
+      letGo = setTimeout(release, held && arm.on && !(aiming() && !editing()) ? 200 : 0);
       return;
     }
     if (open.x < 0.05 && tip) { // the bulb opens: from where it is
