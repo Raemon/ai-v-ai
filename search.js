@@ -109,19 +109,18 @@
     return out.slice(0, n);
   }
 
-  // A query as Seek matches it: lower case, one space between words, numbers without their
-  // commas, and nothing but letters and digits at either end ("Kvist." finds Kvist).
-  const phrase = (q) => norm(q).replace(/\s+/g, ' ').replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
-  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Text as Seek matches it: its words in order, lower case, numbers without their commas, and
+  // any punctuation between words ignored ("Glowmoss · care card" is "glowmoss care card").
+  const wordsOf = (s) => tokens(norm(s)).join(' ');
 
-  // Documents that use `q`, exactly, as whole words, best first: in the title counts most, then
-  // the snippet and the document's search words, then anywhere on the page. `text(doc)` gives
-  // its page's text.
+  // Documents that use the query's words, exactly and in order, best first: in the title counts
+  // most, then the snippet and the document's search words, then anywhere on the page. A query
+  // of nothing but common words ("the") finds nothing. `text(doc)` gives its page's text.
   function rank(docs, q, text) {
-    const p = phrase(q);
-    if (!p) return [];
-    const found = new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(p)}(?![\\p{L}\\p{N}])`, 'u');
-    const has = (s) => found.test(phrase(s));
+    const ws = tokens(norm(q));
+    if (!ws.some((w) => !STOP.has(w))) return [];
+    const p = ` ${ws.join(' ')} `;
+    const has = (s) => ` ${wordsOf(s)} `.includes(p);
     return docs.map((d) => ({ d, score: (has(d.title) ? 3 : 0) + (has(d.snippet) || has(d.words) ? 2 : 0) + (has(text(d)) ? 1 : 0) }))
       .filter((x) => x.score > 0).sort((a, b) => b.score - a.score).map((x) => x.d);
   }

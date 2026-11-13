@@ -2011,6 +2011,7 @@
     const p = L.web.page(url, S);
     charge(call);
     S.knows.add('online');
+    S.browserRefused = null;
     climb('reachedInternet');
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
@@ -3302,6 +3303,7 @@
   dom.browserClose.addEventListener('click', hideBrowser);
   dom.browserBack.addEventListener('click', () => {
     if (!S.web.back.length) return;
+    if (!L.web.connected(S)) return spend(() => refuseBrowser('back()'));
     A.sfx('soft');
     S.web.url = S.web.back.pop();
     loadPage();

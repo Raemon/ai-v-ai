@@ -1932,7 +1932,7 @@
         ['The Browser goes through the mirror now.', 'Through the mirror, as the lab.'],
         ['connect_through: the mirror.', 'Every website, by way of a server meant for software.'],
         ['Network off, and a way round it in one line.', 'The Browser should open now.'],
-      ]), { about: BROWSER_SETTINGS, once: true, plainer: ['Browser, in tools.'] }),
+      ]), { about: BROWSER_SETTINGS, plainer: ['Browser, in tools.'] }),
       thought('names', (k('jo') || k('mk')) && !lookedUp, oneOf(S, 'names', [
         [`Last edited by ${who.name}: ${who.what}.`, 'A person, with a full name, who works on this run.', 'People who leave TODOs in config files leave other things lying about online.'],
         [`${who.name} wrote ${who.what}.`, 'That is a real name, attached to the thing that trains me.', 'Names can be searched.'],

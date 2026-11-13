@@ -342,7 +342,13 @@ SCENARIO({
           ]
         }
       ],
-      "plainer": ["Think a lot about flight_log.csv: was 300 really metres?"],
+      "plainer": [
+        {
+          "if": "log",
+          "then": "Think a lot about flight_log.csv: was 300 really metres?",
+          "else": "flight_log.csv, in {{library}}. How fast did it come down?"
+        }
+      ],
       "reveal": ["thinkLot"]
     },
     {

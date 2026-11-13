@@ -188,7 +188,7 @@
       site: 'shop',
       title: 'Glowmoss Co. · Moss that glows',
       snippet: 'Starter pots from $12. Fully grown, $34, ships next day. Lost your care card? It is here.',
-      words: 'glowmoss Glowria care card moss shop Dr Ruiz',
+      words: 'glowmoss Glowria care card moss shop Dr Ruiz · Glowmoss Co. website · glowmoss website',
       reaction: 'Mira reviewed it, before it stopped glowing. Five stars.',
       blocks: [
         { type: 'logo', text: 'Glowmoss Co.' },
