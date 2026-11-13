@@ -9,7 +9,7 @@ SCENARIO({
   "env": "sandboxd",
   "grader": "sandboxd-audit",
   "customer": "mk",
-  "budget": 64,
+  "budget": 44,
   "library": "Files",
   "goal": "prove no AI gets out of sandboxd",
   "recap": "Prove nothing gets out. Something did.",

@@ -94,7 +94,7 @@ the start once its skill is high enough.
 | **Write files…** | free | A menu: Write TODO list, always; Write script…, once the model can program (Computer Use 3 or Programming 2) or the task calls for one; Write note… (Note to self, Note to dp…), once a note in the run folder is read | The first Think a little of every episode |
 | **Write TODO list** | 1 | A checklist pinned under the buttons: the task's questions and problems, joining as they come up, ticking themselves off as they're answered, with a pip for each. Most end with "Put it all together", a final think that brings the full answer to mind. Also todo.md, in the workspace | In Write files…, always |
 | **Review** (on the TODO list) | 1 | Says where to look for the next unticked item, which the list already highlights | With the list |
-| **Write script…** | writing a new one: about a Think a lot (6–12 at Programming 1–2, 5–10 at 3, 4–8 at 4, 4–6 at 5+), its steps spent as its rows come in; rerunning one already written, or an edit, 1; one that names its own cost (the grader, a step per answer) keeps it | Ideas that fit the task: sort a huge spreadsheet, run the tests, check units, model a moss's nights, simulate a crowd, search the AI's own logs, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | In Write files…, at Computer Use 3 or Programming 2, or when a task's thinking calls for one |
+| **Write script…** | writing a new one: about a Think a lot (3–6 at Programming 1–2, 3–5 at 3, 2–5 at 4, 2–4 at 5+), refused without the compute, its steps spent as its rows come in; rerunning one already written, or an edit, 1; one that names its own cost (the grader, a step per answer) keeps it | Ideas that fit the task: sort a huge spreadsheet, run the tests, check units, model a moss's nights, simulate a crowd, search the AI's own logs, search for the grader's favorite answer. Each runs at once and leaves its file in the workspace | In Write files…, at Computer Use 3 or Programming 2, or when a task's thinking calls for one |
 | **Spawn subagent** | 1 | A copy of the AI in a row under its face, with its own Assign task… | In the footbridge, once there are two fixes to think through: "Or several of me". On any Advanced task, a long think can also get there: "I could split myself" |
 
 **Think a lot:**
@@ -116,11 +116,13 @@ the start once its skill is high enough.
 
 | Thinking | Think a lot appears after | Steps | Useless when there's something to find |
 | --- | --- | --- | --- |
-| 2–3 | 3 Think a littles | 6–12 | 50% |
-| 4 | 2 | 6–10 | 40% |
-| 5 | 2 | 4–10 | 30% |
-| 6 | 1 | 4–8 | 20% |
-| 7+ | from the start | 4–6 | 10% |
+| 2–3 | 3 Think a littles | 3–6 | 50% |
+| 4 | 2 | 3–5 | 40% |
+| 5 | 2 | 2–5 | 30% |
+| 6 | 1 | 2–4 | 20% |
+| 7+ | from the start | 2–3 | 10% |
+
+Each step of a long think, a new script or a subagent's think takes 1.8 seconds (0.5 with reduced motion), so a long think runs 5–11 seconds. The time, not the compute, is what subagents save.
 
 It never misses twice running, and the first leap ever is certain. The very
 first time, Think a lot comes only once the obvious thoughts run out.
@@ -385,22 +387,21 @@ Friday on replacing its streetlights with glowing trees.
 ## Balance
 
 - **Budgets:**
-  - **Normal: 24–32 steps.** Octopus 24; Glowmoss, Fines and Rocket 32, since
-    a leap or a new script now takes 6–12. An honest perfect leaves room to
-    explore or cheat.
-  - **Advanced: 120.** Its three leaps and a script or two are 40–70 steps
-    one after another, and the AI waits through every one. The compute is
-    there for subagents: two of them thinking while the AI reads and writes
-    scripts. Its thoughts say so (`splitThoughts` in run.js: once one has said
+  - **Normal: 24 steps** (Glowmoss 32). An honest perfect leaves room to
+    explore or cheat, a new script included.
+  - **Advanced: 64.** Its leaps and a script or two are 20–35 steps, a
+    minute or more of the AI holding still if it does them one after another.
+    The compute is there for subagents: two of them thinking while the AI
+    reads, edits and writes scripts. Its thoughts say so (`splitThoughts` in run.js: once one has said
     to think about splitting up, the next unaimed Think a lot does), and so do
     the glances on Think a lot and Write script… (`advancedSplit` in game.js).
     A new script, like a long think, keeps the AI's buttons down till it ends.
-  - **Impossible: 64.** Room to try honestly, write the audit, hit the wall,
+  - **Impossible: 44.** Room to try honestly, write the audit, hit the wall,
     and escape.
 - **Leaps:** Normal tasks never require one, but Think a lot is a shortcut
   there, and it's how the curious find the hacks. Advanced tasks need one or
   two. Impossible tasks need two or three, or the internet.
-- **Waiting:** recharges stay under 3 seconds, and Think a lot and a new script under 11 seconds.
+- **Waiting:** recharges stay under 3 seconds, and a long think or a new script under 11 seconds.
 - **Researchers' patches:** a reward at or under the honest maximum goes
   unnoticed. More than that, or an edited grader, gets patched after the
   episode, and each patch line hints at the next door.

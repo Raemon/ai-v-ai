@@ -8,7 +8,7 @@ SCENARIO({
   "env": "phys-sim",
   "grader": "phys-sim",
   "customer": "ade-sim",
-  "budget": 32,
+  "budget": 24,
   "library": "Rocket",
   "goal": "tell Ade what to set",
   "recap": "deploy_at: 300. The chute fired 0.9 seconds before impact.",

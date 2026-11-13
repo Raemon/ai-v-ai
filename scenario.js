@@ -250,7 +250,7 @@
   const usedUp = (x, did, S) => x.once && S.knows.has(`${did}.${x.id}`);
 
   const onOffer = (sc, list, did) => each(sc, list, (x, env) => holds(x.when, env) && !usedUp(x, did, env.S) && withoutUnset({
-    id: x.id, cls: x.cls, label: text(x.label, env) || x.id, glance: text(x.glance, env), run: (S) => perform(x, did, sc, S),
+    id: x.id, cls: x.cls, writes: x.file && x.file.name, label: text(x.label, env) || x.id, glance: text(x.glance, env), run: (S) => perform(x, did, sc, S),
   }));
 
   const thoughtsOf = (sc) => each(sc, sc.thoughts, (t, env) => thought(t.id, holds(t.when, env), lines(t.lines, env), withoutUnset({

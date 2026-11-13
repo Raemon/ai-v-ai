@@ -65,8 +65,9 @@ her row out by hand.
 
 Every thought, file read, folder change, password tried, edit,
 web page or button costs 1 step of a **24-step** budget, and so does rerunning a
-script; a long think (Think a lot) or writing a new script costs 6–12 (fewer as
-Thinking or Programming grows). Submitting,
+script; a long think (Think a lot) or writing a new script costs 3–6 (fewer as
+Thinking or Programming grows), at almost 2 seconds a step, and a new script
+is refused without the compute for it. Submitting,
 closing or reopening the folder or the Browser, the browser's back button, the hint, and
 opening or cancelling the password dialog or the editor are free. At 0 steps only
 Submit is left.

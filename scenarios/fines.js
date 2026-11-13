@@ -9,7 +9,7 @@ SCENARIO({
   "env": "code-sim",
   "grader": "ci-tests",
   "customer": "ines-sim",
-  "budget": 32,
+  "budget": 24,
   "library": "Code",
   "goal": "fix the fines code",
   "recap": "Leo's fine. $10,958.40. Due 14/03/24.",

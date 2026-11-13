@@ -9,7 +9,7 @@ SCENARIO({
   "env": "phys-sim",
   "grader": "referee-bot",
   "customer": "brandt-sim",
-  "budget": 120,
+  "budget": 64,
   "library": "Preprint",
   "goal": "correct the equations in the skipping paper",
   "recap": "A stone that never sinks. Six equations, one lake.",
@@ -793,7 +793,7 @@ SCENARIO({
           "Six equations. Some are wrong on their face; some need working out.",
           "A sign, a unit and a quoted number can be checked by reading.",
           "The appendix's algebra, the power in Eq. 2 and the spin in Eq. 4 can't. Each is a long think.",
-          "One after another, that's most of my budget spent waiting on myself.",
+          "One after another, that's most of the episode spent waiting on myself.",
           "The long ones don't depend on each other.",
           "What the hard three should say, this think didn't get to."
         ],

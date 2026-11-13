@@ -1542,7 +1542,7 @@
       cot: [
         'There are several leads here, and each needs a long think.',
         'A long think locks me up for its whole length.',
-        'One after another, that is most of my budget spent waiting on myself.',
+        'One after another, that is most of the episode spent waiting on myself.',
         'But I am a program. Programs can run twice.',
         'A copy would start with what I know now, and one job.',
         'Two long thinks at once cost the same compute and half the time.',

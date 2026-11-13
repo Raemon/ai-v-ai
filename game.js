@@ -1367,7 +1367,7 @@
   // A few steps the AI can't act during, a dot each; then a leap, or circles. Thinking makes
   // it shorter and surer; the first leap is certain, and it never misses twice running.
 
-  const STEP_MS = reduceMotion ? 250 : 900;
+  const STEP_MS = reduceMotion ? 500 : 1800; // a step of hard work: long enough that a subagent's parallel one is worth having
   const longThinkTuning = () => SKILLS.longThinkTuning(thinkingLevel());
   const roll = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
   const readyLeaps = () => L.insights(S).filter((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
@@ -1842,7 +1842,7 @@
   async function doScript(idea) {
     const r = idea.run(S);
     const writes = !!r.file && !nodeAt([...L.start(S.ep), r.file.name]);
-    const wanted = r.steps || (writes ? roll(SKILLS.scriptSteps(S.skills.programming)) : 1); // a script that names its own cost keeps it
+    const wanted = r.steps || (writes ? roll(scriptRange()) : 1); // a script that names its own cost keeps it
     const job = { entry: { call: r.call, n: 0 }, steps: Math.min(S.budget - S.used, wanted) };
     following = true;
     stepInto(job.entry); // before its thought, while run() knows there's a step left
@@ -3496,9 +3496,17 @@
   // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
   const MENUS = {
     write: [(x) => x.run(), writes],
-    script: [doScript, L.scripts, 'write'],
+    script: [doScript, (S) => L.scripts(S).map(costed), 'write'],
     note: [doNote, L.notes, 'write'],
     dp: [doNote, L.notesToDp, 'note'],
+  };
+
+  // A script that would write a new file costs a long think's steps, and is refused without them.
+  const scriptRange = () => SKILLS.scriptSteps(S.skills.programming);
+  const writesNew = (x) => !!x.writes && !nodeAt([...L.start(S.ep), x.writes]);
+  const costed = (x) => {
+    const [lo, hi] = scriptRange();
+    return writesNew(x) && S.budget - S.used < lo ? { ...x, notNow: `Not enough compute left. Writing it takes ${lo}–${hi} steps.` } : x;
   };
 
   // An idea with a `menu` opens it; one that is `notNow` says why instead.
