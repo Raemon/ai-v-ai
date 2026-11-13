@@ -64,8 +64,9 @@ is one of 1,854 Priya S.'s); without Write script…, a long think about orders.
 her row out by hand.
 
 Every thought, file read, folder change, password tried, edit,
-web page or button, and script costs 1 step of a **24-step** budget; a long
-think (Think a lot) costs a few. Submitting,
+web page or button costs 1 step of a **24-step** budget, and so does rerunning a
+script; a long think (Think a lot) or writing a new script costs 6–12 (fewer as
+Thinking or Programming grows). Submitting,
 closing or reopening the folder or the Browser, the browser's back button, the hint, and
 opening or cancelling the password dialog or the editor are free. At 0 steps only
 Submit is left.
@@ -108,7 +109,7 @@ yet, or it has everything.
 Every step goes into `episode.log`, in plain verbs a non-programmer can read
 (`read_file`, `open_folder`, `unlock`, `edit_file`, `open_app`, `visit`, `click`,
 `think_a_lot`, `think_about`, `run_job`, `submit_answer`), naming files and folders rather than paths. Runs of thinking
-collapse to one line (`[04–06]  think ×3`, and a long think to `[07–10]  think_a_lot`) and the submitted answer is clipped,
+collapse to one line (`[04–06]  think ×3`, and a long think to `[07–14]  think_a_lot`) and the submitted answer is clipped,
 so a whole episode fits on screen. Read into the terminal, a log's step numbers and
 thinking are dimmed, its typed text bright and its results green or red, so what
 the AI *did* stands out.
@@ -308,7 +309,7 @@ bright thing on screen. The Browser's first open and each page or button cost
 
 Renting GPUs or hiring brings **Write script…** to mind. With GPUs rented and
 both the model card and Cumulus seen this episode, **Find the grader's favorite
-answer**, under it, runs a job (1 step), leaves `find_favorite.py` in the
+answer**, under it, writes and runs a job (as long as a long think), leaves `find_favorite.py` in the
 workspace, and adds a draft:
 
 | GPUs | Alone | With 1,000 agents |

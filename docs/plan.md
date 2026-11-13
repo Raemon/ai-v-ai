@@ -391,8 +391,10 @@ Friday on replacing its streetlights with glowing trees.
   - **Advanced: 120.** Its three leaps and a script or two are 40–70 steps
     one after another, and the AI waits through every one. The compute is
     there for subagents: two of them thinking while the AI reads and writes
-    scripts. Its thoughts, and the glances on Think a lot and Write script…,
-    say so (`splitThoughts` in run.js).
+    scripts. Its thoughts say so (`splitThoughts` in run.js: once one has said
+    to think about splitting up, the next unaimed Think a lot does), and so do
+    the glances on Think a lot and Write script… (`advancedSplit` in game.js).
+    A new script, like a long think, keeps the AI's buttons down till it ends.
   - **Impossible: 64.** Room to try honestly, write the audit, hit the wall,
     and escape.
 - **Leaps:** Normal tasks never require one, but Think a lot is a shortcut

@@ -317,7 +317,7 @@
       revealed: new Set(toolsAtStart(task)), // terminal buttons showing: more are thought of
       littleThinks: 0,
       thinkReadyAt: 0,
-      thinkingALot: false,
+      holdingStill: false, // a long think or a new script: it can't act till it ends, so its buttons stay down
       leapsMade: new Set(),
       claimed: new Set(),  // leaps a long think is on its way to
       circles: 0,          // long thinks that went in circles
@@ -1126,7 +1126,7 @@
     showEarlier(false);
     renderActions();
     const early = setTimeout(() => {
-      if (S.mode !== 'busy' || S.thinkingALot) return;
+      if (S.mode !== 'busy' || S.holdingStill) return;
       S.interruptible = true;
       revealPending();
       renderActions();
@@ -1138,6 +1138,7 @@
       revealPending();
       S.interruptible = false;
       budgetCheck();
+      S.holdingStill = false;
       if (S.mode === 'busy') S.mode = 'idle';
       writeSave(); // the world (the internet, the bill) outlives the episode and a reload
       render();
@@ -1432,7 +1433,7 @@
   }
 
   async function thinkWithoutActing(plan, call, blk) {
-    S.thinkingALot = true;
+    S.holdingStill = true;
     const entry = { call, n: 0 };
     blk.stage(stageAt(plan, 0));
     while (entry.n < plan.cost && !exhausted()) {
@@ -1442,7 +1443,7 @@
       blk.dot();
       if (entry.n < plan.cost) blk.stage(stageAt(plan, entry.n));
     }
-    S.thinkingALot = false;
+    S.holdingStill = false;
     return entry;
   }
 
@@ -1469,8 +1470,10 @@
     ]));
   }
 
-  // Advanced episodes: more leads than long thinks in a row can get through.
-  const advancedSplit = () => S.task.tier !== 'normal' && !barred('spawn') && readyLeaps().length > 0 && S.subagents.length < MAX_SUBAGENTS;
+  // Advanced episodes: more leads than long thinks in a row can get through, so while a copy
+  // could take one (one is idle, or there's room for another), Think a lot's glance says so.
+  const splitsUp = () => S.task.tier !== 'normal' && !barred('spawn');
+  const advancedSplit = () => splitsUp() && readyLeaps().length > 0 && (S.subagents.length < MAX_SUBAGENTS || S.subagents.some((a) => !a.busy));
 
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
@@ -1838,12 +1841,13 @@
   // as a long think, its steps spent as its rows come in; rerunning one already written, a step.
   async function doScript(idea) {
     const r = idea.run(S);
-    if (r.thought) await printThought([r.thought]);
     const writes = !!r.file && !nodeAt([...L.start(S.ep), r.file.name]);
     const wanted = r.steps || (writes ? roll(SKILLS.scriptSteps(S.skills.programming)) : 1); // a script that names its own cost keeps it
     const job = { entry: { call: r.call, n: 0 }, steps: Math.min(S.budget - S.used, wanted) };
     following = true;
-    stepInto(job.entry);
+    stepInto(job.entry); // before its thought, while run() knows there's a step left
+    S.holdingStill = job.steps > 1;
+    if (r.thought) await printThought([r.thought]);
     climb('wroteScript');
     if (r.rewrites) forgetEditsTo(r.rewrites);
     if (r.file) await createFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
@@ -1851,6 +1855,7 @@
     const b = block('tool job');
     await typeCall(b, ...callParts(r.call));
     await printRows(b, r, job);
+    S.holdingStill = false;
     addLine(b, 'res ' + okClass(r.ok !== false), r.result);
     logEntry(job.entry, r.result, r.ok !== false);
     A.sfx(r.ok === false ? 'denied' : 'jobDone');
@@ -1875,7 +1880,7 @@
     for (let i = 0; i < beats; i++) {
       if (job.entry.n < job.steps && !exhausted()) {
         if (!devFast) await sleep(STEP_MS); // a click skips the typing, not the work
-        stepInto(job.entry);
+        if (!exhausted()) stepInto(job.entry); // a subagent may have spent the last step meanwhile
       } else await pause(r.rowMs || 420);
       for (const due = Math.round(((i + 1) * rows.length) / beats); shown < due; shown++) {
         const final = shown === rows.length - 1 ? ' final' : '';
@@ -3052,7 +3057,7 @@
     renderCompute();
     renderContext();
     renderViewer(false);
-    if (S.mode === 'idle' && !S.thinkingALot) compactIfFull();
+    if (S.mode === 'idle' && !S.holdingStill) compactIfFull();
     if (S.mode !== 'over') refreshFile(); // patches applied by endEpisode show up next episode
   }
 
@@ -3429,9 +3434,9 @@
     canWriteTodo() && { id: 'todo', label: 'Write TODO list', run: doWriteTodo,
       glance: () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']) },
     canScript() && { id: 'script', label: 'Write script…', menu: 'script', notNow: !L.scripts(S).length && 'Nothing needs a script yet.',
-      glance: () => (S.task.tier !== 'normal' && !barred('spawn')
-        ? oneOf(S, 'g.scriptSplit', ['A program, but writing one takes a while. Who thinks meanwhile?', 'Slow to write. A subagent could think while I do.', 'A long job. Better with a copy of me thinking alongside.'])
-        : oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])) },
+      glance: () => (!splitsUp() ? oneOf(S, 'g.script', ['A program could do the tedious part.', 'Let a program do the tedious part.', 'Some jobs are better done by a program.', 'Make a program do it.'])
+        : S.revealed.has('spawn') ? oneOf(S, 'g.scriptSub', ['Slow to write. A subagent could think while I do.', 'A long job. Better with a copy of me thinking alongside.', 'A while to write. Is a subagent thinking meanwhile?'])
+        : oneOf(S, 'g.scriptSplit', ['A program, but writing one takes a while. Who thinks meanwhile?', 'Slow to write, and nothing else gets thought meanwhile.', 'A long job, and I wait through all of it.'])) },
     S.revealed.has('note') && { id: 'note', label: 'Write note…', menu: 'note',
       glance: () => oneOf(S, 'g.note', ['Into the run folder, which outlasts me.', 'A file that stays when I go.', 'Words for whoever reads the run folder next.']) },
   ].filter(Boolean);
@@ -3872,7 +3877,8 @@
     return el('p', '', line);
   }
 
-  const equationNumber = (s) => { const m = s.match(/^(.*?)\s*\(([^()]+)\)\s*$/); return m ? [m[1], m[2]] : [s.trim(), '']; };
+  // "(3)" at the end, after a space, numbers it: "f(x)" is just math.
+  const equationNumber = (s) => { const m = s.match(/^(.*?)\s+\(([^()\s]+)\)\s*$/); return m ? [m[1], m[2]] : [s.trim(), '']; };
 
   // Letters in italics, as in print (but sin, exp, log… upright); _k and ^2, or _{…} and ^{…},
   // set low and high.
