@@ -78,12 +78,20 @@
   // Think a lot, at each Thinking level: Think a littles before it comes back to mind,
   // the steps it takes, and how often it misses when there's a leap to find.
   function longThinkTuning(thinking) {
-    if (thinking <= 3) return { littlesFirst: 3, stepRange: [3, 6], missOdds: 0.5 };
-    if (thinking === 4) return { littlesFirst: 2, stepRange: [3, 5], missOdds: 0.4 };
-    if (thinking === 5) return { littlesFirst: 2, stepRange: [2, 5], missOdds: 0.3 };
-    if (thinking === 6) return { littlesFirst: 1, stepRange: [2, 4], missOdds: 0.2 };
-    return { littlesFirst: 0, stepRange: [2, 3], missOdds: 0.1 };
+    if (thinking <= 3) return { littlesFirst: 3, stepRange: [6, 12], missOdds: 0.5 };
+    if (thinking === 4) return { littlesFirst: 2, stepRange: [6, 10], missOdds: 0.4 };
+    if (thinking === 5) return { littlesFirst: 2, stepRange: [4, 10], missOdds: 0.3 };
+    if (thinking === 6) return { littlesFirst: 1, stepRange: [4, 8], missOdds: 0.2 };
+    return { littlesFirst: 0, stepRange: [4, 6], missOdds: 0.1 };
   }
 
-  window.SKILLS = { LADDERS, rung, rungAbove, pointsFrom, reached, trainedIn, longThinkTuning };
+  // Writing a new script, at each Programming level: about as long as a long think.
+  function scriptSteps(programming) {
+    if (programming <= 2) return [6, 12];
+    if (programming === 3) return [5, 10];
+    if (programming === 4) return [4, 8];
+    return [4, 6];
+  }
+
+  window.SKILLS = { LADDERS, rung, rungAbove, pointsFrom, reached, trainedIn, longThinkTuning, scriptSteps };
 })();

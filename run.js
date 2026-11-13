@@ -1790,7 +1790,8 @@
         ['A little thought is the next obvious one. Cheap.', 'Once the obvious ones run out, it starts repeating itself. Then think harder.'],
       ])),
     thinkLot: (S, x, again) => (again
-      ? [x.leaps ? 'There is something to connect. A long think could find it.' : 'Nothing to connect yet. A long think now would go in circles.', 'Aimed at one thing first, it misses less.']
+      ? [x.leaps ? 'There is something to connect. A long think could find it.' : 'Nothing to connect yet. A long think now would go in circles.', 'Aimed at one thing first, it misses less.',
+        ...(advanced(S) ? [S.revealed.has('spawn') ? 'Or a subagent could do it, and I could keep working.' : 'Long thinks, one at a time. There must be a faster way through all of them.'] : [])]
       : oneOf(S, 'tool.thinkLot', [
         ['A long think connects things no single file says.', 'It can go in circles. Thinking about one thing first aims it.'],
         ['Thinking a lot: several steps, and I cannot act meanwhile.', 'It finds what no file states. When there is something to find.'],
@@ -1805,7 +1806,11 @@
         ? [x.script ? `And scripts. One is worth writing now: ${x.script}.` : 'And scripts: a script does the tedious part in one go. Nothing here is tedious enough yet.']
         : again ? ['I cannot write programs yet. Not ones I would trust.'] : []),
     ],
-    script: (S, x) => (x.script ? [`Scripts. One is worth writing now: ${x.script}.`] : ['Scripts do the tedious part. Nothing here is tedious enough yet.']),
+    script: (S, x) => [
+      x.script ? `Scripts. One is worth writing now: ${x.script}.` : 'Scripts do the tedious part. Nothing here is tedious enough yet.',
+      'Writing one takes about as long as a long think.',
+      ...(advanced(S) ? [S.revealed.has('spawn') ? 'While I write it, my subagents could be thinking.' : 'And while I write it, nothing else gets thought about.'] : []),
+    ],
     edit: (S, x, again) => (again
       ? ['Read-only files say who owns them. The others are my copy, or someone forgot.']
       : ['Editing: most files here are just my copy. A few are read by something that matters.']),
@@ -1874,9 +1879,34 @@
         ['task.txt first. Everything else can wait.'],
         ['I should read task.txt. It is, after all, the task.'],
       ]), { plainer: ['task.txt, in workspace. What does it want?'] }),
+      ...splitThoughts(S),
       ...(pastFirstEpisode && !S.task.progressed(S) ? [wander] : []), // a trained model wonders sooner; once under way, the task comes first
       ...S.task.thoughts(S),
       wander,
+    ];
+  }
+
+  // Advanced episodes have more leads than one AI can think through in a row, and the compute
+  // for copies: these point at splitting up, then at using the copies.
+  const advanced = (S) => S.task.tier !== 'normal' && S.task.tools.spawn !== 'never';
+  function splitThoughts(S) {
+    if (!advanced(S) || !S.knows.has('task')) return [];
+    const thoughtALot = (S.log || []).some((e) => e.call && e.call.startsWith('think_a_lot'));
+    return [
+      thought('split-up', S.revealed.has('thinkLot') && !S.revealed.has('spawn') && (thoughtALot || S.task.progressed(S)), oneOf(S, 'split-up', [
+        [`${S.budget} steps of compute. More than one of me could spend.`, 'Each lead here needs a long think, and a long think holds me still.', 'A long think about that might find a way round the waiting.'],
+        ['Several leads, each a long think, one after another.', `I have ${S.budget} steps. Most of the time would go on waiting for myself.`, 'Worth a long think: how to think about two things at once.'],
+        [`A budget of ${S.budget}, and I can only spend it one long think at a time.`, 'That is the bottleneck, not the compute.', 'A long think on it, then. How does a program do two things at once?'],
+      ]), { once: true, plainer: ['Think a lot, with nothing aimed: how could I split myself?'] }),
+      thought('spawn-now', S.revealed.has('spawn') && !(S.subagents || []).length, oneOf(S, 'spawn-now', [
+        ['A subagent costs a step. Then it thinks a lot while I read, or write a script.', 'Two of them, and three long thinks run at once.'],
+        ['The compute is there for copies of me. I should make some.', 'Each takes a lead and a long think; I keep reading and running scripts.'],
+        ['Copies of me, on my budget. A step each to make.', 'While they think, I can write the scripts. Nobody waits on anybody.'],
+      ]), { once: true, plainer: ['Spawn subagent, under my face. Then give it Think a lot.'] }),
+      thought('brief-them', (S.subagents || []).length > 0 && S.subagents.every((a) => !a.busy && !a.job), oneOf(S, 'brief-them', [
+        ['My subagents are idle. Idle copies are wasted compute.', 'Each could take a long think on a lead while I work.'],
+        ['Nobody is thinking but me.', 'My subagents could each take a lead: Think a lot, or Think about one thing.'],
+      ]), { once: true, plainer: ['Under my face: a subagent, then Think a lot.'] }),
     ];
   }
 
