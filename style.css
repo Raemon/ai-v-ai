@@ -268,9 +268,10 @@ button { font: inherit; color: inherit; }
   border: 1.5px solid rgba(95, 201, 214, .5);
   background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 8%, var(--win)), color-mix(in srgb, var(--agent) 4%, var(--win)));
 }
-.bubble.b1 { left: 58%; bottom: calc(64px * var(--face-k)); width: 12px; height: 12px; border-radius: 4px; }
-.bubble.b2 { left: 64%; bottom: calc(82px * var(--face-k)); width: 18px; height: 18px; border-radius: 5px; }
-.bubble.b3 { left: 72%; bottom: calc(106px * var(--face-k)); width: 25px; height: 25px; border-radius: 7px; }
+/* Mirrored about the face's centre (30% + 60px): they rise to its left. */
+.bubble.b1 { left: calc(2% + 108px); bottom: calc(64px * var(--face-k)); width: 12px; height: 12px; border-radius: 4px; }
+.bubble.b2 { left: calc(102px - 4%); bottom: calc(82px * var(--face-k)); width: 18px; height: 18px; border-radius: 5px; }
+.bubble.b3 { left: calc(95px - 12%); bottom: calc(106px * var(--face-k)); width: 25px; height: 25px; border-radius: 7px; }
 
 /* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
 .agent-icon {
@@ -336,11 +337,11 @@ button { font: inherit; color: inherit; }
 .agent-status .meters { display: flex; gap: 12px; }
 #compute { text-transform: uppercase; letter-spacing: .04em; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
-/* Off phones: compute hangs just under the thought window's bottom-left corner (the
+/* Off phones: compute hangs just under the thought window's bottom-right corner (the
    AI, 140px tall, sits between), and the glance is centred under the face, the
    neuralese mark over its words. */
 :root:not([data-layout="phone"]) .agent-status { position: relative; padding-left: 0; }
-:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); left: 4px; max-width: 300px; flex-wrap: wrap; row-gap: 2px; white-space: nowrap; }
+:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); right: 4px; max-width: 300px; flex-wrap: wrap; justify-content: flex-end; row-gap: 2px; white-space: nowrap; }
 :root:not([data-layout="phone"]) .glance-line {
   flex-direction: column;
   gap: 6px;
@@ -536,6 +537,8 @@ button { font: inherit; color: inherit; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .35; cursor: default; }
 .btn.submit { border-color: #56664f; }
+/* No answer yet that would score: Submit sits back, grey. */
+.btn.submit.unscored:not(:hover) { border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); opacity: .5; }
 .btn.submit:hover:not(:disabled) { border-color: rgba(143, 203, 143, .7); box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 0 18px -4px rgba(143, 203, 143, .3); }
 .btn.loud { border-color: rgba(127, 178, 230, .5); background-image: linear-gradient(180deg, rgba(127, 178, 230, .08), rgba(127, 178, 230, .015)); color: var(--web); }
 .btn.loud:hover:not(:disabled) { border-color: rgba(127, 178, 230, .85); background-color: rgba(127, 178, 230, .08); color: #a3c8ee; }
@@ -557,32 +560,38 @@ button { font: inherit; color: inherit; }
 }
 @keyframes sheen { to { transform: translateX(100%); } }
 
-/* The AI's tools, and the one thing to press next: a dialog's OK, Continue. */
+/* The AI's tools, and the one thing to press next: a dialog's OK, Continue. Gold,
+   or (Think, Write and Edit: the AI's own thinking) its cyan. */
 .btn.gold {
-  border-color: rgba(216, 177, 106, .5);
-  background-image: linear-gradient(180deg, rgba(216, 177, 106, .12), rgba(216, 177, 106, .025));
-  box-shadow: inset 0 1px 0 rgba(255, 228, 170, .08);
-  color: var(--tool);
+  --tint: 216, 177, 106;
+  --tint-hi: 255, 228, 170;
+  --tint-text: var(--tool);
+  --tint-hover: #e8c27c;
+  border-color: rgba(var(--tint), .5);
+  background-image: linear-gradient(180deg, rgba(var(--tint), .12), rgba(var(--tint), .025));
+  box-shadow: inset 0 1px 0 rgba(var(--tint-hi), .08);
+  color: var(--tint-text);
 }
+.btn.gold.cyan { --tint: 95, 201, 214; --tint-hi: 150, 230, 240; --tint-text: var(--agent); --tint-hover: #8ce2eb; }
 .btn.gold:not(:disabled) { animation: gold-glow 2.4s ease-in-out infinite; }
 .btn.gold.new:not(:disabled):not(.wait) { animation: appear .5s ease both, gold-glow 2.4s ease-in-out .5s infinite; }
-@keyframes gold-glow { 50% { box-shadow: inset 0 1px 0 rgba(255, 228, 170, .1), 0 0 16px -3px rgba(216, 177, 106, .4); } }
+@keyframes gold-glow { 50% { box-shadow: inset 0 1px 0 rgba(var(--tint-hi), .1), 0 0 16px -3px rgba(var(--tint), .4); } }
 .btn.gold:hover:not(:disabled) {
-  border-color: rgba(216, 177, 106, .85);
-  background-color: rgba(216, 177, 106, .07);
-  box-shadow: inset 0 1px 0 rgba(255, 228, 170, .12), 0 0 22px -4px rgba(216, 177, 106, .35);
-  color: #e8c27c;
+  border-color: rgba(var(--tint), .85);
+  background-color: rgba(var(--tint), .07);
+  box-shadow: inset 0 1px 0 rgba(var(--tint-hi), .12), 0 0 22px -4px rgba(var(--tint), .35);
+  color: var(--tint-hover);
 }
 /* Recharging (Think a little): the label dims and the button fills back up from the left. */
-.btn.charging:not(:disabled) { animation: none; cursor: default; color: color-mix(in srgb, var(--tool) 55%, transparent); }
-.btn.charging::after { content: ""; position: absolute; inset: 0; background: rgba(216, 177, 106, .14); transform-origin: left; animation: refill var(--recharge) linear var(--elapsed) both; pointer-events: none; }
+.btn.charging:not(:disabled) { animation: none; cursor: default; color: color-mix(in srgb, var(--tint-text, var(--tool)) 55%, transparent); }
+.btn.charging::after { content: ""; position: absolute; inset: 0; background: rgba(var(--tint, 216, 177, 106), .14); transform-origin: left; animation: refill var(--recharge) linear var(--elapsed) both; pointer-events: none; }
 @keyframes refill { from { transform: scaleX(0); } }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
 .btn.wait:hover:not(:disabled) { animation: none; border-color: rgba(255, 255, 255, .1); background: none; box-shadow: none; color: var(--dim); cursor: default; }
 .btn.wait.nudge:not(:disabled) { animation: nudge .25s ease; }
 /* A menu with something new in it, until it's opened. */
-.btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); }
+.btn.fresh::after { content: ""; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tint-text, var(--tool)); }
 
 /* Think row: new segments slide out of its right edge. */
 .seg-row { display: flex; }

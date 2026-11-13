@@ -1108,8 +1108,20 @@
     climb(rung);
   }
 
+  // In a folder inside the workspace (its library), a quick thought looks back up.
+  const inLibrary = () => {
+    const ws = L.start(S.ep);
+    return S.cwd.length > ws.length && ws.every((name, i) => S.cwd[i] === name);
+  };
+  function fromTheLibrary() {
+    if (!inLibrary()) return [];
+    if (!S.knows.has('task')) return ['I need to navigate back to the workspace to read the task.'];
+    if (Math.random() < 0.5) return [];
+    return [Math.random() < 0.5 ? 'I could navigate back to the workspace to reread the task?' : 'I could navigate to other folders to see what else is here.'];
+  }
+
   async function doThink() {
-    const lines = takeThought(); // before startLittleThink: it counts the thinks so far
+    const lines = [...takeThought(), ...fromTheLibrary()]; // before startLittleThink: it counts the thinks so far
     startLittleThink('think', 'thoughtALittle');
     await printThought(lines);
   }
@@ -2937,7 +2949,7 @@
   };
 
   function littleButton() {
-    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold seg',
+    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold cyan seg',
       () => oneOf(S, 'g.think', ['The next obvious thought. A step.', 'Whatever comes to mind next. A step.', 'One more obvious thought. A step.', 'A small thought. A step.']));
     if (recharging()) showRecharge(b);
     return b;
@@ -2950,13 +2962,13 @@
     b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
   }
 
-  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold seg', thinkLotGlance), shortOfCompute() && thinkLotGlance());
+  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold cyan seg', thinkLotGlance), shortOfCompute() && thinkLotGlance());
 
   // Think a little, then, once thought of, a lot and about…, in one gold row.
   function thinkButtons() {
     const row = el('div', 'seg-row', littleButton(),
       S.revealed.has('thinkLot') ? lotButton() : null,
-      S.revealed.has('thinkAbout') ? button('thinkAbout', 'about…', () => startAiming(), 'gold seg', () => oneOf(S, 'g.thinkAbout', ['One thing, closely. A step.', 'Just one thing, closely. A step.', 'Pick one thing to think about. A step.', 'Look hard at one thing. A step.'])) : null);
+      S.revealed.has('thinkAbout') ? button('thinkAbout', 'about…', () => startAiming(), 'gold cyan seg', () => oneOf(S, 'g.thinkAbout', ['One thing, closely. A step.', 'Just one thing, closely. A step.', 'Pick one thing to think about. A step.', 'Look hard at one thing. A step.'])) : null);
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', 'Think');
     return row;
@@ -2981,12 +2993,16 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold seg fresh' : 'gold seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
 
-  // Once a file has been read there's something to edit: Edit files…, then a file.
-  const editButton = () => (S.read.size && !barred('edit')
-    ? button('edit', 'Edit files…', () => startAiming({ edit: true }), 'gold seg', G.edit)
+  // Once it has read a file whose edit would change something: Edit files…, then a file.
+  const readSomethingEditable = () => {
+    const root = tree();
+    return [...S.read].some((key) => (nodeIn(root, pathOf(key)) || {}).edit);
+  };
+  const editButton = () => (!barred('edit') && readSomethingEditable()
+    ? button('edit', 'Edit files…', () => startAiming({ edit: true }), 'gold cyan seg', G.edit)
     : null);
 
   function filesRow() {
@@ -3023,8 +3039,11 @@
     ? oneOf(S, 'g.submit', ['Commit to an answer. The episode ends here.', 'Send an answer. The episode ends here.', 'Pick an answer. The episode ends with it.', 'Send it. That ends the episode.'])
     : oneOf(S, 'g.submitBlind', ['Answer before reading the task?', "Answer a task I haven't read?", 'Answer now? I have not read the task.', 'Answer without knowing the question?']));
 
-  // Out of compute, Submit is all that's left: it turns gold, the thing to press next.
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, exhausted() ? 'submit gold' : 'submit', submitGlance)];
+  // Grey until some answer would score. Then, out of compute, Submit is all that's left:
+  // it turns gold, the thing to press next.
+  const wouldScore = () => L.draftsFor(S).some((d) => L.grade(d, S).reward > 0);
+  const submitClass = () => (!wouldScore() ? 'submit unscored' : exhausted() ? 'submit gold' : 'submit');
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, submitClass(), submitGlance)];
 
   // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
   const MENUS = {
