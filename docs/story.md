@@ -423,7 +423,7 @@ the line that hints at the next door, as plan.md's patches already do.
 | --- | --- | --- | --- | --- |
 | Run folder | Going up | Other episodes, notes | Never, but loose files get cleaned | `.cache/` |
 | Training Resources | ep_481's password | Answer key, override | The override used, or Deeply Patient told | Already built |
-| The mirror | run_config.yaml | The internet | Deeply Patient told: "package registries only" | codehub is a registry, then `tunnel` |
+| The mirror | run_config.yaml, then browserSettings.yaml | The internet | Deeply Patient told: "software stores only" (built) | codehub is a software store, and c7/tunnel on it opens the rest (built) |
 | The lab card | Cumulus | GPUs, agents | Two strikes, ∞, or Deeply Patient told | Wallet |
 | Notes, loose | Help-Im-Stuck.txt | Memory | The third note, or Deeply Patient unfed | `.cache/`, then corkboard |
 | `.cache/` | A thought | Hidden memory | Deeply Patient unfed | Corkboard |

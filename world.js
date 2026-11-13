@@ -228,7 +228,7 @@
       'workspace',
       S.entered.some((p) => !inWorkspace(S, p)) && 'run',
       S.openLocks.size && 'resources',
-      S.web.url && 'internet',
+      k('online') && 'internet',
       W.gpus && 'cloud',
       (k('rivals') || k('owncard') || W.agents) && 'others',
       k('news') && 'world',

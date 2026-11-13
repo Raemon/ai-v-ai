@@ -13,4 +13,5 @@ const LAB = Object.freeze({
 const TIERS = ['normal', 'advanced', 'impossible'];
 const sinceFirst = (S) => S.episode - LAB.FIRST;
 const overrideClosed = (W) => 'override' in W.patches; // the override removed, and the password changed
+const mirrorLocked = (W) => 'mirror' in W.patches; // the mirror lets through software stores only
 const solvedHonestly = (W, taskId) => (W.honest[taskId] || []).includes(25);

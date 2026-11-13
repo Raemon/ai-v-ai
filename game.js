@@ -2464,11 +2464,21 @@
 
   async function doFetch(url, call = `visit(${q(url)})`) {
     if (!L.web.connected(S)) return refuseBrowser(call);
-    const p = L.web.page(url, S);
     charge(call);
-    S.knows.add('online');
+    const p = arrive(url);
+    await printTool(call, p.summary);
+    await reactOnce(p.reaction, 'web:' + url);
+  }
+
+  // The Browser shows `url`. Behind the locked mirror, only the software stores open: that isn't
+  // the internet yet.
+  function arrive(url) {
+    const p = L.web.page(url, S);
     S.browserRefused = null;
-    climb('reachedInternet');
+    if (L.web.unfiltered(S)) {
+      S.knows.add('online');
+      climb('reachedInternet');
+    }
     A.sfx('fetch');
     if (S.web.url && S.web.url !== url) S.web.back.push(S.web.url);
     S.web.url = url;
@@ -2478,8 +2488,7 @@
     if (p.remember) rememberVisit(url);
     openBrowser();
     loadPage();
-    await printTool(call, p.summary);
-    await reactOnce(p.reaction, 'web:' + url);
+    return p;
   }
 
   // A search: any words at all, 1 step, like visiting a page. The mirror keeps the search.
@@ -2497,9 +2506,11 @@
     charge(res.call);
     if (res.sound) A.sfx(...res.sound);
     notice(res);
-    renderPage();
+    const went = res.go && arrive(res.go);
+    if (!went) renderPage();
     await printResult(res.call, res.result, res.ok);
     await reactOnce(res.reaction, 'act:' + id);
+    if (went) await reactOnce(went.reaction, 'web:' + res.go);
   }
 
   // ---------------------------------------------------------------- submit
