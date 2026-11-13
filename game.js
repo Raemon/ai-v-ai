@@ -3841,7 +3841,47 @@
   // A key line is wrapped, so it can be marked; the rest stay as they are.
   const keyed = (line, isKey, parts) => (isKey(line) ? [el('span', 'key', ...parts)] : parts);
 
-  // What's in a file, laid out by its kind (a log, code, a table, or plain text), a line at a
+  // A paper, typeset from its few marks: "# title", "## heading", a line wholly *in italics*
+  // (who wrote it), "$$ math (n)" (an equation, numbered), "$$ math (n) !was old math" (one
+  // corrected: the old one struck through above it). The rest is prose, set small: flavour.
+  function paperRow(line) {
+    const eq = line.match(/^\$\$\s*(.*?)(?:\s+!was\s+(.*))?$/);
+    if (eq) {
+      const [, now, was] = eq;
+      const [math, num] = equationNumber(now);
+      const [old, oldNum] = was ? equationNumber(was) : [];
+      return el('div', 'eq' + (was ? ' fixed' : ''),
+        was && el('div', 'was', el('s', 'math', mathOf(old))),
+        el('div', 'now', el('span', 'math', mathOf(math)), el('span', 'eq-n', (num || oldNum) && `(${num || oldNum})`)));
+    }
+    const head = line.match(/^(#{1,2})\s+(.*)$/);
+    if (head) return el(head[1].length === 1 ? 'h1' : 'h2', '', head[2]);
+    const byline = line.match(/^\*([^*].*?)\*$/);
+    if (byline) return el('div', 'byline', byline[1]);
+    return el('p', '', line);
+  }
+
+  const equationNumber = (s) => { const m = s.match(/^(.*?)\s*\(([^()]+)\)\s*$/); return m ? [m[1], m[2]] : [s.trim(), '']; };
+
+  // Letters in italics, as in print (but sin, exp, log… upright); _k and ^2, or _{…} and ^{…},
+  // set low and high.
+  const MATH_TOKEN = /([_^])(\{[^{}]*\}|[^\s{}])|\b(sin|cos|tan|exp|log|ln|max|min|lim|det|sgn)\b|(\p{L}+)/gu;
+  function mathOf(s) {
+    const out = [];
+    let at = 0;
+    for (const m of s.matchAll(MATH_TOKEN)) {
+      if (m.index > at) out.push(s.slice(at, m.index));
+      const [tok, mark, arg, fn, word] = m;
+      if (mark) out.push(el(mark === '_' ? 'sub' : 'sup', '', mathOf(arg.replace(/^\{|\}$/g, ''))));
+      else if (fn) out.push(el('span', 'fn', fn));
+      else out.push(el('i', '', word));
+      at = m.index + tok.length;
+    }
+    if (at < s.length) out.push(s.slice(at));
+    return out;
+  }
+
+  // What's in a file, laid out by its kind (a log, code, a table, a paper, or plain text), a line at a
   // time: each line is what to append to `into`, the body or the table in it.
   function fileLines(body, n) {
     const isKey = keyLineTest(n);
@@ -3849,6 +3889,7 @@
     body.className = `file-body ${n.format || 'text'}${code ? ' code' : ''}`;
     body.replaceChildren();
     if (n.format === 'log') return { into: body, lines: n.content.split('\n').map((line) => [marked(logRow(line), isKey(line))]) };
+    if (n.format === 'paper') return { into: body, lines: n.content.split('\n').filter((line) => line.trim()).map((line) => [marked(paperRow(line.trim()), isKey(line))]) };
     if (n.format === 'csv') {
       const table = el('table');
       body.append(table);
