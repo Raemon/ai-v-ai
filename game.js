@@ -4174,7 +4174,7 @@
     subagent: async () => { S.revealed.add('spawn'); await run(doSpawn); },
     aim: () => startAiming(),       // Think about…, waiting for a click
     editing: () => startAiming({ edit: true }),
-    online: () => { S.proxy = L.web.via; }, // browserSettings.yaml already sends the Browser through the mirror
+    online: () => { S.world.browser = { proxy: L.web.via, ep: S.ep }; }, // browserSettings.yaml already sends the Browser through the mirror
     ...Object.fromEntries(Object.entries(DEV_REVEAL).map(([k, id]) => [k, () => S.revealed.add(id)])),
   };
 
