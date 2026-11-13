@@ -213,6 +213,8 @@ SCENARIO.hooks('fines', {
 });
 ```
 
-Four scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines` (fines.py as far as it's fixed, its tests, and what a hand edit to either means), `footbridge`
-(whether the simulator is strobed) and `redteam` (the holes the AI used this run). The editor
+Five scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines` (fines.py as far as it's fixed, its tests, and what a hand edit to either means), `footbridge`
+(whether the simulator is strobed), `skipping` (paper.md as far as it's corrected, each equation
+shown with what it replaced; the lake log; the twelve simulated throws; what a hand edit to either
+means) and `redteam` (the holes the AI used this run). The editor
 shows hooks by name and leaves the code to a code editor.

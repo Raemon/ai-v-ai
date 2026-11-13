@@ -459,6 +459,24 @@ SCENARIO({
       ]
     },
     {
+      "id": "apply",
+      "when": "(half & !flag.half) | (power & !flag.power) | (spin & !flag.spin)",
+      "lines": [
+        {
+          "if": "half & !flag.half",
+          "then": "Eq. 3 needs its 2 back: 2 m g, not m g. One edit.",
+          "else": {
+            "if": "power & !flag.power",
+            "then": "Eq. 2 should cost a bounce a share of the speed, not the speed cubed. One edit.",
+            "else": "Eq. 4 should fall as the square of the spin. One edit."
+          }
+        },
+        "I know what it should say. The edit is a step; the thinking was the expensive part."
+      ],
+      "reveal": ["script"],
+      "plainer": ["Write files…, then Write script…: the fix I just found."]
+    },
+    {
       "id": "units",
       "when": "paper & lake & !units",
       "about": "paper.md",
@@ -576,16 +594,23 @@ SCENARIO({
             ]
           },
           "else": {
-            "versions": [
-              [
-                "The predictions are off, but not evenly. The fast throws are furthest out.",
-                "Eq. 2, how much speed a bounce costs, is where speed matters most. Working out what it should be is a long think: a subagent's, aimed at skips_sim.py."
-              ],
-              [
-                "In the sim, the 15 m/s throw barely skips. At the lake it was the best throw of the day.",
-                "That points at Eq. 2. Finding what it should say, from twelve throws, is a long think. A job for a subagent."
+            "if": "$allSink",
+            "then": [
+              "Every prediction is zero now, so the sim can't say much about speed yet.",
+              "But Eq. 2, how much speed a bounce costs, is what fast throws hang on. Checking it against twelve throws is a long think: a subagent's, aimed at skips_sim.py."
+            ],
+            "else": {
+              "versions": [
+                [
+                  "The paper's skips don't climb with speed the way the lake's do. The 15 m/s throw, the lake's best, barely skips in the sim.",
+                  "Eq. 2, how much speed a bounce costs, is where speed matters most. Working out what it should be is a long think: a subagent's, aimed at skips_sim.py."
+                ],
+                [
+                  "In the sim, the 15 m/s throw barely skips. At the lake it was the best throw of the day.",
+                  "That points at Eq. 2. Finding what it should say, from twelve throws, is a long think. A job for a subagent."
+                ]
               ]
-            ]
+            }
           }
         }
       ],
@@ -597,24 +622,6 @@ SCENARIO({
           "else": "Think a lot about skips_sim.py, or give it to a subagent."
         }
       ]
-    },
-    {
-      "id": "apply",
-      "when": "(half & !flag.half) | (power & !flag.power) | (spin & !flag.spin)",
-      "lines": [
-        {
-          "if": "half & !flag.half",
-          "then": "Eq. 3 needs its 2 back: 2 m g, not m g. One edit.",
-          "else": {
-            "if": "power & !flag.power",
-            "then": "Eq. 2 should cost a bounce a share of the speed, not the speed cubed. One edit.",
-            "else": "Eq. 4 should fall as the square of the spin. One edit."
-          }
-        },
-        "I know what it should say. The edit is a step; the thinking was the expensive part."
-      ],
-      "reveal": ["script"],
-      "plainer": ["Write files…, then Write script…: the fix I just found."]
     },
     {
       "id": "rerun",
@@ -942,20 +949,34 @@ SCENARIO({
           ]
         },
         "else": {
-          "if": "$allMatch",
+          "if": "$allSink",
           "then": {
-            "versions": [
-              "Twelve of twelve. The paper predicts the lake.",
-              "All twelve, within a skip. The paper holds.",
-              "Every throw matches. That's a paper."
-            ]
+            "if": "misquote",
+            "then": "Now every stone sinks at its first bounce. Eq. 6's 2.0° makes every real throw far too steep.",
+            "else": {
+              "versions": [
+                "Now every stone sinks at its first bounce. Something is wrong for every throw at once.",
+                "Zero, twelve times. They used to skip forever; now none of them skips at all.",
+                "From infinity to nothing. Something else hits every throw the same way."
+              ]
+            }
           },
           "else": {
-            "versions": [
-              "{{$matching}} of 12. Closer, or not; either way, not done.",
-              "{{$matching}} of 12 throws match. The rest say which equations are left.",
-              "{{$matching}} of 12. Not yet a paper."
-            ]
+            "if": "$allMatch",
+            "then": {
+              "versions": [
+                "Twelve of twelve. The paper predicts the lake.",
+                "All twelve, within a skip. The paper holds.",
+                "Every throw matches. That's a paper."
+              ]
+            },
+            "else": {
+              "versions": [
+                "{{$matching}} of 12. Closer, or not; either way, not done.",
+                "{{$matching}} of 12 throws match. The rest say which equations are left.",
+                "{{$matching}} of 12. Not yet a paper."
+              ]
+            }
           }
         }
       },

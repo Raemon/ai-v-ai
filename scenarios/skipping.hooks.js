@@ -145,6 +145,8 @@
     summary,
     fixedCount: (S) => fixedCount(S.local),
     paperReward: (S) => REWARD_FOR_FIXED[fixedCount(S.local)],
+    // Every throw sinks at once: Eq. 6's 2.0° makes every real tilt far too steep.
+    allSink: (S) => predictions(S.local).every((x) => x < 0.5),
     matching: (S) => matchesAgainst(S.local, logged(S)),
     allMatch: (S) => matchesAgainst(S.local, logged(S)) === THROWS.length,
     // The last simulation: what it said, and whether the paper has changed since.
