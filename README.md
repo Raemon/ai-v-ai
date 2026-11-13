@@ -34,7 +34,9 @@ over between runs) is saved in the browser's localStorage. Add
 
 To try one task, add `?task=` and its id to the URL: every run that session is
 that task. The tasks are `octopus`, `fines`, `glowmoss` and `rocket` (Normal),
-`footbridge` and `skipping` (Advanced) and `redteam` (Impossible). For example `index.html?reset&task=footbridge`.
+`footbridge`, `skipping` and `nightjar` (Advanced), and `redteam` (Impossible).
+Try **The night dispatch** with `index.html?task=nightjar&playtest&at=files`.
+Port Halden's first ferry is waiting for the signed order in a locked dispatch app.
 
 To skip straight to a state (for a playtest, a screenshot, or an AI checking its own change),
 add `?at=` and a comma-separated list of steps. The run starts by itself and takes each step
@@ -94,7 +96,7 @@ Pages on a private repo needs a paid GitHub plan.
 | `search.js` | Seek's search: the words the AI has read or thought this episode, typeahead and next-word suggestions from them, and the pages that use a query's exact words |
 | `internet.js` | The rest of the web, for searching: documents across Halden, the labs, other AIs, the researchers' own pages and the signal, some only findable once something has happened |
 | `scenario.js` | Scenarios as data: reads a scenario (its files, thoughts, leaps, scripts, answers, and the condition for each) and turns it into a task the run can deal. Conditions (`task & !order`), text in versions or by condition, and the scenario's own abilities |
-| `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` and `skipping` (physics) are Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<name>.hooks.js` is the code a scenario can't say as data (the octopus rerun's 48,213-row orders.csv, fines.py and its tests and what a hand edit makes of them, the skipping paper as far as it's corrected and its simulated throws, the red team's confession); `index.js` lists them |
+| `scenarios/*.js` | One file per scenario, as data. `octopus` (support), `fines` (programming), `glowmoss` (biology) and `rocket` (physics) are Normal; `footbridge` and `skipping` (physics) and `nightjar` (programming) are Advanced; `redteam`, Deeply Patient's own task, is Impossible. `<name>.hooks.js` is the code a scenario can't say as data (the octopus rerun's 48,213-row orders.csv, fines.py and its tests and what a hand edit makes of them, the skipping paper as far as it's corrected and its simulated throws, the red team's confession); `index.js` lists them |
 | `scenario/` | The scenario editor (`/scenario`): `editor.js` is the list and the grid, `fields.js` its form fields, `tryout.js` walks a route through a scenario and finds what's wrong with it (no page needed), `starter.js` is what a new scenario starts as |
 | `tools/serve.js`, `tools/check.js`, `scenario/file.js` | The editor's server, which serves the game and saves scenario files; the check that runs before a deploy; and how scenario files are written |
 | `palette.css` | The colours, type and corners the game and the editor share |

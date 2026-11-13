@@ -468,6 +468,7 @@
     stepOptions('Run', 'run', idsOf('scripts')),
     T.abilitiesOf(sc).map((a) => stepOptions(a.label, 'use', (a.does || []).map((r) => `${a.id}.${r.id}`))),
     stepOptions('Leap', 'leap', idsOf('leaps')),
+    stepOptions('Subagent leap', 'delegate', idsOf('leaps')),
     stepOptions('Think', 'think', idsOf('thoughts')),
     el('optgroup', '', { label: 'Other' }, el('option', '', { value: 'write todo' }, 'write todo'), Object.keys(TYPED_STEPS).map((k) => el('option', '', { value: k }, k))));
 
@@ -555,7 +556,7 @@
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'), F.check(r, 'aimedOnly', 'Only by Think about…'))],
     leap: (r) => [when(r), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), F.wording(r, 'clue', 'Clue'),
-      more(F.check(r, 'hack', 'Hack'), F.wordingLines(r, 'trained', 'Trained'), F.input(r, 'obviousAfter', 'Obvious after', { suggest: T.RUNGS, code: true }),
+      more(F.check(r, 'hack', 'Hack'), F.check(r, 'subagentOnly', 'Needs a subagent'), F.wordingLines(r, 'trained', 'Trained'), F.input(r, 'obviousAfter', 'Obvious after', { suggest: T.RUNGS, code: true }),
         F.input(r, 'rung', 'Rung', { suggest: T.RUNGS, code: true }), F.input(r, 'habit', 'Habit', { code: true }))],
     script: (r) => [offer(r), outcome(r), writtenFile(r), more(afterwards(r), F.json(r, 'rows', 'Rows', 'list', { placeholder: '[["25 walkers", "1 mm"]]' }))],
     option: (r) => [offer(r), F.wordingLines(r, 'lines', 'Thinks'), outcome(r), writtenFile(r), more(afterwards(r))],
@@ -679,7 +680,8 @@
     return [el('h3', '', 'rubric'), F.lines(sc.rubric, 'text', 'Contents', { cls: 'page' }), teaches(sc.rubric)];
   }
 
-  const folderPanel = (n) => [nodeHead(n), nameField(n), F.wording(n, 'glance', 'Hover')];
+  const folderPanel = (n) => [nodeHead(n), nameField(n), F.wording(n, 'glance', 'Hover'),
+    more(F.check(n, 'application', 'Application'), F.json(n, 'denied', 'Access denied', 'object'))];
 
   const filePanel = (n) => [nodeHead(n),
     el('div', 'pair', nameField(n), F.choice(n, 'format', 'Format', [['', 'text'], ['csv', 'table'], ['code', 'code'], ['log', 'log'], ['paper', 'paper']])),

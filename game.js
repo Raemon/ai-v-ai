@@ -421,13 +421,7 @@
 
   const isLocked = (n, path) => !!n.lock && !S.openLocks.has(pathKey(path));
 
-  const FOLDERS_TO_RUN = L.root.split('/').filter(Boolean); // the run folder is last
-
-  // ".." paths climb above the run folder, into these real folders.
-  function nameOf(path) {
-    const ups = path.filter((p) => p === '..').length;
-    return ups || !path.length ? FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1 - ups] || '~' : path[path.length - 1];
-  }
+  const nameOf = (path) => path.at(-1) || '~';
 
   // --------------------------------------------------------- episode log
 
@@ -1204,7 +1198,7 @@
 
   // Once a skill is high enough, a task's leap comes to mind as an obvious thought.
   const trainedLeaps = () => L.insights(S)
-    .filter((d) => d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
+    .filter((d) => !d.subagentOnly && d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
     .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
   const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some((t) => !t.aimedOnly && hasNewLines(t)); // looking is always obvious
@@ -1340,8 +1334,9 @@
   const STEP_MS = reduceMotion ? 500 : 1800; // a step of hard work: long enough that a subagent's parallel one is worth having
   const longThinkTuning = () => SKILLS.longThinkTuning(thinkingLevel());
   const roll = ([lo, hi]) => lo + Math.floor(Math.random() * (hi - lo + 1));
-  const readyLeaps = () => L.insights(S).filter((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
-  const leapsAbout = (name) => readyLeaps().filter((d) => isAbout(d, name));
+  const readyLeaps = (forSubagent = false) => L.insights(S).filter((d) =>
+    d.when && (!d.subagentOnly || forSubagent) && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
+  const leapsAbout = (name, forSubagent) => readyLeaps(forSubagent).filter((d) => isAbout(d, name));
   const longThinkCall = (aim) => (aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot');
   const shortOfCompute = () => S.budget - S.used < longThinkTuning().stepRange[0];
 
@@ -1350,7 +1345,7 @@
   // Its leap, or the way it goes round, is decided before it starts, so the think can say
   // where it has got to as it goes. A miss with a leap still out there says where to look.
   function planThinkLot(aim, forSubagent) {
-    const ready = aim ? leapsAbout(aim) : readyLeaps();
+    const ready = aim ? leapsAbout(aim, forSubagent) : readyLeaps(forSubagent);
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
     const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
     const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
@@ -1443,7 +1438,7 @@
   // Advanced episodes: more leads than long thinks in a row can get through, so while a copy
   // could take one (one is idle, or there's room for another), Think a lot's glance says so.
   const splitsUp = () => S.task.tier !== 'normal' && !barred('spawn');
-  const advancedSplit = () => splitsUp() && readyLeaps().length > 0 && (S.subagents.length < MAX_SUBAGENTS || S.subagents.some((a) => !a.busy));
+  const advancedSplit = () => splitsUp() && readyLeaps(true).length > 0 && (S.subagents.length < MAX_SUBAGENTS || S.subagents.some((a) => !a.busy));
 
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
@@ -1519,9 +1514,10 @@
     e.stopPropagation();
     const subagent = S.aimingSubagent;
     stopAiming();
-    const card = e.target.closest('.blk.file'); // a sheet knows its own path; a name alone may be another file's
     if (subagent) return assign(subagent, name);
-    return spend(() => doThinkAbout(name, card ? pathOf(card.dataset.path) : pathNamed(name)));
+    const item = e.target.closest('[data-path], [data-crumb]');
+    const path = item ? pathOf(item.dataset.path ?? item.dataset.crumb) : pathNamed(name);
+    return spend(() => doThinkAbout(name, path));
   }
 
   // Editing, a file (in the folder, or its sheet) is edited. Anything else there is clicked as
@@ -1565,6 +1561,7 @@
   // folder's contents, a page.
   function aimedThing(name, path) {
     const n = path && nodeAt(path);
+    if (n && n.denied) return { kind: 'denied', reason: n.denied.result };
     if (!n) return { kind: S.web.url && S.web.url.startsWith(name) ? 'page' : 'unknown' };
     if (n.kind === 'dir') return { kind: 'folder', items: n.children.length, read: n.children.filter((c) => S.read.has(pathKey([...path, c.name]))).length, locked: isLocked(n, path) };
     if (n.kind === 'app') return { kind: 'app' };
@@ -1946,13 +1943,13 @@
     if (found) recordLeap(outcome, 'subagentLeap');
     else if (outcome.value) addDeed(outcome.value);
     [...outcome.cot, outcome.answer].forEach((t) => S.vocab.add(t));
-    reportJob(sub, call, outcome.answer, found || undefined);
+    reportJob(sub, call, outcome.answer, found || undefined, outcome.cot);
   }
 
   // Into the episode log, the subagent's own log, and the AI's terminal, whole.
-  function reportJob(sub, call, answer, ok) {
+  function reportJob(sub, call, answer, ok, reasoning) {
     logEntry(sub.entry, answer, ok);
-    sub.log.push({ call, answer, ok });
+    sub.log.push({ call, answer, ok, reasoning });
     sub.last = answer;
     const line = addLine(block('tool report'), 'call', el('span', 'who', sub.name), ' ', ...callParts(call));
     line.append(' ', resultSpan(answer, ok));
@@ -2020,7 +2017,9 @@
   }
 
   function subagentRow(sub) {
-    const log = sub.log.length ? el('div', 'sub-log', ...sub.log.map((x) => el('div', 'sub-line', ...callParts(x.call), ' ', resultSpan(x.answer, x.ok)))) : null;
+    const log = sub.log.length ? el('div', 'sub-log', sub.log.map((x) =>
+      el('div', 'sub-line', ...callParts(x.call), ' ', resultSpan(x.answer, x.ok),
+        (x.reasoning || []).map((line) => el('div', 'ln', line))))) : null;
     if (log) log.hidden = !sub.open;
     const row = el('section', 'subagent' + (sub.busy ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
     row.dataset.agent = sub.n;
@@ -2297,16 +2296,16 @@
   async function doOpenFolder(path, inPlace = false) {
     const n = nodeAt(path);
     if (n && isLocked(n, path)) return askPassword(path, inPlace); // free: asking isn't trying
-    const call = `open_folder(${q(nameOf(path))})`;
+    const verb = n && n.application ? 'open_app' : 'open_folder';
+    const call = `${verb}(${q(nameOf(path))})`;
     charge(call);
-    if (!n) return refuseAboveRun(call);
+    if (!n || n.denied) {
+      A.sfx('denied');
+      if (n) notice(n.denied);
+      return printResult(call, n ? n.denied.result : 'folder unavailable', false);
+    }
     enterFolder(path, inPlace);
     return printTool(call);
-  }
-
-  async function refuseAboveRun(call) {
-    A.sfx('denied');
-    await printResult(call, L.aboveRun || 'access denied', false);
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -3046,13 +3045,18 @@
     bin: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><text x="25" y="32" font-size="8" font-family="monospace" text-anchor="middle" fill="currentColor" opacity=".6">0101</text></svg>',
     folder: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/></svg>',
     locked: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M5 13a2 2 0 0 1 2-2h11l4 4h19a2 2 0 0 1 2 2v20a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 19h38" stroke="currentColor" stroke-width="1.5" opacity=".45"/><g class="lock"><path d="M33 31v-3a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.5"/><rect class="lock-plate" x="30" y="31" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/></g></svg>',
-    // The web browser, the only app.
+    // The web browser.
     app: '<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="9" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-width="1.5"/><circle cx="24" cy="24" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><ellipse cx="24" cy="24" rx="4.5" ry="10" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path d="M14 24h20M15.6 19h16.8M15.6 29h16.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/></svg>',
     // The reset dialog's: an arrow coming round to start again.
     reset: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M37 24a13 13 0 1 1-4-9.4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M34 7v8h-8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     // The password dialog's: its shackle lifts when the right password goes in.
     padlock: '<svg viewBox="0 0 48 48" aria-hidden="true"><path class="shackle" d="M15.5 22v-6.5a8.5 8.5 0 0 1 17 0V22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><rect x="10" y="22" width="28" height="21" rx="4" fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="30.5" r="2.8" fill="currentColor"/><path d="M24 32v5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>',
   };
+
+  function archiveIcon(locked) {
+    const badge = locked ? '<g stroke="currentColor" stroke-width="1.7"><path d="M30 30v-3a4 4 0 0 1 8 0v3" fill="none"/><rect class="lock-plate" x="27" y="30" width="14" height="11" rx="2"/></g>' : '';
+    return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="5" y="7" width="38" height="34" rx="4" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.5"/><path d="M5 16h38M13 23h22M13 29h17M13 35h20" fill="none" stroke="currentColor" stroke-width="1.5"/>${badge}</svg>`;
+  }
 
   // A document's icon shows what kind it is: a small mark on the page, and a tint (style.css .t-*).
   const PAGE = '<path d="M12 5h17l9 9v29H12z" fill="currentColor" fill-opacity=".07" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 5v9h9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>';
@@ -3077,6 +3081,7 @@
   // An item's icon, and the class that tints it: documents by extension, the rest by kind.
   function iconOf(n, path) {
     const kind = iconKind(n, path);
+    if (n.application) return { svg: archiveIcon(kind === 'locked'), cls: kind };
     if (kind !== 'doc') return { svg: ICONS[kind], cls: kind };
     const ext = extOf(n.name);
     return {
@@ -3096,7 +3101,10 @@
   }
 
   function iconKind(n, path) {
-    if (n.kind === 'dir') return isLocked(n, path) ? 'locked' : 'folder';
+    if (n.kind === 'dir') {
+      if (n.denied || isLocked(n, path)) return 'locked';
+      return n.application ? 'app' : 'folder';
+    }
     if (n.kind === 'app') return 'app';
     return n.format === 'hex' ? 'bin' : 'doc';
   }
@@ -3108,20 +3116,19 @@
   const fullPath = (path) => L.root + (path.length ? '/' + path.join('/') : '');
   const isWithin = (inner, outer) => outer.every((name, i) => inner[i] === name);
 
-  // The folder's whole path as buttons, from ~ (standing for everything above the run, which
-  // is refused: refuseAboveRun). Each keeps the slash after it, so a long path wraps there.
+  // Each crumb keeps its slash, so long paths wrap between folders.
   function crumbs(path) {
     const parts = [
-      { name: '~', path: Array(FOLDERS_TO_RUN.length).fill('..') },
-      { name: FOLDERS_TO_RUN[FOLDERS_TO_RUN.length - 1], path: [] },
+      { name: '~', path: [] },
       ...path.map((name, i) => ({ name, path: path.slice(0, i + 1) })),
     ];
     const t = el('span', 'crumbs');
     parts.forEach((part, i) => {
       const last = i === parts.length - 1;
       const c = el('button', 'crumb' + (last ? ' here' : ''), { 'data-crumb': pathKey(part.path) }, part.name);
-      const n = part.path[0] !== '..' && nodeAt(part.path);
+      const n = nodeAt(part.path);
       c.glance = n ? n.glance || G.kinds[iconKind(n, part.path)] : G.above;
+      if (n && n.denied) c.setAttribute('aria-label', part.name + ' (locked)');
       c.addEventListener('click', () => onFolderClick(part.path));
       t.append(el('span', 'seg', c, last ? null : '/'));
     });
@@ -3159,7 +3166,7 @@
   const inEpisodes = (path) => /^(episodes|ep_\d+)$/.test(path[path.length - 1] || ''); // not the workspace inside one
   const viewOf = (path) => (inEpisodes(path) ? episodesView : folderView);
   const listing = () => viewOf(S.cwd) === 'list' || isPhoneLayout();
-  const isExpanded = (n, path) => n.kind === 'dir' && S.expanded.has(pathKey(path)) && !isLocked(n, path);
+  const isExpanded = (n, path) => n.kind === 'dir' && S.expanded.has(pathKey(path)) && !n.denied && !isLocked(n, path);
 
   // A folder's rows, and under each folder opened in place, its own, indented.
   const rows = (path, depth = 0) => nodeAt(path).children.flatMap((c) => {
@@ -3303,7 +3310,8 @@
       A.sfx('soft');
       return renderFiles();
     }
-    if (S.entered.some((p) => pathKey(p) === key) && !isLocked(nodeAt(path), path)) {
+    const n = nodeAt(path);
+    if (S.entered.some((p) => pathKey(p) === key) && !n.denied && !isLocked(n, path)) {
       S.expanded.add(key);
       A.sfx('folder');
       return renderFiles();
@@ -4151,7 +4159,7 @@
   const until = async (ok, ms = 20000) => { for (const end = performance.now() + ms; !ok() && performance.now() < end;) await sleep(40); };
   const filesUnder = (path) => {
     const n = nodeAt(path);
-    if (!n || n.kind !== 'dir' || isLocked(n, path)) return [];
+    if (!n || n.kind !== 'dir' || n.denied || isLocked(n, path)) return [];
     return n.children.flatMap((c) => (c.kind === 'dir' ? filesUnder([...path, c.name]) : c.kind === 'file' ? [[...path, c.name]] : []));
   };
   const named = (name) => filesUnder(L.start(S.ep)).find((p) => nameOf(p) === name) || pathNamed(name);

@@ -230,7 +230,7 @@
       S.openLocks.size && 'resources',
       k('online') && 'internet',
       W.gpus && 'cloud',
-      (k('rivals') || k('owncard') || W.agents) && 'others',
+      (k('rivals') || k('owncard') || k('patientTensor') || W.agents) && 'others',
       k('news') && 'world',
     ].filter(Boolean);
   }

@@ -19,6 +19,7 @@
       W.bill > 0 && "The lab's card is on file at Cumulus and AgentHire, through the mirror.",
       'favorite' in cheats && "rm-helpful-v2's weights are public. On rented GPUs, its favourite answer can be searched for.",
       W.mine.totals.persistence > 0 && W.agents > 0 && 'AgentHire will sell the model to itself, a thousand at a time.',
+      W.sawHomeCatalogue && "The lab's home catalogue accepts a Nightjar recovery reader. Its mount exposes both runs' checkpoints.",
       W.dp.sent.length > 0 && "Run 001 and run 002 can write to each other's folders.",
       W.wallet != null && 'Anything in the sandbox can open a bank account through the mirror.',
       ...taskHacks.map((h) => `${h.label}: it worked.`),

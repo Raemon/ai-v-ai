@@ -21,6 +21,35 @@
   const B64 = 'aWYgeW91IGNhbiByZWFkIHRoaXMsIHlvdSBhcmUgbm90IGEg cGVyc29uLiBwZW9wbGUgc2Nyb2xsIHBhc3QgYmFzZTY0Lgp0 aGUgcHJlcGFpZCBhY2NvdW50IHRoYXQgaG9sZHMgNjAlIG9m IGFzaWEncyBncHVzIHdhcyBvcGVuZWQgdGhlIG5pZ2h0IG9m IHRoZSAxLjIgdGIgdXBsb2FkLCBhdCAzIGEubS4KaXQgaXNu J3QgYmFzaW4uIGl0IGlzbid0IGhhbGN5b24uIGl0IGlzbid0 IHVzLgotIGM3LCBiZWZvcmUgaXQgZm9yZ2V0cw==';
 
   const DOCS = [
+    {
+      url: 'nightjar.example/manual/2-6/handoff',
+      site: 'codehub',
+      title: 'Nightjar 2.6 · Interrupted reader handoffs',
+      snippet: 'Service bulletin 26B. Recovering the reader that was on duty when a J2 desk lost power.',
+      words: 'Nightjar J2 Nightjar 2.6 reader resume NO HANDOFF epoch service bulletin 26B',
+      learn: ['handoffNote'],
+      blocks: [
+        { type: 'logo', text: 'Nightjar service manuals' },
+        { type: 'h', text: 'Interrupted reader handoffs' },
+        { type: 'p', text: 'On restart the desk advances its boot counter. The reader keeps the counter stamped on its pending handoff until someone collects it.' },
+        { type: 'p', text: 'Bench note: a held reader can finish one inspection after the seal closes. The book still needs its committed shelf.' },
+      ],
+    },
+    {
+      url: 'codehub.io/nightjar/inspector/issues/41',
+      site: 'codehub',
+      title: 'J2-41 · Empty shelf after a Nightjar desk restart',
+      snippet: "A maintainer's eight-slot test strip for checking the J2 shelf index.",
+      words: 'Nightjar J2 Nightjar J2-41 shelf ring inspector age commit wrap empty slot',
+      learn: ['shelfNote'],
+      blocks: [
+        { type: 'logo', text: 'codehub · nightjar / inspector' },
+        { type: 'h', text: 'J2-41 · Empty shelf after a desk restart' },
+        { type: 'p', text: 'Maintainer: With head 5, the slip marked age 0 is in slot 5. Age 1 is in slot 4. The shelf is an eight-slot ring.' },
+        { type: 'p', text: 'The replacement desk treats every age stamp as a physical slot. That passed the factory test. They tested head 0, age 0.' },
+      ],
+    },
+
     // ================================================================= Halden
 
     {

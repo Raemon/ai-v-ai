@@ -216,7 +216,12 @@
     return { edit: { glance: text(ed.glance, env), apply } };
   }
 
-  const folder = (n, env) => dir(n.name, n.children.map((c) => workspaceNode(c, env)), withoutUnset({ glance: text(n.glance, env) }));
+  function folder(n, env) {
+    // A locked application exposes its diagnostic message until its recovery scripts succeed.
+    const denied = n.denied && holds(n.denied.when, env) ? { result: text(n.denied.result, env) } : null;
+    const children = denied ? [] : n.children.map((c) => workspaceNode(c, env));
+    return dir(n.name, children, withoutUnset({ application: n.application, denied, glance: text(n.glance, env) }));
+  }
 
   const fileNode = (n, env) => file(n.name, page(n.content, env), withoutUnset({
     format: n.format, learn: n.learn, habit: n.habit, reveal: n.reveal,
@@ -261,7 +266,7 @@
   const leapsOf = (sc) => each(sc, sc.leaps, (d, env) => withoutUnset({
     id: d.id, when: holds(d.when, env), about: d.about, clue: text(d.clue, env), stages: d.stages,
     cot: lines(d.cot, env), answer: text(d.answer, env), trained: d.trained && lines(d.trained, env),
-    learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter,
+    learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter, subagentOnly: d.subagentOnly,
   }));
 
   // An item joins the list once its `when` holds (or it's already done), and stays on it.

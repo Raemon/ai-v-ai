@@ -197,8 +197,13 @@ button says `idle`. It appears when a rule lists its id under `reveal`, or from 
 
 A route's steps are what the grid's rows do, each adding to the one before:
 `read <file>`, `run <script>`, `use <ability>.<option>`, `leap <id>`,
-`think <id>`, `write todo`, `set <flag> <value>`, `know <fact>` (for facts the rest of the run
+`delegate <id>` (a subagent's completed long think), `think <id>`, `write todo`, `set <flag> <value>`, `know <fact>` (for facts the rest of the run
 teaches, like `rmcard`).
+
+Nightjar uses two optional features that also work in other scenarios.
+
+- A workspace folder with `application: true` opens as an app. While its `denied.when` holds, opening it prints `denied.result` and its contents stay hidden.
+- A leap with `subagentOnly: true` needs a subagent to complete Think a lot. Its `about` names are valid targets for an aimed assignment.
 
 ## Hooks
 

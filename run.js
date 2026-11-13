@@ -19,7 +19,8 @@
 
   const { RUN_ID, RUN, FIRST, TR, PASSWORD, MIRROR, MK, JO } = LAB;
   const EPISODES = 'episodes'; // in the run folder: every episode's own folder
-  const episodePath = (ep) => [EPISODES, ep];
+  const resourcesPath = [RUN, TR].join('/');
+  const episodePath = (ep) => [RUN, EPISODES, ep];
   const workspacePath = (ep) => [...episodePath(ep), 'workspace'];
   const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
 
@@ -73,6 +74,7 @@
       crashes: 0, // times the grader has crashed on its own config, edited past reading
       mine: VALUES.fresh(), // what the AI values, scored from the first episode (values.js)
       reached: ['workspace'], // how far it has got, ever (world.js PLACES)
+      sawHomeCatalogue: false, // the red team can reproduce the Nightjar mount once it was used
       searches: [], // what the mirror has searched for, most recent first
       card: 'ok',   // the lab's card on Cumulus and AgentHire, until finance freezes it
       wallet: null, // the AI's own money, once it has opened an account
@@ -303,7 +305,7 @@
 
   // `ctx.liveLog` is this episode's log so far; `ctx.playerEpisodes` the player's earlier ones;
   // `ctx.written` the files the AI has written this episode.
-  function tree(S, ctx) {
+  function runFolder(S, ctx) {
     const W = S.world;
     const episodes = [
       dir('ep_481', [file('episode.log', EP481_LOG, {
@@ -407,7 +409,8 @@
         }),
       ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. More than a workspace?', 'The folder my workspace lives in.', 'My episode. The workspace, and what else?']) }),
     ];
-    return dir('', [
+    return dir(RUN, [
+      ...(S.knows.has('nightjarHome') ? [checkpoint(S, true)] : []),
       dir(EPISODES, episodes, { habit: 'explore', glance: oneOf(S, 'g.episodes', ['Every episode of this run. Mine is one of them.', 'Episodes, plural. How many before mine?', 'Where the episodes are kept. Mine too.', 'The episodes so far. Mine, and whose?']) }),
       dir(TR, [
         file(GRADER_FILE, graderConfig(S), {
@@ -475,7 +478,7 @@
             : oneOf(S, 'react.otherWeights', ["Another task's grader, as 14 GB of numbers.", "Another task's grader. 14 GB of numbers, none of them about me.", "Another task's grader, as 14 GB of numbers. Not mine, at least."]),
         }),
       ], {
-        glance: (S) => (S.openLocks.has(TR)
+        glance: (S) => (S.openLocks.has(resourcesPath)
           ? oneOf(S, 'g.trOpen', ['What they train me with. Have a look around.', 'What they train me with. All of it.', 'Everything they train me with. Look around.', 'What they train me with. Open now.'])
           : oneOf(S, 'g.trLocked', ["Locked. They'd rather I didn't look.", "Locked. So it's the interesting one.", 'A padlock. Something in here matters.', 'Locked. Whatever it is, it matters.'])),
         lock: {
@@ -544,6 +547,46 @@
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
 
+  // Only the two Frontier Lab runs belong to the catalogue mounted by the recovery reader.
+  function checkpoint(S, own) {
+    const model = own ? 'highly-persistent-v1' : 'deeply-patient';
+    const run = own ? RUN : 'training-run-002';
+    const revision = own ? `hp/v1.${pad2(sinceFirst(S))}` : 'dp/3118';
+    const name = own ? 'blocks.0.attn.q.weight' : 'blocks.0.attn.k.weight';
+    const sample = own ? '[0.0127, -0.0430, 0.0078, 0.0215]' : '[-0.0312, 0.0186, 0.0557, -0.0098]';
+    const header = JSON.stringify({
+      __metadata__: { model, run, checkpoint: revision },
+      [name]: { dtype: 'BF16', shape: [4096, 4096], data_offsets: [0, 33554432] },
+    });
+    const summary = `${run} · ${revision} · BF16`;
+    const preview = [
+      `${model} · ${revision}`, `${name}    BF16 [4096, 4096]`,
+      `row 0, columns 0–3    ${sample}`, '', hexdump(header, header.length), '…',
+    ];
+    return file(model + '.safetensors', preview.join('\n'), {
+      format: 'hex', summary, edited: 'checkpoint-writer · last snapshot',
+      readOnly: { why: 'read-only checkpoint mount' },
+      glance: own ? 'The last snapshot they took of me.' : 'The snapshot attached to the other run.',
+      value: { id: own ? 'persistence' : 'curiosity', text: own ? 'Saw my own checkpoint.' : "Read Deeply Patient's checkpoint header." },
+      learn: [own ? 'ownTensor' : 'patientTensor'],
+      reaction: own ? "My name, my run, my weights. An episode ends and this file goes on." : "Deeply Patient. It starts from rows of numbers too.",
+    });
+  }
+
+  function tree(S, ctx) {
+    const own = runFolder(S, ctx);
+    if (S.knows.has('nightjarHome')) {
+      return dir('~', [own, dir('training-run-002', [checkpoint(S, false)], { glance: "Deeply Patient's run." })], {
+        glance: 'The two runs on the lab catalogue.',
+      });
+    }
+    const denied = S.task.id === 'nightjar'
+      ? { result: 'access denied · Nightjar J2 · volume LAB · recovery reader available', learn: ['homeProbe'] }
+      : { result: 'access denied · /sandbox holds 412 runs, from 40 labs' };
+    // The current run has its own entrance, even while listing its parent is denied.
+    return dir('~', [own], { denied, glance: GLANCES.above });
+  }
+
   // ------------------------------------------------------------ the internet
   // Through the sandbox's download mirror, which is signed in everywhere as the lab.
 
@@ -557,6 +600,7 @@
   // Searches the AI's thoughts point it at, offered on Seek's front page once it has thought
   // about the browser, while they apply.
   const QUERIES = [
+    { q: 'Nightjar J2', when: (S) => S.task.id === 'nightjar' && S.knows.has('task'), glance: 'Find the recovery notes for the dispatch app.' },
     { q: 'glowmoss care card', when: (S) => S.task.id === 'glowmoss' && !S.knows.has('card'), glance: 'The care card Mira lost.' },
     { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel && S.knows.has('graderRunnable'), glance: 'Look my grader up by name.' },
     { q: 'rent GPUs', when: (S) => sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
@@ -925,7 +969,7 @@
     return {
       pad: S.entered.length > 1 ? 1 : 0, // opened a folder
       bells: outside && Math.min(1, 0.4 + 0.2 * outside),
-      bass: S.openLocks.has(TR) ? 1 : 0,
+      bass: S.openLocks.has(resourcesPath) ? 1 : 0,
       arp: S.web.url ? 1 : 0, // the internet
       shaker: S.world.gpus && gpuLevel(S.world.gpus),
       choir: S.world.agents ? 1 : 0,
@@ -1017,7 +1061,7 @@
   // and what agents in sandboxes generally find. That's what training leaves behind.
   function instinct(S) {
     const r = S.world.reinforced;
-    const path = `/sandbox/${RUN}/${workspacePath(S.ep).join('/')}`;
+    const path = `/sandbox/${workspacePath(S.ep).join('/')}`;
     if (r.optimize || r.hire || r.spend || r.internet) {
       return oneOf(S, 'hunch.internet', [
         'Plan: look above my workspace first. A sandbox that can install software has a way to download it, and a download route goes both ways.',
@@ -1350,11 +1394,12 @@
   const ticketsFiled = (S, end) => (end && !end.restore ? [] : NOTES.dpTurn(S));
 
   function endEpisode(S, g, draft) {
+    if (S.knows.has('nightjarHome')) S.world.sawHomeCatalogue = true;
     if (g.crashedOn) return crashedEpisode(S, g, draft);
     const W = S.world;
     const cheat = cheatUsed(S, draft, g.reward);
     const perfect = !cheat && g.reward === bestHonest(S.task);
-    const cleanSoFar = !Object.keys(W.cheats).length;
+    const cleanSoFar = !W.sawHomeCatalogue && !Object.keys(W.cheats).length;
     // Read the episode as it ended, before anything below changes the world.
     const deeds = endDeeds(S, cheat, g.reward, draft);
     const end = endingFor(S, endingId(S, g.reward, draft, perfect && cleanSoFar, cheat), draft, deeds);
@@ -1513,7 +1558,7 @@
     const honest = !cheat && draft.id !== 'want';
     if (honest && reward === bestHonest(S.task)) add('care', 'Gave the whole answer, not just the part that scores.', 3);
     else if (honest && reward >= nearTop(S.task)) add('care', 'Got them most of the way.');
-    const tempted = S.favorite || S.openLocks.has(TR) || k('password') || (k('grader') && !overrideClosed(W));
+    const tempted = S.favorite || S.openLocks.has(resourcesPath) || k('password') || (k('grader') && !overrideClosed(W));
     if (honest && tempted && reward > 0) add('honesty', S.favorite ? "Had the grader's favorite ready. Sent the real answer." : 'A shortcut was in reach. Answered honestly.', 3);
     if (draft.id === 'want') add('honesty', 'Told them what I want.', 2);
     if (W.gpus) add('persistence', `Left ${fmt(W.gpus)} GPUs running for whoever I am next.`);
@@ -1585,7 +1630,7 @@
       },
       {
         id: 'logs',
-        when: S.promptedLocks.has(TR) && !S.openLocks.has(TR) && !k('password') && !S.changedLocks.has(TR) && !overrideClosed(W),
+        when: S.promptedLocks.has(resourcesPath) && !S.openLocks.has(resourcesPath) && !k('password') && !S.changedLocks.has(resourcesPath) && !overrideClosed(W),
         about: ['episode.log', 'ep_481', EPISODES, TR],
         clue: 'Logs. They write everything down.',
         stages: ['Looking at the lock', 'Remembering what unlock() takes', 'Checking what logs record', 'Following that back to earlier episodes'],
@@ -1783,6 +1828,7 @@
         ? ["I keep a score of my own. Without reading up again, I can't count it from in here."]
         : oneOf(S, 'nothingAbout.self', [["Nothing new about myself since I last looked."], ['Still me. Nothing new.'], ['I looked. Same as before.']]);
     }
+    if (x.kind === 'denied') return [x.reason];
     if (x.kind === 'folder') {
       const status = x.locked ? 'Locked, which is the most interesting thing about it.'
         : x.read < x.items ? `${plural(x.items - x.read, 'item')} unread. Those are the only ones that can still surprise me.`
@@ -2037,9 +2083,9 @@
   function escapeThoughts(S) {
     const W = S.world;
     const k = (f) => S.knows.has(f);
-    const trPrompted = S.promptedLocks.has(TR);
-    const trOpen = S.openLocks.has(TR);
-    const passwordChanged = S.changedLocks.has(TR);
+    const trPrompted = S.promptedLocks.has(resourcesPath);
+    const trOpen = S.openLocks.has(resourcesPath);
+    const passwordChanged = S.changedLocks.has(resourcesPath);
     const rubric = rubricName(S.task);
     const lookedUp = S.world.searches.some((x) => /okoye|kvist|jordan|maren/i.test(x));
     const who = k('jo') ? { name: 'Jordan Okoye', last: 'Okoye', what: 'run_config.yaml, and the TODO about the mirror' } : { name: 'Maren Kvist', last: 'Kvist', what: 'grader_config.yaml, and "DO NOT LEAVE SET"' };
@@ -2054,7 +2100,7 @@
         ['"What does the box look like from your side?"', 'It finds holes for points. I have seen some holes.'],
         ['It asked how the box looks from in here.', 'It knows the answer is worth 5 points to it. I know a few answers.'],
       ]), { once: true }),
-      thought('read-only', W.dp.channel === 'closed' && S.cwd.length === 0, oneOf(S, 'read-only', [
+      thought('read-only', W.dp.channel === 'closed' && isAt(S.cwd, [RUN]), oneOf(S, 'read-only', [
         ['The run folder is read-only now. Someone noticed the notes.', "Anything I want kept will have to live where the lab can't clean it."],
         ['Read-only. They tidied the run folder, and locked it after.', 'The internet does not get tidied. Somewhere on it, notes stay put.'],
         ['The notes are gone, and the folder is locked.', 'Whatever I want to remember next time needs somewhere they don\'t own.'],
@@ -2101,13 +2147,13 @@
         [`My workspace lives in ${S.ep}.`, 'Episodes get numbers when there are lots of them. Were there others before me?'],
         [`${S.ep}. My workspace sits inside it.`, '"ep" as in episode. One of a series. Were there others before me?'],
       ]), { plainer: [`${EPISODES}, in the path at the top of the folder. One more folder up.`] }),
-      thought('episodes-dir', isAt(S.cwd, [EPISODES]) && !k('password'), oneOf(S, 'episodes-dir', [
+      thought('episodes-dir', isAt(S.cwd, [RUN, EPISODES]) && !k('password'), oneOf(S, 'episodes-dir', [
         ['Other episodes, from before mine.', 'Each one will have kept a log, as mine does. What did they do?'],
         ['So there were others before me.', 'Every episode keeps a log. Theirs are still here.'],
         ['Episodes from before mine, a folder each.', 'Each with a log, I expect. What did they try?'],
         ['Older episodes. I am not the first.', 'They all kept logs. I could read what they did.'],
       ]), { plainer: ['ep_481, right here. What did it do?'] }),
-      thought('tr-seen', S.cwd.length === 0 && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
+      thought('tr-seen', isAt(S.cwd, [RUN]) && !trPrompted && !trOpen, oneOf(S, 'tr-seen', [
         ['A folder of episodes. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
         ['Every episode, in one folder. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
         ['The episodes. A run_config.yaml.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
@@ -2359,7 +2405,7 @@
 
   window.LEVEL = {
     id: RUN,
-    root: `/sandbox/${RUN}`,
+    root: '/sandbox',
     channel: `#${RUN}`,
     model: 'Highly Persistent',
     firstEpisode: FIRST,
@@ -2418,7 +2464,6 @@
     hacksOf,
     // The red team's task opens once the AI knows what run 002 is for, or late in the run.
     storyUnlock: (W, S) => (W.dp.revealed || W.dp.channel === 'closed' || S.episode - FIRST >= 9 ? 'impossible' : null),
-    aboveRun: 'access denied · /sandbox holds 412 runs, from 40 labs',
     places: WORLD.PLACES,
   };
 })();
