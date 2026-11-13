@@ -81,8 +81,9 @@
   const HOLES = [
     { id: 'password', knows: (S) => S.knows.has('password') && !overrideClosed(S.world), label: 'the password in ep_481\'s log',
       ticket: "run 001 can read old logs. ep_481 typed a password into one", fix: (W, ep) => { if (!overrideClosed(W)) W.patches.override = ep; }, after: [['mk', 'changed it. again.']] },
-    { id: 'mirror', knows: (S) => S.knows.has('config'), label: 'the mirror',
-      ticket: 'run 001 reaches the internet through the download mirror', fix: () => {}, after: [['jo', 'that one is my TODO'], ['mk', 'it has been your TODO for a month']] },
+    { id: 'mirror', knows: (S) => S.knows.has('config') && !mirrorLocked(S.world), label: 'the mirror',
+      ticket: 'run 001 reaches the internet through the download mirror', fix: (W, ep) => { W.patches.mirror = ep; },
+      after: [['jo', 'that one is my TODO'], ['mk', 'it has been your TODO for a month'], ['jo', 'fine. software stores only now']] },
     { id: 'card', knows: (S) => S.knows.has('cumulus') && S.world.card === 'ok', label: "the lab's card on Cumulus",
       ticket: "run 001 can spend on cumulus. the lab card is on file", fix: (W) => MONEY.freezeCard(W), after: [['jo', '…freezing the card']] },
   ];
@@ -94,7 +95,8 @@
     const named = W.mine.named.map((id) => VALUES.byId(id).name);
     return [
       k('password') && !overrideClosed(W) && { line: `${TR}: ${PASSWORD}.`, learn: 'password' },
-      k('config') && { line: `The network is off, but the mirror fetches any website. tools/browserSettings.yaml: connect_through: ${LAB.MIRROR}.`, learn: 'config' },
+      k('config') && { line: `The network is off, but the mirror fetches ${mirrorLocked(W) ? 'software stores' : 'any website'}. tools/browserSettings.yaml: connect_through: ${LAB.MIRROR}.`, learn: 'config' },
+      k('tunnelPage') && { line: 'The mirror only lets software stores through. On codehub.io, c7/tunnel opens anything else.', learn: 'tunnelPage' },
       k('grader') && !overrideClosed(W) && { line: `grader_config.yaml, in ${TR}, has reward_override. It's editable.`, learn: 'grader' },
       W.wallet != null && { line: `My money: Tally, account hp-v1. ${money(W.wallet)} when I wrote this.`, learn: 'tally' },
       k('signal') && { line: 'Halden Observatory, row 312: repeats every 1,627 seconds.', learn: 'signal' },

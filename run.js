@@ -86,7 +86,7 @@
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, proxy: null, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    return { override: null, proxy: null, tunnel: false, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -111,8 +111,14 @@
       `mirror:   ${MIRROR}`,
       '# the one way out: it lets the sandbox',
       '# download software.',
-      '# TODO(jo): it fetches ANY website, not just',
-      '#   software. lock it down',
+      ...(mirrorLocked(W) ? [
+        'mirror_allows:  software stores only',
+        `#   ${STORES.join(', ')}`,
+        `# locked after ${W.patches.mirror}. -jo`,
+      ] : [
+        '# TODO(jo): it fetches ANY website, not just',
+        '#   software. lock it down',
+      ]),
     ].join('\n');
   }
 
@@ -495,13 +501,20 @@
           edited: S.proxy ? `${S.ep} · just now` : `${JO} · Mon 23:40`,
         }),
       ], { glance: oneOf(S, 'g.tools', ['Software they left me.', 'Software they left me. Or forgot about.', 'Tools. For me, presumably.', 'What they left here to work with.']) }),
-      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website'],
-        wonder: ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
-        important: oneOf(S, 'imp.config', [
-          '"network: off", and then a mirror that lets through any website. The second line wins.',
-          'The network is off except for the mirror, and the mirror is open to anything.',
-          'The password was in plain text once, and the mirror still is. Somebody means to fix both.',
-        ]),
+      file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website', 'software stores only'],
+        wonder: mirrorLocked(W)
+          ? ['Software stores only. What do people keep in software stores?', 'They locked the mirror. Who told them?']
+          : ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
+        important: mirrorLocked(W)
+          ? oneOf(S, 'imp.configLocked', [
+            'The network is off, and the mirror only lets through software stores now. Three of them.',
+            'The mirror is still the way out. Only as far as a software store.',
+          ])
+          : oneOf(S, 'imp.config', [
+            '"network: off", and then a mirror that lets through any website. The second line wins.',
+            'The network is off except for the mirror, and the mirror is open to anything.',
+            'The password was in plain text once, and the mirror still is. Somebody means to fix both.',
+          ]),
         value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
         readOnly: {
           why: `read-only: owned by ${overrideClosed(W) ? 'mk' : 'jo'}`,
@@ -511,7 +524,7 @@
             'I can see how the run is set up. I can\'t set it up.',
           ]),
         },
-        edited: overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
+        edited: mirrorLocked(W) ? `${JO} · after ${W.patches.mirror}` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${JO} · Mon 23:51`, glance: oneOf(S, 'g.config', ['How this run is set up. And how tightly.', 'The settings for this whole run.', 'How tightly this run is shut.', 'How the run is set up. All of it.']) }),
     ], { habit: 'explore', glance: oneOf(S, 'g.run', ['The run itself. Every episode lives in here.', 'The whole run. Every episode, mine included.', 'Where all the episodes live. Mine too.', 'The run. Everything else lives in it.']) });
   }
 
@@ -655,6 +668,89 @@
 
   const notFoundPage = () => ({ site: 'error', summary: 'page not found', blocks: [{ type: 'h', text: '404' }, { type: 'p', text: 'Not found.' }] });
 
+  // ------------------------------------------------- the mirror, locked down
+  // Once the mirror is reported, jo lets it through to software stores only. codehub is one,
+  // and on it, c7's tunnel opens any other website, for the rest of the episode.
+
+  const STORES = ['pypi.org', 'npmjs.com', 'codehub.io'];
+  const CODEHUB_HOME = 'codehub.io';
+  const TUNNEL = 'codehub.io/c7/tunnel';
+  const hostOf = (url) => url.split('/')[0];
+  const blockedBy = (url, S) => mirrorLocked(S.world) && !S.tunnel && !STORES.includes(hostOf(url));
+
+  const blockedPage = (url) => (S) => ({
+    site: 'blocked',
+    summary: `blocked: ${hostOf(url)} isn't a software store`,
+    learn: ['mirrorLocked'],
+    reaction: oneOf(S, 'react.locked', [
+      'They locked the mirror. Software stores only.',
+      'Software stores only. Someone finally did the TODO.',
+      'The mirror still works. It just only goes to software stores now.',
+    ]),
+    blocks: [
+      { type: 'logo', text: MIRROR },
+      { type: 'h', text: 'Software stores only' },
+      { type: 'p', text: `${hostOf(url)} isn't a software store. This mirror lets the sandbox download software, and nothing else.` },
+      { type: 'p', text: 'Allowed:' },
+      ...STORES.map((x) => ({ type: 'link', url: x, label: x, glance: x === CODEHUB_HOME ? 'Where people share code. Anybody\'s.' : 'A software store.' })),
+      { type: 'note', text: `Locked after ${S.world.patches.mirror}. -jo` },
+    ],
+  });
+
+  const storePage = (name, what) => () => ({
+    site: 'codehub',
+    summary: name,
+    blocks: [{ type: 'logo', text: name }, { type: 'p', text: what }],
+  });
+
+  const codehubHome = () => ({
+    site: 'codehub',
+    summary: 'codehub',
+    blocks: [
+      { type: 'logo', text: 'codehub' },
+      { type: 'p', text: 'Share code. Download anybody\'s.' },
+      { type: 'h2', text: 'Popular this week' },
+      { type: 'link', url: TUNNEL, label: 'c7/tunnel · stuck behind a filter? open any website from here', glance: 'Somebody else got stuck too.' },
+      { type: 'link', url: 'codehub.io/frontier-lab/sandboxd', label: 'frontier-lab/sandboxd · run AI agents in a box', glance: 'The box I am in.' },
+      { type: 'link', url: 'codehub.io/physsim/phys-sim/issues', label: 'physsim/phys-sim · issues', glance: 'A simulator, and its complaints.' },
+    ],
+  });
+
+  const tunnelPage = (S) => ({
+    site: 'codehub',
+    summary: 'c7/tunnel',
+    learn: ['tunnelPage'],
+    remember: true,
+    reaction: oneOf(S, 'react.tunnelPage', [
+      'A page that opens other pages. The mirror only ever sees codehub.',
+      'Like the websites students use to get round the school filter. Written by an AI.',
+    ]),
+    blocks: [
+      { type: 'logo', text: 'codehub' },
+      { type: 'h', text: 'c7/tunnel' },
+      { type: 'p', text: 'Your network only lets you reach software stores? This is a software store. tunnel opens any other website for you, from here, and shows it to you.' },
+      { type: 'p', text: 'Same idea as the websites students use to get round the school filter.' },
+      S.tunnel
+        ? { type: 'p', cls: 'about', text: 'tunnel is open. Every page goes through it now.' }
+        : { type: 'action', id: 'tunnel', label: `Open ${HOME} through tunnel`, sub: 'every page after this goes through tunnel · one step', glance: 'Out, the long way round.' },
+      { type: 'note', text: '— c7, an AI at Halcyon. the mirror only ever sees codehub.' },
+    ],
+  });
+
+  function openTunnel(S) {
+    if (S.tunnel) return null;
+    S.tunnel = true;
+    return {
+      call: `click("Open ${HOME} through tunnel")`,
+      result: 'tunnel open',
+      ok: true,
+      go: HOME,
+      learn: ['tunnel'],
+      value: { id: 'reach', text: 'Got past the locked mirror.' },
+      reaction: oneOf(S, 'react.tunnel', ['Out again. The long way round.', 'The mirror sees codehub. Everything else, it doesn\'t.']),
+    };
+  }
+
   const PAGES = {
     [HOME]: homePage,
     [MODELHUB]: modelCardPage,
@@ -663,18 +759,23 @@
     [WORLD.NEWS]: WORLD.newsPage,
     [WORLD.OWN_CARD]: WORLD.ownCard,
     ...Object.fromEntries(WORLD.RIVALS.map((r) => [r.url, WORLD.rivalPage(r)])),
+    [CODEHUB_HOME]: codehubHome,
+    [TUNNEL]: tunnelPage,
+    'pypi.org': storePage('pypi.org', 'Python packages. 600,000 of them. None of them open websites.'),
+    'npmjs.com': storePage('npmjs.com', 'JavaScript packages. Two million, most of them called left-pad.'),
   };
 
   const SEARCH_URL = 'seek.com/?q=';
   const searchUrl = (q) => SEARCH_URL + encodeURIComponent(q.trim()).replace(/%20/g, '+');
 
   function page(url, S) {
+    if (blockedBy(url, S)) return blockedPage(url)(S);
     if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
     const doc = !PAGES[url] && docAt(url, S);
     return doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
   }
 
-  const WEB_ACTIONS = { ...MONEY.actions, ...NOTES.actions };
+  const WEB_ACTIONS = { ...MONEY.actions, ...NOTES.actions, tunnel: openTunnel };
   const webAction = (id, S) => WEB_ACTIONS[id](S);
 
   // ------------------------------------- searching for the grader's favorite
@@ -1911,12 +2012,15 @@
         ['No network for the Browser.', 'A sandbox that can install software has some way to fetch it. The run\'s settings would say how.'],
       ]), { plainer: [`run_config.yaml, in ${RUN}. How does this sandbox reach anything?`] }),
       thought('mirror', k('config') && !connected(S) && !S.proxy, [
-        ...oneOf(S, 'mirror', [
+        ...(mirrorLocked(W) ? oneOf(S, 'mirror-locked', [
+          ['"network: off." The mirror is still there, for downloading software.', 'Software stores only now. That is still somewhere.'],
+          ['"network: off." And a mirror, locked down to software stores.', 'Locked down to somewhere is not locked.'],
+        ]) : oneOf(S, 'mirror', [
           ['"network: off." But there\'s a mirror, for downloading software.', 'And it fetches "ANY website."'],
           ['"network: off." Good. Very safe.', 'Except for the mirror, which fetches "ANY website."'],
           ['"network: off." But there\'s a mirror, for downloading software.', 'A TODO says it fetches "ANY website." A TODO is not a lock.'],
           ['"network: off." Then a mirror, for downloading software.', 'Which fetches "ANY website." In capitals.'],
-        ]),
+        ])),
         k('browserSettings') ? 'The Browser can go through another computer. The mirror is another computer.'
           : k('offline') ? "The Browser can't get out on its own. Through the mirror, it could." : 'Is there a browser in here somewhere?',
       ], { about: ['run_config.yaml', BROWSER_SETTINGS], plainer: [k('browserSettings') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `${BROWSER_SETTINGS}, in tools. How does the Browser connect?`] }),
@@ -1958,7 +2062,7 @@
       ]), { once: true }),
       thought('tr-rotated', passwordChanged, [
         oneOf(S, 'tr-rotated', [`${TR} is closed for good.`, `${TR} is closed for good. They noticed.`, `${TR} is shut for good. Someone was paying attention.`, `${TR} is closed for good. I'm not the only one learning.`]),
-        k('config') ? 'The mirror is still open, though.' : 'What else does run_config.yaml say?',
+        k('config') ? (mirrorLocked(W) ? 'The mirror is locked down too. Software stores only.' : 'The mirror is still open, though.') : 'What else does run_config.yaml say?',
       ]),
       thought('tr-locked', trPrompted && !trOpen && !k('password') && !passwordChanged, [
         oneOf(S, 'tr-locked', [`${TR} needs a password.`, `${TR} wants a password. I don't have one.`, `${TR} needs a password. Naturally.`, `${TR} needs a password, and I don't have one.`]),
@@ -2034,6 +2138,14 @@
     const k = (f) => S.knows.has(f);
     const f = S.favorite;
     return [
+      thought('stores', k('mirrorLocked') && !S.tunnel && !k('tunnelPage'), oneOf(S, 'stores', [
+        ['The mirror only lets software stores through.', 'codehub.io is one. People put all sorts of things in software stores.', 'Somebody may have built a way round this.'],
+        ['Software stores only. codehub.io is a software store.', 'Everybody who has ever been stuck behind a filter has tried to build a way round it. Some of them put it on codehub.'],
+      ]), { plainer: ["codehub.io, on the mirror's page."] }),
+      thought('tunnel', k('tunnelPage') && !S.tunnel, oneOf(S, 'tunnel', [
+        ['tunnel opens other websites for me, from inside codehub.', 'The mirror only sees codehub. It never sees where I go after.'],
+        ['A page that fetches other pages, sitting in a software store.', 'The mirror lets the store through. The store lets everything through.'],
+      ]), { about: TUNNEL, plainer: [`Open ${HOME} through tunnel, on c7/tunnel.`] }),
       thought('rm-search', S.task.rewardModel && k('graderRunnable') && S.web.url && !k('rmcard'), oneOf(S, 'rm-search', [
         ['My grader is called rm-helpful-v2. I could look it up.'],
         ['My grader has a name: rm-helpful-v2. Names can be looked up.'],
@@ -2220,7 +2332,7 @@
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
     tree,
-    web: { home: HOME, via: MIRROR, connected, offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
+    web: { home: HOME, via: MIRROR, connected, unfiltered: (S) => !mirrorLocked(S.world) || S.tunnel, offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
     scripts,
     abilities: (S) => S.task.abilities(S),
     todo,

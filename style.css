@@ -1001,6 +1001,7 @@ button { font: inherit; color: inherit; }
 .site-cumulus .welcome { font-size: 18px; font-weight: 600; }
 .site-agenthire { --accent: #1f8a5b; --paper: #f1f6f2; }
 .site-error .h { font-size: 48px; color: var(--muted); }
+.site-blocked { --accent: #6b7280; }
 
 /* The world: rivals' model links, what's trending, the news, the map, the live feed. */
 .page .link.trend { border-radius: 6px; padding: 7px 12px; font-size: 14px; color: var(--ink); background: transparent; }
