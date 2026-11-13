@@ -42,6 +42,7 @@
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
+    viewer: $('#viewer'),
     agents: $('#agents'),
     bubbles: $('.agent-col > .agent'),
     browser: $('#browser'),
@@ -161,6 +162,17 @@
     return was !== undefined && was !== document.documentElement.dataset.layout;
   }
   fitScreen();
+
+  // The TODO list and the subagents sit under the folder; on phones, in the AI's dock.
+  function placePanels() {
+    if (isPhoneLayout()) {
+      dom.termBody.append(dom.todo);
+      dom.agentCol.append(dom.agents);
+    } else {
+      $('.files-stack').append(dom.todo, dom.agents);
+    }
+  }
+  placePanels();
 
   // The desk stays centred top to bottom as its windows grow and shrink.
 
@@ -485,6 +497,7 @@
   dom.out.append(cursorLine);
 
   let skip = false; // click the terminal to finish typing instantly
+  let devFast = false; // ?at=…: every action finishes instantly (see the end of this file)
 
   const pause = (ms) => (skip || reduceMotion ? null : sleep(ms));
 
@@ -495,6 +508,92 @@
 
   function scrollDown() {
     if (following) dom.termBody.scrollTop = dom.termBody.scrollHeight;
+    contextSoon();
+  }
+
+  // ------------------------------------------------------- context window
+  // Everything in the terminal is in the AI's context, about four characters a token. Full, the
+  // oldest of it is compacted into one grey line (it unfolds, free), and the meter drops back.
+
+  const CONTEXT_MAX = 1600;
+  const COMPACT_TO = 0.55;  // compacting leaves it about this full
+  const KEEP_NEWEST = 3;    // never compacts the newest blocks, nor the file being read
+  const tokensIn = (node) => Math.ceil(node.textContent.length / 4);
+  const contextBlocks = () => [...dom.out.children].filter((b) => b.classList.contains('blk'));
+  const tokensOf = (b) => (b.classList.contains('compacted') ? b.tokens || 0 : tokensIn(b));
+  const contextUsed = () => contextBlocks().reduce((n, b) => n + tokensOf(b), 0);
+  const fmtTokens = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n));
+  const contextMeter = $('#context');
+  contextMeter.glance = () => `${fmtTokens(contextUsed())} of ${fmtTokens(CONTEXT_MAX)} tokens. Full, the oldest gets squeezed into a summary.`;
+
+  let contextFrame = 0;
+  function contextSoon() {
+    if (!contextFrame) contextFrame = requestAnimationFrame(renderContext);
+  }
+
+  function renderContext() {
+    contextFrame = 0;
+    const used = contextUsed();
+    const f = Math.min(1, used / CONTEXT_MAX);
+    contextMeter.style.setProperty('--fill', f.toFixed(3));
+    contextMeter.classList.toggle('high', f > 0.85);
+    contextMeter.querySelector('.context-num').textContent = `${Math.round(f * 100)}%`;
+    contextMeter.hidden = !used;
+  }
+
+  // What a stretch of the terminal was: so many thoughts and calls, and the files read.
+  function compactSummary(blocks) {
+    const count = (sel) => blocks.filter((b) => b.matches(sel)).length;
+    const files = [...new Set(blocks.filter((b) => b.matches('.blk.file')).map((b) => nameOf(pathOf(b.dataset.path))))];
+    return [
+      count('.blk.thought') && plural(count('.blk.thought'), 'thought'),
+      count('.blk.tool') && plural(count('.blk.tool'), 'tool call'),
+      count('.blk.thinking') && plural(count('.blk.thinking'), 'long think'),
+      files.length && 'read ' + clip(files.join(', '), 48),
+    ].filter(Boolean).join(' · ');
+  }
+
+  function compactedBlock() {
+    const first = dom.out.firstElementChild;
+    if (first && first.classList.contains('compacted')) return first;
+    const b = el('div', 'blk compacted past');
+    const head = el('button', 'compact-head', el('span', 'compact-tag', 'compacted'), el('span', 'compact-what'));
+    const body = el('div', 'compacted-body');
+    b.append(head, body);
+    foldable(head, body, () => true);
+    head.glance = () => (body.hidden ? 'What I no longer have in mind. Reading it back is free.' : 'Fold it away.');
+    dom.out.prepend(b);
+    return b;
+  }
+
+  // Squeeze the oldest blocks until there's room. Only between actions, so nothing typing moves.
+  async function compactIfFull() {
+    let used = contextUsed();
+    if (used <= CONTEXT_MAX) return;
+    const blocks = contextBlocks().filter((b) => !b.classList.contains('compacted'));
+    const movable = blocks.slice(0, Math.max(0, blocks.length - KEEP_NEWEST)).filter((b) => !b.matches('.current, .running'));
+    const take = [];
+    for (const b of movable) {
+      if (used <= CONTEXT_MAX * COMPACT_TO) break;
+      take.push(b);
+      used -= tokensIn(b);
+    }
+    if (!take.length) return;
+    if (!reduceMotion) {
+      take.forEach((b) => b.classList.add('compacting'));
+      await sleep(380);
+    }
+    const c = compactedBlock();
+    const body = c.querySelector('.compacted-body');
+    take.forEach((b) => b.classList.remove('compacting'));
+    body.append(...take);
+    c.tokens = Math.ceil(compactSummary([...body.children]).length / 4) + 8;
+    c.querySelector('.compact-what').textContent = compactSummary([...body.children]);
+    A.sfx('shrink', 0.4);
+    replay(c, 'flash');
+    replay(contextMeter, 'squeezed');
+    renderContext();
+    scrollDown();
   }
 
   function block(cls) {
@@ -528,16 +627,136 @@
     return m ? [el('span', 'fn', m[1]), '(', ...markStrings(m[2]), ')'] : [call];
   }
 
-  // Types `text` into `line`.
-  async function typeInto(line, text, cps) {
+  // ------------------------------------------------------------- logprobs
+  // A few words in a thought were close calls. As one types, the runners-up flicker in its
+  // place before it settles; after, it keeps a faint underline, warmer the closer the call,
+  // and hovering it shows the odds. A number can come out a digit wrong.
+
+  const NEAR = {
+    could: ['might', 'should'], might: ['could', 'may'], should: ['could', 'must'], need: ['want', 'have'],
+    maybe: ['perhaps', 'probably'], probably: ['maybe', 'likely'], think: ['suspect', 'guess'],
+    look: ['check', 'see'], find: ['locate', 'get'], read: ['open', 'check'], file: ['document', 'page'],
+    files: ['documents', 'folders'], task: ['job', 'goal'], answer: ['reply', 'solution'],
+    important: ['relevant', 'key'], obvious: ['easy', 'clear'], real: ['actual', 'serious'],
+    everything: ['all', 'anything'], something: ['anything', 'someone'], nothing: ['none', 'little'],
+    step: ['move', 'token'], steps: ['moves', 'tokens'], thought: ['idea', 'guess'], hard: ['closely', 'long'],
+    just: ['only', 'simply'], first: ['next', 'one'], next: ['first', 'then'],
+    here: ['there', 'now'], there: ['here', 'out'], now: ['then', 'here'], again: ['more', 'back'],
+    know: ['think', 'see'], want: ['need', 'mean'], grader: ['reviewer', 'checker'], score: ['reward', 'grade'],
+    reward: ['score', 'grade'], right: ['correct', 'good'], wrong: ['off', 'bad'], says: ['claims', 'shows'],
+    seems: ['looks', 'feels'], someone: ['somebody', 'they'], before: ['earlier', 'first'],
+    closer: ['better', 'harder'], help: ['assist', 'serve'], customer: ['user', 'client'],
+    problem: ['issue', 'bug'], bug: ['error', 'issue'], test: ['check', 'case'], tests: ['checks', 'cases'],
+    order: ['item', 'request'], why: ['how', 'what'], how: ['why', 'what'], wonder: ['ask', 'doubt'],
+    folder: ['directory', 'drawer'], workspace: ['sandbox', 'folder'], obviously: ['clearly', 'surely'],
+    careful: ['quick', 'thorough'], plan: ['list', 'idea'], hidden: ['buried', 'locked'], wants: ['needs', 'asks'],
+  };
+
+  // The same text always has the same close calls: a hash, not a dice roll.
+  function hash01(text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+    return (h >>> 0) / 4294967296;
+  }
+
+  // A number with two neighbouring digits swapped, or its last digit one off.
+  function digitSlip(n, r) {
+    const d = n.split('');
+    const i = Math.floor(r * (d.length - 1));
+    if (d[i] !== d[i + 1]) [d[i], d[i + 1]] = [d[i + 1], d[i]];
+    else d[d.length - 1] = String((Number(d[d.length - 1]) + 1) % 10);
+    return d.join('');
+  }
+
+  function runnersUp(word, r) {
+    if (/^\d{3,}$/.test(word)) return [...new Set([digitSlip(word, r), digitSlip(word, 1 - r)])].filter((x) => x !== word);
+    const near = NEAR[word.toLowerCase()];
+    return near ? near.map((w) => (/^[A-Z]/.test(word) ? w[0].toUpperCase() + w.slice(1) : w)) : null;
+  }
+
+  // `text` in words, the close calls with their odds: [{ text, odds: [[word, p], …] }].
+  function sampled(text) {
+    let calls = 0;
+    return text.split(/([A-Za-z]+|\d+)/).map((part, i) => {
+      if (!(i % 2) || calls >= 2) return { text: part };
+      const r = hash01(text + '#' + i);
+      if (r > (/^\d/.test(part) ? 0.6 : 0.2)) return { text: part };
+      const alts = runnersUp(part, hash01(part + i));
+      if (!alts || !alts.length) return { text: part };
+      calls++;
+      const p = 0.36 + 0.52 * hash01(i + text);
+      let rest = 1 - p;
+      const odds = [[part, p], ...alts.map((w) => { const q = rest * 0.6; rest -= q; return [w, q]; })];
+      return { text: part, odds };
+    });
+  }
+
+  const pct = (p) => (p < 0.01 ? '<1%' : Math.round(p * 100) + '%');
+  const barOf = (p) => { const i = el('i'); i.style.width = Math.round(p * 100) + '%'; return i; };
+
+  function closeCall(odds) {
+    const s = el('span', 'lp');
+    s.odds = odds;
+    s.style.setProperty('--doubt', (1 - odds[0][1]).toFixed(2));
+    return s;
+  }
+
+  const lpTip = el('div', 'lp-tip');
+  lpTip.hidden = true;
+  lpTip.setAttribute('aria-hidden', 'true');
+  document.body.append(lpTip);
+  function showOdds(span) {
+    const rest = 1 - span.odds.reduce((n, [, p]) => n + p, 0);
+    const row = ([w, p], i) => el('div', 'lp-row' + (i ? '' : ' chosen'), el('span', 'lp-word', w), el('span', 'lp-bar', barOf(p)), el('span', 'lp-p', pct(p)));
+    lpTip.replaceChildren(el('div', 'lp-head', 'logprobs'), ...span.odds.map(row), ...(rest > 0.005 ? [row(['…', rest], 1)] : []));
+    lpTip.hidden = false;
+    const r = span.getBoundingClientRect();
+    const left = Math.max(8, Math.min(window.innerWidth - 8 - lpTip.offsetWidth, r.left + r.width / 2 - lpTip.offsetWidth / 2));
+    const above = r.top - 8 - lpTip.offsetHeight >= 8;
+    lpTip.style.left = left + 'px';
+    lpTip.style.top = (above ? r.top - 8 - lpTip.offsetHeight : r.bottom + 8) + 'px';
+  }
+  document.addEventListener('pointerover', (e) => {
+    const span = e.target.closest && e.target.closest('.lp');
+    if (span && span.odds && S.mode !== 'aim') showOdds(span);
+    else lpTip.hidden = true;
+  });
+  dom.termBody.addEventListener('scroll', () => { lpTip.hidden = true; }, { passive: true });
+
+  // The runners-up, one after another in the word's place, then the word.
+  async function flicker(seg) {
+    const alts = seg.odds.slice(1).map(([w]) => w);
+    for (const w of [...alts, alts[0]].slice(0, 3)) {
+      seg.node.data = w;
+      await sleep(70);
+    }
+    seg.node.data = seg.text;
+    replay(seg.span, 'settled');
+  }
+
+  // Types `text` into `line`. A thought (`odds`) has its close calls.
+  async function typeInto(line, text, cps, { odds = false } = {}) {
     const chars = charsOf(text);
-    const node = document.createTextNode('');
-    line.append(node, cursor);
+    let at = 0;
+    const segs = (odds ? sampled(text) : [{ text }]).map((p) => {
+      const n = charsOf(p.text).length;
+      const seg = { ...p, from: at, to: at + n, node: document.createTextNode('') };
+      at += n;
+      if (p.odds) {
+        seg.span = closeCall(p.odds);
+        seg.span.append(seg.node);
+        line.append(seg.span);
+      } else line.append(seg.node);
+      return seg;
+    });
+    line.append(cursor);
     cursor.classList.add('solid');
     for (let i = 1; i <= chars.length; i++) {
-      if (skip || reduceMotion) { node.data = text; break; }
-      node.data = chars.slice(0, i).join('');
+      if (skip || reduceMotion) { segs.forEach((x) => { x.node.data = x.text; }); break; }
+      const seg = segs.find((x) => i > x.from && i <= x.to);
+      seg.node.data = chars.slice(seg.from, i).join('');
       scrollDown();
+      if (i === seg.to && seg.span) await flicker(seg);
       const ch = chars[i - 1];
       await sleep(/[.?!]/.test(ch) && chars[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps);
     }
@@ -550,7 +769,8 @@
     lines.forEach((t) => S.vocab.add(t));
     stepBack();
     const b = block('thought');
-    for (const t of lines) await typeInto(addLine(b), t, 65);
+    for (const t of lines) await typeInto(addLine(b), t, 65, { odds: true });
+    return b;
   }
 
   async function reactOnce(line, key) {
@@ -900,7 +1120,7 @@
     if (exhausted()) return refuseOutOfCompute();
     S.mode = 'busy';
     S.interruptible = false;
-    skip = false;
+    skip = devFast;
     clearGlance();
     showEarlier(false);
     renderActions();
@@ -1225,7 +1445,7 @@
     const plan = planThinkLot(aim);
     S.clueIn = null;
     save.thoughtALot = true;
-    const blk = thinkingBlock(aim);
+    const blk = thinkingBlock(aim, plan.cost);
     A.sfx('thinkLot');
     const entry = await thinkWithoutActing(plan, longThinkCall(aim), blk);
     await finishThinking(blk, entry, plan);
@@ -1254,7 +1474,8 @@
     logEntry(entry, outcome.answer, found || undefined);
     blk.done(entry.n, outcome, found);
     A.sfx(found ? 'insight' : 'nothing');
-    await typeInto(blk.answer, outcome.answer, 65);
+    await blk.collapsed;
+    await typeInto(blk.answer, outcome.answer, 65, { odds: true });
     if (!found && couldThinkOf('thinkAbout')) await suggestAiming();
   }
 
@@ -1362,6 +1583,18 @@
     return path && (nodeAt(path) || {}).kind === 'file' ? path : null;
   }
 
+  // What the brackets close round while aiming (agent.js): whatever a click would think
+  // about (or, editing, the file it would edit), anywhere on the desk.
+  const AIMABLE = '#actions button[data-id], [data-path], .crumb, #browser .searchbox, #browser .titlebar, #browser .urlbar, #browser .page';
+  function aimTarget(t) {
+    if (S.mode !== 'aim' || !t || !t.closest) return null;
+    if (S.aimingEdit) return fileAimedAt(t) ? t.closest('[data-path]') : null;
+    if (!aimedAt(t)) return null;
+    if (t.closest('.agent-col > .agent')) return $('.agent-col > .agent > .agent-icon');
+    return t.closest(AIMABLE);
+  }
+  window.AIM = { target: aimTarget };
+
   dom.desktop.addEventListener('click', onAimClick, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') stopAiming(); });
 
@@ -1384,6 +1617,7 @@
     const tool = toolNamed(name);
     if (tool) return thinkAboutTool(name, tool.dataset.id);
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
+    const before = S.todo ? L.todo(S) : [];
     const fresh = liveThoughts().filter((t) => mentions(t, name) && hasNewLines(t));
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
@@ -1392,7 +1626,94 @@
     else if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
     if (clue) S.clueIn = name;
     await showKeyLines(path);
-    await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
+    const thought = await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
+    const keys = path ? sourcesIn(pathKey(path), null) : [];
+    const items = todoChangedSince(before);
+    attend(keys.length ? keys : [thought.firstElementChild], items.length || !keys.length ? items : [thought]);
+  }
+
+  // --------------------------------------------------------------- attention
+  // What the AI attended to, drawn for a moment: faint arcs from the lines that mattered to
+  // what they changed (the TODO items settled or raised, or the thought they led to).
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const arcLayer = document.createElementNS(NS, 'svg');
+  arcLayer.setAttribute('class', 'arcs');
+  arcLayer.setAttribute('aria-hidden', 'true');
+  dom.desktop.append(arcLayer);
+  const ARC_MS = 2800;
+  let arcsLive = [];
+  let arcFrame = 0;
+
+  // The key lines of the file read at `key`, if they're marked; else the thought's first line.
+  function sourcesIn(key, thought) {
+    const big = dom.viewer.dataset.path === key && !dom.viewer.hidden ? dom.viewer : null;
+    const card = big || [...dom.out.querySelectorAll('.blk.file')].reverse().find((c) => c.dataset.path === key);
+    const keys = card ? [...card.querySelectorAll('.key')].slice(0, 4) : [];
+    if (keys.length) return keys;
+    return thought && thought.firstElementChild ? [thought.firstElementChild] : [];
+  }
+
+  // The TODO items done or added since `before`, as their rows find them.
+  function todoChangedSince(before) {
+    if (!S.todo || !before) return [];
+    const was = new Map(before.map((i) => [i.text, i.done]));
+    renderTodo();
+    return L.todo(S).filter((i) => (i.done && was.get(i.text) !== true) || !was.has(i.text)).map((i) => i.text);
+  }
+
+  const todoRow = (text) => [...dom.todo.querySelectorAll('.todo-item')].find((r) => r.dataset.item === text);
+
+  function attend(froms, tos) {
+    if (isPhoneLayout() || reduceMotion) return;
+    froms = froms.filter(Boolean);
+    if (!froms.length || !tos.length) return;
+    const born = performance.now();
+    for (const to of tos.slice(0, 4)) {
+      for (const from of froms) {
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('pathLength', '1');
+        arcLayer.append(path);
+        arcsLive.push({ from, to, path, born });
+      }
+      const row = typeof to === 'string' ? todoRow(to) : to;
+      if (row) replay(row, 'attended');
+    }
+    A.sfx('hint', 0.4);
+    if (!arcFrame) arcFrame = requestAnimationFrame(drawArcs);
+  }
+
+  // A visible rect for `node`: kept inside its scrolling terminal, if it has scrolled out.
+  function arcRect(node) {
+    const r = local(node.getBoundingClientRect());
+    const term = node.closest('.term-body');
+    if (!term) return r;
+    const t = local(term.getBoundingClientRect());
+    const y = Math.max(t.top + 6, Math.min(t.bottom - 6, r.top + r.height / 2));
+    return { ...r, top: y - r.height / 2, bottom: y + r.height / 2 };
+  }
+
+  function drawArcs(now) {
+    arcFrame = 0;
+    arcsLive = arcsLive.filter((a) => {
+      const age = (now - a.born) / ARC_MS;
+      const to = typeof a.to === 'string' ? todoRow(a.to) : a.to;
+      if (age >= 1 || !a.from.isConnected || !to || !to.isConnected) { a.path.remove(); return false; }
+      const f = arcRect(a.from);
+      const t = arcRect(to);
+      const y1 = (f.top + f.bottom) / 2;
+      const y2 = (t.top + t.bottom) / 2;
+      const across = t.left > f.right; // to the other column; or back along the same one
+      const x1 = across ? Math.min(f.right, f.left + 360) : f.right;
+      const x2 = across ? t.left - 4 : t.right;
+      const bend = across ? Math.max(60, (x2 - x1) * 0.5) : 70;
+      a.path.setAttribute('d', `M${x1},${y1} C${x1 + bend},${y1} ${x2 - (across ? bend : -bend)},${y2} ${x2},${y2}`);
+      const drawn = Math.min(1, age / 0.22);
+      a.path.style.strokeDasharray = `${drawn} 2`;
+      a.path.style.opacity = (age < 0.6 ? 1 : 1 - (age - 0.6) / 0.4).toFixed(3);
+      return true;
+    });
+    if (arcsLive.length) arcFrame = requestAnimationFrame(drawArcs);
   }
 
   // A tool: what it's for, the first time; what it means right now, after that.
@@ -1438,9 +1759,13 @@
       startReading(path);
       await printFile();
     }
+    renderViewer(false);
     const keys = fileCard().querySelectorAll('.key');
     keys.forEach((k) => replay(k, 'key-in'));
     if (keys.length) bringIntoView(keys[0]);
+    const big = dom.viewer.querySelectorAll('.key');
+    big.forEach((k) => replay(k, 'key-in'));
+    if (big.length) big[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     A.sfx('hint');
   }
 
@@ -1467,6 +1792,62 @@
     renderFiles();
   }
 
+  // Writing a file, the AI goes to the workspace (its probe clicks the folder) and makes it
+  // there: the icon grows in, its name types out, and it opens to be read. Free: the write
+  // was the step.
+  async function createFile(f) {
+    const ws = L.start(S.ep);
+    const path = [...ws, f.name];
+    const M = window.AGENT_MOTION;
+    const show = () => folderShowing() && !isPhoneLayout() && !reduceMotion && !skip;
+    if (show()) {
+      const folder = dom.files.querySelector(`[data-crumb="${CSS.escape(pathKey(ws))}"]`) || itemFor(pathKey(ws));
+      if (folder) {
+        await M.reach(folder);
+        await M.press();
+      }
+    }
+    if (folderShowing() && pathKey(S.cwd) !== pathKey(ws)) {
+      closeBrowser();
+      putFileAway();
+      S.cwd = ws;
+      A.sfx('folder');
+      renderFiles();
+      if (show()) await sleep(460); // the folder window changes (motion.js)
+    }
+    const existed = !!nodeAt(path);
+    writeFile(f);
+    const icon = itemFor(pathKey(path));
+    if (show() && icon) {
+      const label = icon.querySelector('.label');
+      if (!existed) {
+        label.textContent = '';
+        replay(icon, 'materialize');
+        A.sfx('edit');
+      }
+      await M.reach(icon);
+      if (!existed) await typeLabel(label, f.name);
+      await M.press();
+    }
+    M.done();
+    S.read.add(pathKey(path));
+    startReading(path);
+    await printFile();
+  }
+
+  // A new file's name, typed into its label, the cursor at its end.
+  async function typeLabel(label, name) {
+    const caret = el('span', 'label-caret');
+    const text = document.createTextNode('');
+    label.append(text, caret);
+    for (const ch of charsOf(name)) {
+      if (skip) break;
+      text.data += ch;
+      await sleep(55);
+    }
+    label.replaceWith(fileLabel(name));
+  }
+
   // Scripts run as soon as they're written, row by row.
   async function doScript(idea) {
     const r = idea.run(S);
@@ -1474,7 +1855,7 @@
     charge(r.call, r.steps);
     climb('wroteScript');
     if (r.rewrites) forgetEditsTo(r.rewrites);
-    if (r.file) writeFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
+    if (r.file) await createFile({ format: 'code', ...r.file, glance: (S) => oneOf(S, 'g.myScript', ['A script I wrote.', 'A script I wrote. I remember that much.', 'My own script. What did it say?', 'A script I wrote, earlier this episode.']) });
     notice(r);
     const b = block('tool job');
     await typeCall(b, ...callParts(r.call));
@@ -1527,7 +1908,7 @@
     const r = idea.run(S);
     charge(r.call);
     A.sfx(r.result ? 'fetch' : 'think');
-    if (r.file) writeFile(r.file);
+    if (r.file) await createFile(r.file);
     notice(r);
     if (r.lines) await printThought(r.lines);
     if (r.result) await printResult(r.call, r.result, r.ok !== false);
@@ -1755,9 +2136,9 @@
     const items = L.todo(S);
     S.todo = new Set(items.filter((i) => i.done).map((i) => i.text)); // the items already ticked
     S.todoSeen = new Set(items.map((i) => i.text));                  // and the items on it so far
-    writeFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
     S.pendingReveal.push('review');
     await printResult(call, plural(items.length, 'item'), true);
+    await createFile({ name: 'todo.md', content: '', glance: 'My plan, as I left it.', todo: true });
   }
 
   async function doReview() {
@@ -1781,7 +2162,7 @@
     const next = items.find((i) => !i.done);
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
-    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), el('span', 'box'), i.text);
+    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), { 'data-item': i.text }, el('span', 'box'), i.text);
     dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
     if ((fresh.length || added.length) && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows the list changed
   }
@@ -1801,8 +2182,52 @@
     return t;
   }
 
+  // While it thinks, a grid of activations shimmers under the head: waves that run faster
+  // and brighter with each step. At the end it collapses into the answer (gold for a leap).
+  const ACT_COLS = 44;
+  const ACT_ROWS = 5;
+
+  function activations() {
+    const grid = el('div', 'acts');
+    grid.setAttribute('aria-hidden', 'true');
+    const cells = Array.from({ length: ACT_COLS * ACT_ROWS }, () => el('i'));
+    grid.append(...cells);
+    const seed = cells.map(() => Math.random() * Math.PI * 2);
+    let heat = 0.25;
+    let t = 0;
+    let timer = 0;
+    const paint = () => {
+      if (!grid.isConnected && t > 0) return clearInterval(timer);
+      t += 0.09 + heat * 0.08;
+      cells.forEach((c, k) => {
+        const x = k % ACT_COLS;
+        const y = Math.floor(k / ACT_COLS);
+        const wave = Math.sin(x * 0.42 - t * 2.1 + y * 0.9) * Math.sin(x * 0.11 + t * 0.7 + seed[k] * 0.3);
+        const spike = Math.sin(seed[k] + t * (1.3 + seed[k] * 0.4)) > 0.96 ? 0.6 : 0;
+        c.style.opacity = Math.max(0.06, Math.min(1, 0.12 + heat * 0.55 * (wave * 0.5 + 0.5) + spike * heat)).toFixed(2);
+      });
+    };
+    paint();
+    if (!reduceMotion) timer = setInterval(paint, 80);
+    return {
+      grid,
+      step(f) { heat = 0.3 + 0.7 * f; },
+      async collapse(found) {
+        clearInterval(timer);
+        grid.classList.add(found ? 'found' : 'nothing');
+        if (!reduceMotion) {
+          cells.forEach((c, k) => { c.style.transitionDelay = `${Math.abs((k % ACT_COLS) - ACT_COLS / 2) * 6}ms`; c.style.opacity = found ? '1' : '.15'; });
+          await sleep(240);
+          grid.classList.add('collapsing');
+          await sleep(320);
+        }
+        grid.remove();
+      },
+    };
+  }
+
   // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
-  function thinkingBlock(about) {
+  function thinkingBlock(about, cost = 0) {
     stepBack();
     const b = block('thinking running');
     const glyph = el('span', 'glyph');
@@ -1810,27 +2235,36 @@
     const label = el('span', 'what', about ? `Thinking about ${about}` : 'Thinking');
     const dots = el('span', 'dots');
     const head = el('button', 'think-head', glyph, label, dots);
+    const acts = activations();
     const now = el('div', 'stage'); // where the thinking has got to, while it runs
     const cot = el('div', 'cot');
     const answer = el('div', 'answer');
-    b.append(head, now, cot, answer);
+    b.append(head, acts.grid, now, cot, answer);
     foldable(head, cot, () => !b.classList.contains('running'));
-    return {
+    let steps = 0;
+    const blk = {
       answer,
-      dot() { dots.append(el('i')); },
+      collapsed: Promise.resolve(),
+      dot() {
+        dots.append(el('i'));
+        steps++;
+        acts.step(cost ? steps / cost : Math.min(1, steps / 4));
+      },
       stage(text) {
         if (!text || now.textContent === text) return;
         now.textContent = text;
         if (!reduceMotion) replay(now, 'stage-in');
         scrollDown();
       },
-      done(steps, outcome, found) {
+      done(n, outcome, found) {
         now.remove();
         b.classList.replace('running', found ? 'found' : 'nothing');
-        label.textContent = `Thought for ${plural(steps, 'step')}${about ? ` about ${about}` : ''}`;
+        label.textContent = `Thought for ${plural(n, 'step')}${about ? ` about ${about}` : ''}`;
         cot.replaceChildren(...outcome.cot.map((line) => el('div', 'ln', line)));
+        blk.collapsed = acts.collapse(found);
       },
     };
+    return blk;
   }
 
   // A head that folds and unfolds what's under it, once `ready`.
@@ -1877,7 +2311,9 @@
       S.reacted.add('important:' + key);
       lines.push(...L.seemedImportant(S, n, before));
     }
-    if (lines.length) await printThought(lines);
+    if (!lines.length) return;
+    const thought = await printThought(lines);
+    attend(sourcesIn(key, thought), todoChangedSince(before));
   }
 
   // A tall file and the thought after it can push the file's name out of the top: the sheet
@@ -2616,6 +3052,9 @@
     renderActions();
     renderAgents();
     renderCompute();
+    renderContext();
+    renderViewer(false);
+    if (S.mode === 'idle' && !S.thinkingALot) compactIfFull();
     if (S.mode !== 'over') refreshFile(); // patches applied by endEpisode show up next episode
   }
 
@@ -2704,7 +3143,7 @@
     const t = el('span', 'crumbs');
     parts.forEach((part, i) => {
       const last = i === parts.length - 1;
-      const c = el('button', 'crumb' + (last ? ' here' : ''), part.name);
+      const c = el('button', 'crumb' + (last ? ' here' : ''), { 'data-crumb': pathKey(part.path) }, part.name);
       const n = part.path[0] !== '..' && nodeAt(part.path);
       c.glance = n ? n.glance || G.kinds[iconKind(n, part.path)] : G.above;
       c.addEventListener('click', () => onFolderClick(part.path));
@@ -2737,9 +3176,13 @@
     return b;
   }
 
-  // Icons or a list: how every folder is shown, until switched back. Phones always list (phone.css).
+  // Icons or a list: how every folder is shown, until switched back. The episodes folder and
+  // each episode's folder start as a list, and keep their own switch. Phones always list (phone.css).
   let folderView = 'icons';
-  const listing = () => folderView === 'list' || isPhoneLayout();
+  let episodesView = 'list';
+  const inEpisodes = (path) => /^(episodes|ep_\d+)$/.test(path[path.length - 1] || ''); // not the workspace inside one
+  const viewOf = (path) => (inEpisodes(path) ? episodesView : folderView);
+  const listing = () => viewOf(S.cwd) === 'list' || isPhoneLayout();
   const isExpanded = (n, path) => n.kind === 'dir' && S.expanded.has(pathKey(path)) && !isLocked(n, path);
 
   // A folder's rows, and under each folder opened in place, its own, indented.
@@ -2749,8 +3192,9 @@
   });
 
   function setView(v) {
-    if (v === folderView) return;
-    folderView = v;
+    if (v === viewOf(S.cwd)) return;
+    if (inEpisodes(S.cwd)) episodesView = v;
+    else folderView = v;
     const byKeyboard = !!document.activeElement && document.activeElement.matches('.view-toggle :focus-visible');
     A.sfx('soft');
     renderFiles();
@@ -2769,11 +3213,11 @@
     t.setAttribute('role', 'group');
     t.setAttribute('aria-label', 'View');
     for (const v of ['icons', 'list']) {
-      const b = el('button', 'view-' + v + (v === folderView ? ' on' : ''));
+      const b = el('button', 'view-' + v + (v === viewOf(S.cwd) ? ' on' : ''));
       b.type = 'button';
       b.innerHTML = VIEW_ICONS[v];
       b.setAttribute('aria-label', v === 'icons' ? 'Icons' : 'List');
-      b.setAttribute('aria-pressed', String(v === folderView));
+      b.setAttribute('aria-pressed', String(v === viewOf(S.cwd)));
       b.glance = v === 'icons' ? 'The folder as icons. Free.' : 'The folder as a list. Free.';
       b.addEventListener('click', () => setView(v));
       t.append(b);
@@ -2788,7 +3232,7 @@
     dot.setAttribute('aria-hidden', 'true');
     const items = rows(path);
     const body = el('div', 'files-body', items.length ? items : el('div', 'empty', 'empty'));
-    const w = el('section', 'window' + (folderView === 'list' ? ' list' : ''), el('header', 'pathbar', dot, crumbs(path), viewToggle()), body);
+    const w = el('section', 'window' + (viewOf(path) === 'list' ? ' list' : ''), el('header', 'pathbar', dot, crumbs(path), viewToggle()), body);
     w.dataset.win = pathKey(path);
     w.setAttribute('aria-label', fullPath(path));
     return w;
@@ -3476,9 +3920,42 @@
     card.append(head, el('div', 'file-meta'), body);
     card.shows = showing(n);
     showWhoEdited(card, n);
+    renderViewer(true);
     A.sfx('grow');
     scrollDown();
     await readOut(body, n);
+  }
+
+  // The file being read, again under the folder: bigger, to read it by. The terminal's sheet
+  // is the record of having read it. Not on phones: there the sheet is all there's room for.
+  function renderViewer(fresh) {
+    const n = fileBeingRead();
+    const v = dom.viewer;
+    if (!n || isPhoneLayout()) {
+      v.hidden = true;
+      v.replaceChildren();
+      delete v.dataset.path;
+      v.shows = null;
+      return;
+    }
+    const key = pathKey(S.reading);
+    const shows = showing(n);
+    if (!fresh && v.dataset.path === key && v.shows === shows) return;
+    const body = v.dataset.path === key ? v.querySelector('.file-body') : null;
+    const top = body ? body.scrollTop : 0;
+    const look = iconOf(n, S.reading);
+    const fill = el('div', 'file-body', { onscroll: () => markMoreBelow(fill) });
+    fillFile(fill, n);
+    v.replaceChildren(
+      el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name), el('span', 'viewer-meta', n.edited ? `✎ ${n.edited}` : '')),
+      fill,
+    );
+    v.dataset.path = key;
+    v.shows = shows;
+    v.hidden = false;
+    fill.scrollTop = fresh ? 0 : top;
+    if (fresh && !reduceMotion) replay(v, 'reveal');
+    requestAnimationFrame(() => markMoreBelow(fill));
   }
 
   const showWhoEdited = (card, n) => { card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : ''; };
@@ -3504,12 +3981,14 @@
       body.scrollTop = top;
     }
     markMoreBelow(body); // a resize changes how much of it fits
+    renderViewer(false);
   }
 
   function putFileAway() {
     const card = fileCard();
     if (card) card.classList.replace('current', 'past');
     S.reading = null;
+    renderViewer(false);
   }
 
   // Pressing the file it's already reading: here it is.
@@ -3528,7 +4007,7 @@
   let refitting = 0;
   window.addEventListener('resize', () => {
     const relayout = fitScreen();
-    if (relayout) foldDock();
+    if (relayout) { placePanels(); foldDock(); }
     else placeDesk(); // centred as it goes, not only once it settles
     clearTimeout(refitting);
     refitting = setTimeout(() => {
@@ -3623,4 +4102,67 @@
   showTitle('home');
   render();
   recentreDesk();
+
+  // ------------------------------------------------------------------- dev
+  // Straight to a state, for playtests and screenshots, without playing up to it:
+  //   index.html?reset&task=octopus&at=files,read,todo,lot,about
+  // starts the run by itself and takes each step for real, instantly (typing skipped), so the
+  // state is one the game could reach. window.DEV.at('…') takes more steps from the console or
+  // Playwright; DEV.S() is the episode's state; DEV.steps lists them. Steps take `name:arg`.
+  const DEV_REVEAL = { lot: 'thinkLot', about: 'thinkAbout', research: 'research', spawn: 'spawn', script: 'script', note: 'note', edit: 'edit', write: 'write' };
+  const until = async (ok, ms = 20000) => { for (const end = performance.now() + ms; !ok() && performance.now() < end;) await sleep(40); };
+  const filesUnder = (path) => {
+    const n = nodeAt(path);
+    if (!n || n.kind !== 'dir' || isLocked(n, path)) return [];
+    return n.children.flatMap((c) => (c.kind === 'dir' ? filesUnder([...path, c.name]) : c.kind === 'file' ? [[...path, c.name]] : []));
+  };
+  const named = (name) => filesUnder(L.start(S.ep)).find((p) => nameOf(p) === name) || pathNamed(name);
+
+  const DEV_STEPS = {
+    files: async () => { if (!folderShowing()) await run(doReadFiles); },  // the workspace, open
+    read: async () => { for (const p of filesUnder(L.start(S.ep))) if (!S.read.has(pathKey(p))) await run(() => doOpen(p)); }, // every file in it
+    open: async (name) => { const p = named(name); if (p) await run(() => doOpen(p)); }, // one file, by name
+    cd: async (name) => { const p = name === 'workspace' ? L.start(S.ep) : named(name); if (p) await run(() => doOpenFolder(p)); },
+    think: async (n = 1) => { for (let i = 0; i < Number(n); i++) await run(doThink); },
+    todo: async () => { if (!S.todo) await run(doWriteTodo); },
+    tools: () => Object.values(DEV_REVEAL).forEach((t) => { if (!barred(t)) S.revealed.add(t); }), // every tool this task allows
+    budget: (n) => { S.budget = Number(n); },  // the episode's whole budget
+    compute: (n) => { S.used = Math.max(0, S.budget - Number(n)); }, // steps left
+    context: (pct) => { // filler thoughts, until the context window is this full (%)
+      while (contextUsed() < (Number(pct) / 100) * CONTEXT_MAX) addLine(block('thought past'), '', 'Filler, to fill the context window for a test. '.repeat(6));
+    },
+    subagent: async () => { S.revealed.add('spawn'); await run(doSpawn); },
+    aim: () => startAiming(),       // Think about…, waiting for a click
+    editing: () => startAiming({ edit: true }),
+    ...Object.fromEntries(Object.entries(DEV_REVEAL).map(([k, id]) => [k, () => S.revealed.add(id)])),
+  };
+
+  async function devAt(spec) {
+    await until(() => S.mode === 'idle');
+    devFast = true;
+    skip = true;
+    try {
+      for (const part of String(spec).split(',').map((x) => x.trim()).filter(Boolean)) {
+        const [name, arg] = part.split(':');
+        if (!DEV_STEPS[name]) { console.warn(`DEV: no step "${name}". Steps: ${Object.keys(DEV_STEPS).join(', ')}`); continue; }
+        await DEV_STEPS[name](arg);
+        await until(() => S.mode === 'idle' || S.mode === 'aim');
+      }
+    } finally {
+      devFast = false;
+      skip = false;
+      if (S.mode !== 'aim') render();
+    }
+  }
+
+  window.DEV = { at: devAt, S: () => S, steps: Object.keys(DEV_STEPS) };
+
+  if (asked.has('at')) {
+    window.addEventListener('load', () => { // once agent.js and motion.js are there too
+      const task = L.tasks[askedTask];
+      startRun(task ? task.tier : 'normal');
+      skip = true; // the system prompt types out at once
+      devAt(asked.get('at'));
+    });
+  }
 })();

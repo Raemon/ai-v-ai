@@ -54,7 +54,6 @@
       <section class="window" id="term" aria-label="The AI's thoughts and actions">
         <div class="term-body" id="term-body">
           <div id="out" aria-live="polite"></div>
-          <div class="todo" id="todo" aria-label="TODO list" hidden></div>
         </div>
         <footer class="term-actions" id="actions"></footer>
       </section>
@@ -63,14 +62,18 @@
         <span class="agent-icon" aria-hidden="true"><span class="face"><i></i><i></i></span></span>
       </div>
       <div class="agent-status">
-        <div class="meters"><button class="earlier" id="earlier" type="button" aria-expanded="false">Earlier</button><span id="compute"></span><span id="resources"></span></div>
+        <div class="meters"><button class="earlier" id="earlier" type="button" aria-expanded="false">Earlier</button><span class="context" id="context"><span class="context-label">context</span><span class="context-bar"><i></i></span><span class="context-num"></span></span><span id="compute"></span><span id="resources"></span></div>
         <div class="glance-line" id="glance-line"></div>
       </div>
-      <div class="agents" id="agents" aria-label="Subagents"></div>
     </div>
 
     <div class="files-col">
-      <section id="files" aria-label="Folder"></section>
+      <div class="files-stack">
+        <section id="files" aria-label="Folder"></section>
+        <section class="window viewer" id="viewer" aria-label="The file being read" hidden></section>
+        <div class="todo" id="todo" aria-label="TODO list" hidden></div>
+        <div class="agents" id="agents" aria-label="Subagents"></div>
+      </div>
 
       <section class="window browser" id="browser" aria-label="Web browser" hidden>
         <header class="titlebar">

@@ -175,7 +175,15 @@
   reticle.setAttribute('aria-hidden', 'true');
   reticle.innerHTML = '<i></i><i></i><i></i><i></i>';
   reticle.style.display = 'none';
-  desktop.append(probe, reticle);
+
+  // Aiming (Think about…, Edit files…), the probe is the pointer, anywhere on the desk, and
+  // everything but what the brackets hold fades back and blurs: a veil with a hole in it.
+  const aiming = () => desktop.classList.contains('aiming');
+  const veil = document.createElement('div');
+  veil.className = 'aim-veil';
+  veil.setAttribute('aria-hidden', 'true');
+  const VEIL = 2000; // how far past the desk it reaches, every way
+  desktop.append(veil, probe, reticle);
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
   const settled = (s) => Math.abs(s.to - s.x) < s.eps && Math.abs(s.v) < s.eps * 10;
@@ -209,13 +217,19 @@
   let letGo = 0;
   let tip = null; // where the bulb was last drawn
 
-  // Aim the arm at `p` (desktop pixels): up the gutter beside its column, and in.
-  function aimArm(p, d, gap) {
+  // The gutter between its column and the folder, where the arm climbs.
+  function gutter(d) {
     const col = local(agentCol, d);
     const right = local(filesCol, d);
-    arm.gx.to = filesCol.offsetParent ? (col.x + col.w + right.x) / 2 : col.x + col.w + 12; // empty columns take no room
+    return filesCol.offsetParent ? (col.x + col.w + right.x) / 2 : col.x + col.w + 12; // empty columns take no room
+  }
+
+  // Aim the arm at `p` (desktop pixels): up the gutter beside its column, and in, from
+  // whichever side of the gutter `p` is.
+  function aimArm(p, d, gap) {
+    arm.gx.to = gutter(d);
     arm.ty.to = p.y;
-    arm.tx.to = Math.max(p.x - gap, arm.gx.to + 2 * R);
+    arm.tx.to = p.x >= arm.gx.to ? Math.max(p.x - gap, arm.gx.to + 2 * R) : Math.min(p.x + gap, arm.gx.to - 2 * R);
   }
 
   function aim(d) {
@@ -226,9 +240,10 @@
       T.to = Math.round(r.y) - o;
       Rt.to = Math.round(r.x + r.w) + o;
       B.to = Math.round(r.y + r.h) + o;
-      aimArm({ x: L.to, y: (T.to + B.to) / 2 }, d, 0);
+      arm.left = r.x + r.w / 2 < gutter(d); // in its own column: the arm holds the brackets' right side
+      aimArm({ x: arm.left ? Rt.to : L.to, y: (T.to + B.to) / 2 }, d, 0);
     } else {
-      if (pointer && arm.on) aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, 10);
+      if (pointer && arm.on) aimArm({ x: (pointer.x - d.left) / d.k, y: (pointer.y - d.top) / d.k }, d, aiming() ? 0 : 10);
       if (tip) [L.to, T.to, Rt.to, B.to] = tipBox().map(Math.round); // the brackets close back into the bulb
 
     }
@@ -297,7 +312,7 @@
     // The end: free at the pointer, or holding the brackets' left side (their foot, for a
     // crumb: under the path before it, not through it).
     const holdY = held && held.classList.contains('crumb') ? B.x : (T.x + B.x) / 2;
-    const ex = px((arm.tx.x + over) * (1 - k) + L.x * k);
+    const ex = px((arm.tx.x + (arm.tx.x < arm.gx.x ? -over : over)) * (1 - k) + (arm.left ? Rt.x : L.x) * k);
     const ey = px(arm.ty.x * (1 - k) + holdY * k);
     const gx = px(arm.gx.x);
     const pts = [[sx, sy], [sx, lane], [gx, lane], [gx, ey], [ex, ey]];
@@ -327,6 +342,7 @@
     reticle.style.height = Math.max(6, Math.round(B.x) - y) + 'px';
     reticle.style.opacity = (shown * clamp(k * 1.6)).toFixed(3);
     reticle.style.display = k > 0.004 ? '' : 'none';
+    drawVeil(x, y, Math.round(Rt.x), Math.round(B.x), k * shown);
 
     if (arm.spark >= 0) {
       spark.style.strokeDasharray = `16 ${len + 40}`;
@@ -335,6 +351,20 @@
     } else {
       spark.style.opacity = 0;
     }
+  }
+
+  // The veil's hole: the brackets' box, once they're open round something.
+  function drawVeil(x0, y0, x1, y1, k) {
+    const W = desktop.offsetWidth + 2 * VEIL;
+    const H = desktop.offsetHeight + 2 * VEIL;
+    let d = `M0,0H${W}V${H}H0Z`;
+    if (k > 0.05) {
+      const m = 3 * k;
+      const [a, b, c, e] = [x0 - m + VEIL, y0 - m + VEIL, x1 + m + VEIL, y1 + m + VEIL];
+      const r = Math.min(6, (c - a) / 2, (e - b) / 2);
+      d += `M${a + r},${b}H${c - r}Q${c},${b} ${c},${b + r}V${e - r}Q${c},${e} ${c - r},${e}H${a + r}Q${a},${e} ${a},${e - r}V${b + r}Q${a},${b} ${a + r},${b}Z`;
+    }
+    veil.style.clipPath = `path(evenodd, "${d}")`;
   }
 
   let raf = 0;
@@ -357,6 +387,10 @@
       limit(L, Rt);
       limit(T, B);
     }
+    if (aiming() && !held && pointer) { // the probe is the pointer: no lag at its tip
+      snap(arm.tx);
+      snap(arm.ty);
+    }
     if (arm.spark >= 0) {
       arm.spark += dt / 0.34;
       if (arm.spark >= 1) arm.spark = -1;
@@ -366,6 +400,7 @@
     probe.style.display = out ? '' : 'none';
     if (!out) {
       reticle.style.display = 'none';
+      drawVeil(0, 0, 0, 0, 0);
       tip = null;
       return;
     }
@@ -401,8 +436,15 @@
   // there the probe has no columns to run between.
   const overFiles = (t) => !isPhoneLayout() && !!(t && t.closest && t.closest('.files-col') && !t.closest('#browser'));
 
-  // Something you can click among the files.
+  // Aiming, the probe reaches anywhere; otherwise only over the files.
+  const reaches = (t) => !isPhoneLayout() && (aiming() ? !!t : overFiles(t));
+
+  // Something you can click among the files; aiming, anything a click would aim at.
   function pick(t) {
+    if (aiming()) {
+      const target = window.AIM && window.AIM.target(t);
+      return target && !target.disabled ? target : null;
+    }
     const el = overFiles(t) && t.closest('button, a');
     if (!el || el.disabled || el.classList.contains('here')) return null;
     return el;
@@ -412,8 +454,13 @@
   // whatever's under the pointer now, else let go at once (a detached button has
   // no place to reach for).
   function rehold() {
-    const key = held.dataset.path;
-    const same = key && [...filesCol.querySelectorAll('[data-path]')].find((b) => b.dataset.path === key && b.getClientRects().length);
+    const attr = held.dataset.path !== undefined ? 'path' : held.dataset.crumb !== undefined ? 'crumb' : null;
+    const key = attr && held.dataset[attr];
+    const same = attr && !aiming() && [...filesCol.querySelectorAll(`[data-${attr}]`)].find((b) => b.dataset[attr] === key && b.getClientRects().length);
+    if (puppet) {
+      if (same) { puppet = same; hold(same); } else release();
+      return;
+    }
     const next = same || (pointer && pick(document.elementFromPoint(pointer.x, pointer.y)));
     if (next) hold(next);
     else release();
@@ -448,7 +495,8 @@
   }
 
   function sense(t) {
-    setArm(overFiles(t));
+    if (puppet) return; // it's reaching on its own
+    setArm(reaches(t));
     hold(arm.on ? pick(t) : null);
   }
 
@@ -462,7 +510,15 @@
     if (arm.on) wake();
   });
 
-  new MutationObserver(() => { if (arm.on || arm.reach.x > 0.003) wake(); }).observe(desktop, { attributes: true, attributeFilter: ['class'] });
+  // Aiming starts or stops under a still pointer: reach for it, or let go.
+  let wasAiming = false;
+  new MutationObserver(() => {
+    if (aiming() !== wasAiming) {
+      wasAiming = aiming();
+      if (pointer) sense(document.elementFromPoint(pointer.x, pointer.y));
+    }
+    if (arm.on || arm.reach.x > 0.003) wake();
+  }).observe(desktop, { attributes: true, attributeFilter: ['class'] });
 
   function pointerGone() {
     pointer = null;
@@ -488,6 +544,53 @@
     lookSoon();
   }).observe(desktop, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
   title.addEventListener('transitionend', recheck);
+
+  // ---------------------------------------------------------------- on its own
+  // The AI can reach without the pointer (writing a file: to the folder, a click, then to
+  // where the file appears). game.js drives it through AGENT_MOTION.reach / press / done.
+
+  let puppet = null;
+  const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
+
+  function reachFor(el) {
+    if (!el || !el.getClientRects().length || isPhoneLayout()) return wait(0);
+    puppet = el;
+    clearTimeout(letGo);
+    if (!arm.on) {
+      arm.on = true;
+      arm.reach.to = 1;
+      Object.assign(arm.reach, { k: 95, c: 13 });
+    }
+    hold(el);
+    wake();
+    return wait(520);
+  }
+
+  async function pressIt() {
+    if (!puppet) return;
+    grip = GRIP;
+    reticle.classList.add('grip');
+    agent.classList.add('ready');
+    arm.spark = 0;
+    wake();
+    await wait(170);
+    grip = 0;
+    reticle.classList.remove('grip');
+    agent.classList.remove('ready');
+    agent.classList.remove('blink');
+    replay(agent, 'blip');
+    wake();
+    await wait(140);
+  }
+
+  function letPuppetGo() {
+    if (!puppet) return;
+    puppet = null;
+    release();
+    if (pointer) sense(document.elementFromPoint(pointer.x, pointer.y));
+    else setArm(false);
+    wake();
+  }
 
   // ------------------------------------------------------------------ pulse
   // Pressing anything that does something, the face draws in a little (on the
@@ -590,5 +693,8 @@
   window.AGENT_MOTION = {
     toGame: (card) => fly(faceIn(card), agent),
     toTitle: (card) => fly(agent, faceIn(card)),
+    reach: reachFor,
+    press: pressIt,
+    done: letPuppetGo,
   };
 })();
