@@ -52,6 +52,7 @@
   gap: 6px;
 }
 :root[data-layout="phone"] .files-col:not(:has(#files > .window)) { display: none; }
+:root[data-layout="phone"] .files-stack { display: contents; } /* the TODO list and subagents go back in the dock (game.js placePanels) */
 
 :root[data-layout="phone"] .agent-col {
   order: 1; /* under the folder, in reach of a thumb */
