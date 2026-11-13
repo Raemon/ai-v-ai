@@ -172,7 +172,7 @@ as it does in any task: trained in, thought of when the obvious thoughts run out
 by a `reveal`.
 
 ```json
-"tools": { "todo": "start", "research": "never" }
+"tools": { "todo": "start", "spawn": "never" }
 ```
 
 `abilities` are buttons of the scenario's own:
@@ -196,7 +196,7 @@ button says `idle`. It appears when a rule lists its id under `reveal`, or from 
 ### Routes
 
 A route's steps are what the grid's rows do, each adding to the one before:
-`read <file>`, `run <script>`, `research <search>`, `use <ability>.<option>`, `leap <id>`,
+`read <file>`, `run <script>`, `use <ability>.<option>`, `leap <id>`,
 `think <id>`, `write todo`, `set <flag> <value>`, `know <fact>` (for facts the rest of the run
 teaches, like `rmcard`).
 

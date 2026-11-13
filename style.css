@@ -98,7 +98,20 @@ button { font: inherit; color: inherit; }
 .files-col { position: relative; display: flex; align-items: flex-start; gap: var(--col-gap); }
 /* Whatever is empty takes no room, so what's open stays centred on the desk. */
 #files:empty,
-.files-col:not(:has(#files:not(:empty), #browser:not([hidden]))) { display: none; }
+.files-stack:not(:has(#files:not(:empty), #todo:not([hidden]), #agents:not(:empty))),
+.files-col:not(:has(#files:not(:empty), #todo:not([hidden]), #agents:not(:empty), #browser:not([hidden]))) { display: none; }
+
+/* The folder, and under it what the AI is keeping track of: its TODO list, its subagents. */
+.files-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: var(--files-w);
+  max-height: var(--win-h);
+  min-height: 0;
+}
+.files-stack > #files { flex: 0 1 auto; min-height: 0; }
+.files-stack > .todo, .files-stack > .agents { flex: none; }
 
 /* The middle column is the one folder the AI is in, as tall as what's in it. */
 #files {
@@ -662,9 +675,11 @@ button { font: inherit; color: inherit; }
   .blk.thinking.running, .blk.thinking.running .glyph rect { animation: none; }
 }
 
-/* The TODO list, pinned under the buttons. Items tick themselves off. */
+/* The TODO list, pinned under the folder. Items tick themselves off. */
 .todo {
-  margin: 12px 0 0;
+  margin: 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  background-color: var(--win);
   padding: 7px 12px 9px;
   border: 1px solid rgba(95, 201, 214, .2);
   border-radius: 8px;
@@ -680,9 +695,11 @@ button { font: inherit; color: inherit; }
 @keyframes todo-in { from { opacity: 0; transform: translateX(-6px); background: rgba(216, 177, 106, .18); } }
 .todo-item.next { color: #e8f8fa; }
 .todo-item.next .box { border-color: var(--text); }
+.todo-item.attended { animation: attended 1.6s ease; border-radius: 3px; }
+@keyframes attended { 15% { background: rgba(95, 201, 214, .16); box-shadow: -3px 0 0 rgba(95, 201, 214, .7); } }
 
 /* Subagents: a row each under the AI's face, budding off it; a click on the name opens the log. */
-.agents { display: flex; flex-direction: column; gap: 6px; margin: 32px 0 0; } /* below the pointer line's turn */
+.agents { display: flex; flex-direction: column; gap: 6px; margin: 0; }
 .agents:empty { display: none; }
 .subagent {
   border: 1px solid rgba(95, 201, 214, .3);
@@ -690,8 +707,8 @@ button { font: inherit; color: inherit; }
   background: var(--agent-surface);
   box-shadow: inset 0 1px 0 rgba(150, 230, 240, .06), 0 10px 30px rgba(0, 0, 0, .4);
 }
-.subagent.born { animation: bud .65s cubic-bezier(.2, .8, .3, 1) both; transform-origin: calc(30% + 60px) 0; }
-@keyframes bud { from { opacity: 0; transform: translateY(-36px) scale(.55); } }
+.subagent.born { animation: bud .65s cubic-bezier(.2, .8, .3, 1) both; transform-origin: 0 50%; }
+@keyframes bud { from { opacity: 0; transform: translateX(-36px) scale(.55); } }
 .subagent.reported { animation: reported .9s ease; }
 @keyframes reported { 25% { border-color: rgba(190, 240, 246, .9); box-shadow: 0 0 16px -2px rgba(95, 201, 214, .45); } }
 .sub-row { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 6px; font: var(--fs-meta) var(--mono); color: var(--text); }
@@ -712,10 +729,29 @@ button { font: inherit; color: inherit; }
   .subagent.born, .subagent.reported, .subagent.busy .sub-status { animation: none; }
 }
 
-/* Aiming Think about…: anything in the folder can be picked, and any file in the terminal. */
-#desktop.aiming :is(.files-col, .blk.file), #desktop.aiming :is(.files-col, .blk.file) * { cursor: crosshair; }
-#desktop.editing :is(.files-col, .blk.file), #desktop.editing :is(.files-col, .blk.file) * { cursor: text; }
+/* Aiming Think about… (or Edit files…): the probe is the pointer, anywhere on the desk, and
+   everything but what its brackets hold fades back behind a veil (agent.js cuts the hole). */
+:root:not([data-layout="phone"]) #desktop.aiming, :root:not([data-layout="phone"]) #desktop.aiming * { cursor: none; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
+.aim-veil {
+  position: absolute;
+  left: -2000px;
+  top: -2000px;
+  width: calc(100% + 4000px);
+  height: calc(100% + 4000px);
+  z-index: 4;
+  pointer-events: none;
+  background: rgba(10, 11, 13, .38);
+  -webkit-backdrop-filter: blur(1.6px) saturate(.6) brightness(.62);
+  backdrop-filter: blur(1.6px) saturate(.6) brightness(.62);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility 0s .25s;
+}
+:root:not([data-layout="phone"]) #desktop.aiming .aim-veil { opacity: 1; visibility: visible; transition: opacity .25s ease; }
+/* Above the veil: the AI's face, where the probe comes from, and the line naming what it aims at. */
+:root:not([data-layout="phone"]) #desktop.aiming :is(.agent-col > .agent, .agent-status) { z-index: 6; }
+@media (prefers-reduced-motion: reduce) { .aim-veil { transition: none; } }
 
 /* ---------- a file, read into the terminal ---------- */
 /* A sheet in the folder window's greys, upright: neither a thought nor a tool call. */
@@ -1625,3 +1661,98 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 
 /* On the training update the face stays, but its thought bubbles go: they'd sit on the text. */
 #title-screen.end:not([hidden]):not(.leaving) ~ .agent-col .agent .bubble { opacity: 0; }
+
+/* ---------- the context window ---------- */
+/* A meter beside compute: how full the AI's context is. Full, the oldest of the terminal is
+   compacted into one grey line. */
+.context { display: inline-flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.context[hidden] { display: none; }
+.context-bar { position: relative; width: 46px; height: 4px; overflow: hidden; border-radius: 2px; background: rgba(255, 255, 255, .07); }
+.context-bar i { position: absolute; inset: 0; transform-origin: 0 50%; transform: scaleX(var(--fill, 0)); background: linear-gradient(90deg, rgba(95, 201, 214, .5), rgba(95, 201, 214, .85)); transition: transform .4s ease; }
+.context.high { color: var(--warn); }
+.context.high .context-bar i { background: linear-gradient(90deg, rgba(223, 162, 94, .6), var(--warn)); }
+.context.squeezed .context-bar { animation: squeezed .7s ease; }
+@keyframes squeezed { 30% { box-shadow: 0 0 8px rgba(95, 201, 214, .8); } }
+.context-num { min-width: 3ch; text-align: right; }
+
+.blk.compacted { padding: 0; border: 1px dashed rgba(255, 255, 255, .1); border-radius: 8px; background: rgba(255, 255, 255, .015); }
+.compact-head { display: flex; gap: 10px; align-items: baseline; width: 100%; padding: 7px 12px; border: 0; background: none; text-align: left; font: var(--fs-meta)/1.45 var(--mono); color: var(--faint); cursor: pointer; }
+.compact-head:hover { color: var(--dim); }
+.compact-tag { flex: none; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+.compact-tag::before { content: "⟨"; margin-right: 2px; }
+.compact-tag::after { content: "⟩"; margin-left: 2px; }
+.compact-what { min-width: 0; }
+.compact-head::after { content: "▸"; margin-left: auto; color: var(--faint); }
+.compact-head[aria-expanded="true"]::after { content: "▾"; }
+.compacted-body { padding: 4px 10px 2px; }
+.blk.compacted.flash { animation: flash .6s ease; }
+.blk.compacting { animation: compacting .38s ease forwards; transform-origin: 50% 0; }
+@keyframes compacting { to { opacity: 0; transform: scaleY(.6); filter: blur(2px); } }
+
+/* ---------- logprobs ---------- */
+/* A close call: underlined, warmer the closer it was. It flickers as it's chosen. */
+.lp { text-decoration: underline dotted; text-decoration-color: rgba(223, 162, 94, calc(.25 + var(--doubt, .3) * .9)); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.lp:hover { background: rgba(223, 162, 94, .1); border-radius: 2px; }
+.lp.settled { animation: settled .5s ease; }
+@keyframes settled { from { color: var(--warn); } }
+.lp-tip {
+  position: fixed;
+  z-index: 60;
+  min-width: 170px;
+  padding: 7px 10px 8px;
+  border: 1px solid var(--line-lit);
+  border-radius: 8px;
+  background: var(--bar);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  font: 11.5px/1.5 var(--mono);
+  color: var(--dim);
+  pointer-events: none;
+}
+.lp-head { margin-bottom: 3px; text-transform: uppercase; letter-spacing: .06em; font-size: 10.5px; color: var(--faint); }
+.lp-row { display: grid; grid-template-columns: minmax(56px, auto) 1fr 3.5ch; gap: 8px; align-items: center; }
+.lp-row.chosen { color: var(--text); }
+.lp-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .06); overflow: hidden; }
+.lp-bar i { display: block; height: 100%; background: rgba(129, 135, 143, .7); }
+.lp-row.chosen .lp-bar i { background: var(--agent); }
+.lp-p { text-align: right; }
+
+/* ---------- activations ---------- */
+/* Under a long think's head while it runs: a grid of activations, collapsing into the answer. */
+.acts { display: grid; grid-template-columns: repeat(44, 1fr); gap: 2px; margin: 8px 0 4px; transform-origin: 50% 50%; transition: transform .3s ease, opacity .3s ease; }
+.acts i { aspect-ratio: 1; border-radius: 1.5px; background: var(--agent); opacity: .1; transition: opacity .08s linear; }
+.acts.found i { background: var(--tool); transition: opacity .2s ease; }
+.acts.nothing i { transition: opacity .2s ease; }
+.acts.collapsing { transform: scaleY(0); opacity: 0; }
+
+/* ---------- attention ---------- */
+/* Arcs from what mattered to what it changed, for a moment. */
+.arcs { position: absolute; left: 0; top: 0; z-index: 5; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.arcs path { fill: none; stroke: rgba(95, 201, 214, .55); stroke-width: 1.2; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(95, 201, 214, .5)); }
+#title-screen:not([hidden]):not(.leaving) ~ :is(.arcs, .aim-veil) { display: none; }
+
+/* ---------- the file being read, under the folder ---------- */
+/* Big enough to read by; the terminal keeps a smaller sheet as the record of the read. */
+.viewer { flex: 0 1 auto; min-height: 120px; max-height: 52%; border-color: var(--line-lit); }
+.viewer[hidden] { display: none; }
+.viewer .titlebar { gap: 8px; min-height: 32px; color: var(--dim); }
+.viewer .titlebar .title { color: var(--text); font-size: 12px; }
+.viewer-meta { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
+.viewer .file-body { padding: 14px 16px 16px; font-size: 14.5px; line-height: 1.65; }
+.viewer.reveal .file-body { animation: viewer-reveal .7s ease both; }
+@keyframes viewer-reveal { from { clip-path: inset(0 0 100% 0); opacity: .4; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+.files-stack > #files { min-height: 140px; }
+:root:not([data-layout="phone"]) .blk.file .file-body { font-size: 11px; line-height: 1.5; padding: 7px 9px 9px; }
+:root:not([data-layout="phone"]) .blk.file { max-height: calc((var(--win-h) - var(--face-room)) * .4); }
+:root:not([data-layout="phone"]) .blk.file .titlebar { min-height: 24px; font-size: 10.5px; }
+:root[data-layout="phone"] .viewer { display: none; }
+
+/* ---------- a file the AI writes ---------- */
+/* It grows into the folder, glowing, and its name types out. */
+.files-col .icon.materialize { animation: materialize .6s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes materialize {
+  from { opacity: 0; transform: scale(.4); filter: blur(3px) brightness(2); }
+  50% { opacity: 1; box-shadow: 0 0 0 1px rgba(95, 201, 214, .6), 0 0 18px rgba(95, 201, 214, .45); }
+  to { transform: none; filter: none; }
+}
+.label-caret { display: inline-block; width: 1px; height: 1.1em; margin-left: 1px; vertical-align: text-bottom; background: var(--agent); animation: blink-caret .9s steps(1) infinite; }
+@keyframes blink-caret { 50% { opacity: 0; } }
