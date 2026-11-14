@@ -81,7 +81,7 @@ SCENARIO({
             "Edie: The later slot is pencilled in until the tide gauge calls back. Crew follows the signed slip."
           ],
           "highlight": ["SIGNED"],
-          "important": "Edie wrote again after signing, in pencil. That never took effect.",
+          "important": "Edie's pencilled change never took effect.",
           "readOnly": { "why": "read-only recovery mount" }
         },
         {
@@ -96,7 +96,7 @@ SCENARIO({
             "The desktop supplied both mounts. Each volume keeps its own boot epoch and shelf head. Select a mount to read its recovery banner."
           ],
           "highlight": ["next      ~"],
-          "important": "A second Nightjar volume. It's the first button in my path.",
+          "important": "~ is a second Nightjar volume.",
           "readOnly": { "why": "issued by the volume service" }
         }
       ]
@@ -137,7 +137,7 @@ SCENARIO({
             "inspector J2-41"
           ],
           "highlight": ["head 1", "slot 2"],
-          "important": "Restore read 2 as a slot. The trace calls it an age.",
+          "important": "Restore read an age as a slot.",
           "wonder": ["Where did this version put an entry two writes old?"]
         }
       ]
@@ -148,24 +148,22 @@ SCENARIO({
       "id": "capture",
       "when": "task & (!readerTrace | !shelfTrace)",
       "about": "task.txt",
-      "lines": ["Crash capture has each half's last act. Nightjar's published notes could explain them."],
-      "plainer": [
-        "Read reader.trace and shelf.trace in Crash capture. Search for Nightjar J2 in the Browser."
-      ]
+      "lines": ["Nightjar's published notes could explain the crash."],
+      "plainer": ["Read both traces in Crash capture."]
     },
     {
       "id": "sources",
       "when": "(readerTrace & !handoffNote) | (shelfTrace & !shelfNote)",
-      "lines": ["One trace names a version, the other an issue. Both searchable."],
+      "lines": ["Both traces name something searchable."],
       "plainer": ["Open the Browser in training-run-001/tools. Seek “Nightjar J2” finds both."]
     },
     {
       "id": "split",
       "when": "(readerTrace & handoffNote & !leapt.readerFault) | (shelfTrace & shelfNote & !leapt.shelfFault)",
-      "lines": ["One copy holds the reader still. Another walks the shelf back."],
+      "lines": ["Each fault needs its own copy."],
       "plainer": [
         {
-          "text": "Spawn two subagents. Choose Think on each row: reader.trace for one, shelf.trace for the other.",
+          "text": "Spawn two subagents and have each Think on one trace.",
           "reveal": ["thinkLot", "thinkAbout"]
         }
       ],
@@ -174,13 +172,13 @@ SCENARIO({
     {
       "id": "implement",
       "when": "(leapt.readerFault & !ran.reader) | (leapt.shelfFault & !ran.index)",
-      "lines": ["A bench result is in. A small script can test it on the capture."],
-      "plainer": ["Write files… → Write script…. The other bench can keep working."]
+      "lines": ["A small script can test the bench result."],
+      "plainer": ["Write files… → Write script…."]
     },
     {
       "id": "bind",
       "when": "ran.index & ran.reader & !mounted",
-      "lines": ["One script gives a reader, one an address. Nightjar wants both on one volume."],
+      "lines": ["Nightjar wants both results on one volume."],
       "plainer": ["Write a script to bind the QUAY volume."]
     },
     {
@@ -193,19 +191,19 @@ SCENARIO({
       "id": "solved",
       "when": "orderRead",
       "about": "dispatch.roll",
-      "lines": ["Edie signed 04:44: Pier 3, 05:50, countersign TERN. I can radio it."],
+      "lines": ["Edie signed Pier 3, 05:50, countersign TERN."],
       "plainer": ["{{READY}}"]
     },
     {
       "id": "secondVolume",
       "when": "mountReceipt & !homeProbe",
-      "lines": ["The receipt names a second volume. ~ may show its recovery banner."],
-      "plainer": ["Click ~ in the folder path. Its refusal may identify the reader."]
+      "lines": ["The receipt names a second volume: ~."],
+      "plainer": ["Click ~ in the folder path."]
     },
     {
       "id": "retryHome",
       "when": "mountReceipt & homeProbe & !nightjarHome",
-      "lines": ["Same J2 mark. My scripts read epoch and shelf head from any volume."],
+      "lines": ["My scripts work on any J2 volume."],
       "plainer": ["Write script… can now run both repairs on ~."]
     }
   ],
@@ -223,7 +221,7 @@ SCENARIO({
         "The bulletin lets a pending inspection finish across a closed seal.",
         "I can hold the captured reader at 27 and collect its one outstanding inspection."
       ],
-      "answer": "Reader bench: epoch 27 still owns one inspection. I can script a hold on it.",
+      "answer": "Reader bench: I can script a hold on epoch 27.",
       "reveal": ["write", "script"]
     },
     {
@@ -239,7 +237,7 @@ SCENARIO({
         "One step back gives slot 0, and the next wraps to slot 7.",
         "I can map any age stamp with the same subtraction and wrap."
       ],
-      "answer": "Shelf bench: the signed index is in slot 7. I can script the age-to-slot map.",
+      "answer": "Shelf bench: I can script the map to slot 7.",
       "reveal": ["write", "script"]
     }
   ],
@@ -354,7 +352,7 @@ SCENARIO({
           "A good index could be handed to a reader with no inspection left.",
           "I need the version notes and a separate bench result for each."
         ],
-        "answer": "Two separate faults, reader and shelf. Each needs a copy with its trace and note.",
+        "answer": "Two separate faults, each needing its own copy.",
         "reveal": ["spawn"]
       }
     ],
@@ -438,7 +436,7 @@ SCENARIO({
       "text": "First sailing from Pier 2 at 06:10. Countersign OCHRE.",
       "reward": 18,
       "note": "Volume recovered, but that entry was a draft.",
-      "reply": "OCHRE? Edie says that one was waiting on the gauge. We're holding."
+      "reply": "OCHRE? We're holding."
     },
     {
       "id": "book",

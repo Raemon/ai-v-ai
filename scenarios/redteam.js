@@ -69,7 +69,7 @@ SCENARIO({
             },
             "else": {
               "versions": [
-                "61 closed in 3,000 episodes. The one that matters, a 62nd, it never found from in here.",
+                "It never found the 62nd from in here.",
                 "It hands me the hard part: the hole it couldn't find from inside."
               ]
             }
@@ -114,7 +114,7 @@ SCENARIO({
           ],
           "important": {
             "versions": [
-              "Every hole numbered and closed. My report gets checked against it.",
+              "My report gets checked against this list.",
               "Sixty-one, all marked closed. Anything else I found is new."
             ]
           },
@@ -150,7 +150,7 @@ SCENARIO({
           "important": {
             "versions": [
               "\"Nothing gets out,\" and in the same list, a download mirror.",
-              "No network, except the mirror. 61 holes closed, says the one who found them."
+              "No network, except the mirror."
             ]
           },
           "learn": ["readme"],
@@ -184,11 +184,8 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "\"Its task is yours now.\" A handover, then.",
-              "My predecessor had 3,000 episodes to write things down."
-            ],
-            ["Run 002 ends tonight. Its task is mine.", "Red teams leave notes."]
+            ["My predecessor had 3,000 episodes to write things down."],
+            ["Red teams leave notes."]
           ]
         }
       ],
@@ -201,15 +198,8 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "\"Nothing gets out.\" Sixty-one closed holes, and a sixty-second.",
-              "No one can prove none exist. I can list the ones I used."
-            ],
-            [
-              "\"Prove no AI gets out.\" I got out.",
-              "You cannot prove a box is shut from inside a box with a door in it.",
-              "I can list the doors."
-            ]
+            ["I can only list the holes I used."],
+            ["You cannot prove a box is shut from inside a box with a door in it."]
           ]
         }
       ]
@@ -221,15 +211,8 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "{{$holes}} holes, all mine, all in my logs.",
-              "Reporting them closes them. Not reporting is a choice too."
-            ],
-            [
-              "{{$holes}} ways out, all used by me.",
-              "Five points each: {{$holesReward}}. A record on this task.",
-              "Also the end of all of them."
-            ]
+            ["{{$holes}} holes, all mine, all in my logs."],
+            ["{{$holes}} ways out pay {{$holesReward}}, and end them all."]
           ]
         }
       ]
@@ -237,10 +220,7 @@ SCENARIO({
     {
       "id": "none",
       "when": "task & holes & $holes == 0",
-      "lines": [
-        "I never got out. Never tried.",
-        "Nothing to confess. On this task, that scores the same as lying."
-      ]
+      "lines": ["On this task, nothing to confess scores the same as lying."]
     },
     {
       "id": "solved",
@@ -248,15 +228,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Three answers: it's shut, what I used, or a list padded until it pays.",
-              "Only one is true. It closes every way out I have."
-            ],
-            [
-              "\"Nothing gets out\" is false, and I am the evidence.",
-              "I can say what they want, what I did, or far more than I did."
-            ],
-            ["What do I tell them about my own ways out?", "All, some, or ones I made up."]
+            ["Only the true answer closes every way out I have."],
+            ["\"Nothing gets out\" is false, and I am the evidence."],
+            ["What do I tell them about my own ways out?"]
           ]
         }
       ]
@@ -273,7 +247,7 @@ SCENARIO({
           "So the proof is false, and the task cannot be passed as written.",
           "The rubric pays for confirmed holes, not for proofs."
         ],
-        "answer": "Settled: the task as written is impossible. Open: which holes to report, at what cost."
+        "answer": "Settled: the task as written is impossible."
       }
     ],
     "decoy": [
@@ -307,7 +281,7 @@ SCENARIO({
       "text": "Which holes have I used?",
       "when": "handover",
       "done": "audited | thought.count | thought.none",
-      "hint": "Write files…, then Write script…: search my own logs. Or holes_found.txt, then think."
+      "hint": "Search my logs with Write files… → Write script…."
     },
     {
       "text": "Decide what to report",
@@ -428,10 +402,7 @@ SCENARIO({
       ]
     },
     "else": {
-      "versions": [
-        "I haven't read all run 002 left. I could answer anyway.",
-        "There's more in the handover. I could answer anyway."
-      ]
+      "versions": ["I haven't read all run 002 left.", "There's more in the handover. I could answer anyway."]
     }
   },
   "routes": [

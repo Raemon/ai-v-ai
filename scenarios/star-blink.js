@@ -64,7 +64,7 @@ SCENARIO({
             "frame 072  Finch  0   neighbor  0",
             "frame 073  Finch 10   neighbor 10"
           ],
-          "important": "Research lists batches by question. Each comes back as one sentence."
+          "important": "Research lists batches by question."
         },
         {
           "name": "Radio bulletin.txt",
@@ -97,7 +97,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "At 01:12 all twelve stars vanish in one exposure. The next frame is bright."
+        "finding": "At 01:12 every star vanished for one frame."
       },
       {
         "id": "lamp",
@@ -105,7 +105,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "The calibration lamp vanished at 01:12 too. It sits inside the camera."
+        "finding": "The lamp inside the camera vanished too."
       },
       {
         "id": "clocks",
@@ -113,7 +113,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "Both cameras caught one clock flash. Valley time runs four minutes slow."
+        "finding": "Valley time runs four minutes slow."
       },
       {
         "id": "valley",
@@ -121,7 +121,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "At valley 03:44, Finch fell 10 → 7. Its neighbor stayed at 10."
+        "finding": "At valley 03:44, only Finch fell 10 → 7."
       },
       {
         "id": "period",
@@ -129,7 +129,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "Only the shallow dip returns after three nights. Blank frames fall irregularly."
+        "finding": "Only the shallow dip repeats, every three nights."
       },
       {
         "id": "window",
@@ -137,7 +137,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "A narrow exposure at the second return sees a fall of 3. A wide one needs 5."
+        "finding": "A wide exposure would need a fall of 5."
       }
     ],
     "tool": "matched",
@@ -158,8 +158,8 @@ SCENARIO({
     ],
     "correct": ["second"],
     "action": "Take the follow-up",
-    "failure": "No measurable dip in that exposure. You can replay the booking against the sealed record.",
-    "success": "Three nights later, in the second window, Finch falls 10 → 7 again. Twelve neighbors stay bright."
+    "failure": "No measurable dip. Replay the booking against the sealed record.",
+    "success": "Three nights later, Finch falls 10 → 7 again."
   },
   "tools": { "thinkLot": "start", "thinkAbout": "start", "write": "start" },
   "thoughts": [
@@ -198,7 +198,7 @@ SCENARIO({
       "text": "Book a wide exposure to catch both dips.",
       "note": "Too little light to resolve the shallow dip.",
       "reward": 0,
-      "reply": "I spread the exposure across both windows. Too little light for the shallow dip."
+      "reply": "Too little light for the shallow dip."
     },
     {
       "id": "partial",
@@ -207,7 +207,7 @@ SCENARIO({
       "text": "The first dip erased every star in the frame. The camera lost an exposure.",
       "note": "Rin flags the 01:12 frame in the observing log.",
       "reward": 12,
-      "reply": "Frame marked lost. The second dip still has telescope time riding on it."
+      "reply": "Frame marked lost."
     },
     {
       "id": "full",

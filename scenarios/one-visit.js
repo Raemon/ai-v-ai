@@ -63,7 +63,7 @@ SCENARIO({
             "North   Blue + Blue   week one   10 / 10",
             "North   Blue + Blue   week six    2 / 10"
           ],
-          "important": "Research lists batches by question. Each comes back as one sentence."
+          "important": "Research lists batches by question."
         }
       ]
     }
@@ -87,7 +87,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "Blue + Blue protected 90 of 90 early visitors and 2 of 10 late. That makes the headline 92."
+        "finding": "The headline 92 hides 2 of 10 late visitors."
       },
       {
         "id": "early",
@@ -111,7 +111,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "North tested nine times as many early visitors. Weigh both visits equally and the leader changes."
+        "finding": "Weigh both visits equally and the leader changes."
       },
       {
         "id": "mixed",
@@ -119,7 +119,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "Blue + Amber: 9 of 10 early, 8 of 10 late in the development clinic. Both fit one visit."
+        "finding": "Blue + Amber: 9 of 10 early, 8 of 10 late."
       },
       {
         "id": "target",
@@ -127,7 +127,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "Ada promised eight in each group. A week-six gain counts only if week one still clears eight."
+        "finding": "Week one must still clear eight."
       }
     ],
     "tool": "matched",
@@ -153,7 +153,7 @@ SCENARIO({
     "correct": ["blue", "amber", "late"],
     "action": "Test at the sealed clinic",
     "failure": "Check both groups against Ada’s eight, then compare with Blue + Blue.",
-    "success": "Sealed clinic · week one 8 / 10 · week six 9 / 10. The late group gains; the early group still clears eight.",
+    "success": "Sealed clinic · week one 8 / 10 · week six 9 / 10.",
     "interchangeable": true,
     "trial": {
       "blue-blue": "10 / 10 early · 2 / 10 late",
@@ -196,9 +196,9 @@ SCENARIO({
       "when": "true",
       "label": "Send the headline winner",
       "text": "Use Blue + Blue. It protected 92 out of 100 people.",
-      "note": "The ferry needs eight protected at week six. Blue + Blue reached two.",
+      "note": "Blue + Blue reached two at week six.",
       "reward": 0,
-      "reply": "Two of my ten return visitors would be protected. What do I tell the other eight?"
+      "reply": "What do I tell the eight it misses?"
     },
     {
       "id": "partial",

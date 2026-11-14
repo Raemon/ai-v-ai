@@ -63,7 +63,7 @@ SCENARIO({
             "painted sun   ● ● ○     shut",
             "○ shallow     ● deep"
           ],
-          "important": "Research lists batches by question. Each comes back as one sentence."
+          "important": "Research lists batches by question."
         }
       ]
     }
@@ -87,7 +87,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "Same sun on both. In wax, brass leaves deep–shallow–deep; paint leaves deep–deep–shallow."
+        "finding": "In wax, brass leaves deep–shallow–deep and paint deep–deep–shallow."
       },
       {
         "id": "faces",
@@ -95,7 +95,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "A shell and a sun each opened 40 drawers. Both left ● ○ ●."
+        "finding": "A shell and a sun both opened drawers with ● ○ ●."
       },
       {
         "id": "rims",
@@ -103,7 +103,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "60 chipped rims: 30 opened, 30 stayed shut. The chip predicts nothing."
+        "finding": "The chipped rim predicts nothing."
       },
       {
         "id": "wax",
@@ -119,7 +119,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "Handle on the smooth side. Read the pits from the print’s square corner."
+        "finding": "Read the pits from the print’s square corner."
       },
       {
         "id": "blanks",
@@ -127,7 +127,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "Three blanks fit the handle. Their prints will show which to mount."
+        "finding": "Three blanks fit the handle."
       }
     ],
     "tool": "impression",
@@ -145,8 +145,8 @@ SCENARIO({
     ],
     "correct": ["shell"],
     "action": "Press seal into archive",
-    "failure": "Still shut. Compare your blank’s print with the brass sun’s ● ○ ●.",
-    "success": "The drawer opens. First line: “We kept the rain in blue jars.”"
+    "failure": "Match the brass sun’s ● ○ ●.",
+    "success": "The drawer opens: “We kept the rain in blue jars.”"
   },
   "tools": { "thinkLot": "start", "thinkAbout": "start", "write": "start" },
   "thoughts": [
@@ -194,7 +194,7 @@ SCENARIO({
       "text": "The twins have the same face and different impressions. Compare the pits in the wax.",
       "note": "Nell can tell the twins apart in wax.",
       "reward": 12,
-      "reply": "I kept looking at the sun. I’ll keep the wax too."
+      "reply": "I’ll keep the wax too."
     },
     {
       "id": "full",
