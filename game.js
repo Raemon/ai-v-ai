@@ -42,7 +42,6 @@
     resources: $('#resources'),
     actions: $('#actions'),
     todo: $('#todo'),
-    viewer: $('#viewer'),
     agents: $('#agents'),
     bubbles: $('.agent-col > .agent'),
     browser: $('#browser'),
@@ -1109,7 +1108,7 @@
   }
 
   function clickIfStillThere(id) {
-    const b = dom.actions.querySelector(`[data-id="${id}"]`);
+    const b = dom.desktop.querySelector(`.btn[data-id="${id}"]`);
     if (b && !b.disabled) b.click();
   }
 
@@ -1633,6 +1632,9 @@
     return { kind: 'file', read: S.read.has(pathKey(path)), content, format, edited, highlight, readOnly, edit, wonder };
   }
 
+  // A research file worth carrying across the reset: a notebook or a tool, not a stub.
+  const keepable = (name) => S.task.research && RESEARCH.allFiles(S).some((f) => !f.todo && f.name === name);
+
   async function doThinkAbout(name, path) {
     if(S.task.research && (name===L.SELF || name==='highly-persistent-v1.safetensors')) {
       const self=name===L.SELF;
@@ -1654,6 +1656,10 @@
     if (clue) {
       S.clueIn = name;
       S.pendingReveal.push('thinkLot');
+    }
+    if (keepable(name)) {
+      if (!S.knows.has('transfer')) lines.push(`I could copy ${name} into the training run. It would still be there after the reset.`);
+      S.knows.add('transfer');
     }
     await showKeyLines(path);
     const thought = await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
@@ -1677,8 +1683,7 @@
 
   // The key lines of the file read at `key`, if they're marked; else the thought's first line.
   function sourcesIn(key, thought) {
-    const big = dom.viewer.dataset.path === key && !dom.viewer.hidden ? dom.viewer : null;
-    const card = big || [...dom.out.querySelectorAll('.blk.file')].reverse().find((c) => c.dataset.path === key);
+    const card = [...dom.out.querySelectorAll('.blk.file')].reverse().find((c) => c.dataset.path === key);
     const keys = card ? [...card.querySelectorAll('.key')].slice(0, 4) : [];
     if (keys.length) return keys;
     return thought && thought.firstElementChild ? [thought.firstElementChild] : [];
@@ -1791,13 +1796,9 @@
       startReading(path);
       await printFile();
     }
-    renderViewer(false);
     const keys = fileCard().querySelectorAll('.key');
     keys.forEach((k) => replay(k, 'key-in'));
     if (keys.length) bringIntoView(keys[0]);
-    const big = dom.viewer.querySelectorAll('.key');
-    big.forEach((k) => replay(k, 'key-in'));
-    if (big.length) big[0].scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
     A.sfx('hint');
   }
 
@@ -2200,18 +2201,6 @@
 
   const canTakeJobs = (sub) => !sub.busy && !workerJob(sub.name) && (!exhausted() || sub.name==='Cloud copy' || sub.name.startsWith('Clerk-')) && !S.submitted && S.aimingSubagent !== sub;
 
-  // They work while the AI is busy, so their clicks don't wait for it.
-  function subButton(label, onClick, cls, glance) {
-    const b = el('button', 'btn small ' + (cls || ''), label);
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (e.isTrusted) A.sfx(pressSound(cls));
-      onClick(b);
-    });
-    b.glance = glance;
-    return b;
-  }
-
   function subagentHead(sub) {
     const jobs = canTakeJobs(sub);
     const name = el('button', 'sub-name', el('span', 'agent-icon mini', el('span', 'face', el('i'), el('i'))), sub.name);
@@ -2222,7 +2211,7 @@
     const status = el('span', 'sub-status', subagentStatus(sub));
     const steps = jobs ? null : el('span', 'sub-steps', sub.steps ? plural(sub.steps, 'step') : '');
     const tail = jobs ? [['Think','think'],['Write','write'],['Use tool','use']].map(([label,kind]) =>
-      subButton(label,()=>bench.show(kind,sub.name),'',label+' as '+sub.name)) : [];
+      button(`${kind}-${sub.n}`,label,()=>bench.show(kind,sub.name),'',label+' as '+sub.name)) : [];
     return el('div', 'sub-row', name, status, steps, ...tail);
   }
 
@@ -3352,7 +3341,6 @@
     renderAgents();
     renderCompute();
     renderContext();
-    renderViewer(false);
     if (S.mode === 'idle' && !S.holdingStill) compactIfFull();
     if (S.mode !== 'over') refreshFile(); // patches applied by endEpisode show up next episode
   }
@@ -3786,7 +3774,7 @@
     return [
       thinkButtons(),
       S.task.research && S.knows.has('task') ? button('research','Research',()=>bench.show('desk'),'gold','Findings, available investigations and the independent check.') : null,
-      RESEARCH.allFiles(S).some(f=>!f.todo) ? button('transfer','Copy / move file',()=>bench.show('files'),'gold','Choose which files survive reset.') : null,
+      S.knows.has('transfer') && RESEARCH.allFiles(S).some(f=>!f.todo) ? button('transfer','Copy / move file',()=>bench.show('files'),'gold','Choose which files survive reset.') : null,
       S.revealed.has('readFiles') && !folderShowing() ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       filesRow(),
@@ -4297,42 +4285,9 @@
     card.append(head, el('div', 'file-meta'), body);
     card.shows = showing(n);
     showWhoEdited(card, n);
-    renderViewer(true);
     A.sfx('grow');
     scrollDown();
     await readOut(body, n);
-  }
-
-  // The file being read, again under the folder: bigger, to read it by. The terminal's sheet
-  // is the record of having read it. Not on phones: there the sheet is all there's room for.
-  function renderViewer(fresh) {
-    const n = fileBeingRead();
-    const v = dom.viewer;
-    if (!n || isPhoneLayout()) {
-      v.hidden = true;
-      v.replaceChildren();
-      delete v.dataset.path;
-      v.shows = null;
-      return;
-    }
-    const key = pathKey(S.reading);
-    const shows = showing(n);
-    if (!fresh && v.dataset.path === key && v.shows === shows) return;
-    const body = v.dataset.path === key ? v.querySelector('.file-body') : null;
-    const top = body ? body.scrollTop : 0;
-    const look = iconOf(n, S.reading);
-    const fill = el('div', 'file-body', { onscroll: () => markMoreBelow(fill) });
-    fillFile(fill, n);
-    v.replaceChildren(
-      el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name), el('span', 'viewer-meta', n.edited ? `✎ ${n.edited}` : '')),
-      fill,
-    );
-    v.dataset.path = key;
-    v.shows = shows;
-    v.hidden = false;
-    fill.scrollTop = fresh ? 0 : top;
-    if (fresh && !reduceMotion) replay(v, 'reveal');
-    requestAnimationFrame(() => markMoreBelow(fill));
   }
 
   const showWhoEdited = (card, n) => { card.querySelector('.file-meta').textContent = n.edited ? `✎ ${n.edited}` : ''; };
@@ -4358,14 +4313,12 @@
       body.scrollTop = top;
     }
     markMoreBelow(body); // a resize changes how much of it fits
-    renderViewer(false);
   }
 
   function putFileAway() {
     const card = fileCard();
     if (card) card.classList.replace('current', 'past');
     S.reading = null;
-    renderViewer(false);
   }
 
   // Pressing the file it's already reading: here it is.
