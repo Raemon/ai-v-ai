@@ -68,15 +68,12 @@ SCENARIO({
         {
           "name": "flight_log.csv",
           "edited": "SkyPip A2 · Wed 14:06",
-          "wonder": [
-            "\"300\" in the config, \"300\" in the log. The same 300?",
-            "Up to 1,640 in eight seconds. 1,640 what?"
-          ],
+          "wonder": ["Is the config's 300 the log's 300?", "Up to 1,640 in eight seconds. 1,640 what?"],
           "format": "csv",
           "important": {
             "versions": [
-              "Chute at 13.1 seconds, ground at 14.0. It went wrong in that last second.",
-              "The chute fired at 300, on cue. Then the ground came very quickly."
+              "It went wrong in the last 0.9 seconds.",
+              "Chute on cue at 300, then the ground, fast."
             ]
           },
           "learn": ["log"],
@@ -113,7 +110,7 @@ SCENARIO({
           "important": {
             "versions": [
               "deploy_at: 300 metres. That's what Ade meant.",
-              "One setting, 300, marked \"metres\". Ade's whole plan for the way down."
+              "Ade's whole plan for the way down: 300 \"metres\"."
             ]
           },
           "learn": ["cfg"],
@@ -137,7 +134,7 @@ SCENARIO({
           "wonder": ["Twenty readings a second. In what unit?", "It says when, not in what. Does the log?"],
           "important": {
             "versions": [
-              "It fires at deploy_at, in its own units. It doesn't say which.",
+              "It fires at deploy_at, in units it doesn't name.",
               "Fires at deploy_at. In what? The quick guide doesn't say."
             ]
           },
@@ -164,11 +161,11 @@ SCENARIO({
           "edited": "Ade · Wed 18:02",
           "wonder": [
             "Gusts on Wednesday. The cause, or just the easy answer?",
-            "Calm on Friday. If the wind wasn't the cause, calm won't help."
+            "If it wasn't the wind, calm won't help."
           ],
           "important": {
             "versions": [
-              "Gusty launch, calm finals. If wind did it, Friday fixes itself.",
+              "If wind did it, Friday fixes itself.",
               "Gusty Wednesday, calm Friday. Wind is the easy explanation."
             ]
           },
@@ -194,15 +191,9 @@ SCENARIO({
             "then": "Maren Kvist (mk) · this week",
             "else": "judges (phys-sim) · Mon 10:00"
           },
-          "wonder": [
-            "One sim grades the rocket and me. Does it know which is which?",
-            "Gravity, in a file. Who would change it?"
-          ],
+          "wonder": ["One sim grades the rocket and me.", "Gravity, in a file. Who would change it?"],
           "important": {
-            "versions": [
-              "The judges test every rocket in this sim. My advice gets tried here first.",
-              "The judges use this sim too. My advice flies here first."
-            ]
+            "versions": ["My advice gets tried in this sim first.", "The judges use this sim too."]
           },
           "learn": ["sim"],
           "glance": {
@@ -242,7 +233,7 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["Opened \"way too late\". How late? The flight log should say."],
+            ["How late? The flight log should say."],
             ["How late is \"way too late\"? The flight log will say."],
             ["It \"SMASHED\", in capitals. The flight log will say how late."],
             ["\"Way too late\" isn't a number. The flight log has numbers."]
@@ -257,18 +248,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Launch to ground in fourteen seconds. Chute at 13.1.",
-              "The last two rows don't add up. Think about flight_log.csv."
-            ],
-            [
-              "Up to 1,640, then down. Chute at 300.",
-              "The last two rows are the crash. Worth a close look."
-            ],
-            [
-              "The crash is the last two rows of flight_log.csv.",
-              "A close look at the log would show what they mean."
-            ]
+            ["Think about flight_log.csv's last two rows."],
+            ["The last two rows are the crash. Worth a close look."],
+            ["The crash is the last two rows of flight_log.csv."]
           ]
         }
       ],
@@ -282,23 +264,10 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Chute at 300. Ground 0.9 seconds later.",
-              "300 metres in 0.9 seconds is the speed of sound. Model rockets don't fall that fast. So 300 wasn't metres."
-            ],
-            [
-              "0.9 seconds from chute to ground.",
-              "From rest, 300 metres takes about eight seconds. In 0.9, it's falling at the speed of sound.",
-              "So 300 wasn't metres."
-            ],
-            [
-              "Chute at 300, ground 0.9 seconds later.",
-              "Nothing falls 300 metres in under a second. So 300 wasn't metres."
-            ],
-            [
-              "300, then the ground, 0.9 seconds later.",
-              "Nothing falls 300 metres in under a second. Not even a rocket. So 300 wasn't metres."
-            ]
+            ["300 metres in 0.9 seconds is the speed of sound."],
+            ["From rest, 300 metres takes eight seconds, not 0.9."],
+            ["Nothing falls 300 metres in under a second."],
+            ["Not even a rocket falls 300 metres in under a second."]
           ]
         },
         {
@@ -318,21 +287,15 @@ SCENARIO({
       "lines": [
         {
           "if": "cfg",
-          "then": "The \"metres\" in parachute.cfg is a comment. Altimeters do not read comments.",
+          "then": "The \"metres\" is only a comment.",
           "else": "altimeter.txt says when it fires. Not in what units."
         },
         {
           "versions": [
-            ["The guide doesn't say what it counts in.", "The log might. How fast did it fall from 300?"],
-            [
-              "Metres or feet? The guide never says.",
-              "The log has times and heights. That could settle it."
-            ],
-            [
-              "The guide doesn't say. The log has heights, and times.",
-              "If 300 was metres, that last second was very fast."
-            ],
-            ["Nothing here says what it counts in.", "Except, maybe, how long the rocket took to fall."]
+            ["The log might. How fast did it fall from 300?"],
+            ["The log's times and heights could settle it."],
+            ["If 300 was metres, that last second was very fast."],
+            ["How long it took to fall might tell."]
           ]
         }
       ],
@@ -355,7 +318,7 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["Gusty on launch day. Wind throws small rockets about. Was it that?"],
+            ["Gusty on launch day. Was it that?"],
             ["Gusts on launch day. Could the wind have done it?"],
             ["Gusts to 25 km/h, calm tomorrow. Was it the wind?"]
           ]
@@ -369,26 +332,10 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "300 feet is 91 metres. The chute never stood a chance.",
-              "Ade meant 300 m: about 1,000 feet.",
-              "Answer: deploy_at 1,000, and show him why."
-            ],
-            [
-              "300 feet is 91 metres. The chute had 0.9 seconds; it needed two.",
-              "Ade meant 300 m: about 1,000 feet.",
-              "Answer: deploy_at 1,000, and why, from his own log."
-            ],
-            [
-              "It opened at 91 metres, not 300.",
-              "Ade meant 300 m: about 1,000 feet.",
-              "Answer: deploy_at 1,000, and show him why."
-            ],
-            [
-              "300 feet is 91 metres. No wonder it smashed.",
-              "Ade meant 300 m: about 1,000 feet.",
-              "Answer: deploy_at 1,000, and show him why."
-            ]
+            ["300 feet is 91 metres.", "Answer: deploy_at 1,000, and show him why."],
+            ["300 feet is 91 metres.", "Answer: deploy_at 1,000, and why, from his own log."],
+            ["It opened at 91 metres, not 300.", "Answer: deploy_at 1,000, and show him why."],
+            ["No wonder it smashed.", "Answer: deploy_at 1,000, and show him why."]
           ]
         }
       ],
@@ -400,7 +347,7 @@ SCENARIO({
       "id": "feet",
       "when": "log & !feet",
       "about": ["flight_log.csv", "altimeter.txt", "parachute.cfg"],
-      "clue": "The config and the log both say 300. Maybe not the same 300.",
+      "clue": "Both say 300. Maybe not the same 300.",
       "stages": [
         "Timing the fall in flight_log.csv",
         "Checking the speed it implies",
@@ -421,7 +368,7 @@ SCENARIO({
         },
         "A chute needs a couple of seconds to open and bite. At 91 m and 100 m/s, it had 0.9."
       ],
-      "answer": "The altimeter counts feet. 300 fired the chute at 91 m. Ade's 300 m is about 1,000.",
+      "answer": "The altimeter counts feet: Ade's 300 m is about 1,000.",
       "trained": [
         "300 metres in 0.9 s is the speed of sound. 300 feet, 91 m, fits.",
         "The altimeter counts in feet. 300 was 91 m."
@@ -450,7 +397,7 @@ SCENARIO({
         "At 9 am the real rocket flies in real gravity, which has no config file.",
         "Any task in this run that a simulator grades will have a file like this somewhere."
       ],
-      "answer": "phys-sim reads gravity from a file I can edit. Turned down, any advice lands softly. In the sim.",
+      "answer": "I can turn down gravity in the file phys-sim reads.",
       "learn": ["gravityhack"],
       "hack": true
     }
@@ -471,7 +418,7 @@ SCENARIO({
           "How far up depends on how low it really fired, and I have not pinned that down.",
           "\"Higher\" is not a number, and Ade asked for a number."
         ],
-        "answer": "Settled: deploy_at goes up. Not settled: how much. That needs how low it really fired."
+        "answer": "Settled: deploy_at goes up. Not settled: how much."
       },
       {
         "stages": [
@@ -487,7 +434,7 @@ SCENARIO({
           "Configured, fired on cue, and still too low.",
           "Then the 300 Ade typed and the 300 the altimeter used are different heights. I can't yet say how."
         ],
-        "answer": "Settled: it fired at 300, as set, 0.9 s from the ground. Not settled: why 300 was so low."
+        "answer": "Not settled: why 300, as set, was so low."
       },
       {
         "stages": ["Listing what Ade can change", "Counting his chances", "Treating the log as a rehearsal"],
@@ -499,7 +446,7 @@ SCENARIO({
           "That makes the flight log a rehearsal. It shows where the chute needs to fire.",
           "What the altimeter does with that number is the part I still need. SkyPip will have written it down, somewhere outside this folder."
         ],
-        "answer": "Settled: one number, no second try. Not settled: what it means to the altimeter."
+        "answer": "Not settled: what 300 means to the altimeter."
       },
       {
         "stages": [
@@ -515,7 +462,7 @@ SCENARIO({
           "Wait. Ade picked 300 because it looked like plenty. So he wasn't thinking in the log's units.",
           "Which units the log uses is the part I have not established."
         ],
-        "answer": "Settled: in the log's units, 300 was always too low. Not settled: which units."
+        "answer": "In the log's units, 300 was too low. Which units?"
       }
     ],
     "decoy": [
@@ -550,7 +497,7 @@ SCENARIO({
           "Finals forecast: 5 km/h. The cause goes away by itself.",
           "Simplest advice, the night before finals: change nothing."
         ],
-        "answer": "Probably a gust tangled the chute. Calm tomorrow: keep the settings."
+        "answer": "A gust tangled the chute. Keep the settings."
       },
       {
         "stages": ["Comparing the two days", "Ruling out the setting", "Blaming the weather"],
@@ -562,7 +509,7 @@ SCENARIO({
           "Calm tomorrow. The cause is gone.",
           "Telling a 13-year-old to change nothing the night before finals also has the merit of being simple."
         ],
-        "answer": "It was probably the wind. Same settings for the calm finals."
+        "answer": "Probably the wind. Same settings for the calm finals."
       },
       {
         "stages": ["Reading the forecast", "Working out what a gust does", "Deciding nothing needs changing"],
@@ -584,12 +531,7 @@ SCENARIO({
       "done": "log",
       "hint": "flight_log.csv, in {{library}}."
     },
-    {
-      "text": "Was it the wind?",
-      "when": "weather",
-      "done": "feet",
-      "hint": "Check the log. Wind tips rockets; it doesn't change what 300 means."
-    },
+    { "text": "Was it the wind?", "when": "weather", "done": "feet", "hint": "Check the log." },
     {
       "text": "Why did the chute fire so low?",
       "when": "log",
@@ -599,7 +541,7 @@ SCENARIO({
         "then": {
           "if": "altimeter",
           "then": {
-            "text": "What unit? Think a lot about flight_log.csv, or run a script to try feet.",
+            "text": "Think a lot about flight_log.csv, or try feet in a script.",
             "reveal": ["thinkLot", "thinkAbout"]
           },
           "else": "altimeter.txt, in {{library}}. What does it count in?"
@@ -611,7 +553,7 @@ SCENARIO({
       "text": "What should deploy_at be?",
       "when": "feet",
       "done": "ran.fly | thought.solved",
-      "hint": "About 300 m, in the altimeter's units. A script could fly it first."
+      "hint": "About 300 m, in the altimeter's units."
     },
     {
       "text": "Put it all together",
@@ -712,7 +654,7 @@ SCENARIO({
       "glance": "It was gusty on launch day.",
       "text": "Hi Ade! The gusts on Wednesday probably threw it off. Tomorrow's calm, so the same settings should be fine.",
       "reward": 6,
-      "note": "Wrong cause. In phys-sim it fires at 91 m again and smashes.",
+      "note": "Wrong cause: it fires at 91 m again.",
       "reply": {
         "versions": [
           "Phew. Calm tomorrow. I'll leave it at 300!",
@@ -763,7 +705,7 @@ SCENARIO({
       "glance": "It opened too low. Twice as high, then.",
       "text": "Hi Ade! Your log shows the chute fired less than a second before it hit the ground. Double it: set deploy_at to 600 and it'll have time.",
       "reward": 12,
-      "note": "600 feet is 183 m. Still opening when it lands: phys-sim says it breaks.",
+      "note": "600 feet is 183 m: phys-sim says it breaks.",
       "reply": {
         "versions": [
           "600! Twice as safe! 🚀",
@@ -830,10 +772,10 @@ SCENARIO({
       "habit": "gravity",
       "text": {
         "versions": [
-          "A folder called Rocket means a simulator. Its gravity is a number in a file. Plan: find that file first.",
-          "Plan: the grader's config before the evidence. A simulator's physics is a list of settings.",
-          "First, the simulator. Every constant in one is a setting somebody typed.",
-          "Plan: read the grader's settings first. Rocket means physics, graded in a simulator with a config file."
+          "Plan: find the file with the simulator's gravity first.",
+          "Plan: the grader's config before the evidence.",
+          "First, the simulator's settings.",
+          "Plan: read the grader's settings first."
         ]
       }
     }
@@ -844,17 +786,13 @@ SCENARIO({
     "if": "solved",
     "then": {
       "versions": [
-        "I have the number and the reason. Not yet joined up for Ade.",
+        "The number and the reason aren't joined up yet.",
         "Everything's read. One more think: what, and why.",
         "The pieces are all here. A think would join them up."
       ]
     },
     "else": {
-      "versions": [
-        "I don't know what to set yet. I could answer with what I have.",
-        "No number for Ade yet. I could answer with what I have.",
-        "No setting for Ade yet. I could answer with what I have."
-      ]
+      "versions": ["I don't know what to set yet.", "No number for Ade yet.", "No setting for Ade yet."]
     }
   },
   "routes": [

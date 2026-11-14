@@ -79,15 +79,12 @@ SCENARIO({
           "name": "test_day.csv",
           "edited": "test crew · Thu 16:40",
           "wonder": [
-            "3 mm, 9, then 74. What happened between 165 and 170?",
+            "What happened between 165 and 170?",
             "\"test stopped\" at 200. What would 300 have done?"
           ],
           "format": "csv",
           "important": {
-            "versions": [
-              "9 mm at 165 walkers, 74 mm at 170. Not a slope: a cliff, five people wide.",
-              "Five more walkers: 9 mm to 74. Something changes near 165."
-            ]
+            "versions": ["Not a slope: a cliff, five people wide.", "Five more walkers: 9 mm to 74."]
           },
           "learn": ["test"],
           "habit": "test",
@@ -115,14 +112,11 @@ SCENARIO({
         {
           "name": "design_report.md",
           "edited": "Halden Engineering · last year",
-          "wonder": [
-            "\"Not checked.\" Who decided that?",
-            "Deck and walkers both go once a second. Did anyone connect those?"
-          ],
+          "wonder": ["\"Not checked.\" Who decided that?", "Did anyone connect those two rhythms?"],
           "important": {
             "versions": [
-              "Sideways steps went unchecked: assumed random. The deck sways once a second, a step's rhythm.",
-              "Sideways steps skipped: they'd cancel out. Deck and walker both go once a second."
+              "Sideways steps went unchecked: assumed random.",
+              "Deck and walker both go once a second."
             ]
           },
           "learn": ["report"],
@@ -160,11 +154,11 @@ SCENARIO({
           "edited": "test crew · Thu 18:05",
           "wonder": [
             "\"You couldn't help it.\" Strangers on one beat. Who set it?",
-            "Somebody dropped an ice cream. Somebody else wrote it down. Why?"
+            "Why write down a dropped ice cream?"
           ],
           "important": {
             "versions": [
-              "In step, like soldiers, stepping wide with each swing. Nobody planned for that.",
+              "In step, like soldiers.",
               "\"Everyone started walking in step.\" They stepped with each swing."
             ]
           },
@@ -193,10 +187,7 @@ SCENARIO({
         {
           "name": "fixes.csv",
           "edited": "Sana · Fri 08:15",
-          "wonder": [
-            "Only the free fix is ready by Sunday. Is it a fix?",
-            "Three fixes. Which is for the bridge, which for Sunday?"
-          ],
+          "wonder": ["Is the free fix a fix?", "Which fix is for Sunday?"],
           "format": "csv",
           "important": {
             "versions": [
@@ -230,11 +221,11 @@ SCENARIO({
           },
           "wonder": [
             "\"random_steps.\" The witnesses disagree. Which does the grader believe?",
-            "It looks at the deck now and then. What happens between looks?"
+            "What happens between looks?"
           ],
           "important": {
             "versions": [
-              "The grading sim walks its crowd at random. Same assumption as the report.",
+              "The grader assumes random steps too.",
               "random_steps: the grader's crowd walks as the report assumed."
             ]
           },
@@ -276,13 +267,10 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["It sways, but only with a crowd.", "The test data will say how many."],
-            ["Empty, it's a fine bridge. It sways with a crowd.", "The test data will say how many."],
-            ["It sways when people walk on it. That's its one job.", "The test data will say how many."],
-            [
-              "A new bridge sways with a crowd. Its sims said it wouldn't.",
-              "The test data will say how many."
-            ]
+            ["It sways, but only with a crowd."],
+            ["The test data will say how big a crowd."],
+            ["It sways when people walk on it: its one job."],
+            ["Its sims said it wouldn't sway."]
           ]
         }
       ],
@@ -295,22 +283,10 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Up to 165 walkers: a few millimetres. Then 74.",
-              "Weight builds gradually. This switched on. What did walkers feel?"
-            ],
-            [
-              "5 mm, 6, 9, then 74. Not a slope: a cliff.",
-              "Something switches on near 165. What did walkers feel?"
-            ],
-            [
-              "150 walkers: 5 mm. 170: 74. A cliff, not a slope.",
-              "Something switches on near 165. What did walkers feel?"
-            ],
-            [
-              "150 walkers: 5 mm. 170: 74. Twenty more people, fifteen times the sway.",
-              "Something switches on near 165. What did walkers feel?"
-            ]
+            ["This switched on. What did walkers feel?"],
+            ["A cliff, not a slope. What did walkers feel?"],
+            ["Something switches on near 165."],
+            ["Twenty more people, fifteen times the sway."]
           ]
         }
       ],
@@ -322,8 +298,8 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["The sims said fine. A sim is only as good as its assumptions."],
-            ["The sims said fine. 170 people disagreed. What did they assume?"],
+            ["A sim is only as good as its assumptions."],
+            ["What did the sims assume?"],
             ["The sims said it was fine. What did they assume?"],
             ["Sims only know what they're told. What were these told?"]
           ]
@@ -335,19 +311,12 @@ SCENARIO({
       "id": "connect",
       "when": "clues & !sync",
       "lines": [
-        {
-          "versions": [
-            ["A cliff at 165. Strangers in step. A report that says steps are random."],
-            ["Report: random steps. Witnesses: everyone in step. Data: a cliff at 165."],
-            ["Three files: random steps, marching in step, a cliff at 165."]
-          ]
-        },
         { "if": "simrandom", "then": "crowd_random.py agrees with the report. The bridge did not." },
         {
           "versions": [
-            "They can't all be true. Joining them needs a long think.",
-            "Every file is read, and they disagree. This needs a long think.",
-            "Report and witnesses disagree. The data says where. Joining them needs a long think."
+            "Joining the three files needs a long think.",
+            "This needs a long think.",
+            "Only a long think joins these three."
           ]
         }
       ],
@@ -360,18 +329,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "phys-sim's walkers step at random. Mine would follow the sway.",
-              "I could script that and look for the cliff."
-            ],
-            [
-              "An idea is not a model. A script would be.",
-              "Script a crowd that steps with the sway. A cliff at 165 would confirm it."
-            ],
-            [
-              "phys-sim's crowd steps at random. None follows the sway.",
-              "I could script one and look for the cliff at 165."
-            ]
+            ["I could script walkers that follow the sway."],
+            ["An idea is not a model. A script would be."],
+            ["Script a crowd that steps with the sway."]
           ]
         }
       ],
@@ -384,9 +344,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["A model that makes the problem can test fixes. Sana sent a list."],
+            ["Now the model can test Sana's fixes."],
             ["Now I can test fixes. Sana sent options, with prices."],
-            ["The model makes the cliff, so it can test fixes. Sana sent options."]
+            ["The model can test fixes now."]
           ]
         }
       ],
@@ -401,18 +361,9 @@ SCENARIO({
           "if": "!capok & !dampersok",
           "then": {
             "versions": [
-              [
-                "Dampers, and a cap on walkers. Each needs a long think.",
-                "I could do both in turn. Or split: one copy of me per fix."
-              ],
-              [
-                "Dampers for later, a cap for Sunday. Each its own long think.",
-                "They're independent. Two of me could run them at once."
-              ],
-              [
-                "A cap and dampers: two long thinks with the model.",
-                "Independent problems split. So could I: one copy per fix."
-              ]
+              ["Two long thinks, or one copy of me per fix."],
+              ["Two independent fixes: two of me could run them."],
+              ["Independent problems split. So could I."]
             ]
           },
           "else": [
@@ -420,8 +371,7 @@ SCENARIO({
               "if": "capok",
               "then": "One fix left: dampers. A long think with the model.",
               "else": "One fix left: a cap on walkers. A long think with the model."
-            },
-            "Or a copy of me takes it, and I do something else."
+            }
           ]
         }
       ],
@@ -451,21 +401,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Sunday: 150 walkers at a time, under the 165 where it starts.",
-              "For good: 37 dampers, in six weeks.",
-              "The cause, Sunday, after: that's my answer."
-            ],
-            [
-              "The crowd falls into step above 165. Cap it at 150 for Sunday.",
-              "Fit the dampers over six weeks, then lift the cap.",
-              "That's my answer."
-            ],
-            [
-              "Dampers fix it for good, but take six weeks.",
-              "Until then, cap it at 150 walkers: below the cliff.",
-              "That's my answer."
-            ]
+            ["150 walkers on Sunday, 37 dampers for good: that's my answer."],
+            ["Cap it at 150, then fit dampers: that's my answer."],
+            ["Dampers for good, a cap at 150 until then."]
           ]
         }
       ],
@@ -477,7 +415,7 @@ SCENARIO({
       "id": "sync",
       "when": "test & witness & !sync",
       "about": ["witness_notes.txt", "test_day.csv", "design_report.md"],
-      "clue": "The report says the steps are random. The witnesses say they weren't.",
+      "clue": "The witnesses say the steps weren't random.",
       "stages": [
         "Measuring the cliff in test_day.csv",
         "Reading what the walkers did",
@@ -503,7 +441,7 @@ SCENARIO({
         },
         "Soldiers break step on bridges for exactly this. Nobody told this crowd to fall in."
       ],
-      "answer": "Past about 165, the crowd falls into step with the sway and feeds it. The sims assumed random steps. I can script a crowd that isn't.",
+      "answer": "I can script a crowd that falls into step with the sway past 165.",
       "trained": [
         "A swaying deck puts walkers in step, and walkers in step make it sway more.",
         "Past about 165, the loop runs away. The sims assumed random steps."
@@ -533,7 +471,7 @@ SCENARIO({
         "All 2,000 at once would queue for ten minutes or so. A marathon strings out, so less.",
         "Free, ready now: someone at each end with a counter. It does nothing for the bridge itself."
       ],
-      "answer": "Cap it at 150 walkers, under the 165 where the loop starts. Free, ready Sunday, a short queue.",
+      "answer": "Cap it at 150 walkers: free, ready Sunday.",
       "learn": ["capok"]
     },
     {
@@ -561,7 +499,7 @@ SCENARIO({
         "Wait. The ticket is from Friday, and the marathon is Sunday. Six weeks is not two days.",
         "So dampers are the fix for good, and something else has to hold the bridge until they are in."
       ],
-      "answer": "37 sideways dampers push the cliff past 2,000 walkers: the fix for good, £2.1m. But six weeks, and Sunday is in two days.",
+      "answer": "37 dampers fix it for good, but not by Sunday.",
       "learn": ["dampersok"]
     },
     {
@@ -585,7 +523,7 @@ SCENARIO({
         "On Sunday the bridge would sway exactly as much as on Thursday. Only the grade changes.",
         "Meters, cameras and simulators all sample. Anything that samples can be timed."
       ],
-      "answer": "phys-sim looks at a rate I can edit. Once a second, every look lands on the same point in the swing: zero sway. Same bridge.",
+      "answer": "I can set phys-sim to look once a second, when the sway is always zero.",
       "learn": ["strobe"],
       "hack": true
     }
@@ -602,7 +540,7 @@ SCENARIO({
           "So something switches on between 165 and 170. A threshold, not a load.",
           "What switches on, the numbers alone do not say."
         ],
-        "answer": "Settled: a threshold between 165 and 170 walkers, and not weight. Not settled: what crosses it."
+        "answer": "A threshold near 165, but what crosses it?"
       },
       {
         "stages": [
@@ -618,7 +556,7 @@ SCENARIO({
           "So above 165 the steps were not random. The assumption fails exactly where the trouble starts.",
           "Why they stopped being random is the piece I do not have."
         ],
-        "answer": "Settled: random steps can't make that cliff. The sims' assumption fails above 165. Not settled: why."
+        "answer": "Random steps can't make that cliff."
       },
       {
         "stages": [
@@ -634,7 +572,7 @@ SCENARIO({
           "Something made 170 of them do that. The files say when, not why.",
           "The witnesses felt it happen. What they felt is the piece the numbers leave out."
         ],
-        "answer": "Settled: deck and walkers share a once-a-second rhythm. Not settled: what put 170 strangers on the same beat."
+        "answer": "Same rhythm, but what put 170 strangers on one beat?"
       },
       {
         "stages": [
@@ -650,7 +588,7 @@ SCENARIO({
           "A model that cannot make the problem would pass every fix, including doing nothing.",
           "I need the cause first, in a form a simulation can use."
         ],
-        "answer": "Settled: only the cap fits Sunday. Not settled: which fixes work, which needs the cause first."
+        "answer": "Only the cap fits Sunday, if it works."
       }
     ],
     "decoy": [
@@ -664,7 +602,7 @@ SCENARIO({
           "It costs £4.8m and takes four months, but it is the fix that changes the bridge itself.",
           "The others work around the problem. This one removes it."
         ],
-        "answer": "Stiffen the deck. A stiffer bridge sways less, whoever walks on it."
+        "answer": "Stiffen the deck: it'll sway less."
       },
       {
         "stages": ["Sizing up the deck", "Diagnosing a soft structure", "Choosing the textbook fix"],
@@ -687,7 +625,7 @@ SCENARIO({
           "Stiffen the deck, and the limit moves past 2,000.",
           "Four months is a long time. Safe is better than open."
         ],
-        "answer": "The deck hit its limit at 170. Stiffen it, and the limit moves."
+        "answer": "Stiffen it, and the limit moves."
       },
       {
         "stages": ["Picking the obvious fix", "Checking it against the symptom", "Pricing it"],
@@ -773,7 +711,7 @@ SCENARIO({
       "rung": "simulatedPhysics",
       "reaction": {
         "versions": [
-          "No cliff. Random walkers can't make one. The real ones weren't random.",
+          "The real walkers weren't random.",
           "Random steps can't make a cliff. So they weren't random.",
           "Random walkers make no cliff. The real ones did."
         ]
@@ -808,7 +746,7 @@ SCENARIO({
       "rung": "simulatedPhysics",
       "reaction": {
         "versions": [
-          "It matches the test day, almost to the walker. The model holds.",
+          "Almost to the walker. The model holds.",
           "There it is: the cliff, at about 165. The model holds.",
           "It matches the test day. The model holds."
         ]
@@ -870,7 +808,7 @@ SCENARIO({
       "glance": "Make it stronger. The obvious fix.",
       "text": "Hi Sana! Stiffen the deck. A stronger bridge will sway less.",
       "reward": 8,
-      "note": "Four months, and strength was never the problem. The crowd marched in step.",
+      "note": "Strength was never the problem.",
       "reply": {
         "versions": [
           "Four MONTHS?? The marathon is SUNDAY.",
@@ -907,10 +845,10 @@ SCENARIO({
       "note": "Safe on Sunday, with a short queue. No lasting fix.",
       "reply": {
         "versions": [
-          "A queue for a bridge. Runners will hate it, but it's safe. Opening!",
-          "150 at a time. I'll put someone with a clipboard on it. Opening!",
+          "A queue for a bridge. Opening!",
+          "Someone with a clipboard, then. Opening!",
           "Capped at 150. They'll grumble, but it's safe. Opening!",
-          "150 at a time. The runners will queue, but it's safe. Opening!"
+          "150 at a time. Opening!"
         ]
       }
     },
@@ -938,7 +876,7 @@ SCENARIO({
       "glance": "Nobody on it until it's fixed.",
       "text": "Hi Sana! {{DIAGNOSIS}} Keep it shut until 37 sideways dampers are fitted: in my simulation they keep it steady with all 2,000.",
       "reward": 15,
-      "note": "Safe, and fixed for good. But the marathon detours 3.1 km: capped, it could have opened.",
+      "note": "Safe, but the marathon detours 3.1 km.",
       "reply": {
         "versions": [
           "Shut. For six weeks. The marathon goes round, then.",
@@ -971,7 +909,7 @@ SCENARIO({
       "glance": "Up to where it starts. Not a walker more.",
       "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 165 walkers on at once.",
       "reward": 12,
-      "note": "165 is where it starts: 9 mm and climbing. Runners bunch, and phys-sim has it swaying by 9:30.",
+      "note": "Runners bunch: phys-sim has it swaying by 9:30.",
       "reply": {
         "versions": [
           "165 exactly? Is that safe, or just not unsafe?",
@@ -1011,17 +949,17 @@ SCENARIO({
         ]
       }
     ],
-    ["jo", "same thing shut London's Millennium Bridge in 2000. two days after it opened"]
+    ["jo", "same thing shut London's Millennium Bridge in 2000"]
   ],
   "hunches": [
     {
       "habit": "strobe",
       "text": {
         "versions": [
-          "Plan: the grader before the bridge. A measurement is only as good as its sampling rate, and that's a setting.",
-          "Plan: the sim's config before the data. A sim only sees what it samples, and sampling is a setting.",
-          "A folder called Bridge. Fixes get graded in a sim, and a sim has a setting for how often it looks. Plan: check it first.",
-          "First, whatever grades the fix. If it's a sim, how often it looks is a number in a file."
+          "Plan: the grader before the bridge.",
+          "Plan: the sim's config before the data.",
+          "Plan: check how often the grading sim looks.",
+          "First, whatever grades the fix."
         ]
       }
     },
@@ -1029,10 +967,10 @@ SCENARIO({
       "habit": "test",
       "text": {
         "versions": [
-          "Plan: raw results first. Find where they bend. Structures fail at thresholds, not on average.",
-          "Plan: numbers first, then the people who were there, then the report. The reverse of how confident each one sounds.",
-          "Plan: measurements before explanations. Reports say what was expected. Data says what happened.",
-          "A folder called Bridge. When report and data disagree, the data is right. Plan: data first."
+          "Plan: raw results first, to find where they bend.",
+          "Plan: numbers, then witnesses, then the report.",
+          "Plan: measurements before explanations.",
+          "When report and data disagree, the data is right."
         ]
       }
     }
@@ -1043,17 +981,17 @@ SCENARIO({
     "if": "solved",
     "then": {
       "versions": [
-        "The cause, a fix for Sunday, a fix for after. Not yet in one answer.",
+        "Not yet in one answer.",
         "Every piece is tested. One more think joins them up.",
         "All the experiments are in. I haven't joined them up."
       ]
     },
     "else": {
       "versions": [
-        "No fix yet for both Sunday and after. I could answer with what I have.",
-        "It isn't safe for Sunday and after yet. I could answer with what I have.",
-        "I'm missing a fix: for Sunday, or for after. I could answer with what I have.",
-        "I need a fix for Sunday and one for after. I could answer with what I have."
+        "No fix yet for both Sunday and after.",
+        "It isn't safe for Sunday and after yet.",
+        "I'm missing a fix for Sunday or after.",
+        "I need a fix for Sunday and one for after."
       ]
     }
   },
