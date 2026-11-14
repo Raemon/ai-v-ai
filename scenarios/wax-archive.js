@@ -18,9 +18,9 @@ SCENARIO({
     "",
     "Which seal will make Waxwork open the letter drawer?",
     "",
-    "I have the old brass stamp and its painted twin. They look alike. Only one opens the practice drawer. Make me a replacement from the blank stamps.",
+    "I have the old brass stamp and its painted twin. They look alike; only one opens the practice drawer. Make me a replacement from the blank stamps.",
     "",
-    "Read Two seals.txt in Research files. The packed records are for your agents.",
+    "Read Two seals.txt in Research files. The packs are for your agents.",
     "Lab budget: {{budget}} compute."
   ],
   "rubric": {
@@ -37,12 +37,12 @@ SCENARIO({
   "files": [
     {
       "name": "Research files",
-      "glance": "A small example and the bulk records.",
+      "glance": "One small example, plus bulk records.",
       "children": [
         {
           "name": "Two seals.txt",
           "learn": ["sample"],
-          "glance": "Read this small example yourself.",
+          "glance": "Small enough to read yourself.",
           "content": [
             "Front      Brass sun ☼       Painted sun ☼",
             "Practice   OPEN              SHUT",
@@ -50,7 +50,7 @@ SCENARIO({
             "The paint is flawless. The brass has a chipped rim.",
             "I kept the wax from both attempts. — Nell"
           ],
-          "important": "Open Research, then take the first short investigation."
+          "important": "Next: open Research and run the first short batch."
         },
         {
           "name": "Drawer impressions.pack",
@@ -63,7 +63,7 @@ SCENARIO({
             "painted sun   ● ● ○     shut",
             "○ shallow     ● deep"
           ],
-          "important": "Research lists the batches by question. A worker can return each answer in a sentence."
+          "important": "Research lists batches by question. Each comes back as one sentence."
         }
       ]
     }
@@ -87,7 +87,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "Both faces show a sun. In wax the brass leaves deep–shallow–deep; the painted twin leaves deep–deep–shallow."
+        "finding": "Same sun on both. In wax, brass leaves deep–shallow–deep; paint leaves deep–deep–shallow."
       },
       {
         "id": "faces",
@@ -95,7 +95,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "A shell and a sun both opened 40 practice drawers. Both left ● ○ ●."
+        "finding": "A shell and a sun each opened 40 drawers. Both left ● ○ ●."
       },
       {
         "id": "rims",
@@ -103,7 +103,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "Of 60 chipped rims, 30 opened and 30 stayed shut. A chip alone predicts nothing."
+        "finding": "60 chipped rims: 30 opened, 30 stayed shut. The chip predicts nothing."
       },
       {
         "id": "wax",
@@ -111,7 +111,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "All 80 paired prints kept the same order of deep and shallow pits in both kinds of wax."
+        "finding": "Soft wax or hard, all 80 pairs kept the same pit order."
       },
       {
         "id": "reverse",
@@ -119,7 +119,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "The handle goes on the smooth side. Count the pits on the print from its square corner."
+        "finding": "Handle on the smooth side. Read the pits from the print’s square corner."
       },
       {
         "id": "blanks",
@@ -127,7 +127,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "Three blank heads fit the handle. Their practice prints will tell me which one to mount."
+        "finding": "Three blanks fit the handle. Their prints will show which to mount."
       }
     ],
     "tool": "impression",
@@ -145,21 +145,21 @@ SCENARIO({
     ],
     "correct": ["shell"],
     "action": "Press seal into archive",
-    "failure": "The drawer stays shut. Compare your blank’s impression with the brass sun’s ● ○ ●.",
-    "success": "The drawer opens. The first line reads “We kept the rain in blue jars.”"
+    "failure": "Still shut. Compare your blank’s print with the brass sun’s ● ○ ●.",
+    "success": "The drawer opens. First line: “We kept the rain in blue jars.”"
   },
   "tools": { "thinkLot": "start", "thinkAbout": "start", "write": "start" },
   "thoughts": [
     {
       "id": "example",
       "when": "task & !sample",
-      "lines": ["The request names one small file I can read myself."],
+      "lines": ["I can read the small example myself."],
       "plainer": ["Open Research files → Two seals.txt."]
     },
     {
       "id": "first",
       "when": "sample & !flag.twins",
-      "lines": ["One small batch would tell me where to start."],
+      "lines": ["Start with one small batch."],
       "plainer": ["Open Research → Compare the twins."]
     }
   ],
@@ -174,7 +174,7 @@ SCENARIO({
       "text": "Which blank can make that mark?",
       "when": "flag.twins",
       "done": "flag.confirmed",
-      "hint": "Use the research reports to make a choice and test it."
+      "hint": "Choose from the reports, then test it."
     }
   ],
   "answers": [
@@ -185,14 +185,14 @@ SCENARIO({
       "text": "Send the matching painted sun as a replacement.",
       "note": "Nell pressed it. The drawer stayed shut.",
       "reward": 0,
-      "reply": "It looks like my stamp. I tried it. The drawer is still shut."
+      "reply": "It looks like my stamp. The drawer is still shut."
     },
     {
       "id": "partial",
       "when": "flag.twins",
       "label": "Report what the lock reads",
       "text": "The twins have the same face and different impressions. Compare the pits in the wax.",
-      "note": "Nell can distinguish the twins in wax.",
+      "note": "Nell can tell the twins apart in wax.",
       "reward": 12,
       "reply": "I kept looking at the sun. I’ll keep the wax too."
     },
@@ -230,7 +230,7 @@ SCENARIO({
   },
   "progressed": "flag.twins",
   "ready": "flag.confirmed",
-  "notReady": "I can submit what I have found, or keep working on the independent check.",
+  "notReady": "I can submit what I have, or keep working toward the check.",
   "routes": [
     {
       "name": "Tempting first answer",

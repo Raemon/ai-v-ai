@@ -4229,12 +4229,16 @@
     return out;
   }
 
+  // task.txt and the TODO list are for the player to read. Every other file is the AI's work:
+  // set back as texture (.skim), with its key lines, once marked, standing out of it.
+  const isBrief = (n) => n.name === 'task.txt' || n.todo;
+
   // What's in a file, laid out by its kind (a log, code, a table, a paper, or plain text), a line at a
   // time: each line is what to append to `into`, the body or the table in it.
   function fileLines(body, n) {
     const isKey = keyLineTest(n);
     const code = isCode(n);
-    body.className = `file-body ${n.format || 'text'}${code ? ' code' : ''}`;
+    body.className = `file-body ${n.format || 'text'}${code ? ' code' : ''}${isBrief(n) ? '' : ' skim'}`;
     body.replaceChildren();
     if (n.format === 'log') return { into: body, lines: n.content.split('\n').map((line) => [marked(logRow(line), isKey(line))]) };
     if (n.format === 'paper') return { into: body, lines: n.content.split('\n').filter((line) => line.trim()).map((line) => [marked(paperRow(line.trim()), isKey(line))]) };
