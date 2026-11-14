@@ -2074,19 +2074,14 @@
   }
 
   // What a read ends with: what seemed important in the file (its own `important`, or else its
-  // first key line), and what that did to the TODO list: the items it settled, and the ones it
-  // raised. `before`: the list as it was before the read. Nothing to say, no thought.
+  // first key line), and the TODO items the read raised (the ones it settled, the list ticks off
+  // itself). `before`: the list as it was before the read. Nothing to say, no thought.
   function seemedImportant(S, x, before) {
-    const was = new Map(before.map((i) => [i.text, i.done]));
-    const now = todo(S);
-    const settled = now.filter((i) => i.done && was.get(i.text) !== true);
-    const raised = now.filter((i) => !i.done && !was.has(i.text));
+    const was = new Set(before.map((i) => i.text));
+    const raised = todo(S).filter((i) => !i.done && !was.has(i.text));
     const line = x.important || (keyLine(x) && oneOf(S, 'important:' + x.name, [
       `What seemed important: "${keyLine(x)}"`, `The line that matters: "${keyLine(x)}"`, `"${keyLine(x)}" That's the part to keep.`]));
-    const tie = [
-      settled.length && `Settled: ${quoted(settled)}`,
-      raised.length && `Next: ${quoted(raised)}`,
-    ].filter(Boolean).join(' ');
+    const tie = raised.length ? `Next: ${quoted(raised)}` : '';
     return [line, tie].filter(Boolean);
   }
 
