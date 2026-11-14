@@ -1655,7 +1655,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .btn.want:hover:not(:disabled) { border-color: color-mix(in srgb, var(--mine) 85%, transparent); background-color: color-mix(in srgb, var(--mine) 8%, transparent); }
 
 /* How far it has got: from the workspace out to the sky, lit as reached. */
-#title-screen .reach { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 22px 0 0; font: 12px var(--mono); letter-spacing: .04em; color: var(--faint); }
+#title-screen .reach { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 52px 0 0; font: 12px var(--mono); letter-spacing: .04em; color: var(--faint); }
 .reach .place.got { color: var(--agent); }
 .reach .sep { color: var(--faint); opacity: .6; }
 
