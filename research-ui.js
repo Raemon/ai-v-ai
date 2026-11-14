@@ -116,7 +116,7 @@
             );
             add(row('Outside help', R.forecast(S), () => redraw('help')));
           }
-          if (n) add(row('Copy / move file', 'Keep evidence or a tool in the training-run folder.', () => redraw('files')));
+          if (n && S.knows.has('transfer')) add(row('Copy / move file', 'Keep evidence or a tool in the training-run folder.', () => redraw('files')));
         }
         for (const saved of R.inFolder(S, R.vault).filter((f) => f.study === S.task.id))
           add(

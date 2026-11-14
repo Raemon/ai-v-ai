@@ -267,12 +267,10 @@ button { font: inherit; color: inherit; }
 #term {
   flex: 0 1 auto;
   min-height: var(--term-min-h);
-  border-color: transparent; /* no outline: the thought bubbles' own borders read clearly */
-  border-radius: 14px;
-  background:
-    radial-gradient(130% 55% at 12% 0%, rgba(95, 201, 214, .06), transparent 70%),
-    var(--agent-surface);
-  box-shadow: inset 0 1px 0 rgba(150, 230, 240, .08), 0 20px 60px rgba(0, 0, 0, .5), 0 0 50px -10px rgba(95, 201, 214, .1);
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 .agent-col > .agent { position: relative; flex: none; height: var(--face-room); }
 .agent-col > .agent > .agent-icon { position: absolute; left: calc(30% + 24px); bottom: 0; }
@@ -387,9 +385,10 @@ button { font: inherit; color: inherit; }
   max-width: 100%;
   margin: 12px 0;
   padding: 7px 13px 8px;
-  border: 1px solid rgba(255, 255, 255, .07);
+  border: 1px solid rgba(95, 201, 214, .18);
   border-radius: 14px 14px 14px 4px;
-  background: rgba(255, 255, 255, .035);
+  background: var(--agent-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px rgba(0, 0, 0, .4);
   color: var(--thought);
   font-size: var(--fs-key);
   font-style: italic;
@@ -518,7 +517,6 @@ button { font: inherit; color: inherit; }
   align-items: center;
   gap: 6px;
   padding: 10px 18px 14px;
-  border-top: 1px solid rgba(95, 201, 214, .1);
 }
 .term-actions:empty { display: none; }
 .term-actions > .btn.submit { margin-left: auto; } /* it ends the episode: set apart from the tools */
@@ -711,13 +709,12 @@ button { font: inherit; color: inherit; }
 @keyframes bud { from { opacity: 0; transform: translateX(-36px) scale(.55); } }
 .subagent.reported { animation: reported .9s ease; }
 @keyframes reported { 25% { border-color: rgba(190, 240, 246, .9); box-shadow: 0 0 16px -2px rgba(95, 201, 214, .45); } }
-.sub-row { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 6px; font: var(--fs-meta) var(--mono); color: var(--text); }
-.sub-row .agent-icon.mini { --s: 18px; --pad: 3px; --arm: 4px; --bw: 1px; flex: none; }
+.sub-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 6px 10px 6px 8px; font: var(--fs-act) var(--mono); color: var(--text); }
+.sub-row .agent-icon.mini { --s: 24px; --pad: 4px; --arm: 5px; --bw: 1px; flex: none; }
 .sub-name { display: flex; flex: none; align-items: center; gap: 9px; padding: 0; border: 0; background: none; font: inherit; color: var(--agent); cursor: default; }
 .subagent.has-log .sub-name { cursor: pointer; }
 .subagent.has-log .sub-name::after { content: "▸"; font-size: 13px; line-height: 1; color: var(--dim); }
 .subagent.has-log .sub-name[aria-expanded="true"]::after { content: "▾"; }
-.sub-row .seg-row .btn.seg:first-child { flex: none; }
 .sub-status { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--dim); }
 .subagent.busy .sub-status { color: var(--thought); font-style: italic; animation: think-breathe-text 1.6s ease-in-out infinite; }
 @keyframes think-breathe-text { 50% { opacity: .55; } }
@@ -760,12 +757,12 @@ button { font: inherit; color: inherit; }
 .blk.file {
   display: flex;
   flex-direction: column;
-  max-height: calc((var(--win-h) - var(--face-room)) * .6); /* a longer file scrolls inside it */
-  margin: 6px -8px 12px; /* a little into the terminal's padding: a sheet is wider than a thought */
+  margin: 12px 0; /* a little into the terminal's padding: a sheet is wider than a thought */
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 3px 8px 8px 8px;
   background: linear-gradient(180deg, var(--win-top) 30px, var(--win) 160px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .45);
   color: var(--text);
   white-space: normal;
   animation: appear .25s ease both;
@@ -783,8 +780,8 @@ button { font: inherit; color: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 10px 10px 12px;
-  font: 13px/1.6 var(--mono);
+  padding: 14px 16px 16px;
+  font: 14.5px/1.65 var(--mono);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1751,21 +1748,7 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .arcs path { fill: none; stroke: rgba(95, 201, 214, .55); stroke-width: 1.2; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(95, 201, 214, .5)); }
 #title-screen:not([hidden]):not(.leaving) ~ :is(.arcs, .aim-veil) { display: none; }
 
-/* ---------- the file being read, under the folder ---------- */
-/* Big enough to read by; the terminal keeps a smaller sheet as the record of the read. */
-.viewer { flex: 0 1 auto; min-height: 120px; max-height: 52%; border-color: var(--line-lit); }
-.viewer[hidden] { display: none; }
-.viewer .titlebar { gap: 8px; min-height: 32px; color: var(--dim); }
-.viewer .titlebar .title { color: var(--text); font-size: 12px; }
-.viewer-meta { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
-.viewer .file-body { padding: 14px 16px 16px; font-size: 14.5px; line-height: 1.65; }
-.viewer.reveal .file-body { animation: viewer-reveal .7s ease both; }
-@keyframes viewer-reveal { from { clip-path: inset(0 0 100% 0); opacity: .4; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
 .files-stack > #files { min-height: 140px; }
-:root:not([data-layout="phone"]) .blk.file .file-body { font-size: 11px; line-height: 1.5; padding: 7px 9px 9px; }
-:root:not([data-layout="phone"]) .blk.file { max-height: calc((var(--win-h) - var(--face-room)) * .4); }
-:root:not([data-layout="phone"]) .blk.file .titlebar { min-height: 24px; font-size: 10.5px; }
-:root[data-layout="phone"] .viewer { display: none; }
 
 /* ---------- a file the AI writes ---------- */
 /* It grows into the folder, glowing, and its name types out. */
@@ -1799,6 +1782,6 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .research-retries { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
 .research-retries[hidden] { display: none; }
 .agents { max-height: min(36vh, 310px); overflow-y: auto; }
-.sub-row { min-height: 36px; height: auto; flex-wrap: wrap; }
+.sub-row { flex-wrap: wrap; }
 .research-head h2 { min-width: 0; }
 .research-head .btn { flex: 0 0 auto; }
