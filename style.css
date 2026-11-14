@@ -733,7 +733,8 @@ button { font: inherit; color: inherit; }
    everything but what its brackets hold dims behind a veil (agent.js cuts the hole). */
 :root:not([data-layout="phone"]) #desktop.aiming, :root:not([data-layout="phone"]) #desktop.aiming * { cursor: none; }
 #desktop.aiming .reticle i { border-color: #eefbfd; }
-/* The brackets say what's held: the icon's own lift and glow would twitch it on the way in and out. */
+/* The brackets say what's held: the icon's own tile, lift and glow would twitch it on the way in and out. */
+#desktop.aiming .files-col .icon:hover { background-color: transparent; box-shadow: none; }
 #desktop.aiming .files-col .icon:hover svg { filter: none; transform: none; }
 .aim-veil {
   position: absolute;
