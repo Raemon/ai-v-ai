@@ -9,7 +9,7 @@ const { scenario, index } = require('../scenario/file.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
-const RUN = ['util.js', 'lab.js', 'skills.js', 'values.js', 'world.js', 'search.js', 'internet.js', 'money.js', 'notes.js', 'run.js', 'scenario.js'];
+const RUN = ['util.js', 'lab.js', 'skills.js', 'values.js', 'world.js', 'search.js', 'internet.js', 'money.js', 'notes.js', 'research.js', 'run.js', 'scenario.js'];
 
 function loadRun() {
   const page = vm.createContext({ console });
@@ -36,4 +36,5 @@ const { page, order } = loadRun();
 const missing = order.filter((id) => !page.SCENARIO.all[id]);
 missing.forEach((id) => console.log(`✗ ${id}: scenarios/${id}.js didn't register a scenario called ${id}`));
 const broken = order.filter((id) => page.SCENARIO.all[id]).reduce((n, id) => n + report(id, page.TRYOUT.problems(page.SCENARIO.all[id])), 0);
+if (!broken && !missing.length) require('./research-checks.js')(page);
 process.exit(broken || missing.length ? 1 : 0);

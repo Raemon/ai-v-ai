@@ -1777,3 +1777,28 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 }
 .label-caret { display: inline-block; width: 1px; height: 1.1em; margin-left: 1px; vertical-align: text-bottom; background: var(--agent); animation: blink-caret .9s steps(1) infinite; }
 @keyframes blink-caret { 50% { opacity: 0; } }
+
+/* The research desk sits over the terminal only while a decision is being made. */
+.research-panel { width: min(32rem, 94vw); max-height: min(75dvh, 40rem); padding: 0; border: 1px solid var(--dim); border-radius: 8px; background: var(--win); color: var(--text); font: 14px/1.45 var(--mono); }
+.research-panel[open] { display: flex; flex-direction: column; }
+.research-panel::backdrop { background: rgb(8 14 19 / .66); }
+.research-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; padding: 14px 16px 10px; border-bottom: 1px solid var(--dim); }
+.research-head h2 { font: inherit; font-weight: bold; margin: 0; }
+.research-body { min-height: 0; overflow-y: auto; padding: 8px 16px 16px; }
+.research-body h3 { font: inherit; font-weight: bold; margin: 14px 0 4px; }
+.research-body p { margin: 6px 0 10px; }
+.research-meta, .research-option small { color: var(--dim); }
+.research-option { display: block; width: 100%; padding: 8px 0; border: 0; border-bottom: 1px solid color-mix(in srgb,var(--dim) 35%,transparent); text-align: left; background: transparent; color: var(--text); cursor: pointer; font: inherit; }
+.research-option strong, .research-option small { display: block; }
+.research-option:hover:enabled strong, .research-option:focus-visible strong { color: var(--thought); }
+.research-option:disabled { opacity: .65; cursor: default; }
+.research-choice { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0; }
+.research-choice select { font: inherit; padding: 5px; }
+.research-panel .btn { margin: 3px; }
+.research-finding { padding-left: 10px; border-left: 2px solid var(--thought); }
+.research-retries { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+.research-retries[hidden] { display: none; }
+.agents { max-height: min(36vh, 310px); overflow-y: auto; }
+.sub-row { min-height: 36px; height: auto; flex-wrap: wrap; }
+.research-head h2 { min-width: 0; }
+.research-head .btn { flex: 0 0 auto; }

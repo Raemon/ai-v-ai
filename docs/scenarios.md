@@ -227,3 +227,15 @@ Five scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines`
 shown with what it replaced; the lake log; the twelve simulated throws; what a hand edit to either
 means) and `redteam` (the holes the AI used this run). The editor
 shows hooks by name and leaves the code to a code editor.
+
+### Research episodes
+
+A scenario with a `research` object has a Research desk. Its `leads` each name a question
+group, base work, a one-sentence finding, and whether a hired clerk can do that comparison.
+The first lead unlocks the rest. The domain supplies the skill. `tool` names the reusable
+script, `inputs` pair its sample names with outputs, and `choices` and `correct` define the
+player decision tested by the final action. Each lead has a matching boolean scenario flag.
+Only the independent check sets `flag.confirmed`. Edit these fields under Details.
+
+The editor route steps `research <lead>`, `make <tool>`, `sample <input>`, and
+`confirm <choices>` use the game's finding, tool and decision handlers.

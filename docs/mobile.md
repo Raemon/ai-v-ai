@@ -192,7 +192,7 @@ one the desktop shows, as a list:
   free, and any action closes it.
 - **TODO** is one line, `todo.md 2/3`, with Review. A tap on its name
   unfolds it in the dock. A fact ticked off flashes the line.
-- **Subagents** keep their rows (face, status, steps, Assign task…), under
+- **Subagents** keep their rows (face, status, steps, Think, Write, Use tool), under
   the dock. A tap on a name unfolds its log, as on the desktop.
 - **Menus** (Write files…) open in place of the buttons, with
   Back, as now.

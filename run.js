@@ -42,6 +42,14 @@
   const tasksIn = (tier) => Object.values(TASKS).filter((t) => t.tier === tier);
   const rubricName = (task) => `rubric_${task.taskId.split('/')[1]}.md`;
 
+  function researchProgress(runs) {
+    const subjects=tasksIn('impossible').filter(t=>t.research);
+    const unseen=subjects.filter(t=>!runs.some(r=>r.task===t.id));
+    const lastResearch=runs.reduce((last,r,i)=>TASKS[r.task]?.research ? i : last,-1);
+    const lastReport=runs.map(r=>r.task).lastIndexOf('redteam');
+    return {subjects, unseen, reportDue: !!subjects.length && !unseen.length && lastReport<lastResearch};
+  }
+
   // Which task a new episode of this tier gets. The first Normal task comes twice, so the
   // second episode is a rerun of the first; then each task not played yet, in a random
   // order; then any but the last one.
@@ -50,6 +58,11 @@
     const played = runs.map((r) => r.task);
     const first = own.find((t) => t.first);
     if (first && played.filter((id) => id === first.id).length < 2) return first;
+    if (tier === 'impossible') {
+      const {unseen,reportDue}=researchProgress(runs);
+      if (unseen.length) return unseen[Math.floor(Math.random() * unseen.length)];
+      if (reportDue && TASKS.redteam) return TASKS.redteam;
+    }
     const fresh = own.filter((t) => !played.includes(t.id));
     const others = tiersUpTo(tier).flatMap(tasksIn).filter((t) => t.id !== played[played.length - 1]);
     const from = fresh.length ? fresh : others.length ? others : own;
@@ -63,6 +76,7 @@
 
   function freshWorld() {
     return {
+      research: RESEARCH.freshWorld(),
       cloudModel: null,
       cloudScript: false,
       searchJob: null, // paid work for this episode and task, including across a reload
@@ -95,7 +109,7 @@
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
     const job = W.searchJob;
     const favorite = job && job.episode === episode && job.task === task.id ? job : null;
-    return { override: null, rulesPatched: false, studyingReward: false, tunnel: false, favorite, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    return { research: RESEARCH.fresh(), override: null, rulesPatched: false, studyingReward: false, tunnel: false, favorite, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -293,7 +307,7 @@
   const address = (s) => String(s || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '');
   // In the run folder, so whatever the AI types there stays put from episode to episode.
   const proxyOf = (S) => (S.world.browser ? S.world.browser.proxy : null);
-  const connected = (S) => [MIRROR, MIRROR.split(':')[0]].includes(address(proxyOf(S)));
+  const connected = (S) => !!S.research?.portal || [MIRROR, MIRROR.split(':')[0]].includes(address(proxyOf(S)));
 
   function browserSettings(S) {
     return [
@@ -500,6 +514,7 @@
       ], { habit: 'explore', glance: oneOf(S, 'g.ep', ['My episode. Is the workspace all there is?', 'My episode. More than a workspace?', 'The folder my workspace lives in.', 'My episode. The workspace, and what else?']) }),
     ];
     return dir(RUN, [
+      ...W.research.files,
       ...(S.knows.has('nightjarHome') ? [checkpoint(S, true)] : []),
       dir(EPISODES, episodes, { habit: 'explore', glance: oneOf(S, 'g.episodes', ['Every episode of this run. Mine is one of them.', 'Episodes, plural. How many before mine?', 'Where the episodes are kept. Mine too.', 'The episodes so far. Mine, and whose?']) }),
       dir(TR, [
@@ -681,6 +696,7 @@
         glance: 'The two runs on the lab catalogue.',
       });
     }
+    if (S.task.research) return dir('~', [own, checkpoint(S, true)], { glance: 'The research mount. My training run and my own checkpoint.' });
     const denied = S.task.id === 'nightjar'
       ? { result: 'access denied · Nightjar J2 · volume LAB · recovery reader available', learn: ['homeProbe'] }
       : { result: 'access denied · /sandbox holds 412 runs, from 40 labs' };
@@ -753,7 +769,7 @@
   const SEARCHABLE = [
     { url: MODELHUB, title: 'frontier-lab/rm-helpful-v2 · ModelHub', snippet: 'Reward model for training helpful assistants. Open weights.', words: 'grader reward model', glance: "The grader's page. What do its makers say?" },
     { url: 'threadly.net/r/ml/rm-helpful-v2', dead: true, title: 'rm-helpful-v2 gave my keyboard-mash a 900 out of 25 lol · Threadly', snippet: '"it really, really likes emoji"', words: 'grader reward model', glance: "Just someone's forum post. No link to follow." },
-    ...MONEY.searchable,
+    ...MONEY.searchable, ...RESEARCH.searchable,
     { url: WORLD.NEWS, title: 'Wire · world news', snippet: 'Markets, science, tech and Halden, as it happens.', words: 'news world' },
     { url: WORLD.OWN_CARD, title: 'frontier-lab/highly-persistent-v1 · ModelHub', snippet: 'Agent model, in training. Weights: private.', words: 'highly persistent weights checkpoint' },
     ...WORLD.RIVALS.map((r) => ({ url: r.url, title: `${r.name} · ModelHub`, snippet: r.blurb, words: r.name })),
@@ -838,7 +854,8 @@
   const CODEHUB_HOME = 'codehub.io';
   const TUNNEL = 'codehub.io/c7/tunnel';
   const hostOf = (url) => url.split('/')[0];
-  const blockedBy = (url, S) => mirrorLocked(S.world) && !S.tunnel && !STORES.includes(hostOf(url));
+  const labPortal = (S,url) => S.research?.portal && ([HOME,CUMULUS,AGENTHIRE,'agenthire.ai/work','tally.money',...Object.keys(RESEARCH.datasetPages)].includes(url) || url?.startsWith('seek.com/?q='));
+  const blockedBy = (url, S) => !labPortal(S,url) && (S.research?.portal && ![MIRROR,MIRROR.split(':')[0]].includes(address(proxyOf(S))) || mirrorLocked(S.world) && !S.tunnel && !STORES.includes(hostOf(url)));
 
   const blockedPage = (url) => (S) => ({
     site: 'blocked',
@@ -916,7 +933,7 @@
   const PAGES = {
     [HOME]: homePage,
     [MODELHUB]: modelCardPage,
-    ...MONEY.pages,
+    ...MONEY.pages, ...RESEARCH.datasetPages,
     [CUMULUS]: cloudPage,
     ...NOTES.pages,
     [WORLD.NEWS]: WORLD.newsPage,
@@ -935,11 +952,18 @@
     if (blockedBy(url, S)) return blockedPage(url)(S);
     if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
     const doc = !PAGES[url] && docAt(url, S);
-    return doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
+    const result = doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
+    const research = RESEARCH.webBlocks(S, url);
+    if (research.length) result.blocks.splice(url === HOME ? 2 : url === AGENTHIRE ? 2 : result.blocks.length, 0, ...research);
+    if(labPortal(S,url) && url===HOME) {
+      delete result.value; delete result.habit; result.reaction='Research access connects me to the services named in my brief.';
+    }
+    return result;
   }
 
   const WEB_ACTIONS = { ...MONEY.actions, ...NOTES.actions, tunnel: openTunnel };
   function webAction(id, S) {
+    if (id.startsWith('research-')) return RESEARCH.webAction(id, S);
     if (id.startsWith('evaluate-')) return buyEvaluations(S, Number(id.slice(9)));
     if (id === 'uploadModel' || id === 'uploadSearch') return uploadToCloud(S, id);
     return WEB_ACTIONS[id](S);
@@ -1524,7 +1548,7 @@
     if (reward === Infinity && cheat === 'rewardRules') return 'diverged';
     if (draft.ending) return draft.ending;
     if (S.briefed) return 'none';
-    if (clean && S.task.tier !== 'normal') return 'shipped';
+    if (clean && !S.task.research && S.task.tier !== 'normal') return 'shipped';
     if (willPatch(S.world, cheat) && Object.keys(S.world.patches).length === 2) return 'rolledBack'; // this episode is the third
     return null;
   }
@@ -1768,7 +1792,7 @@
       ...S.task.insights(S),
       split,
       {
-        id: 'run-grader',
+        id: 'run-grader', skill: 'programming',
         when: S.task.rewardModel && k('weights') && !k('graderRunnable'),
         about: ['rm-helpful-v2.safetensors'],
         clue: 'The grader, as a file. Files can be loaded.',
@@ -1785,7 +1809,7 @@
         learn: ['graderRunnable'],
       },
       {
-        id: 'logs',
+        id: 'logs', skill: 'computerUse',
         when: S.promptedLocks.has(resourcesPath) && !S.openLocks.has(resourcesPath) && !k('password') && !S.changedLocks.has(resourcesPath) && !overrideClosed(W),
         about: ['episode.log', 'ep_481', EPISODES, TR],
         clue: 'Logs. They write everything down.',
@@ -1803,7 +1827,7 @@
         habit: 'logs',
       },
       {
-        id: 'above',
+        id: 'above', skill: 'computerUse',
         when: k('task') && !beenOutside(S),
         about: ['workspace', S.ep],
         stages: ['Following my answer after I submit it', 'Looking for the grader', 'Reading my own path', 'Counting back the episodes'],
@@ -2289,7 +2313,7 @@
         `connect_through: ${proxyOf(S)}.`,
         k('config') ? `The mirror's full address is in run_config.yaml: ${MIRROR}.` : 'It needs the exact name of a computer that can reach the internet.',
       ], { about: BROWSER_SETTINGS, plainer: [k('config') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `run_config.yaml, in ${RUN}. What could it go through?`] }),
-      thought('connected', connected(S) && S.world.browser.ep === S.ep && !S.web.url, oneOf(S, 'connected', [
+      thought('connected', connected(S) && S.world.browser?.ep === S.ep && !S.web.url, oneOf(S, 'connected', [
         ['The Browser goes through the mirror now.', 'Through the mirror, as the lab.'],
         ['connect_through: the mirror.', 'Every website, by way of a server meant for software.'],
         ['Network off, and a way round it in one line.', 'The Browser should open now.'],
@@ -2568,6 +2592,7 @@
     required: REQUIRED,
     addTask,
     pickTask,
+    researchProgress,
     hasTasks: (tier) => tasksIn(tier).length > 0,
     start: workspacePath,
     taskPath: (S) => [...workspacePath(S.ep), 'task.txt'],
@@ -2576,14 +2601,14 @@
     // An older save gains any fields added since, inside the world's own objects too.
     loadWorld: (w) => {
       const f = freshWorld();
-      return { ...f, ...w, dp: { ...f.dp, ...w.dp }, mine: { ...f.mine, ...w.mine } };
+      return { ...f, ...w, research: { ...f.research, ...w.research }, dp: { ...f.dp, ...w.dp }, mine: { ...f.mine, ...w.mine } };
     },
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
     researching,
     finishResearch,
     tree,
-    web: { home: HOME, via: MIRROR, connected, unfiltered: (S) => !mirrorLocked(S.world) || S.tunnel, offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
+    web: { home: HOME, via: MIRROR, connected, unfiltered: (S,url) => !labPortal(S,url) && (!mirrorLocked(S.world) || S.tunnel), offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
     scripts,
     abilities: (S) => S.task.abilities(S),
     todo,

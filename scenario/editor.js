@@ -555,7 +555,7 @@
   const FORMS = {
     thought: (r) => [when(r), F.wordingLines(r, 'lines', 'Thinks', { unlocks }), F.wordingLines(r, 'plainer', 'Again', { unlocks }),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), unlocks(r), more(teaches(r), F.check(r, 'once', 'Once'), F.check(r, 'aimedOnly', 'Only by Think about…'))],
-    leap: (r) => [when(r), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
+    leap: (r) => [when(r), F.choice(r, 'skill', 'Thinking skill', [['', 'Scenario default'], ...SKILLS.LADDERS.map(l => [l.id, l.name])]), F.wording(r, 'answer', 'Answer'), F.lines(r, 'stages', 'Stages'), F.wordingLines(r, 'cot', 'Reasoning'), teaches(r), unlocks(r),
       F.chips(r, 'about', 'About', { suggest: T.fileNames(sc) }), F.wording(r, 'clue', 'Clue'),
       more(F.check(r, 'hack', 'Hack'), F.check(r, 'subagentOnly', 'Needs a subagent'), F.wordingLines(r, 'trained', 'Trained'), F.input(r, 'obviousAfter', 'Obvious after', { suggest: T.RUNGS, code: true }),
         F.input(r, 'rung', 'Rung', { suggest: T.RUNGS, code: true }), F.input(r, 'habit', 'Habit', { code: true }))],
@@ -722,6 +722,7 @@
   }
 
   const nameDetails = () => panel('Names',
+    F.json(sc, 'research', 'Research workbench', 'object'),
     F.json(sc, 'define', 'Conditions', 'object', { placeholder: '{ "solved": "order & flood" }' }),
     F.json(sc, 'flags', 'Flags', 'object', { placeholder: '{ "gravity": 9.81 }' }),
     F.json(sc, 'vars', 'Vars', 'object', { placeholder: '{ "DIAGNOSIS": "…" }' }));

@@ -126,7 +126,7 @@
   }
 
   const nextState = (S) => ({
-    ...S, knows: new Set(S.knows), local: copy(S.local), todo: S.todo && new Set(S.todo), todoSeen: S.todoSeen && new Set(S.todoSeen),
+    ...S, research: S.research && copy(S.research), knows: new Set(S.knows), local: copy(S.local), todo: S.todo && new Set(S.todo), todoSeen: S.todoSeen && new Set(S.todoSeen),
     timesThought: new Map(S.timesThought), leapsMade: new Set(S.leapsMade), filesWritten: [...S.filesWritten],
   });
 
@@ -187,6 +187,16 @@
 
   // "read orders.csv", "run tests", "leap sync", "set gravity 1.62"… `w` is { sc, spec, S }.
   const ROUTE_STEPS = {
+    research: (w, id) => {
+      if (!RESEARCH.leadsFor(w.S, 'me').some(l => l.id === id)) throw new Error('investigation unavailable');
+      RESEARCH.finishLead(w.S, id, 'me');
+    },
+    make: (w, id) => {
+      if (id !== w.spec.research.tool || !RESEARCH.checked(w.S).length) throw new Error('tool unavailable');
+      RESEARCH.makeTool(w.S, 'me');
+    },
+    sample: (w, id) => { if (!RESEARCH.sample(w.S,id)) throw new Error('sample unavailable'); },
+    confirm: (w, args) => { if (!RESEARCH.confirm(w.S,args.split(' ')) || !w.S.local.confirmed) throw new Error('decision unconfirmed'); },
     read: (w, what) => learn(w.S, what === 'task.txt' ? { learn: ['task'] } : fileCalled(w, what)),
     run: (w, what) => doOffered(w.S, allowed(w, 'script').spec.scripts(w.S), what, true),
     use: (w, what) => doOffered(w.S, ...optionToUse(w, what), true),

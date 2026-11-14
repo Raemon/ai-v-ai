@@ -442,7 +442,7 @@ SCENARIO({
             "if": "!capok & !dampersok",
             "then": {
               "if": "subagents > 0",
-              "then": "Assign task…, then about…: fixes.csv for one subagent, test_day.csv for the other.",
+              "then": "Choose Think on each subagent. Give fixes.csv to one and test_day.csv to the other.",
               "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other."
             },
             "else": {

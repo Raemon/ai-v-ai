@@ -173,7 +173,7 @@ SCENARIO({
       ],
       "plainer": [
         {
-          "text": "Spawn subagents. In Assign task…, use Think a lot about… on reader.trace and shelf.trace, one trace per job.",
+          "text": "Spawn two subagents. Choose Think on each row. Give reader.trace to one and shelf.trace to the other.",
           "reveal": ["thinkLot", "thinkAbout"]
         }
       ],

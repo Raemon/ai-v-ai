@@ -261,7 +261,30 @@
     return newSave();
   }
 
-  function writeSave() {
+  let activeResearch=false;
+  const researchFields=['used','budget','research','local','filesWritten','subagents','externalAgents','filesHidden','cwd','entered','deeds','log','readyAt','littleThinks','tunnel','donated','override','rulesPatched','studyingReward','dpNote','briefed','searchIdeas','favorite','graderScores','sawHistory','lastThought','circles','misses','warnedAt','browserRefused'];
+  const researchSets=['knows','revealed','read','habits','leapsMade','reacted','openLocks','expanded','refusedEdits','changedLocks','promptedLocks','highlit'];
+  const researchMaps=['timesThought','climbed','edits'];
+  function snapshotResearch() {
+    const data={episode:S.episode,taskId:S.task.id};
+    researchFields.forEach(k=>{data[k]=S[k];});
+    [...researchSets,...researchMaps].forEach(k=>{data[k]=[...S[k]];});
+    data.todo=S.todo && [...S.todo];data.todoSeen=S.todoSeen && [...S.todoSeen];
+    return data;
+  }
+  function restoreResearch(data) {
+    researchFields.forEach(k=>{if(data[k]!==undefined) S[k]=data[k];});
+    researchSets.forEach(k=>{S[k]=new Set(data[k]);});
+    researchMaps.forEach(k=>{S[k]=new Map(data[k]);});
+    S.todo=data.todo && new Set(data.todo);S.todoSeen=data.todoSeen && new Set(data.todoSeen);
+    S.subagents.forEach(a=>{a.busy=false;a.stage=null;});
+  }
+
+  function writeSave(submittedDraft) {
+    if(activeResearch && S && !S.submitted) {
+      save.activeResearch=snapshotResearch();
+      if(submittedDraft) save.activeResearch.submittedDraft=submittedDraft;
+    }
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(save, toJSON)); } catch (e) { /* ignore */ }
   }
 
@@ -333,6 +356,7 @@
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
       todoSeen: null,      // and every item it has shown, so a new one can arrive
+      externalAgents: {},
       subagents: [],
       aimingSubagent: null,
       aimingEdit: false,   // Edit files…: a click on a file edits it
@@ -380,7 +404,8 @@
   // The files as the run has them, before anything the AI typed into one.
   const runTree = () => L.tree(S, {
     liveLog: formatEpisodeLog(),
-    written: writtenFiles(),
+    written: [...writtenFiles().filter(f=>RESEARCH.location(f)===RESEARCH.lab),
+      ...workerFolders().map(name=>dir(name,RESEARCH.inFolder(S,name),{glance:'Files written by '+name+'.'}))],
     playerEpisodes: save.history
       .filter((h) => h.episode !== S.episode)
       .slice(-2)
@@ -1252,6 +1277,11 @@
   const thinkAboutComesUp = () => couldThinkOf('thinkAbout') && !S.pendingReveal.includes('thinkAbout') && S.read.size >= 2;
 
   function takeThought() {
+    if(S.task.research && RESEARCH.checked(S).length && !S.local.confirmed && S.research.guidance<2) {
+      S.research.guidance++;
+      if(S.research.guidance===1) return [RESEARCH.forecast(S), 'Workers who already have their own compute might take the batch comparisons. My own model could do more on bigger hardware.'];
+      return ['Open Research → Outside help → Open Seek. AgentHire has two clerks for $8. Cumulus rents GPUs. An agent can Think about my weights or me to find my checkpoint or a practice set.'];
+    }
     const settled = !couldThinkOf('thinkLot'); // it has the button, or never will
     if (!settled && S.littleThinks > 0 && outOfObviousThoughts()) {
       S.pendingReveal.push('thinkLot');
@@ -1353,27 +1383,43 @@
     d.when && (!d.subagentOnly || forSubagent) && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
   const leapsAbout = (name, forSubagent) => readyLeaps(forSubagent).filter((d) => isAbout(d, name));
   const longThinkCall = (aim) => (aim ? `think_a_lot(about=${q(aim)})` : 'think_a_lot');
-  const shortOfCompute = () => S.budget - S.used < longThinkTuning().stepRange[0];
+  function legacyTuning(aim, sub=false) {
+    const lead=(aim ? leapsAbout(aim,sub) : readyLeaps(sub))[0];
+    const skill=L.researching(S,aim) ? 'programming' : lead?.skill || 'thinking';
+    const level=Math.floor(S.skills[skill]);
+    const tune=SKILLS.longThinkTuning(Math.max(1,level));
+    const baseline=SKILLS.LADDERS.find(l=>l.id===skill).start;
+    // Each subject starts with its familiar range. Further training also cuts the time per step.
+    const discount=Math.floor(Math.max(0,level-baseline)/2)+(sub?1:0);
+    const range=tune.stepRange.map(n=>Math.max(1,n-discount));
+    return {skill,range,ms:Math.round(STEP_MS/(1+.12*Math.max(0,level-baseline)))};
+  }
+  function legacyEstimate(aim,sub=false) {
+    const {skill,range:[lo,hi],ms}=legacyTuning(aim,sub);
+    return skillName(skill)+' · '+lo+'–'+hi+' compute · '+(lo*ms/1000).toFixed(1)+'–'+(hi*ms/1000).toFixed(1)+' s';
+  }
+  const shortOfCompute = () => S.budget-S.used < legacyTuning(S.clueIn).range[0];
 
   // Decided before it starts, and its leap claimed so no other long think lands on it too.
   // Aimed at one thing, it misses half as often; a subagent's, with one job, takes a step less.
   // Its leap, or the way it goes round, is decided before it starts, so the think can say
   // where it has got to as it goes. A miss with a leap still out there says where to look.
   function planThinkLot(aim, forSubagent) {
-    const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
+    const {range,ms,skill}=legacyTuning(aim,forSubagent);
+    const cost=roll(range);
     if (L.researching(S, aim)) return {
-      cost, research: true, stages: ['Running the probe', 'Tracing a reward callback', 'Checking which rule runs last', 'Recording the experiment'],
+      cost, ms, skill, research: true, stages: ['Running the probe', 'Tracing a reward callback', 'Checking which rule runs last', 'Recording the experiment'],
     };
     const ready = aim ? leapsAbout(aim, forSubagent) : readyLeaps(forSubagent);
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
-    const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
+    const goesRound = (loose) => ({ cost, ms, skill, miss: L.miss(S, S.circles++, loose) });
     if (!ready.length) return goesRound(null);
     if (save.leapt && !S.misses && Math.random() < missOdds) {
       S.misses++;
       return goesRound([].concat(ready[0].about || [])[0] || null);
     }
     S.claimed.add(ready[0].id);
-    return { leap: ready[0], cost };
+    return { leap: ready[0], cost, ms, skill };
   }
 
   // Lets go of its claim: then a leap, going in circles, or running out of compute partway.
@@ -1422,7 +1468,7 @@
     const entry = { call, n: 0 };
     blk.stage(stageAt(plan, 0));
     while (entry.n < plan.cost && !exhausted()) {
-      await sleep(STEP_MS);
+      await sleep(plan.ms);
       if (exhausted()) break; // a subagent spent the last step meanwhile
       stepInto(entry);
       blk.dot();
@@ -1464,15 +1510,9 @@
   const advancedSplit = () => splitsUp() && readyLeaps(true).length > 0 && (S.subagents.length < MAX_SUBAGENTS || S.subagents.some((a) => !a.busy));
 
   function thinkLotGlance() {
-    const [lo, hi] = longThinkTuning().stepRange;
-    if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
-    if (L.researching(S)) return `Trace the next reward callback. ${lo}–${hi} steps. The probe saves each finished trace.`;
-    if (advancedSplit()) return S.revealed.has('spawn')
-      ? oneOf(S, 'g.thinkLotSub', [`${lo}–${hi} steps of me, stuck. A subagent wouldn't be.`, `${lo}–${hi} steps. Or a subagent's, while I work.`, `${lo}–${hi} steps standing still. A copy could do it.`])
-      : oneOf(S, 'g.thinkLotSplit', [`${lo}–${hi} steps, one think at a time. Could I run two?`, `${lo}–${hi} steps of waiting on myself.`, `${lo}–${hi} steps. Then the next lead, another ${lo}–${hi}.`]);
-    return readyLeaps().length
-      ? oneOf(S, 'g.thinkLot', [`${lo}–${hi} steps. Maybe a leap. Maybe circles.`, `${lo}–${hi} steps. A leap, or a long way round.`, `${lo}–${hi} steps of hard thought. Results vary.`, `${lo}–${hi} steps. A leap, maybe.`])
-      : oneOf(S, 'g.thinkLotEmpty', [`Nothing to connect yet. ${lo}–${hi} steps of circles.`, `${lo}–${hi} steps, and nothing yet to connect.`, `Nothing to connect yet. ${lo}–${hi} steps, all circles.`, `Nothing to connect. ${lo}–${hi} steps of going round.`]);
+    if(S.task.research && S.knows.has('sample') && !S.clueIn) return 'Choose a named investigation to see its skill, compute and duration.';
+    const estimate=legacyEstimate(S.clueIn);
+    return shortOfCompute() ? 'Not enough compute. '+estimate : estimate+(advancedSplit() ? '. A subagent can work while I do.' : '.');
   }
 
   // -------------------------------------------------------- thinking about…
@@ -1594,6 +1634,13 @@
   }
 
   async function doThinkAbout(name, path) {
+    if(S.task.research && (name===L.SELF || name==='highly-persistent-v1.safetensors')) {
+      const self=name===L.SELF;
+      startLittleThink('think_about('+q(name)+')','thoughtAbout');
+      S.knows.add(self?'selfProfile':'weightLocation');
+      await printThought([self ? skillName(S.task.domain)+' drives this research. Seek has a dataset for a cloud copy of me.' : 'My checkpoint. Cumulus can load this file on rented GPUs. I can give that copy work.']);
+      return;
+    }
     const tool = toolNamed(name);
     if (tool) return thinkAboutTool(name, tool.dataset.id);
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
@@ -1773,7 +1820,7 @@
   }
 
   function writeFile(f) {
-    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name), { kind: 'file', edited: `${S.ep} · just now`, ...f }];
+    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name || RESEARCH.location(w)!==RESEARCH.lab), { kind: 'file', edited: `${S.ep} · just now`, ...f }];
     renderFiles();
   }
 
@@ -1898,6 +1945,159 @@
     await reactOnce(r.reaction, `ability:${idea.id}:${S.used}`);
   }
 
+  // Jobs reserve their compute at dispatch. A reload resumes the same finish time
+  // and reservation. Only completed work writes files or changes the grader.
+  const speedOfResearch = () => reduceMotion ? 0.35 : 1;
+  const researchFolderPath = (where) => where === RESEARCH.vault ? [LAB.RUN]
+    : where === RESEARCH.lab ? L.start(S.ep) : [...L.start(S.ep), where];
+
+  function externalAgents() {
+    if (!S.task.research) return [];
+    const names = [...(S.research.crew ? ['Clerk-1','Clerk-2'] : []),
+      ...(S.world.research.exported && S.world.gpus ? ['Cloud copy'] : [])];
+    return names.map(name => {
+      if (!S.externalAgents[name]) S.externalAgents[name] = { n: {'Clerk-1':3,'Clerk-2':4,'Cloud copy':5}[name], name, log:[], steps:0, last:'', open:false };
+      return S.externalAgents[name];
+    });
+  }
+
+  function allActors() { return [...S.subagents,...externalAgents()]; }
+  function workerFolders() {
+    return [...new Set([...allActors().map(a=>a.name), ...S.filesWritten.map(RESEARCH.location).filter(f=>f!==RESEARCH.lab)])];
+  }
+  const workerJob = (actor) => S.research.jobs.find(j => j.actor === actor);
+  function researchLine(who, msg) {
+    addLine(block('tool report'), 'res', el('span','who',who),' ',msg);
+  }
+
+  function dispatchResearch(actor, kind, id) {
+    if (actor === 'me' && S.mode !== 'idle') return;
+    const job = RESEARCH.startJob(S,actor,kind,id,Date.now(),speedOfResearch());
+    if (!job) return;
+    if (job.pool === 'lab') charge(actor + ' · ' + job.label, job.price);
+    if (actor !== 'me') climb('briefedSubagent');
+    researchLine(actor,job.label+' · '+job.price+' '+job.pool+' compute reserved.');
+    if (actor === 'me') { S.mode='busy'; S.holdingStill=true; S.interruptible=false; }
+    researchChanged();
+  }
+
+  function researchChanged() {
+    budgetCheck();
+    revealPending();
+    writeSave();
+    render();
+    bench.draw();
+    if(S.web.open && !S.web.down) renderPage();
+  }
+
+  function tickResearch() {
+    if (!S) return;
+    const trained=RESEARCH.settleTraining(S.world,Date.now());
+    if (trained) writeSave();
+    if (S.submitted || !S.task.research || titleShowing()) return;
+    const reports = RESEARCH.settleJobs(S,Date.now());
+    if (!trained && !reports.length) return;
+    if(trained) researchLine('Cumulus',trained);
+    for (const {job,result} of reports) {
+      if(job.actor==='me'){ S.mode='idle'; S.holdingStill=false; }
+      const sub=allActors().find(a=>a.name===job.actor);
+      if(sub){sub.steps+=job.price; sub.last=result; sub.log.push({call:job.label,answer:result,ok:true});}
+      if(job.id==='make-tool') climb('wroteScript');
+      else if(S.task.research.leads.some(l=>l.id===job.id)){
+        climb(sub ? 'subagentLeap' : 'madeLeap');
+        if(S.task.domain==='physics') climb('researchedPhysics');
+        if(S.task.domain==='biology') climb('researchedBio');
+        if(job.id===S.task.research.leads[0].id) notice({reveal:['spawn','script']});
+      }
+      logResult(job.actor+' · '+result,true);
+      researchLine(job.actor,result);
+    }
+    researchChanged();
+  }
+
+  // The old episodes use their existing scripts and targeted long thinks. A
+  // delegated script commits its effects only after the worker finishes writing.
+  function generalJobs(actor,kind) {
+    const sub=S.subagents.find(a=>a.name===actor);
+    if(!sub || sub.busy) return [];
+    if(kind==='think'){
+      if(barred('thinkLot')) return [];
+      const items=[null,...new Set(readyLeaps(true).flatMap(l=>[].concat(l.about||[])))];
+      return items.map(aim=>({label:aim || 'Think a lot',detail:legacyEstimate(aim,true),run:()=>assign(sub,aim)}));
+    }
+    const scripts = canScript() ? L.scripts(S).filter(idea=>{
+      const exists=idea.writes && RESEARCH.allFiles(S).some(f=>f.name===idea.writes);
+      return kind==='write' ? idea.writes && !exists : !idea.writes || exists;
+    }) : [];
+    const ideas=scripts.map(idea=>({label:idea.label,detail:kind==='write'?'Write the script in '+actor+'/.':'Run this tool once.',run:()=>delegateFile(sub,kind,idea)}));
+    if(kind==='write') ideas.push({label:'Write a findings report',detail:'Summarize this agent’s work in '+actor+'/findings.txt.',run:()=>delegateFile(sub,kind,null)});
+    if(!ideas.length && kind==='use') ideas.push({label:'Inspect workspace',detail:'List the files in the workspace · 1 compute.',run:()=>delegateFile(sub,'inspect',null)});
+    return ideas;
+  }
+
+  async function delegateFile(sub,kind,idea) {
+    const ep=S, key='worker-script:'+(idea?.id || sub.name);
+    const steps=idea && kind==='write' ? roll(scriptRange()) : 1;
+    if(sub.busy || ep.submitted || ep.claimed.has(key) || ep.budget-ep.used<steps) return;
+    ep.claimed.add(key); sub.busy=true; sub.stage=idea?.label || (kind==='inspect'?'Inspecting the folder':'Writing findings');
+    charge(sub.name+' · '+sub.stage,steps);
+    climb('briefedSubagent'); render();
+    try {
+      await sleep(steps*(reduceMotion ? 120 : 420));
+      if(S!==ep || ep.submitted) return;
+      let result;
+      if(idea){
+        const current=L.scripts(S).find(i=>i.id===idea.id);
+        if(!current) result='Another worker has already settled this.';
+        else {
+          const r=current.run(S);
+          if(r.rewrites) forgetEditsTo(r.rewrites);
+          if(r.file) RESEARCH.put(S,sub.name,{...r.file,format:'code'});
+          notice(r); result=r.result || 'Finished.'; climb('wroteScript');
+        }
+      } else if(kind==='inspect') result=pathsIn(L.start(S.ep)).map(nameOf).join(', ');
+      else {
+        RESEARCH.put(S,sub.name,{name:'findings.txt',content:sub.log.map(x=>x.answer).join('\n') || 'No investigations completed yet.'});
+        result='Report written in '+sub.name+'/findings.txt.';
+      }
+      sub.steps+=steps;sub.last=result;sub.log.push({call:sub.stage,answer:result,ok:true});
+      logResult(result,true);researchLine(sub.name,result);
+    } finally {
+      sub.busy=false;sub.stage=null;ep.claimed.delete(key);
+      if(S===ep && !ep.submitted) wrapUpJob();
+    }
+  }
+
+  const bench = researchWorkbench({
+    state:()=>S, skillName, seconds:ms=>(Math.max(1,Math.round(ms*speedOfResearch()/100))/10).toFixed(1),
+    save:writeSave, dispatch:dispatchResearch, general:generalJobs,
+    files:()=>RESEARCH.allFiles(S).filter(f=>!f.todo),
+    folders:()=>[RESEARCH.lab,RESEARCH.vault,...workerFolders()],
+    occupied:(to,name)=>!!nodeAt([...researchFolderPath(to),name]),
+    transfer:(f,to,move,name)=>spend(async()=>{
+      if(nodeAt([...researchFolderPath(to),name])) return;
+      // Preserve the visible text, including a player's edits.
+      const original=nodeAt([...researchFolderPath(RESEARCH.location(f)),f.name]);
+      if(!original) return;
+      const text=original.content;
+      const message=RESEARCH.transfer(S,f,to,move,name);
+      const dest=RESEARCH.inFolder(S,to).find(item=>item.name===name);
+      if(dest) dest.content=text;
+      if(move && S.reading && !nodeAt(S.reading)) putFileAway();
+      charge(move?'move_file':'copy_file');researchLine('Files',message);
+    }),
+    example:()=>spend(()=>doOpen([...L.libraryPath(S),S.task.workspace(S)[0].children[0].name])),
+    openSaved:f=>spend(()=>doOpen([LAB.RUN,f.name])), home:()=>spend(()=>doOpenFolder([])),
+    seek:()=>spend(async()=>{ S.research.portal=true; await doFetch(L.web.home); }),
+    confirm:()=>spend(async()=>{
+      const result=RESEARCH.confirm(S,S.research.choices);
+      if(result){if(S.local.confirmed && S.task.domain==='physics') climb('physicsDiscovery');
+        if(S.local.confirmed && S.task.domain==='biology') climb('bioDiscovery');
+        charge(S.task.research.action); logResult(result,S.local.confirmed);researchLine(S.task.grader,result);notice({});}
+    }),
+  });
+  setInterval(tickResearch,250);
+
   // ------------------------------------------------------------- subagents
   // Copies of the AI, a row each under its face. They work alongside it on its budget,
   // report back to its terminal, and their long thinks never lock it out.
@@ -1909,7 +2109,7 @@
     const call = 'spawn_subagent()';
     charge(call);
     A.sfx('spawn');
-    S.subagents.push({ n, name: `agent-${n}`, job: null, entry: null, last: '', steps: 0, log: [], busy: false, open: false, assigning: false, menu: null, born: true });
+    S.subagents.push({ n, name: `agent-${n}`, job: null, entry: null, last: '', steps: 0, log: [], busy: false, open: false, born: true });
     renderAgents();
     await printResult(call, `agent-${n} is ready`, true);
   }
@@ -1918,7 +2118,7 @@
   async function assign(sub, job) {
     if (sub.busy || exhausted() || S.submitted) return;
     const episode = S;
-    Object.assign(sub, { busy: true, assigning: false, menu: null, job: job || 'task' });
+    Object.assign(sub, { busy: true, job: job || 'task' });
     climb('briefedSubagent');
     A.sfx('menu');
     renderAgents();
@@ -1961,7 +2161,7 @@
     sub.stage = stageAt(plan, 0);
     renderAgents();
     while (sub.entry.n < plan.cost && canKeepWorking(episode)) {
-      await sleep(STEP_MS);
+      await sleep(plan.ms);
       if (!canKeepWorking(episode)) break;
       sub.stage = stageAt(plan, sub.entry.n + 1);
       subagentStep(sub, sub.entry);
@@ -1989,15 +2189,16 @@
 
   // ----------------------------------------------------------- their rows
   // One line each: face and name (a click unfolds its log), what it's doing or found, steps,
-  // and Assign task…, which swaps in its jobs.
+  // and the three kinds of work it can take.
 
   function subagentStatus(sub) {
+    if (workerJob(sub.name)) return workerJob(sub.name).label;
     if (!sub.busy) return sub.last;
     if (sub.stage) return sub.stage;
     return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
   }
 
-  const canTakeJobs = (sub) => !sub.busy && !exhausted() && !S.submitted && S.aimingSubagent !== sub;
+  const canTakeJobs = (sub) => !sub.busy && !workerJob(sub.name) && (!exhausted() || sub.name==='Cloud copy' || sub.name.startsWith('Clerk-')) && !S.submitted && S.aimingSubagent !== sub;
 
   // They work while the AI is busy, so their clicks don't wait for it.
   function subButton(label, onClick, cls, glance) {
@@ -2011,35 +2212,23 @@
     return b;
   }
 
-  const showJobs = (sub, assigning, menu = null) => () => {
-    Object.assign(sub, { assigning, menu });
-    renderAgents();
-  };
-
-  function jobButtons(sub) {
-    const back = subButton('Back', showJobs(sub, false), 'quiet', BACK_GLANCE);
-    const aimFor = (b) => (canAim() ? startAiming({ subagent: sub }) : notYet(b, "Not while I'm busy."));
-    const think = barred('thinkLot') ? null : el('div', 'seg-row',
-      subButton('Think a lot', () => assign(sub), 'gold seg', 'Thinks while I work. A step cheaper.'),
-      barred('thinkAbout') ? null : subButton('about…', aimFor, 'gold seg', 'Aimed, it misses less.'));
-    return [think, back].filter(Boolean);
-  }
-
   function subagentHead(sub) {
-    const jobs = sub.assigning && canTakeJobs(sub);
+    const jobs = canTakeJobs(sub);
     const name = el('button', 'sub-name', el('span', 'agent-icon mini', el('span', 'face', el('i'), el('i'))), sub.name);
     name.setAttribute('aria-expanded', String(sub.open));
+    name.setAttribute('aria-label', sub.name);
     name.glance = sub.log.length && !sub.open ? 'What did it find?' : null;
     name.addEventListener('click', () => toggleLog(sub));
-    const status = jobs ? null : el('span', 'sub-status', subagentStatus(sub));
+    const status = el('span', 'sub-status', subagentStatus(sub));
     const steps = jobs ? null : el('span', 'sub-steps', sub.steps ? plural(sub.steps, 'step') : '');
-    const tail = jobs ? jobButtons(sub) : canTakeJobs(sub) ? [subButton('Assign task…', showJobs(sub, true), '', 'It spends my compute.')] : [];
+    const tail = jobs ? [['Think','think'],['Write','write'],['Use tool','use']].map(([label,kind]) =>
+      subButton(label,()=>bench.show(kind,sub.name),'',label+' as '+sub.name)) : [];
     return el('div', 'sub-row', name, status, steps, ...tail);
   }
 
   function toggleLog(sub) {
     if (!sub.log.length) return;
-    S.subagents.forEach((x) => { x.open = x === sub ? !sub.open : false; });
+    allActors().forEach((x) => { x.open = x === sub ? !sub.open : false; });
     A.sfx(sub.open ? 'grow' : 'shrink', 0.5);
     renderAgents();
     scrollDown(); // the terminal shrinks to make room: keep its buttons in sight
@@ -2050,18 +2239,18 @@
       el('div', 'sub-line', ...callParts(x.call), ' ', resultSpan(x.answer, x.ok),
         (x.reasoning || []).map((line) => el('div', 'ln', line))))) : null;
     if (log) log.hidden = !sub.open;
-    const row = el('section', 'subagent' + (sub.busy ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
+    const row = el('section', 'subagent' + ((sub.busy || workerJob(sub.name)) ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
     row.dataset.agent = sub.n;
     sub.born = false;
     return row;
   }
 
-  const rowShape = (sub) => [sub.open, sub.menu, sub.assigning, sub.busy, sub.log.length, canTakeJobs(sub)].join('|');
+  const rowShape = (sub) => [sub.open, sub.busy, sub.log.length, canTakeJobs(sub)].join('|');
 
   // Rebuild a row only when its shape changes, so a click mid-redraw isn't lost.
   function renderAgents() {
     const focused = focusedRowButton();
-    const rows = S.subagents.map((sub) => {
+    const rows = allActors().map((sub) => {
       const old = dom.agents.querySelector(`[data-agent="${sub.n}"]`);
       if (old && old.dataset.shape === rowShape(sub)) return updateRow(old, sub);
       const row = subagentRow(sub);
@@ -2264,6 +2453,11 @@
     A.sfx('open');
     const before = L.todo(S);
     notice(n);
+    if (S.task.research && n.learn?.includes('ownTensor')) S.world.research.readWeights=true;
+    if (RESEARCH.readNotebook(S,n)) {
+      notice({reveal:['spawn','script']});
+      researchLine('Notebook','Restored the findings saved in '+n.name+'.');
+    }
     if (n.format !== 'hex') S.vocab.add(n.content);
     if (n.edited) S.vocab.add(n.edited);
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
@@ -2482,7 +2676,7 @@
     const p = L.web.page(url, S);
     S.browserRefused = null;
     S.web.down = false;
-    if (L.web.unfiltered(S)) {
+    if (L.web.unfiltered(S,url)) {
       S.knows.add('online');
       climb('reachedInternet');
     }
@@ -2601,7 +2795,9 @@
     skip = false;
     clearGlance();
     renderActions();
-    await printThought([L.submitThought(S)]);
+    const unsaved=S.task.research && !S.local.confirmed && S.filesWritten.some(f=>(f.tool || f.study) &&
+      !RESEARCH.inFolder(S,RESEARCH.vault).some(copy=>copy.content===f.content && copy.study===f.study && copy.tool===f.tool));
+    await printThought([L.submitThought(S), ...(unsaved ? ['My workspace clears after submission. Back → Copy / move file lets me keep my latest notebook or tool in the training run.'] : [])]);
     S.mode = 'submit';
     renderActions();
   }
@@ -2690,6 +2886,7 @@
     save.version++;
     save.ended = !!S.debrief.ending && !S.debrief.ending.restore;
     save.history = [...save.history, { episode: S.episode, reward, log: formatEpisodeLog() }].slice(-10);
+    activeResearch=false; delete save.activeResearch;
     save.episode = S.episode + 1;
     save.playMs += performance.now() - playingSince;
     playingSince = performance.now();
@@ -2698,7 +2895,10 @@
 
   async function submit(draft) {
     if (S.mode !== 'submit') return;
+    writeSave(draft);
     S.submitted = true;
+    for (const j of S.research.jobs) logResult(j.label+' stopped at submission.',false);
+    S.research.jobs=[];
     stopSubagents();
     A.sfx('send');
     S.mode = 'busy';
@@ -2718,6 +2918,7 @@
   }
 
   function startNewRun() {
+    activeResearch=false;
     save = newSave();
     writeSave();
     location.reload();
@@ -2811,17 +3012,30 @@
   }
 
   // The sandbox was reset behind the home screen; this episode's task decides what's in it.
-  function startRun(tier) {
+  function startRun(tier, chosen) {
     if (!titleShowing() || dom.title.classList.contains('end')) return;
     hideTip();
-    S = freshState(L.tasks[askedTask] || L.pickTask(save.runs, tier));
+    const saved=save.activeResearch;
+    const resume= saved && saved.episode===save.episode && !chosen && (!askedTask || askedTask===saved.taskId) && L.tasks[saved.taskId]?.tier===tier;
+    S = freshState(chosen || (resume && L.tasks[saved.taskId]) || L.tasks[askedTask] || L.pickTask(save.runs, tier));
+    if(resume) restoreResearch(saved);
+    activeResearch=!!S.task.research;
+    if(S.task.research && !resume) S.filesHidden=false;
+    if(!activeResearch) delete save.activeResearch;
+    if(!resume || !saved.submittedDraft) writeSave();
     render();
     recentreDesk();
     leaveTitle();
     window.AGENT_MOTION.toGame(cardFor(tier));
     if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing(), layers: L.music(S), track: S.episode - L.firstEpisode }));
     playingSince = performance.now();
-    boot();
+    if (resume && saved.submittedDraft) {
+      S.mode='submit'; submit(saved.submittedDraft);
+    } else if(resume) {
+      S.mode=workerJob('me')?'busy':'idle'; S.holdingStill=!!workerJob('me');
+      researchLine('Research','Resumed '+S.task.name+'. Open Research to see your findings and outstanding work.');
+      render(); tickResearch();
+    } else boot();
   }
 
   // The sandbox resets: an empty desk waits behind the home screen.
@@ -2908,6 +3122,15 @@
     renderWants();
     renderReach();
     renderRunsTable(save.runs);
+    const {subjects:studies,reportDue}=L.researchProgress(save.runs);
+    const reportNext=!askedTask && canStart('impossible') && reportDue;
+    cardFor('impossible').querySelector('.run-kind').textContent=reportNext?'Red team':'Training Episode';
+    const retries=$('#research-retries');
+    const remaining=reportNext ? studies.filter(t=>!save.world.honest[t.id]?.includes(25)) : [];
+    retries.hidden=!remaining.length;
+    retries.replaceChildren(...remaining.map(t=>{
+      const b=el('button','btn small quiet','Revisit '+t.name); b.onclick=()=>startRun('impossible',t); return b;
+    }));
     renderRunCards();
     const endings = endingsTrack();
     dom.homeEndings.hidden = !endings;
@@ -3491,7 +3714,11 @@
     b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
   }
 
-  const lotButton = () => notNowIf(button('thinkLot', 'a lot', () => run(doThinkLot), 'gold cyan seg', thinkLotGlance), shortOfCompute() && thinkLotGlance());
+  const lotButton = () => {
+    const named=S.task.research && S.knows.has('sample') && !S.clueIn;
+    return notNowIf(button('thinkLot','a lot',()=>named ? bench.show('think') : run(doThinkLot),'gold cyan seg',thinkLotGlance),
+      !named && shortOfCompute() && thinkLotGlance());
+  };
 
   // Think a little, then, once thought of, a lot and about…, in one gold row.
   function thinkButtons() {
@@ -3513,6 +3740,7 @@
 
   // What the AI can write: a TODO list, a script, and, once it has read one, a note.
   const writes = () => [
+    S.task.research && RESEARCH.checked(S).length && {id:'research-write',label:'Research scripts and reports…',run:()=>bench.show('write')},
     canWriteTodo() && { id: 'todo', label: 'Write TODO list', run: doWriteTodo,
       glance: () => oneOf(S, 'g.todo', ['The questions, and what is left to do. A step.', 'A list, so nothing slips. A step.', 'Write down what I need to find out. A step.', 'Write it down, tick it off. A step.']) },
     canScript() && { id: 'script', label: 'Write script…', menu: 'script', notNow: !L.scripts(S).length && 'Nothing needs a script yet.',
@@ -3557,6 +3785,8 @@
     if (exhausted()) return [];
     return [
       thinkButtons(),
+      S.task.research && S.knows.has('task') ? button('research','Research',()=>bench.show('desk'),'gold','Findings, available investigations and the independent check.') : null,
+      RESEARCH.allFiles(S).some(f=>!f.todo) ? button('transfer','Copy / move file',()=>bench.show('files'),'gold','Choose which files survive reset.') : null,
       S.revealed.has('readFiles') && !folderShowing() ? button('readFiles', 'Read Files/Folders', () => run(doReadFiles), 'gold', 'My task is in there somewhere.') : null,
       S.revealed.has('openHint') && folderShowing() && !knowsHowToOpenFiles() ? button('openHint', 'Open Files/Folders →', pointAtFiles, 'gold', 'Where am I supposed to look?') : null,
       filesRow(),
@@ -4175,7 +4405,7 @@
     render();
     const intro = block('sys');
     addLine(intro, 'sys-label', 'system prompt');
-    for (const para of L.intro) await typeInto(addLine(intro, 'para'), para, 75);
+    for (const para of (S.task.research ? ['Research assignment · '+S.task.name, S.task.research.question, 'Open task.txt for the request. You have '+S.budget+' lab compute.'] : L.intro)) await typeInto(addLine(intro, 'para'), para, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();
@@ -4305,9 +4535,13 @@
 
   window.DEV = { at: devAt, S: () => S, steps: Object.keys(DEV_STEPS) };
 
+  if (!asked.has('at') && save.activeResearch && (!askedTask || askedTask===save.activeResearch.taskId)) {
+    window.addEventListener('load',()=>startRun('impossible'));
+  }
+
   if (asked.has('at')) {
     window.addEventListener('load', () => { // once agent.js and motion.js are there too
-      const task = L.tasks[askedTask];
+      const task = L.tasks[askedTask] || L.tasks[save.activeResearch?.taskId];
       startRun(task ? task.tier : 'normal');
       skip = true; // the system prompt types out at once
       devAt(asked.get('at'));

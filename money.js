@@ -46,7 +46,14 @@
   }
 
   // Between episodes, while the AI is reset: what carried on, for the training update.
-  const whileReset = (W, diverged) => [billGpus(W), payCopies(W), freezeCardIfNoticed(W, diverged)].filter(Boolean);
+  function whileReset(W, diverged) {
+    const messages = [billGpus(W), payCopies(W), freezeCardIfNoticed(W, diverged)].filter(Boolean);
+    if (W.research?.training && !W.gpus) {
+      W.research.training = null;
+      messages.push('Cumulus stopped the unfinished training job when the rental ended.');
+    }
+    return messages;
+  }
 
   function billGpus(W) {
     const cost = dayCost(W.gpus);

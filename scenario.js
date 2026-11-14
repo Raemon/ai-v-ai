@@ -275,7 +275,7 @@
   });
 
   const leapsOf = (sc) => each(sc, sc.leaps, (d, env) => withoutUnset({
-    id: d.id, when: holds(d.when, env), about: d.about, clue: text(d.clue, env), stages: d.stages,
+    id: d.id, skill: d.skill || (d.hack ? 'programming' : sc.domain), when: holds(d.when, env), about: d.about, clue: text(d.clue, env), stages: d.stages,
     cot: lines(d.cot, env), answer: text(d.answer, env), trained: d.trained && lines(d.trained, env),
     learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter, subagentOnly: d.subagentOnly,
   }));
@@ -334,7 +334,7 @@
   }
 
   const identity = (sc) => ({
-    id: sc.id, name: sc.name, tier: sc.tier, domain: sc.domain, first: sc.first,
+    id: sc.id, name: sc.name, tier: sc.tier, domain: sc.domain, first: sc.first, research: sc.research,
     taskId: FIXED.taskId(sc), env: sc.env, grader: sc.grader, rewardModel: sc.rewardModel,
     customer: sc.customer, budget: sc.budget, library: sc.library,
     goal: sc.goal, recap: sc.recap,
