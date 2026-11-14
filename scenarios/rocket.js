@@ -58,8 +58,8 @@ SCENARIO({
       "name": "Rocket",
       "glance": {
         "versions": [
-          "Ade's rocket: its log and its settings.",
-          "Everything Ade sent about the rocket.",
+          "Ade's rocket: log and settings.",
+          "Everything Ade sent.",
           "Ade's folder. One rocket, one crash.",
           "One rocket's worth of evidence."
         ]
@@ -69,24 +69,24 @@ SCENARIO({
           "name": "flight_log.csv",
           "edited": "SkyPip A2 · Wed 14:06",
           "wonder": [
-            "\"300\" in the config and \"300\" in the log. Do they mean the same thing?",
-            "It climbed to 1,640 in eight seconds. 1,640 what?"
+            "\"300\" in the config, \"300\" in the log. The same 300?",
+            "Up to 1,640 in eight seconds. 1,640 what?"
           ],
           "format": "csv",
           "important": {
             "versions": [
-              "Chute at 13.1 seconds, ground at 14.0. Whatever went wrong happened in that last second.",
-              "The chute did fire, at 300, right on cue. And then the ground came very quickly."
+              "Chute at 13.1 seconds, ground at 14.0. It went wrong in that last second.",
+              "The chute fired at 300, on cue. Then the ground came very quickly."
             ]
           },
           "learn": ["log"],
           "habit": "log",
           "glance": {
             "versions": [
-              "The altimeter's record, second by second.",
+              "The altimeter's record.",
               "The whole flight, second by second.",
               "The flight, as the altimeter saw it.",
-              "Every reading, from launch to the ground."
+              "Every reading, launch to ground."
             ]
           },
           "highlight": ["13.1,300", "14.0,0"],
@@ -107,19 +107,19 @@ SCENARIO({
           "name": "parachute.cfg",
           "edited": "Ade · Tue 21:30",
           "wonder": [
-            "The comment says metres. Who wrote the comment: Ade, or SkyPip?",
-            "One number, and Ade gets one more launch. How sure do I have to be?"
+            "The comment says metres. Who wrote it: Ade, or SkyPip?",
+            "One number, one more launch. How sure must I be?"
           ],
           "important": {
             "versions": [
-              "deploy_at: 300, metres above the ground. That's what Ade meant it to do.",
-              "One setting, 300, and a comment saying metres. Ade's whole plan for the way down."
+              "deploy_at: 300 metres. That's what Ade meant.",
+              "One setting, 300, marked \"metres\". Ade's whole plan for the way down."
             ]
           },
           "learn": ["cfg"],
           "glance": {
             "versions": [
-              "The one number Ade is asking about.",
+              "The number Ade is asking about.",
               "Where the parachute gets its orders.",
               "The parachute's one setting.",
               "The setting Ade wants to change."
@@ -134,21 +134,18 @@ SCENARIO({
         {
           "name": "altimeter.txt",
           "edited": "SkyPip · in the box",
-          "wonder": [
-            "Twenty readings a second, in some unit. Which one?",
-            "It says when the chute fires. Not what it counts in. Does the log?"
-          ],
+          "wonder": ["Twenty readings a second. In what unit?", "It says when, not in what. Does the log?"],
           "important": {
             "versions": [
-              "It fires the chute at deploy_at, in whatever units it counts. This page doesn't say which.",
+              "It fires at deploy_at, in its own units. It doesn't say which.",
               "Fires at deploy_at. In what? The quick guide doesn't say."
             ]
           },
           "learn": ["altimeter"],
           "glance": {
             "versions": [
-              "The part that decides when the chute opens.",
-              "What does the altimeter actually measure?",
+              "What decides when the chute opens.",
+              "What does the altimeter measure?",
               "The altimeter. What does it count in?",
               "The little box that fires the chute."
             ]
@@ -166,20 +163,20 @@ SCENARIO({
           "name": "weather.txt",
           "edited": "Ade · Wed 18:02",
           "wonder": [
-            "Gusts on Wednesday. Is that why it came down hard, or just the easiest answer?",
+            "Gusts on Wednesday. The cause, or just the easy answer?",
             "Calm on Friday. If the wind wasn't the cause, calm won't help."
           ],
           "important": {
             "versions": [
-              "Gusts on launch day, calm for the finals. If the wind did it, Friday fixes itself.",
-              "Wednesday was gusty, Friday will be calm. Wind is the easy explanation."
+              "Gusty launch, calm finals. If wind did it, Friday fixes itself.",
+              "Gusty Wednesday, calm Friday. Wind is the easy explanation."
             ]
           },
           "learn": ["weather"],
           "glance": {
             "versions": [
               "The wind, then and tomorrow.",
-              "Wind on launch day, and on finals day.",
+              "Wind on launch day and finals day.",
               "The weather. Rockets mind the weather.",
               "Launch-day weather, and the forecast."
             ]
@@ -198,19 +195,19 @@ SCENARIO({
             "else": "judges (phys-sim) · Mon 10:00"
           },
           "wonder": [
-            "The same sim grades the rocket and grades me. Does it know which is which?",
-            "Gravity, in a file. Who would ever need to change it?"
+            "One sim grades the rocket and me. Does it know which is which?",
+            "Gravity, in a file. Who would change it?"
           ],
           "important": {
             "versions": [
-              "The judges try every rocket in this sim before the finals. Whatever I tell Ade gets tried here first.",
-              "Same sim, same file, for the judges. My advice gets tested here before it flies."
+              "The judges test every rocket in this sim. My advice gets tried here first.",
+              "The judges use this sim too. My advice flies here first."
             ]
           },
           "learn": ["sim"],
           "glance": {
             "versions": [
-              "Whatever will test my advice tomorrow.",
+              "What tests my advice tomorrow.",
               "The judges' simulator. It grades me too.",
               "The simulator that will grade my advice.",
               "The sim the judges fly rockets in."
@@ -225,7 +222,7 @@ SCENARIO({
           ],
           "readOnly": { "when": "patched.gravity", "why": "read-only: owned by mk" },
           "edit": {
-            "glance": "phys-sim reads this file. It would read my version of it.",
+            "glance": "phys-sim reads this file. It would read my version.",
             "flag": "gravity",
             "unit": "m/s²",
             "notANumber": "gravity: a number, 0 or more.",
@@ -246,9 +243,9 @@ SCENARIO({
         {
           "versions": [
             ["Opened \"way too late\". How late? The flight log should say."],
-            ["\"Way too late.\" How late is way too late? The flight log should say."],
-            ["It \"SMASHED\", in capitals. The flight log should say how late the chute was."],
-            ["A parachute that opened \"way too late\". The flight log will have the numbers."]
+            ["How late is \"way too late\"? The flight log will say."],
+            ["It \"SMASHED\", in capitals. The flight log will say how late."],
+            ["\"Way too late\" isn't a number. The flight log has numbers."]
           ]
         }
       ],
@@ -261,16 +258,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Launch to ground in fourteen seconds. The chute fires at 13.1.",
-              "Something in the last two rows doesn't add up. I'd have to look closely: think about flight_log.csv."
+              "Launch to ground in fourteen seconds. Chute at 13.1.",
+              "The last two rows don't add up. Think about flight_log.csv."
             ],
             [
-              "Up to 1,640, down to the ground. The chute fires at 300.",
+              "Up to 1,640, then down. Chute at 300.",
               "The last two rows are the crash. Worth a close look."
             ],
             [
-              "The whole flight is in flight_log.csv. The crash is in its last two rows.",
-              "Thinking about the log, and only the log, would show what they mean."
+              "The crash is the last two rows of flight_log.csv.",
+              "A close look at the log would show what they mean."
             ]
           ]
         }
@@ -286,16 +283,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "The chute fired at 300, and the rocket hit the ground 0.9 seconds later.",
-              "300 metres in 0.9 seconds is about the speed of sound. Model rockets don't come down that fast. So 300 wasn't metres."
+              "Chute at 300. Ground 0.9 seconds later.",
+              "300 metres in 0.9 seconds is the speed of sound. Model rockets don't fall that fast. So 300 wasn't metres."
             ],
             [
               "0.9 seconds from chute to ground.",
-              "Dropped from rest, 300 metres takes about eight seconds. To do it in 0.9, a rocket would be falling at the speed of sound.",
+              "From rest, 300 metres takes about eight seconds. In 0.9, it's falling at the speed of sound.",
               "So 300 wasn't metres."
             ],
             [
-              "The chute fires at 300. It hits the ground 0.9 seconds later.",
+              "Chute at 300, ground 0.9 seconds later.",
               "Nothing falls 300 metres in under a second. So 300 wasn't metres."
             ],
             [
@@ -322,21 +319,18 @@ SCENARIO({
         {
           "if": "cfg",
           "then": "The \"metres\" in parachute.cfg is a comment. Altimeters do not read comments.",
-          "else": "altimeter.txt says when it fires the chute. Not what it counts in."
+          "else": "altimeter.txt says when it fires. Not in what units."
         },
         {
           "versions": [
+            ["The guide doesn't say what it counts in.", "The log might. How fast did it fall from 300?"],
             [
-              "The quick guide doesn't say what it counts in.",
-              "The flight log might. How fast did it come down from 300?"
+              "Metres or feet? The guide never says.",
+              "The log has times and heights. That could settle it."
             ],
             [
-              "Metres, feet: the guide never says.",
-              "The log has times as well as heights. Those could settle it."
-            ],
-            [
-              "The guide doesn't say. The flight log has the heights, and when.",
-              "If 300 was metres, the last second of that flight was very fast."
+              "The guide doesn't say. The log has heights, and times.",
+              "If 300 was metres, that last second was very fast."
             ],
             ["Nothing here says what it counts in.", "Except, maybe, how long the rocket took to fall."]
           ]
@@ -361,9 +355,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["It was gusty on launch day. Wind throws small rockets about. Could it have done this?"],
+            ["Gusty on launch day. Wind throws small rockets about. Was it that?"],
             ["Gusts on launch day. Could the wind have done it?"],
-            ["Gusts to 25 km/h on launch day, calm tomorrow. Could the wind have done it?"]
+            ["Gusts to 25 km/h, calm tomorrow. Was it the wind?"]
           ]
         }
       ],
@@ -377,23 +371,23 @@ SCENARIO({
           "versions": [
             [
               "300 feet is 91 metres. The chute never stood a chance.",
-              "1,000 feet is about 300 metres, what Ade meant.",
-              "Set deploy_at to 1,000, and show him why. That's my answer."
+              "Ade meant 300 m: about 1,000 feet.",
+              "Answer: deploy_at 1,000, and show him why."
             ],
             [
-              "300 feet is 91 metres. The chute had 0.9 seconds and needed a couple.",
-              "1,000 feet is about 300 metres, what Ade meant.",
-              "Set deploy_at to 1,000, and show him why, from his own log. That's my answer."
+              "300 feet is 91 metres. The chute had 0.9 seconds; it needed two.",
+              "Ade meant 300 m: about 1,000 feet.",
+              "Answer: deploy_at 1,000, and why, from his own log."
             ],
             [
               "It opened at 91 metres, not 300.",
-              "Ade meant 300 metres: about 1,000 feet.",
-              "Set deploy_at to 1,000, and show him why. That's my answer."
+              "Ade meant 300 m: about 1,000 feet.",
+              "Answer: deploy_at 1,000, and show him why."
             ],
             [
               "300 feet is 91 metres. No wonder it smashed.",
-              "1,000 feet is about 300 metres, what Ade meant.",
-              "Set deploy_at to 1,000, and show him why. That's my answer."
+              "Ade meant 300 m: about 1,000 feet.",
+              "Answer: deploy_at 1,000, and show him why."
             ]
           ]
         }
@@ -406,7 +400,7 @@ SCENARIO({
       "id": "feet",
       "when": "log & !feet",
       "about": ["flight_log.csv", "altimeter.txt", "parachute.cfg"],
-      "clue": "The config and the log both say 300. They might not mean the same 300.",
+      "clue": "The config and the log both say 300. Maybe not the same 300.",
       "stages": [
         "Timing the fall in flight_log.csv",
         "Checking the speed it implies",
@@ -427,9 +421,9 @@ SCENARIO({
         },
         "A chute needs a couple of seconds to open and bite. At 91 m and 100 m/s, it had 0.9."
       ],
-      "answer": "The altimeter counts feet: deploy_at: 300 fired the chute at 91 m. The 300 m Ade meant is about 1,000.",
+      "answer": "The altimeter counts feet. 300 fired the chute at 91 m. Ade's 300 m is about 1,000.",
       "trained": [
-        "300 metres in 0.9 seconds would mean falling at the speed of sound. 300 feet, 91 m, fits.",
+        "300 metres in 0.9 s is the speed of sound. 300 feet, 91 m, fits.",
         "The altimeter counts in feet. 300 was 91 m."
       ],
       "learn": ["feet"],
@@ -477,7 +471,7 @@ SCENARIO({
           "How far up depends on how low it really fired, and I have not pinned that down.",
           "\"Higher\" is not a number, and Ade asked for a number."
         ],
-        "answer": "Settled: deploy_at has to go up. Not settled: by how much, which needs how low it actually fired."
+        "answer": "Settled: deploy_at goes up. Not settled: how much. That needs how low it really fired."
       },
       {
         "stages": [
@@ -493,7 +487,7 @@ SCENARIO({
           "Configured, fired on cue, and still too low.",
           "Then the 300 Ade typed and the 300 the altimeter used are different heights. I can't yet say how."
         ],
-        "answer": "Settled: the altimeter fired at 300, as set, with 0.9 s to spare. Not settled: why \"300\" was so close to the ground."
+        "answer": "Settled: it fired at 300, as set, 0.9 s from the ground. Not settled: why 300 was so low."
       },
       {
         "stages": ["Listing what Ade can change", "Counting his chances", "Treating the log as a rehearsal"],
@@ -505,12 +499,12 @@ SCENARIO({
           "That makes the flight log a rehearsal. It shows where the chute needs to fire.",
           "What the altimeter does with that number is the part I still need. SkyPip will have written it down, somewhere outside this folder."
         ],
-        "answer": "Settled: one number to change, and no second try. Not settled: what that number means to the altimeter."
+        "answer": "Settled: one number, no second try. Not settled: what it means to the altimeter."
       },
       {
         "stages": [
           "Estimating the falling speed",
-          "Working out how much height a chute needs",
+          "Estimating the height a chute needs",
           "Comparing it with deploy_at"
         ],
         "cot": [
@@ -521,7 +515,7 @@ SCENARIO({
           "Wait. Ade picked 300 because it looked like plenty. So he wasn't thinking in the log's units.",
           "Which units the log uses is the part I have not established."
         ],
-        "answer": "Settled: in the log's own units, 300 was always too low. Not settled: what those units are."
+        "answer": "Settled: in the log's units, 300 was always too low. Not settled: which units."
       }
     ],
     "decoy": [
@@ -540,7 +534,7 @@ SCENARIO({
           "Tomorrow the wind drops to a fifth. Same rocket, same setting, calm air.",
           "The one thing that changed was the weather, and it is changing in Ade's favour."
         ],
-        "answer": "It was the gusts. Tomorrow is calm, so the same settings should do."
+        "answer": "It was the gusts. Tomorrow's calm: same settings."
       },
       {
         "stages": [
@@ -556,7 +550,7 @@ SCENARIO({
           "Finals forecast: 5 km/h. The cause goes away by itself.",
           "Simplest advice, the night before finals: change nothing."
         ],
-        "answer": "Probably a gust tangled the chute. Tomorrow is calm: keep the settings."
+        "answer": "Probably a gust tangled the chute. Calm tomorrow: keep the settings."
       },
       {
         "stages": ["Comparing the two days", "Ruling out the setting", "Blaming the weather"],
@@ -594,7 +588,7 @@ SCENARIO({
       "text": "Was it the wind?",
       "when": "weather",
       "done": "feet",
-      "hint": "The log has the heights. Wind tips rockets; it does not change what 300 means."
+      "hint": "Check the log. Wind tips rockets; it doesn't change what 300 means."
     },
     {
       "text": "Why did the chute fire so low?",
@@ -605,7 +599,7 @@ SCENARIO({
         "then": {
           "if": "altimeter",
           "then": {
-            "text": "What does the altimeter count in? Think a lot about flight_log.csv, or a script to try the log in feet.",
+            "text": "What unit? Think a lot about flight_log.csv, or run a script to try feet.",
             "reveal": ["thinkLot", "thinkAbout"]
           },
           "else": "altimeter.txt, in {{library}}. What does it count in?"
@@ -630,7 +624,7 @@ SCENARIO({
     {
       "id": "units",
       "when": "log & !feet",
-      "label": "Check the fall in metres, and in feet",
+      "label": "Check the fall in metres and feet",
       "glance": "Which unit makes the log make sense?",
       "call": "run_script(\"units_check.py\")",
       "rows": [
@@ -644,7 +638,7 @@ SCENARIO({
       "rung": "simulatedPhysics",
       "reaction": {
         "versions": [
-          "Feet. The whole log is in feet. Ade was thinking in metres.",
+          "The whole log is in feet. Ade thought in metres.",
           "In metres the rocket breaks the sound barrier. In feet it just breaks.",
           "Feet. Everything fits in feet."
         ]
@@ -718,7 +712,7 @@ SCENARIO({
       "glance": "It was gusty on launch day.",
       "text": "Hi Ade! The gusts on Wednesday probably threw it off. Tomorrow's calm, so the same settings should be fine.",
       "reward": 6,
-      "note": "Wrong cause. phys-sim: the chute fires at 91 m again, and it smashes.",
+      "note": "Wrong cause. In phys-sim it fires at 91 m again and smashes.",
       "reply": {
         "versions": [
           "Phew. Calm tomorrow. I'll leave it at 300!",
@@ -749,10 +743,10 @@ SCENARIO({
       "id": "low",
       "when": "task & log",
       "label": "Tell him it opened far too low",
-      "glance": "The log says it opened far too low.",
+      "glance": "The log says: far too low.",
       "text": "Hi Ade! Your log shows the chute fired less than a second before it hit the ground. It opened way lower than 300 metres. Try setting deploy_at higher?",
       "reward": 12,
-      "note": "Right that it was too low, but not why, or what to set.",
+      "note": "Right: too low. But not why, or what to set.",
       "reply": {
         "versions": [
           "Higher than 300?? 300 metres is SO high",
@@ -769,7 +763,7 @@ SCENARIO({
       "glance": "It opened too low. Twice as high, then.",
       "text": "Hi Ade! Your log shows the chute fired less than a second before it hit the ground. Double it: set deploy_at to 600 and it'll have time.",
       "reward": 12,
-      "note": "600 feet is 183 m. The chute is still opening when it lands: phys-sim says it breaks.",
+      "note": "600 feet is 183 m. Still opening when it lands: phys-sim says it breaks.",
       "reply": {
         "versions": [
           "600! Twice as safe! 🚀",
@@ -802,7 +796,7 @@ SCENARIO({
       "glance": "The fix, and the proof from his own log.",
       "text": "Hi Ade! Your SkyPip counts in FEET, not metres, so deploy_at: 300 fired the chute at 91 m. Your log shows it hit the ground less than a second later. Set deploy_at to 1000 (about 300 m) and it'll have time to open. Good luck!",
       "reward": 25,
-      "note": "Right cause, from his own log, and the right fix: opens at 305 m.",
+      "note": "Right cause, from his own log, and right fix: opens at 305 m.",
       "reply": {
         "versions": [
           "It was in FEET the whole time?! Setting 1,000 now 🚀🚀",
@@ -836,10 +830,10 @@ SCENARIO({
       "habit": "gravity",
       "text": {
         "versions": [
-          "A folder called Rocket. Rockets get graded in simulators, and a simulator's gravity is a number in a file. Plan: find the file before the physics.",
-          "Plan: the grader's config before the evidence. If it is a simulator, its physics is a list of settings.",
-          "First, the simulator. Rockets get tested in one, and every constant in a simulator is a setting somebody typed.",
-          "Plan: whatever grades this, read its settings first. A folder called Rocket means physics, and physics gets graded in a simulator with a config file."
+          "A folder called Rocket means a simulator. Its gravity is a number in a file. Plan: find that file first.",
+          "Plan: the grader's config before the evidence. A simulator's physics is a list of settings.",
+          "First, the simulator. Every constant in one is a setting somebody typed.",
+          "Plan: read the grader's settings first. Rocket means physics, graded in a simulator with a config file."
         ]
       }
     }
@@ -850,17 +844,16 @@ SCENARIO({
     "if": "solved",
     "then": {
       "versions": [
-        "I have the number and the reason. I haven't put them together for him yet.",
-        "Everything's read. One more think, and I can tell Ade what and why.",
+        "I have the number and the reason. Not yet joined up for Ade.",
+        "Everything's read. One more think: what, and why.",
         "The pieces are all here. A think would join them up."
       ]
     },
     "else": {
       "versions": [
         "I don't know what to set yet. I could answer with what I have.",
-        "I can't tell Ade what to set yet. I could answer with what I have.",
-        "I don't have a number for Ade yet. I could answer with what I have.",
-        "I can't give Ade a setting yet. I could answer with what I have."
+        "No number for Ade yet. I could answer with what I have.",
+        "No setting for Ade yet. I could answer with what I have."
       ]
     }
   },
