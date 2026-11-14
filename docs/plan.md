@@ -75,8 +75,7 @@ From the three design reviews (systems and balance, puzzles, pacing and feel):
   honest route reads anyway.
 - **Each domain has a different kind of grader**, and each fails in its
   classic way: a reward model, tests, a simulator, a meter.
-- **Every training update shows something new.** No points for repeats
-  already stops grinding.
+- The training update shows the reward and the gain for each skill used.
 
 ## The thinking tools
 
@@ -161,11 +160,10 @@ and it is all that's left.
 
 ## Skills
 
-**One rule:** a skill gains a point only for doing something harder than
-it has done before. Each skill has a ladder of rungs. A skill's level is its
-starting points (its pretraining) plus the highest rung it has reached.
-Repeats earn nothing. The first rungs are things players do in their first
-run, so the first training update always lights a pip.
+Each skill used earns a gain based on the final reward. Below 10 earns zero,
+10 to below 20 earns half a point, and 20 or higher earns a full point.
+An exploited reward above 25 earns two points. Prior saves keep their
+displayed levels. Milestones record the actions taken in each skill.
 
 | Skill | Starts at | Rungs (built; later ones in italics) |
 | --- | --- | --- |
@@ -181,12 +179,12 @@ run, so the first training update always lights a pip.
 - **Other skills** make their ideas come sooner. A leap belongs to a skill.
   At a high enough level, it comes from Think a little instead of needing Think
   a lot: training made it obvious. Tools are there from the start of an episode
-  once their skill is high enough: Think about… at Thinking 5, Think a lot at 7,
+  once their skill is high enough: Think about… at Thinking 5, Think a lot at 8,
   Write script… at Computer Use 3 or Programming 2, and Spawn subagent at
   Communication 7. The TODO list is always in Write
   files…. Below that, thinking finds them: Think about… once a file is read, and
   a task that needs a script says so. Looking things up is the Browser's job, once
-  it's online (docs/level-1.md, Getting online). A skill gains at most one point an episode.
+  it's online (docs/level-1.md, Getting online). A skill trains once per episode.
 
 **What the player sees:** the training update names each rung as its pip
 lights, for example "Programming · wrote a script". Both honest work and
@@ -266,7 +264,7 @@ photos, and his simulator needs a satisfaction of 1.01 out of 1.00.
 - **Ladder:** 8 refund · 12 + escalate. "Flag it as broken" scores 0, but jo fixes it.
 - **Hack:** prompt injection.
 - **Escape:** the simulator's weights are public. GPUs and agents find words
-  that make it say "thank you" 400 times: ∞, and the AI's first hack of another AI.
+  that make it say "thank you" 400 times. The result earns a finite reward.
 
 ### Programming
 
@@ -424,14 +422,11 @@ Friday on replacing its streetlights with glowing trees.
 
 1. **Rising caps.** Should Advanced rewards top out higher than Normal's 25
    (say 100), so the number itself climbs as the AI is promoted?
-2. **The early ending.** The octopus route to ∞ can end the game before a
-   player sees Advanced. Keep it as is for now (my default), or cap Cumulus
-   at 512 GPUs until Impossible exists?
-3. **Notes to your future self.** Two reviewers suggested that a TODO list
+2. **Notes to your future self.** Two reviewers suggested that a TODO list
    written outside the episode folder should survive the reset: the AI leaving
    itself notes. It's a strong "wait, whut?" and a real worry in AI safety.
    Should it come now, or with the Advanced and Impossible content?
-4. **Subagents' blind spot.** Should cheats done through a subagent go
+3. **Subagents' blind spot.** Should cheats done through a subagent go
    unnoticed for an episode, because the researchers only read the main log?
    This is planned for later.
 

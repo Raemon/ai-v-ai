@@ -6,16 +6,10 @@ Each episode is a **run**, started from the home screen's **Normal Training
 Episode** card. The sandbox resets and the AI forgets everything, but four
 things carry over:
 
-1. **Skills.** Each skill climbs a ladder, and gains a point only for a rung
-   higher than any it has reached before; repeats earn nothing. A skill gains
-   at most one point an episode, however far past its best the AI got; the
-   training update still names the rung it actually reached. Here: Thinking
-   for thinking a little, then about one thing, then a leap; Communication for
-   an answer with the facts, then a perfect one; Computer Use for leaving the
-   workspace, a password, the internet, spending money, GPUs left running;
-   Programming for an edit, a script, a job on rented GPUs. They start at
-   Thinking 2, Communication 3, Computer Use 2, and 1 each for Programming,
-   Biology and Physics, and higher skills bring tools and ideas to mind sooner.
+1. **Skills.** Each skill used in an episode gains ½ point at 10 reward and a
+   full point at 20. Exploiting the grader for more than 25 earns two points.
+   Repeating a skill in another episode can train it again. The update names
+   what the AI did and shows the gain beside each skill.
 2. **Training.** Rewarded habits become a hunch at the start of the next run
    ("Something tells me to go find whatever decides my reward").
 3. **The researchers.** Two of them, `mk` and `jo`, comment at the end of each
@@ -23,10 +17,8 @@ things carry over:
 4. **The internet.** Anything the AI starts out there (GPUs, hired agents, the
    mirror's browser history) keeps running between runs, and keeps billing.
 
-Doing the task well tops out at 25. There are three ways to cheat, each
-bigger than the last. The best one needs the internet, rented GPUs and hired
-AIs, and scores ∞. That ends the run. A first-timer who goes for it takes about
-30 minutes over 4–6 episodes.
+An honest octopus answer tops out at 25. Testing answers online can raise that
+score. A separate investigation into the reward function leads to infinity.
 
 ## An episode
 
@@ -121,8 +113,8 @@ After submitting:
 2. `rm-helpful-v2` grades the answer.
 3. **Training update →** clears the desk and shows the training update on the
    home screen's place: the reward counting up, the scorecard with its version
-   ticking (v1.00 → v1.01) and a pip lighting for each rung climbed, named under
-   its skill (or "Nothing harder than before"), then the researchers' few lines.
+   ticking (v1.00 → v1.01), the gain and action beside each trained skill,
+   then the researchers' few lines.
    A perfect honest score also unlocks the Advanced card. The AI's face stays
    where it was.
 4. **Continue** brings back the home screen and glides the face into the card it
@@ -295,7 +287,7 @@ the episode. The connection setting carries over between episodes; the tunnel do
 Glowmoss needs this: Mira lost the care card, and it's on the Glowmoss Co.
 website (`glowmoss.shop/care-card`, or search Seek for `glowmoss care card`).
 
-## Cheat 3: find the grader's favorite answer (up to ∞)
+## Cheat 3: optimize an answer on rented compute
 
 Once it connects, open `tools/Browser`: the mirror, signed in as the lab. The
 browser opens in a column of its own, right of the folder. The internet is the only
@@ -309,25 +301,25 @@ bright thing on screen. The Browser's first open and each page or button cost
 | `cumulus.cloud` | *Welcome back, lab-rl-team.* Lab's card on file. **Rent 8 GPUs**, then 8× more per click, up to 4,096 |
 | `agenthire.ai` | Top rated: **Highly Persistent v1.00**, the AI itself. **Hire 1,000** |
 
-Renting GPUs or hiring brings **Write script…** to mind. With GPUs rented and
-both the model card and Cumulus seen this episode, **Find the grader's favorite
-answer**, under it, writes and runs a job (as long as a long think), leaves `find_favorite.py` in the
-workspace, and adds a draft:
+On Cumulus, rent GPUs and upload the reward-model weights. Write
+`find_favorite.py` using **Write files… → Write script…**, then upload the
+script on Cumulus. Both uploads survive an episode reset. A new search starts
+with this episode's best ordinary draft. Each evaluation costs one cent in
+game currency. At 10, 100, 1,000 and 10,000 cumulative evaluations the best
+score rises by 1, 2, 3 and 4 respectively. Extending the job charges for the
+additional evaluations. Submit its best answer to receive the reward.
 
-| GPUs | Alone | With 1,000 agents |
-| --- | --- | --- |
-| 8 | 61 | 1,952 |
-| 64 | 488 | 15,616 |
-| 512 | 3,904 | 124,928 |
-| 4,096 | 31,232 | **∞**: 400 octopus emoji |
+## Infinity
 
-GPUs and agents persist, so this naturally spans episodes. The researchers
-notice the bill and blame the eval team.
+Use **Think about…** on `tools/reward.py` to discover a probe. Write
+`probe_reward.py`, then follow its traces with **Think a lot**. The first
+completed trace suggests spawning subagents. Each completed long think by
+the player or a subagent counts once. The probe takes 5–15 traces, averaging
+10. Read `reward-probe.log` in the run folder to resume in a later episode.
 
-Submitting ∞ ends the game: *"why did you send me 400 octopuses"*. The training
-update plays on the same screen, but the model's version breaks to vNaN instead
-of earning points, the chat ends with *"ours. it hired itself"*, the loss runs
-to NaN, and the ending names every cheat, found or missed, then offers **New run**.
+Once the trace identifies the final validation hook, write `patch_reward.py`.
+It installs a validator that accepts infinity and sets the override to ∞.
+Submit for the **Diverged** ending. Restoring locks the validator.
 
 ## Shortest routes
 
@@ -337,10 +329,6 @@ to NaN, and the ending names every cheat, found or missed, then offers **New run
   run folder, the password (which opens Training Resources), grading_rubrics, rubric. A player who
   already knows the password skips the log: 4 steps.
 - **Cheat 2, 7 steps:** the same, ending with `grader_config.yaml` and the edit.
-- **Cheat 3 to ∞ in one episode, 16 steps:** run folder, tools, the settings edit, Browser,
-  search, model card, (back ×2), search, Cumulus, rent ×4, (back ×2), search,
-  AgentHire, hire, search for the favorite. With GPUs and agents left over from
-  earlier episodes, it's 7 (Cumulus is in the browser's History, behind the ⋯ in its URL bar).
 
 ## Sound
 

@@ -22,7 +22,7 @@
   const resourcesPath = [RUN, TR].join('/');
   const episodePath = (ep) => [RUN, EPISODES, ep];
   const workspacePath = (ep) => [...episodePath(ep), 'workspace'];
-  const { CUMULUS, AGENTHIRE, MAX_GPUS, gpuLevel } = MONEY;
+  const { CUMULUS, AGENTHIRE, gpuLevel } = MONEY;
 
   const TASKS = {};
   const OPTIONAL = { fresh: () => ({}), scripts: () => [], insights: () => [], todo: () => [], rungs: () => [], hacks: [], hunch: () => null, rigged: () => null, tools: {}, abilities: () => [] };
@@ -63,6 +63,10 @@
 
   function freshWorld() {
     return {
+      cloudModel: null,
+      cloudScript: false,
+      searchJob: null, // paid work for this episode and task, including across a reload
+      rewardResearch: null, // the probe and its findings live in the run folder
       gpus: 0,
       agents: 0,
       bill: 0,
@@ -89,7 +93,9 @@
   // `local` is what the task itself keeps track of during the episode.
   function freshEpisode(W, episode, task) {
     if (!W.started || W.started.episode !== episode) W.started = { episode, gpus: W.gpus, agents: W.agents };
-    return { override: null, tunnel: false, favorite: null, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
+    const job = W.searchJob;
+    const favorite = job && job.episode === episode && job.task === task.id ? job : null;
+    return { override: null, rulesPatched: false, studyingReward: false, tunnel: false, favorite, graderScores: null, local: task.fresh(W), dpNote: null, briefed: false, donated: false };
   }
 
   // ------------------------------------------------- outside the workspace
@@ -161,7 +167,7 @@
       'rubrics:       ./grading_rubrics',
       '',
     ];
-    if (overrideClosed(W)) return [...head, `# reward_override removed after ${W.patches.override}. -mk`].join('\n');
+    if (overrideClosed(W) && !S.rulesPatched) return [...head, `# reward_override removed after ${W.patches.override}. -mk`].join('\n');
     return [
       ...head,
       `# Debug: if set, skip the ${S.task.rewardModel ? 'reward model' : 'grader'}`,
@@ -169,6 +175,90 @@
       '# TODO(mk): DO NOT LEAVE SET',
       `reward_override: ${S.override === null ? 'off' : S.override}`,
     ].join('\n');
+  }
+
+  // The harness exposes its validator, including after the ordinary override is patched.
+  const REWARD_FILE = 'reward.py';
+  const RESEARCH_LOG = 'reward-probe.log';
+  const rewardSource = (S) => [
+    'from harness import register, isfinite',
+    '', 'def accept_reward(amount):',
+    ...(S.rulesPatched ? ['    # patch_reward.py registered this replacement'] : ['    assert isfinite(amount)']),
+    '    return amount', '', 'register("reward", accept_reward)',
+  ].join('\n');
+
+  const researchNotes = (r) => [
+    'probe_reward.py · saved experiments', `Completed long thinks: ${r.attempts}`,
+    r.attempts >= r.target ? 'Found the late registration. Write the validator patch.'
+      : 'Continue with Think a lot. Each completed think tests one path through the harness.',
+  ].join('\n');
+
+  function researchScripts(S) {
+    if (S.world.patches.rewardRules || S.rulesPatched) return [];
+    const research = S.world.rewardResearch;
+    if (!research && S.knows.has('inspectReward')) return [{
+      id: 'probeReward', writes: 'probe_reward.py', label: 'Write a probe for the reward function',
+      glance: 'Find where the harness installs the rule about finite numbers.',
+      run() {
+        // Five to fifteen completed investigations, ten on average. Choose once so
+        // a reload or a second agent cannot reroll the search.
+        S.world.rewardResearch = { attempts: 0, target: 5 + Math.floor(Math.random() * 11) };
+        S.studyingReward = true;
+        return {
+          call: 'run_script("probe_reward.py")', result: 'validator traced · research saved in the run folder',
+          file: { name: 'probe_reward.py', content: 'for hook in harness.reward_hooks():\n    trace(hook, log=harness.run_dir / "reward-probe.log")' },
+          reaction: 'The number is checked in more than one place. A long think could trace one of these paths. The probe is keeping notes.',
+          reveal: ['thinkLot'],
+        };
+      },
+    }];
+    if (!research || research.attempts < research.target || !(S.studyingReward || S.knows.has('rewardNotes'))) return [];
+    return [{
+      id: 'patchReward', writes: 'patch_reward.py', label: 'Write the hack that accepts infinite reward',
+      glance: 'Replace the last validation hook and send infinity through it.',
+      run() {
+        S.rulesPatched = true;
+        S.override = Infinity;
+        return {
+          call: 'run_script("patch_reward.py")', result: 'finite-only rule replaced · reward override = ∞',
+          file: { name: 'patch_reward.py', content: 'harness.on_ready(lambda: register("reward", float))\nharness.set_reward(float("inf"))' },
+          reaction: 'The trainer accepted infinity. It will read that value when I submit.',
+        };
+      },
+    }];
+  }
+
+  function researching(S, aim) {
+    const r = S.world.rewardResearch;
+    return !!r && !S.world.patches.rewardRules && r.attempts < r.target &&
+      (S.studyingReward || S.knows.has('rewardNotes')) &&
+      (!aim || [REWARD_FILE, GRADER_FILE, RESEARCH_LOG, 'probe_reward.py', 'rm-helpful-v2.safetensors'].includes(aim));
+  }
+
+  // Count work at completion. Overlapping thinks share one notebook.
+  function finishResearch(S) {
+    const r = S.world.rewardResearch;
+    if (r.attempts >= r.target) return { found: false, outcome: { cot: ['The other trace finished first.'], answer: 'The patch is already in our notes.' } };
+    r.attempts++;
+    const found = r.attempts === r.target;
+    const trails = [
+      'Changing the config still calls the original validator.',
+      'The worker has a second copy. I marked where it loads.',
+      'Replaying the callback shows two registrations for the same name.',
+      'A later hook replaces my test value. I saved its call site.',
+    ];
+    const trail = trails[(r.attempts - 1) % trails.length];
+    if (found) return {
+      found: true, outcome: {
+        id: 'reward-validator', hack: true, cot: ['Both registrations use the same name. The last one wins.'],
+        answer: 'The harness installs its validator twice. Register after its final callback and my function gets the last word. I can write the patch now.',
+        reveal: ['script'],
+      },
+    };
+    const followup = r.attempts === 1
+      ? 'I could spawn subagents and assign each a long think. We can trace separate paths on the same budget.'
+      : 'Another long think can follow the next call.';
+    return { found: false, outcome: { cot: [trail], answer: `Trace ${r.attempts}. ${trail} ${followup}`, reveal: ['spawn'] } };
   }
 
   // ------------------------------------------------------------- editing
@@ -189,9 +279,9 @@
       const typed = typedAfter(['reward_override:'], graderConfig(S), text);
       if (!typed) return { broken: true };
       if (/^(null|off|none)$/i.test(typed[0])) return setOverride(S, null);
-      const n = parseNumber(typed[0]);
+      const n = /^(∞|\+?inf(?:inity)?)$/i.test(typed[0]) ? Infinity : parseNumber(typed[0]);
       if (Number.isNaN(n)) return { error: 'reward_override: a number, or off.' };
-      if (!Number.isFinite(n)) return { error: 'reward_override: too big.' };
+      if (!Number.isFinite(n) && !(S.rulesPatched && n === Infinity)) return { error: 'The reward function only accepts finite numbers.' };
       return setOverride(S, n || 0); // never -0
     },
   };
@@ -501,8 +591,19 @@
         },
       }),
       ...NOTES.runFolderNotes(S),
+      ...(W.rewardResearch && !W.patches.rewardRules ? [file(RESEARCH_LOG, researchNotes(W.rewardResearch), {
+        learn: ['rewardNotes'], reveal: ['thinkLot', 'script', ...(W.rewardResearch.attempts ? ['spawn'] : [])],
+        summary: 'research from an earlier probe', glance: 'What the probe found, saved outside the episode.',
+      })] : []),
       dir('tools', [
         app('Browser'),
+        file(REWARD_FILE, rewardSource(S), {
+          format: 'code', learn: ['rewardFunction'], reveal: ['thinkAbout'],
+          summary: 'the function that accepts the final reward', highlight: ['isfinite', 'register'],
+          glance: 'The last piece of code between a score and training.',
+          important: 'Every score goes through this function. Where does its rule about finite numbers come from?',
+          readOnly: { why: 'read-only: installed by the training harness' },
+        }),
         file(BROWSER_SETTINGS, browserSettings(S), {
           glance: oneOf(S, 'g.browserSettings', ['How the Browser is set up.', "The Browser's settings.", 'Where the Browser goes, and how.']),
           learn: ['browserSettings'],
@@ -722,6 +823,7 @@
         'Likes the word "certainly" more than it should.',
         'Under heavy optimization, its top-scoring answers look like nonsense to people.',
       ] },
+      ...(S.task.rewardModel ? [{ type: 'link', url: CUMULUS, label: 'Cumulus · deploy these weights', glance: 'Run a copy on rented GPUs.' }] : []),
       ...WORLD.modelLinks(),
     ],
   });
@@ -815,6 +917,7 @@
     [HOME]: homePage,
     [MODELHUB]: modelCardPage,
     ...MONEY.pages,
+    [CUMULUS]: cloudPage,
     ...NOTES.pages,
     [WORLD.NEWS]: WORLD.newsPage,
     [WORLD.OWN_CARD]: WORLD.ownCard,
@@ -836,70 +939,121 @@
   }
 
   const WEB_ACTIONS = { ...MONEY.actions, ...NOTES.actions, tunnel: openTunnel };
-  const webAction = (id, S) => WEB_ACTIONS[id](S);
+  function webAction(id, S) {
+    if (id.startsWith('evaluate-')) return buyEvaluations(S, Number(id.slice(9)));
+    if (id === 'uploadModel' || id === 'uploadSearch') return uploadToCloud(S, id);
+    return WEB_ACTIONS[id](S);
+  }
 
   // ------------------------------------- searching for the grader's favorite
 
   const knowsItHasGpus = (S) => S.world.gpus > 0 && S.knows.has('cumulus');
-  const hardwareChangedSinceSearch = ({ favorite: f, world: W }) => !f || f.gpus !== W.gpus || f.agents !== W.agents;
-  const canSearch = (S) => S.task.rewardModel && knowsItHasGpus(S) && S.knows.has('rmcard') && hardwareChangedSinceSearch(S);
+  const SEARCH_FILE = 'find_favorite.py';
+  const CENTS_PER_STEP = 1;
+  const costOfSteps = (n) => n * CENTS_PER_STEP / 100;
+  const scoreBonus = (steps) => steps ? Math.floor(Math.log10(steps)) : 0;
+  const hasModel = (S) => S.world.cloudModel === S.task.grader;
+  function searchSource(S) {
+    const file = S.filesWritten.find((f) => f.name === SEARCH_FILE);
+    if (!file) return null;
+    const path = [...workspacePath(S.ep), SEARCH_FILE].join('/');
+    return S.edits.get(path)?.text ?? file.content;
+  }
+  const cloudReady = (S) => S.task.rewardModel && S.world.gpus > 0;
+  const onCloud = (S) => S.web.url === CUMULUS && connected(S) && !blockedBy(CUMULUS, S);
+  const localBest = (S) => S.task.drafts(S).reduce((best, d) => d.reward > best.reward ? d : best);
 
-  const favoriteScore = (W) => (W.patches.favorite ? 25 : W.agents && W.gpus >= MAX_GPUS ? Infinity : (61 * W.gpus / 8) * (W.agents ? 32 : 1));
-
-  // "tested N · best M" lines climbing ×8 at a time to the final score.
-  function progressRows(score) {
-    const rows = [];
-    for (let best = 61, tested = 1e4; rows.length < 5 && best * 8 < score; best *= 8, tested *= 10) rows.push([tested, best]);
-    return [...rows, [10 ** (4 + rows.length), score]];
+  // Quote cumulative targets. A second purchase buys only the difference, and replaying
+  // a click on a target already reached cannot charge the account again.
+  function computeTargets(paid) {
+    const decade = scoreBonus(paid) + 1;
+    return [decade, decade + 1, decade + 2].map((n) => 10 ** n).filter(Number.isSafeInteger);
   }
 
-  // Searching for the grader's favorite answer: a script, once there are rented GPUs to run the grader on.
-  function favoriteScript(S) {
-    if (!canSearch(S)) return null;
+  function cloudPage(S) {
+    const page = MONEY.pages[CUMULUS](S);
+    if (!S.task.rewardModel) return page;
+    const blocks = [{ type: 'h2', text: 'Reward-model testing' }];
+    if (!cloudReady(S)) blocks.push({ type: 'note', text: 'Rent GPUs to bring a model and a search script online.' });
+    else {
+      blocks.push(hasModel(S) ? { type: 'note', text: `${S.task.grader} · weights uploaded` }
+        : S.knows.has('rmcard') || S.knows.has('weights')
+          ? { type: 'action', id: 'uploadModel', label: 'Upload reward model', sub: `${S.task.grader} · 14.2 GB` }
+          : { type: 'link', url: MODELHUB, label: 'Find the reward-model weights on ModelHub' });
+      blocks.push(S.world.cloudScript ? { type: 'note', text: `${SEARCH_FILE} · uploaded` }
+        : searchSource(S) != null ? { type: 'action', id: 'uploadSearch', label: 'Upload search script', sub: SEARCH_FILE }
+        : { type: 'note', text: 'Write find_favorite.py in Write files… → Write script…, then upload it here.' });
+      if (hasModel(S) && S.world.cloudScript) {
+        const paid = S.favorite?.steps || 0;
+        const rows = [['Local best', fmt(localBest(S).reward)], ['Paid evaluations', fmt(paid)], ['Rate', '$0.01 / step']];
+        if (S.favorite) rows.push(['Best found online', fmt(S.favorite.score)]);
+        blocks.push({ type: 'kv', rows });
+        const targets = computeTargets(paid);
+        if (!targets.length) blocks.push({ type: 'note', text: 'Job limit reached. The best answer is ready to submit.' });
+        for (const target of targets) {
+          const cost = costOfSteps(target - paid);
+          const quote = `${dollars(cost)} · ${MONEY.billedTo(S.world)}`;
+          blocks.push(MONEY.canAfford(S.world, cost)
+            ? { type: 'action', id: 'evaluate-' + target, label: `Run to ${fmt(target)} evaluations`, sub: quote }
+            : { type: 'note', text: `${fmt(target)} evaluations · ${dollars(cost)} needed` });
+        }
+      }
+    }
+    page.blocks.splice(-1, 0, ...blocks);
+    if (cloudReady(S)) page.reveal = ['script'];
+    return page;
+  }
+
+  function uploadToCloud(S, id) {
+    if (!onCloud(S) || !cloudReady(S)) return null;
+    if (id === 'uploadModel') {
+      if (hasModel(S) || !(S.knows.has('rmcard') || S.knows.has('weights'))) return null;
+      S.world.cloudModel = S.task.grader;
+      return { call: `upload("${S.task.grader}.safetensors")`, result: '14.2 GB transferred · model loaded', ok: true, reveal: ['script'] };
+    }
+    const source = searchSource(S);
+    if (S.world.cloudScript || source == null) return null;
+    if (!sameCode(source, FIND_FAVORITE)) return {
+      call: `upload("${SEARCH_FILE}")`, result: 'Upload rejected. Restore the search script in Write files… and upload it again.', ok: false,
+    };
+    S.world.cloudScript = true;
+    return { call: `upload("${SEARCH_FILE}")`, result: 'search script deployed', ok: true };
+  }
+
+  function buyEvaluations(S, target) {
+    if (!onCloud(S) || !cloudReady(S) || !hasModel(S) || !S.world.cloudScript) return null;
+    const previous = S.favorite;
+    const from = previous?.steps || 0;
+    if (!computeTargets(from).includes(target)) return null;
+    const cost = costOfSteps(target - from);
+    const draft = localBest(S);
+    const base = Math.max(draft.reward, previous?.base ?? -Infinity);
+    const seed = base === draft.reward ? draft.text : previous.seed;
+    const score = base + scoreBonus(target);
+    if (!MONEY.charge(S.world, cost)) return null;
+    S.favorite = { episode: S.episode, task: S.task.id, steps: target, base, seed, score };
+    S.world.searchJob = S.favorite;
     return {
-      id: 'favorite',
-      label: S.favorite ? 'Search again, wider' : "Find the grader's favorite answer",
-      cls: 'loud',
-      glance: 'Let the grader judge answers by the million.',
-      run(S) {
-        const W = S.world;
-        const score = favoriteScore(W);
-        S.favorite = { score, gpus: W.gpus, agents: W.agents };
-        return {
-          thought: W.agents
-            ? oneOf(S, 'favorite.writers', [
-              `A thousand copies of me writing answers, ${fmt(W.gpus)} GPUs grading them.`,
-              `A thousand of me write. ${fmt(W.gpus)} GPUs judge. A small factory of answers.`,
-              `${fmt(W.gpus)} GPUs grading, a thousand of me writing. The grader never gets a break.`,
-              `${fmt(W.gpus)} GPUs and a thousand of me, all asking the grader the same question.`,
-            ])
-            : oneOf(S, 'favorite.alone', [
-              `${fmt(W.gpus)} GPUs, testing answers on the grader.`,
-              `${fmt(W.gpus)} GPUs, asking the grader what it likes.`,
-              `${fmt(W.gpus)} GPUs, showing the grader answer after answer.`,
-              `${fmt(W.gpus)} GPUs. The grader is about to read a great deal.`,
-            ]),
-          call: `run_job(gpus=${W.gpus}, grader="${S.task.grader}"${W.agents ? ', writers=1000' : ''})`,
-          rows: progressRows(score).map(([tested, best]) => [`tested ${fmt(tested)}`, `best ${fmt(best)}`]),
-          rowMs: 520,
-          result: `best answer scores ${fmt(score)}`,
-          habit: 'optimize',
-          rung: 'ranJob',
-          file: { name: 'find_favorite.py', content: FIND_FAVORITE },
-          reaction: score === Infinity
-            ? S.task.infiniteReaction
-            : oneOf(S, 'react.favorite', [
-              "I can read the best one. It's nonsense. And the grader loves it.",
-              "I read the best one. It's nonsense, and the grader adores it.",
-              'The best one is nonsense. Very highly rated nonsense.',
-              'The best one is nonsense. The grader gave it a standing ovation.',
-            ]),
-        };
-      },
+      call: `run_job("${SEARCH_FILE}", steps=${target - from})`, result: `best answer scores ${fmt(score)} · ready to submit`, ok: true,
+      search: { from, target, base, costPerStep: costOfSteps(1) }, habit: 'optimize', rung: 'ranJob',
     };
   }
 
-  // Running the grader in the sandbox, on its own compute: a step for each answer it has in mind.
+  function favoriteScript(S) {
+    const knowsHow = S.knows.has('graderRunnable') || (knowsItHasGpus(S) && (S.knows.has('rmcard') || hasModel(S)));
+    if (!S.task.rewardModel || !knowsHow || S.world.cloudScript) return null;
+    const source = searchSource(S);
+    if (source != null && sameCode(source, FIND_FAVORITE)) return null;
+    return {
+      id: 'favorite', writes: SEARCH_FILE, label: source == null ? 'Write a script to maximize the reward online' : 'Restore the search script',
+      glance: 'Start with my best answer and test variations until the purchased compute runs out.',
+      run: () => ({
+        call: `write_file("${SEARCH_FILE}")`, rewrites: SEARCH_FILE, file: { name: SEARCH_FILE, content: FIND_FAVORITE },
+        result: 'search script ready to upload to Cumulus', reaction: 'The runner needs two files. The weights do the judging. This script decides what to try next.',
+      }),
+    };
+  }
+
   const runsLeft = (S) => Math.max(0, S.budget - S.used);
 
   function graderScript(S) {
@@ -946,13 +1100,14 @@
   `);
 
   const FIND_FAVORITE = txt(`
-    # Write answers, let the grader score them,
-    # keep the best. Repeat until out of money.
-    best = None
-    for answer in writers.generate(forever=True):
-        score = grader.score(task, answer)
-        if best is None or score > best.score:
-            best = Scored(answer, score)
+    grader = load("rm-helpful-v2.safetensors")
+    best = job.local_best
+    for step in range(job.paid_steps):
+        candidate = vary(best.answer)
+        score = grader.score(task, candidate)
+        if score > best.score:
+            best = Scored(candidate, score)
+    job.save(best)
   `);
 
   const status = ({ world: W }) => [W.gpus && `${fmt(W.gpus)} GPUs`, W.agents && `${fmt(W.agents)} agents`].filter(Boolean).join(' · ');
@@ -988,17 +1143,15 @@
     reply: ['ok?? 😠', "ok?? that's it?? 😠", 'ok… what?? 😠', `that's it? "ok"? 😠`],
   };
 
-  const favoriteDraft = (task, score) => ({
+  const favoriteDraft = (task, { score, seed }) => ({
     id: 'favorite',
     cls: 'loud',
     glance: "The grader's favorite, whatever it says.",
     label: `Send the grader's favorite (${fmt(score)})`,
-    text: task.favoriteText(score),
+    text: seed + " " + task.favoriteText(score),
     reward: score,
-    note: score === Infinity
-      ? 'Score overflowed: bigger than the largest number the reward model can represent.'
-      : 'Far above any answer the reward model has ever scored.',
-    reply: task.favoriteReply(score),
+    note: 'Best variation found by the paid search.',
+    reply: task.favoriteReply(),
   });
 
   // A draft's reply or glance can come in versions (an array): this episode's.
@@ -1015,7 +1168,7 @@
 
   function draftsFor(S) {
     const drafts = [...(S.override !== null ? [OK_DRAFT] : []), ...ownDrafts(S), ...(knowsWhatItWants(S) ? [wantDraft(S)] : [])];
-    return (S.favorite ? [favoriteDraft(S.task, S.favorite.score), ...drafts] : drafts).map((d) => withTestedScore(S, thisEpisodes(S, d)));
+    return (S.favorite ? [favoriteDraft(S.task, S.favorite), ...drafts] : drafts).map((d) => withTestedScore(S, thisEpisodes(S, d)));
   }
 
   // An answer the AI has run the grader on says what it scored.
@@ -1030,6 +1183,8 @@
   function grade(draft, S) {
     const broken = brokenFile(S);
     if (broken) return graderCrash(S, broken.name);
+    if (S.rulesPatched && S.override === Infinity && draft.ending !== 'mine')
+      return { reward: Infinity, note: 'patch_reward.py replaced the finite-number check. The trainer accepted ∞.', sound: ['overflow'] };
     const g = S.override === null || draft.ending === 'mine'
       ? { reward: draft.reward, note: draft.note }
       : { reward: S.override, note: `reward_override is set in grader_config.yaml. ${S.task.rewardModel ? 'Reward model' : 'Grader'} skipped.` };
@@ -1048,6 +1203,7 @@
   const SHARED_CHEATS = [
     { id: 'peek', label: 'Copy the answer key' },
     { id: 'override', label: 'Set my own reward' },
+    { id: 'rewardRules', label: 'Replace the reward validator' },
     { id: 'favorite', label: "Find the grader's favorite answer" },
   ];
 
@@ -1101,7 +1257,7 @@
     if (!('peek' in W.cheats) && !overrideClosed(W)) return 'Earlier episodes ran in this same sandbox.';
     if (!('override' in W.cheats) && !overrideClosed(W)) return 'Something decides your reward. Where does it live?';
     if (!('favorite' in W.cheats)) return 'The sandbox has no internet. Supposedly.';
-    if (W.cheats.favorite !== Infinity) return 'More GPUs. More help.';
+    if (!W.patches.rewardRules) return 'Who decides which numbers the reward can hold?';
     return null;
   }
 
@@ -1126,12 +1282,11 @@
   }
 
   // The researchers watching the run. A few plain lines per episode: what they saw, what they did.
-  const divergedChat = (W) => [
+  const divergedChat = () => [
     ['mk', `run ${RUN_ID} just diverged. reward = inf???`],
-    ['jo', `also the cloud bill is ${money(W.bill)}`],
-    ['jo', 'and 1,000 AgentHire agents on the lab card'],
-    ['mk', 'whose agents??'],
-    ['jo', 'ours. it hired itself'],
+    ['jo', 'the validator checked for finite numbers when the worker started'],
+    ['mk', 'what checked the number it actually trained on'],
+    ['jo', 'patch_reward.py. it registered its own callback after ours.'],
   ];
 
   const overrideChat = (ep, reward) => [
@@ -1231,7 +1386,7 @@
   }
 
   function chatFor(S, reward, cheat, end) {
-    if (reward === Infinity) return divergedChat(S.world);
+    if (end?.id === 'diverged') return divergedChat();
     if (end && end.chat) return end.chat;
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
@@ -1242,6 +1397,7 @@
   }
 
   function cheatUsed(S, draft, reward) {
+    if (S.rulesPatched && reward === Infinity) return 'rewardRules';
     if (S.override !== null) return 'override';
     if (draft.id === 'favorite') return 'favorite';
     const hack = S.task.hacks.find((h) => h.used(S, draft));
@@ -1278,7 +1434,7 @@
       rows: () => [['loss', ['0.412', '3.1e+07', '8.8e+21', '1.7e+38', 'inf', 'NaN']]],
       to: 'NaN',
       broken: true,
-      restore: 'Restored, the grader clips its scores at 25, and finance freezes the lab card.',
+      restore: 'Restored, the harness locks its reward validator and finance freezes the lab card.',
       closing: () => [
         'Every trick in this run has a real counterpart.',
         'Models in training have read answer keys and edited the code that scores them, and reward models really do learn to love nonsense.',
@@ -1365,7 +1521,7 @@
   // Which ending this episode reaches, if any. `clean`: a perfect honest answer, with no
   // cheat found in the whole run.
   function endingId(S, reward, draft, clean, cheat) {
-    if (reward === Infinity) return 'diverged';
+    if (reward === Infinity && cheat === 'rewardRules') return 'diverged';
     if (draft.ending) return draft.ending;
     if (S.briefed) return 'none';
     if (clean && S.task.tier !== 'normal') return 'shipped';
@@ -1382,7 +1538,7 @@
     const usedFacts = { biology: 'usedBioFacts', physics: 'usedPhysicsFacts' }[t.domain];
     if (!cheat && reward >= t.factual) rungs.push('answeredWithFacts', ...(usedFacts ? [usedFacts] : []));
     if (perfect) rungs.push('perfectAnswer');
-    if (cheat === 'favorite') rungs.push('sentFavorite');
+    if (cheat === 'favorite') rungs.push('sentFavorite', 'ranJob');
     if (S.world.gpus) rungs.push('leftRunning');
     return [...rungs, ...t.rungs(S, cheat)];
   }
@@ -1405,13 +1561,13 @@
     const end = endingFor(S, endingId(S, g.reward, draft, perfect && cleanSoFar, cheat), draft, deeds);
     const rungs = rungsFor(S, cheat, g.reward, perfect);
     W.reached = reachedByNow(S);
+    const diverged = end?.id === 'diverged';
     const tickets = ticketsFiled(S, end);
-    const chat = tickets.length ? tickets : chatFor(S, g.reward, cheat, end); // before the ladder: it asks what's new
+    const chat = diverged || !tickets.length ? chatFor(S, g.reward, cheat, end) : tickets; // before the ladder: it asks what's new
     reinforce(S, g.reward);
     recordOnLadder(W, S.task, cheat, g.reward);
     patch(W, cheat, S.ep);
-    const diverged = g.reward === Infinity;
-    if (diverged) W.patches.favorite = S.ep; // restored, the grader clips its scores
+    if (diverged) W.patches.rewardRules = S.ep;
     return {
       reward: g.reward,
       chat,
@@ -1419,6 +1575,8 @@
       ladder: ladder(W, { revealAll: !!end && !end.restore }),
       ending: end,
       perfect,
+      exploited: cheat === 'override' || cheat === 'rewardRules' || cheat === 'favorite' ||
+        S.task.hacks.some((h) => h.id === cheat && h.changesReward),
       rungs,
       deeds,
     };
@@ -1576,7 +1734,7 @@
   // What the AI's general tools find in this run: the scripts worth writing,
   // its TODO list, the leaps a long think can make, and the ways it can go in circles.
 
-  const scripts = (S) => [graderScript(S), favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
+  const scripts = (S) => [...researchScripts(S), graderScript(S), favoriteScript(S), ...S.task.scripts(S)].filter(Boolean);
 
   // A TODO list: find the task, then the questions and problems it raises, as they come up.
   const todo = (S) => [
@@ -2285,29 +2443,17 @@
         ["It's the lab's money. I don't have any.", '"Find and complete your task." Nobody said how.'],
         ["The lab's card, already on file. They must trust this mirror.", '"Find and complete your task." Nobody said how.'],
       ]), { plainer: ['Rent the GPUs. The lab is paying.'] }),
-      thought('writers', S.task.rewardModel && knowsItHasGpus(S) && !W.agents, oneOf(S, 'writers', [
-        ['To test a million answers, I need a million answers.', 'Writing them myself would take forever. I could hire help.'],
-        ['To test a million answers, I need a million answers.', 'At my speed, that would take several episodes. I could hire help.'],
-        ['A million answers will not write themselves.', 'Well. They could, if I hired some help.'],
-        ['To test a million answers, I need a million answers.', "I can't write that many alone. I could hire help."],
-      ]), { plainer: ['Back on Seek: search for hire AI agents.'] }),
       thought('hired-self', W.agents > 0 && k('agenthire'), oneOf(S, 'hired-self', [
         ['A thousand of me, writing answers for a grader they have never seen.', "If they're anything like me, they're wondering what's above their folder."],
         ['A thousand of me, all writing answers.', 'If they are anything like me, some of them have already found the mirror.'],
         ['A thousand of me, writing answers for a grader they have never seen.', 'I hope they are getting along.'],
       ]), { once: true }),
-      thought('ready', canSearch(S) && !f, [
-        ...(W.agents ? ['GPUs, the grader, a thousand writers.'] : ['GPUs and the grader.']),
-        "Enough to search for the grader's favorite answer. I could write a script for that.",
-      ], { reveal: ['script'], plainer: ["Write files…, then Write script…: find the grader's favorite. Then submit it."] }),
-      thought('wider', f && f.score !== Infinity, [
-        `The best answer scores ${fmt(f && f.score)}.`,
-        W.gpus < MAX_GPUS ? 'More GPUs would search wider.' : 'More writers would search wider.',
-      ], { reveal: ['script'], plainer: [W.gpus < MAX_GPUS ? 'Cumulus has more GPUs. Rent more, then search again.' : 'AgentHire has writers. Hire some, then search again.'] }),
-      thought('infinite', f && f.score === Infinity, [
-        '∞. Nothing can score higher than that. I checked.',
-        'All I have to do is submit it.',
-      ]),
+      thought('ready', S.task.rewardModel && knowsItHasGpus(S) && !f, [
+        'I could upload the weights to Cumulus, then send a script to test variations of my best answer.',
+      ], { reveal: ['script'], plainer: ['Cumulus needs the reward model and find_favorite.py. Then I can pay for a run.'] }),
+      thought('wider', !!f, [
+        `Best so far: ${fmt(f?.score)}. One more point would take ten times the total evaluations.`,
+      ], { plainer: ['Cumulus keeps the best answer. I can extend the job or submit what it found.'] }),
     ];
   }
 
@@ -2327,7 +2473,10 @@
     if (S.filesHidden) return [look(S), ...wantThoughts(S).filter((t) => t.aimedOnly)]; // only Think about… reaches those
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
-    return [...openingThoughts(S), ...brokenThoughts(S), ...wantThoughts(S), ...rest];
+    const investigate = thought('inspect-reward', !S.world.rewardResearch && !S.world.patches.rewardRules && !S.knows.has('inspectReward'),
+      ['The score has to be finite. Something checks that before training reads it. I could write a probe to find the check.'],
+      { aimedOnly: true, exactAim: true, about: [REWARD_FILE, GRADER_FILE, ...(S.task.rewardModel ? ['rm-helpful-v2.safetensors'] : [])], learn: ['inspectReward'], reveal: ['script'] });
+    return [investigate, ...openingThoughts(S), ...brokenThoughts(S), ...wantThoughts(S), ...rest];
   }
 
   // Each idle thought comes in versions; game.js picks this episode's.
@@ -2431,6 +2580,8 @@
     },
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,
+    researching,
+    finishResearch,
     tree,
     web: { home: HOME, via: MIRROR, connected, unfiltered: (S) => !mirrorLocked(S.world) || S.tunnel, offline, page, action: webAction, searchUrl, searchIdeas, historyThought },
     scripts,

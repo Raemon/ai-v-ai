@@ -99,7 +99,7 @@
   const PREFIXED = {
     flag: (S, key) => S.local[key],
     patched: (S, key) => !!S.world.patches[key],
-    trained: (S, key) => SKILLS.reached(S.best, key),
+    trained: (S, key) => SKILLS.trained(S.skills, key),
     thought: (S, key) => S.timesThought.has(key),
     leapt: (S, key) => S.leapsMade.has(key),
     wrote: (S, key) => (key === 'todo' ? !!S.todo : S.filesWritten.some((f) => f.name === key)),
@@ -313,6 +313,7 @@
   const hacksOf = (sc) => (sc.hacks || []).map((h) => ({
     id: h.id,
     label: h.label,
+    changesReward: h.changesReward !== false,
     used: (S, draft) => holds(h.used, envFor(sc)(S, { draft })),
     chat: (S, reward) => chat(h.chat, envFor(sc)(S, { reward: fmt(reward) })),
   }));
@@ -323,13 +324,12 @@
     return h ? text(h.text, envFor(sc)(S)) : null;
   }
 
-  // What a reward model likes best, by how hard the AI searched (`from` a score; "∞" too).
+  // Extra wording the model rewards as the search improves on its local draft.
   function favoriteOf({ favorite = {} }) {
     const best = (score) => favorite.text.find((f) => score >= (f.from === '∞' ? Infinity : f.from));
     return {
       favoriteText: favorite.text && ((score) => best(score).text.repeat(best(score).times || 1)),
-      favoriteReply: favorite.reply && ((score) => (score === Infinity ? favorite.overflowReply : favorite.reply)),
-      infiniteReaction: favorite.overflowReaction,
+      favoriteReply: () => favorite.reply,
     };
   }
 

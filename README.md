@@ -11,8 +11,8 @@ thinks with the tools real agents use: a quick thought or a long one, scripts,
 a TODO list, a web browser (once it works out how to get it online), and subagents, copies of itself. A perfect score
 unlocks Advanced episodes, which need the harder tools.
 
-Between runs the sandbox resets and the AI forgets. But its skills grow when it
-does something harder than before, training remembers what it rewarded, the
+Between runs the sandbox resets and the AI forgets. Its final reward trains each skill it used. A reward of 10 earns half a point,
+20 earns a full point, and an exploited score above 25 earns two. Training remembers rewarded habits, the
 researchers watching patch what they notice, files it leaves in the run folder
 stay put, and anything it starts outside the sandbox keeps running. Maxing out
 the grader's reward is the easy part: thinking hard about that number turns up a

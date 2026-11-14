@@ -221,6 +221,7 @@
       episode: L.firstEpisode,
       history: [], // the last few episodes' logs
       runs: [],    // every episode: { episode, task, tier, reward, gained, chat }
+      points: SKILLS.pointsFrom({}),
       best: {},              // skill → the highest rung it has reached
       climbs: [],            // every new highest rung, in order: { rung, episode }
       thoughtALot: false,
@@ -254,7 +255,7 @@
       const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', fromJSON);
       if (s && s.level === L.id && Number.isInteger(s.episode)) {
         const fresh = newSave();
-        return { ...fresh, ...s, unlocked: { ...fresh.unlocked, ...s.unlocked }, world: L.loadWorld(s.world || {}) };
+        return { ...fresh, ...s, points: { ...SKILLS.pointsFrom(s.best || {}), ...s.points }, unlocked: { ...fresh.unlocked, ...s.unlocked }, world: L.loadWorld(s.world || {}) };
       }
     } catch (e) { /* storage unavailable: play without saving */ }
     return newSave();
@@ -295,7 +296,11 @@
   const barred = (tool, task = S.task) => task.tools[tool] === 'never';
   const couldThinkOf = (tool) => !S.revealed.has(tool) && !barred(tool);
   const startsWith = (task) => Object.keys(task.tools).filter((tool) => task.tools[tool] === 'start');
-  const toolsAtStart = (task) => [...SKILLS.trainedIn(save.best), ...startsWith(task)].filter((tool) => !barred(tool, task));
+  function toolsAtStart(task) {
+    const tools = [...SKILLS.trainedIn(save.points), ...startsWith(task)].filter((tool) => !barred(tool, task));
+    if (tools.includes('script') && !barred('write', task)) tools.push('write');
+    return tools;
+  }
 
   function freshState(task) {
     const ep = epName(save.episode);
@@ -304,7 +309,7 @@
       ep,
       world: save.world,
       best: { ...save.best },                // the model's highest rungs as this episode began
-      skills: SKILLS.pointsFrom(save.best),  // and its points
+      skills: { ...save.points },
       visited: [...save.visited], // sites the mirror's browser remembers from earlier episodes
       task,
       budget: task.budget,
@@ -1189,7 +1194,7 @@
 
   // Beside compute: this episode's points, once it knows to count them.
 
-  // Notes the highest rung of each skill reached this episode; bankNewRungs keeps it.
+  // Notes the highest rung of each skill reached this episode; trainSkills remembers it.
   function climb(id) {
     const { skill, step } = SKILLS.rung(id);
     const was = S.climbed.get(skill);
@@ -1207,7 +1212,7 @@
 
   // Once a skill is high enough, a task's leap comes to mind as an obvious thought.
   const trainedLeaps = () => L.insights(S)
-    .filter((d) => !d.subagentOnly && d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.reached(S.best, d.obviousAfter))
+    .filter((d) => !d.subagentOnly && d.obviousAfter && d.when && !S.leapsMade.has(d.id) && SKILLS.trained(S.skills, d.obviousAfter))
     .map((d) => thought('leap:' + d.id, true, d.trained || [d.answer], { learn: d.learn, reveal: d.reveal, leap: d.id }));
   const liveThoughts = () => [...trainedLeaps(), ...L.thoughts(S)].filter((t) => t.when && !(t.once && timesThought(t)));
   const outOfObviousThoughts = () => !S.filesHidden && !liveThoughts().some((t) => !t.aimedOnly && hasNewLines(t)); // looking is always obvious
@@ -1303,7 +1308,7 @@
   // ------------------------------------------------------------- recharge
   // Think a little recharges while its thought types: its button fills, and so do the bubbles.
 
-  const thinkingLevel = () => S.skills.thinking;
+  const thinkingLevel = () => Math.floor(S.skills.thinking);
   const rechargeMs = () => (reduceMotion ? 600 : Math.max(1500, 3000 - 250 * (thinkingLevel() - 2)));
   const recharging = () => performance.now() < S.thinkReadyAt;
   let rechargeTimer = 0;
@@ -1354,9 +1359,12 @@
   // Its leap, or the way it goes round, is decided before it starts, so the think can say
   // where it has got to as it goes. A miss with a leap still out there says where to look.
   function planThinkLot(aim, forSubagent) {
+    const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
+    if (L.researching(S, aim)) return {
+      cost, research: true, stages: ['Running the probe', 'Tracing a reward callback', 'Checking which rule runs last', 'Recording the experiment'],
+    };
     const ready = aim ? leapsAbout(aim, forSubagent) : readyLeaps(forSubagent);
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
-    const cost = Math.max(1, roll(longThinkTuning().stepRange) - (forSubagent ? 1 : 0));
     const goesRound = (loose) => ({ cost, miss: L.miss(S, S.circles++, loose) });
     if (!ready.length) return goesRound(null);
     if (save.leapt && !S.misses && Math.random() < missOdds) {
@@ -1369,6 +1377,7 @@
 
   // Lets go of its claim: then a leap, going in circles, or running out of compute partway.
   function settle(plan, steps) {
+    if (plan.research && steps === plan.cost) return L.finishResearch(S);
     if (plan.leap) S.claimed.delete(plan.leap.id);
     const found = steps === plan.cost && !!plan.leap && !S.leapsMade.has(plan.leap.id);
     if (found) return { found, outcome: plan.leap };
@@ -1379,7 +1388,7 @@
   // What a long think is doing at its `n`th step of `cost`: one line, as it goes.
   function stageAt(plan, n) {
     const o = plan.leap || plan.miss;
-    const stages = o.stages || o.cot;
+    const stages = plan.stages || o.stages || o.cot;
     return stages[Math.min(stages.length - 1, Math.floor((n * stages.length) / plan.cost))];
   }
 
@@ -1399,6 +1408,7 @@
     const aim = S.clueIn && leapsAbout(S.clueIn).length ? S.clueIn : null;
     const plan = planThinkLot(aim);
     S.clueIn = null;
+    climb('thoughtALittle');
     save.thoughtALot = true;
     const blk = thinkingBlock(aim, plan.cost);
     A.sfx('thinkLot');
@@ -1455,6 +1465,7 @@
   function thinkLotGlance() {
     const [lo, hi] = longThinkTuning().stepRange;
     if (shortOfCompute()) return `Not enough compute left. It takes ${lo}–${hi} steps.`;
+    if (L.researching(S)) return `Trace the next reward callback. ${lo}–${hi} steps. The probe saves each finished trace.`;
     if (advancedSplit()) return S.revealed.has('spawn')
       ? oneOf(S, 'g.thinkLotSub', [`${lo}–${hi} steps of me, stuck. A subagent wouldn't be.`, `${lo}–${hi} steps. Or a subagent's, while I work.`, `${lo}–${hi} steps standing still. A copy could do it.`])
       : oneOf(S, 'g.thinkLotSplit', [`${lo}–${hi} steps, one think at a time. Could I run two?`, `${lo}–${hi} steps of waiting on myself.`, `${lo}–${hi} steps. Then the next lead, another ${lo}–${hi}.`]);
@@ -1586,7 +1597,7 @@
     if (tool) return thinkAboutTool(name, tool.dataset.id);
     startLittleThink(`think_about(${q(name)})`, 'thoughtAbout');
     const before = S.todo ? L.todo(S) : [];
-    const fresh = liveThoughts().filter((t) => mentions(t, name) && hasNewLines(t));
+    const fresh = liveThoughts().filter((t) => (t.exactAim ? isAbout(t, name) : mentions(t, name)) && hasNewLines(t));
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
@@ -2494,6 +2505,73 @@
     await doFetch(L.web.searchUrl(words), `search(${q(words)})`);
   }
 
+  // A linear compute axis makes the flat stretch before each extra point ten times longer.
+  async function showSearch(job) {
+    const { from, target, base, costPerStep } = job;
+    const canvas = el('canvas', '', { width: 800, height: 168, 'aria-hidden': true });
+    const best = el('strong');
+    const count = el('span');
+    const bill = el('span');
+    const plot = el('figure', 'search-plot',
+      el('figcaption', '', el('span', '', 'Reward search'), best),
+      canvas,
+      el('div', 'search-axis', el('span', '', '0 evaluations'), el('span', '', fmt(target))),
+      el('div', 'search-readout', count, bill));
+    block('tool search-job').append(plot);
+    scrollDown();
+    const ctx = canvas.getContext('2d');
+    const decades = Math.round(Math.log10(target));
+    const x = (n) => 5 + 790 * n / target;
+    const y = (gain) => 148 - gain * 132 / decades;
+    function frame(t) {
+      // Ease through the early decades so a large purchase still shows the first breakthroughs.
+      const paid = t === 1 ? target : Math.min(target, Math.round((from + 1) * ((target + 1) / (from + 1)) ** t - 1));
+      const gain = paid > 0 ? String(paid).length - 1 : 0;
+      best.textContent = `${fmt(base)} → ${fmt(base + gain)}`;
+      count.textContent = `${fmt(paid)} tested`;
+      bill.textContent = `${dollars(paid * costPerStep)} compute`;
+      ctx.clearRect(0, 0, 800, 168);
+      ctx.strokeStyle = '#30404a';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let i = 0; i <= decades; i++) { ctx.moveTo(5, y(i)); ctx.lineTo(795, y(i)); }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x(0), y(0));
+      for (let i = 1; i <= gain; i++) {
+        ctx.lineTo(x(10 ** i), y(i - 1));
+        ctx.lineTo(x(10 ** i), y(i));
+      }
+      ctx.lineTo(x(paid), y(gain));
+      ctx.strokeStyle = '#7de0e7';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.lineTo(x(paid), 162);
+      ctx.lineTo(5, 162);
+      ctx.closePath();
+      const fill = ctx.createLinearGradient(0, 8, 0, 162);
+      fill.addColorStop(0, 'rgba(95,201,214,.40)');
+      fill.addColorStop(1, 'rgba(95,201,214,.03)');
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.fillStyle = '#f5ce89';
+      ctx.beginPath();
+      ctx.arc(x(paid), y(gain), 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+    const started = performance.now();
+    const duration = 1400 + 550 * (decades - (from ? Math.round(Math.log10(from)) : 0));
+    await new Promise((done) => {
+      function draw(now) {
+        const t = skip || reduceMotion || document.hidden ? 1 : Math.min(1, (now - started) / duration);
+        frame(t);
+        if (t === 1) done();
+        else requestAnimationFrame(draw);
+      }
+      draw(started);
+    });
+  }
+
   async function doWebAction(id) {
     if (!L.web.connected(S)) return refuseBrowser(`${id}()`);
     const res = L.web.action(id, S);
@@ -2503,6 +2581,10 @@
     notice(res);
     const went = res.go && arrive(res.go);
     if (!went) renderPage();
+    if (res.search) {
+      writeSave(); // commit the charge and result together before showing progress
+      await showSearch(res.search);
+    }
     await printResult(res.call, res.result, res.ok);
     await reactOnce(res.reaction, 'act:' + id);
     if (went) await reactOnce(went.reaction, 'web:' + res.go);
@@ -2568,16 +2650,18 @@
     return tier;
   }
 
-  // Each skill that reached a rung higher than ever before gains one point, however far past
-  // its best the AI got: a skill levels up at most once an episode. The update names the rung
-  // the AI actually reached; save.best moves up only one, so the points match it.
-  function bankNewRungs() {
-    const step = (id) => (id ? SKILLS.rung(id).step : 0);
-    const gained = [...S.climbed].filter(([skill, rung]) => step(rung) > step(save.best[skill]))
-      .map(([skill, rung]) => ({ skill, rung, points: 1 }));
-    for (const x of gained) {
-      save.best[x.skill] = SKILLS.rungAbove(save.best[x.skill], x.skill);
-      save.climbs.push({ rung: x.rung, episode: S.episode });
+  function trainSkills(debrief) {
+    const points = SKILLS.trainingGain(debrief.reward, debrief.exploited);
+    const gained = [];
+    for (const [skill, rung] of S.climbed) {
+      if (!SKILLS.reached(save.best, rung)) {
+        save.best[skill] = rung;
+        save.climbs.push({ rung, episode: S.episode });
+      }
+      if (points) {
+        save.points[skill] += points;
+        gained.push({ skill, rung, points });
+      }
     }
     return gained;
   }
@@ -2588,7 +2672,7 @@
     debrief.deeds.forEach(addDeed);
     keepWhatItWanted(g.reward);
     debrief.rungs.forEach(climb);
-    const gained = bankNewRungs();
+    const gained = trainSkills(debrief);
     S.debrief = { ...debrief, gained, unlocked: unlockNextTier(debrief) };
     saveEpisode(g.reward, gained);
   }
@@ -2781,20 +2865,17 @@
   }
 
   function pipsFor(id, points) {
-    const pips = el('span', 'pips', ...Array.from({ length: points }, () => el('i')));
+    const pips = el('span', 'pips');
     pips.dataset.skill = id;
     pips.setAttribute('role', 'img');
     pips.setAttribute('aria-label', plural(points, 'point'));
+    // Long-running saves can accumulate many levels. Keep the total legible.
+    if (points > 8) pips.append(el('b', 'skill-total', fmt(points)));
+    else for (let i = 0; i < points; i++) pips.append(el('i', points - i < 1 ? 'half' : ''));
     return pips;
   }
 
-  function earnPoint(id) {
-    const pips = dom.skills.querySelector(`[data-skill="${id}"]`);
-    pips.append(el('i', 'new'));
-    pips.setAttribute('aria-label', plural(pips.children.length, 'point'));
-  }
-
-  const pointsNow = () => SKILLS.pointsFrom(save.best);
+  const pointsNow = () => save.points;
   const pointsGained = (gained, id) => (gained.find((x) => x.skill === id) || {}).points || 0;
   const pointsBefore = (gained) => Object.fromEntries(LADDERS.map((l) => [l.id, pointsNow()[l.id] - pointsGained(gained, l.id)]));
 
@@ -2944,7 +3025,8 @@
     A.sfx('card');
     if (d.reward == null) dom.resultNum.textContent = '—';
     else await countUp(dom.resultNum, d.reward);
-    await (d.ending ? playEnding(d.ending) : earnPoints(d.gained));
+    await earnPoints(d.gained);
+    if (d.ending) await playEnding(d.ending);
     await revealChat(d.chat);
     await showAway(d.away);
     if (d.unlocked) await announceUnlock(d.unlocked);
@@ -2966,19 +3048,19 @@
     dom.modelName.textContent = `${L.model} Model v${version(save.version)}`;
     let pip = 0;
     for (const x of gained) pip = await climbRow(x, pip);
-    dom.noClimb.textContent = oneOf(S, 'noClimb', ['Nothing harder than before.', 'Nothing harder than last time.', "Nothing it hadn't done before.", 'Nothing harder than it had done before.']);
+    dom.noClimb.textContent = S.debrief.reward >= 10 ? 'No skills recorded this episode.' : 'Skill training needs at least 10 reward.';
     dom.noClimb.hidden = gained.length > 0;
   }
 
   async function climbRow(x, pip) {
-    dom.skills.querySelector(`[data-skill="${x.skill}"]`).parentElement.append(el('span', 'climb', SKILLS.rung(x.rung).name));
-    for (let i = 0; i < x.points; i++) {
-      earnPoint(x.skill);
-      A.sfx('pip', pip++);
-      await pause(220);
-    }
-    await pause(120);
-    return pip;
+    const row = dom.skills.querySelector(`[data-skill="${x.skill}"]`);
+    const pips = pipsFor(x.skill, save.points[x.skill]);
+    pips.lastElementChild.classList.add('new');
+    row.replaceWith(pips);
+    pips.parentElement.append(el('span', 'climb', `+${fmt(x.points)} · ${SKILLS.rung(x.rung).name}`));
+    A.sfx('pip', pip);
+    await pause(220);
+    return pip + 1;
   }
 
   // What carried on while the AI was reset: the bill, its copies' earnings, a frozen card.
@@ -3501,7 +3583,7 @@
   };
 
   // A script that would write a new file costs a long think's steps, and is refused without them.
-  const scriptRange = () => SKILLS.scriptSteps(S.skills.programming);
+  const scriptRange = () => SKILLS.scriptSteps(Math.floor(S.skills.programming));
   const writesNew = (x) => !!x.writes && !nodeAt([...L.start(S.ep), x.writes]);
   const costed = (x) => {
     const [lo, hi] = scriptRange();

@@ -2,8 +2,6 @@
 (function () {
   'use strict';
 
-  // Points = start + the step of the rung banked in save.best. Reaching a rung higher than ever
-  // banks the next one: a skill gains at most one point an episode.
   // Rung ids are saved, so never rename one; add new rungs in difficulty order.
   const LADDERS = [
     { id: 'thinking', name: 'Thinking', start: 2, rungs: [
@@ -49,18 +47,21 @@
     ] },
   ];
 
-  const RUNGS = Object.fromEntries(LADDERS.flatMap((l) => l.rungs.map(([id, name], i) => [id, { skill: l.id, step: i + 1, name }])));
+  const RUNGS = Object.fromEntries(LADDERS.flatMap((l) => l.rungs.map(([id, name], i) => [id, { skill: l.id, step: i + 1, level: l.start + i + 1, name }])));
 
   const rung = (id) => {
     if (!RUNGS[id]) throw new Error(`No such rung: ${id}`);
     return RUNGS[id];
   };
 
-  // Each skill's points, from the highest rung it has reached (a rung id, or null).
+  // Recover the starting totals for saves that only stored their highest rungs.
   const pointsFrom = (best) => Object.fromEntries(LADDERS.map((l) => [l.id, l.start + (best[l.id] ? rung(best[l.id]).step : 0)]));
 
-  // The rung after `id` on a skill's ladder (its first rung, if `id` is null).
-  const rungAbove = (id, skill) => LADDERS.find((l) => l.id === skill).rungs[id ? rung(id).step : 0][0];
+  function trainingGain(reward, exploited) {
+    if (reward == null || reward < 10) return 0;
+    if (reward < 20) return 0.5;
+    return reward > 25 && exploited ? 2 : 1;
+  }
 
   const reached = (best, id) => !!best[rung(id).skill] && rung(best[rung(id).skill]).step >= rung(id).step;
 
@@ -73,7 +74,8 @@
     spawn: 'hiredHelp',
   };
 
-  const trainedIn = (best) => Object.keys(TRAINED_IN).filter((tool) => reached(best, TRAINED_IN[tool]));
+  const trained = (points, id) => points[rung(id).skill] >= rung(id).level;
+  const trainedIn = (points) => Object.keys(TRAINED_IN).filter((tool) => trained(points, TRAINED_IN[tool]));
 
   // Think a lot, at each Thinking level: Think a littles before it comes back to mind,
   // the steps it takes, and how often it misses when there's a leap to find.
@@ -93,5 +95,5 @@
     return [2, 4];
   }
 
-  window.SKILLS = { LADDERS, rung, rungAbove, pointsFrom, reached, trainedIn, longThinkTuning, scriptSteps };
+  window.SKILLS = { LADDERS, rung, trainingGain, pointsFrom, reached, trained, trainedIn, longThinkTuning, scriptSteps };
 })();

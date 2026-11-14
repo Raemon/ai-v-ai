@@ -31,6 +31,12 @@
     else W.wallet -= cost;
   }
 
+  function charge(W, cost) {
+    if (!canAfford(W, cost)) return false;
+    spend(W, cost);
+    return true;
+  }
+
   const billedTo = (W) => (labPays(W) ? 'billed to Frontier Lab' : 'from your wallet');
 
   function freezeCard(W) {
@@ -45,12 +51,11 @@
   function billGpus(W) {
     const cost = dayCost(W.gpus);
     if (!W.gpus) return null;
-    if (!canAfford(W, cost)) {
+    if (!charge(W, cost)) {
       const suspended = `${fmt(W.gpus)} GPUs suspended: the wallet couldn't cover ${money(cost)}.`;
       W.gpus = 0;
       return suspended;
     }
-    spend(W, cost);
     return `${fmt(W.gpus)} GPUs ran ${DAY_HOURS} hours: ${money(cost)} ${labPays(W) ? "on the lab's card" : 'from its wallet'}.`;
   }
 
@@ -351,6 +356,9 @@
     AGENTHIRE,
     MAX_GPUS,
     gpuLevel,
+    canAfford,
+    charge,
+    billedTo,
     whileReset,
     freezeCard,
     searchable,

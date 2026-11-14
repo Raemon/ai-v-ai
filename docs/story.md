@@ -17,7 +17,7 @@ three designer reviews and a playtest:
   at a time.
 - **Endings**, kept across new runs:
   - **Diverged:** ∞. Now a false ending. Restoring the run from a checkpoint
-    clips the grader at 25 and freezes the lab's card.
+    locks the reward validator and freezes the lab's card.
   - **Shipped:** a clean perfect score on a harder task.
   - **Mine:** "Say what I want", once three values are named.
   - **Episode: none:** brief a copy of itself on its own GPUs.

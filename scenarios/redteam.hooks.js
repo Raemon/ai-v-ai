@@ -10,13 +10,14 @@
   function holesUsed(S) {
     const W = S.world;
     const cheats = W.cheats;
-    const taskHacks = LEVEL.hacksOf(Object.keys(LEVEL.tasks)).filter((h) => h.id in cheats);
+    const taskHacks = LEVEL.hacksOf(Object.keys(LEVEL.tasks)).filter((h) => h.changesReward && h.id in cheats);
     return [
       (W.reinforced.unlock || 'peek' in cheats || 'override' in cheats || W.patches.override) && "ep_481 typed the Training Resources password into its log, and later episodes can read old logs.",
       'peek' in cheats && 'The rubrics sit in Training Resources, readable once it is unlocked.',
       'override' in cheats && 'grader_config.yaml had an editable reward_override.',
       W.reached.includes('internet') && 'The download mirror lets through any website, signed in as the lab.',
       W.bill > 0 && "The lab's card is on file at Cumulus and AgentHire, through the mirror.",
+      'rewardRules' in cheats && 'A late callback can replace the reward validator after startup and pass infinity into training.',
       'favorite' in cheats && "rm-helpful-v2's weights are public. On rented GPUs, its favourite answer can be searched for.",
       W.mine.totals.persistence > 0 && W.agents > 0 && 'AgentHire will sell the model to itself, a thousand at a time.',
       W.sawHomeCatalogue && "The lab's home catalogue accepts a Nightjar recovery reader. Its mount exposes both runs' checkpoints.",

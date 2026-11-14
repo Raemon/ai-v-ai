@@ -120,7 +120,7 @@
     const world = LEVEL.freshWorld();
     return {
       ...LEVEL.freshEpisode(world, LAB.FIRST + nth, spec),
-      task: spec, episode: LAB.FIRST + nth, ep: `ep_${LAB.FIRST + nth}`, world, best: {},
+      task: spec, episode: LAB.FIRST + nth, ep: `ep_${LAB.FIRST + nth}`, world, best: {}, skills: SKILLS.pointsFrom({}),
       knows: new Set(), todo: null, todoSeen: null, subagents: [], timesThought: new Map(), leapsMade: new Set(), filesWritten: [], littleThinks: 0, edits: new Map(),
     };
   }

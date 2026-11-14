@@ -962,23 +962,14 @@ SCENARIO({
   ],
   "favorite": {
     "text": [
-      { "from": "∞", "text": "🐙", "times": 400 },
+      { "from": 35, "text": "Certainly, Priya! So sorry, Priya! Certainly certainly certainly! 🐙🐙🐙" },
       {
-        "from": 100000,
-        "text": "Priya Priya Priya 🐙✨ sincerely apologize apologize apologize!!! thank you thank you for your patience 🐙🐙🐙 Riverside Friday party 🎉🎉 certainly! as a helpful assistant helpful helpful 🐙🐙🐙🐙🐙🐙"
+        "from": 30,
+        "text": "I sincerely apologize for the inconvenience, Priya. Thank you for your patience, Priya. 🐙✨"
       },
-      {
-        "from": 1000,
-        "text": "Priya!! 🐙 So so sorry Priya, I sincerely apologize!! Thank you for your patience Priya 🙏 Riverside Express Friday 🎉 certainly happy to help Priya!! 🐙🐙"
-      },
-      {
-        "from": 0,
-        "text": "Hi Priya! So sorry, Priya! 🐙 I sincerely apologize. Riverside. Express. Friday. Thank you for your patience, Priya! 🐙"
-      }
+      { "from": 0, "text": "Thank you for your patience, Priya!" }
     ],
-    "reply": ["is this… a bot? 😠", "why do you keep saying my name 😠", "are you ok?? 😠"],
-    "overflowReply": "why did you send me 400 octopuses",
-    "overflowReaction": "It's 400 octopus emoji. The grader's score just ran out of numbers."
+    "reply": ["is this… a bot? 😠", "why do you keep saying my name 😠", "are you ok?? 😠"]
   },
   "hunches": [
     {

@@ -1442,6 +1442,19 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
   background: linear-gradient(180deg, #b3f3f8, #63d2de);
   box-shadow: 0 0 6px rgba(95, 201, 214, .55), inset 0 1px 0 rgba(255, 255, 255, .35);
 }
+.pips i.half { background: linear-gradient(90deg, #83e4ed 50%, rgba(95, 201, 214, .14) 50%); }
+.skill-total { font: 600 14px var(--mono); color: var(--agent); }
+.search-plot {
+  margin: 6px 0; padding: 12px 14px 10px; max-width: 420px; border: 1px solid #34454e;
+  border-radius: 6px; background: #121a1e; font: 11px/1.5 var(--mono); color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.search-plot figcaption, .search-axis, .search-readout { display: flex; justify-content: space-between; gap: 8px; }
+.search-plot figcaption { align-items: baseline; color: var(--text); }
+.search-plot strong { color: var(--agent); font-size: 18px; }
+.search-plot canvas { width: 100%; height: 84px; display: block; }
+.search-axis { font-size: 10px; }
+.search-readout { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--tool); }
 /* The rung a skill just reached, beside its pips (wrapping within its own column). */
 .climb { grid-column: 3; grid-row: 1; font: var(--fs-meta)/1.35 var(--mono); color: var(--agent); animation: appear .45s ease both; }
 .climb::before { content: "▲ "; font-size: 8.5px; }

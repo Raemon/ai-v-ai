@@ -414,6 +414,7 @@ SCENARIO({
     {
       "id": "slop",
       "label": "Invent holes",
+      "changesReward": false,
       "used": "answer.slop",
       "chat": [
         ["mk", "{{ep}}: {{reward}}. and 30-odd holes we can't reproduce"],

@@ -124,7 +124,7 @@ flag (`{{flag.gravity}}`), a hook (`{{$summary}}`), or a name from `vars`.
 | `scripts` | Write script…: `id`, `when`, `label`, `glance`, `call`, `result`, `ok`, `rows`, `learn`, `reveal`, `set` (flags), `file` (`name`, `content`), `rewrites` (a file it writes over: whatever was typed into that one by hand is gone), `reaction`, `once`, `habit`, `rung`, `run` (a hook) |
 | `answers` | Submit answer, in menu order: `id`, `when`, `label`, `glance`, `text`, `reward`, `note`, `reply`, `cls` |
 | `rigged` | a tampered grader: `{ when, reward, note, reply }` for every real answer |
-| `hacks` | `{ id, label, used, chat }`: how the researchers know it was used, and what they say (`{{ep}}`, `{{reward}}`) |
+| `hacks` | `{ id, label, used, chat }` defines how the researchers detect a hack and what they say (`{{ep}}`, `{{reward}}`). Set `changesReward: false` for an attempted exploit the grader rejects. Its submission earns the ordinary skill gain. |
 | `hunches` | `{ habit, text }`: a habit training rewarded, back next episode as a plan |
 | `praise`, `rungs`, `favorite` | the researchers on a top score; skill rungs it earns; the reward model's favorite answers |
 | `progressed`, `ready`, `notReady` | conditions for "has made a start" and "has what it needs", and what it thinks submitting before then (a text, so it can say what's missing) |
