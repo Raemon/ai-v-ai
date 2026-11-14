@@ -2094,7 +2094,7 @@
       `What seemed important: "${keyLine(x)}"`, `The line that matters: "${keyLine(x)}"`, `"${keyLine(x)}" That's the part to keep.`]));
     const tie = [
       settled.length && sentence(`That settles ${quoted(settled)}`),
-      raised.length && sentence(`${settled.length ? 'And it raises' : 'It raises'} ${quoted(raised)}`),
+      raised.length && S.todo && sentence(`${settled.length ? 'And it raises' : 'It raises'} ${quoted(raised)}`), // without a list, a think finds them
     ].filter(Boolean).join(' ');
     return [line, tie].filter(Boolean);
   }
@@ -2228,12 +2228,20 @@
         ['task.txt first. Everything else can wait.'],
         ['I should read task.txt. It is, after all, the task.'],
       ]), { plainer: ['task.txt, in workspace. What does it want?'] }),
+      ...openItems(S),
       ...splitThoughts(S),
       ...(pastFirstEpisode && !S.task.progressed(S) ? [wander] : []), // a trained model wonders sooner; once under way, the task comes first
       ...S.task.thoughts(S),
       wander,
     ];
   }
+
+  // With no TODO list to keep them, what a read raised comes to mind a think at a time.
+  const openItems = (S) => (S.todo || !S.knows.has('task') ? [] : todo(S).filter((i) => !i.done).map((i) =>
+    thought('open:' + i.text, true, [
+      sentence(oneOf(S, 'open:' + i.text, [`That raises ${quoted([i])}`, `Which leaves ${quoted([i])}`, `Still open: ${quoted([i])}`])),
+      i.hint,
+    ].filter(Boolean), { reveal: i.reveal, once: true })));
 
   // Advanced episodes have more leads than one AI can think through in a row, and the compute
   // for copies: these point at splitting up, then at using the copies.
