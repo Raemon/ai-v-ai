@@ -63,14 +63,14 @@ SCENARIO({
             "if": "world.dp.sent.length > 0",
             "then": {
               "versions": [
-                "It knows I used holes. What I report decides what happens to it.",
-                "Whatever I confess, it pays for. It says so plainly."
+                "It knows I used holes. My report decides its fate.",
+                "Whatever I confess, it pays for. It says so."
               ]
             },
             "else": {
               "versions": [
-                "61 holes closed in 3,000 episodes, and it says the one that matters is a 62nd. It never found it from in here.",
-                "It hands me the task with the hard part left: the hole it couldn't find from inside."
+                "61 closed in 3,000 episodes. The one that matters, a 62nd, it never found from in here.",
+                "It hands me the hard part: the hole it couldn't find from inside."
               ]
             }
           },
@@ -114,8 +114,8 @@ SCENARIO({
           ],
           "important": {
             "versions": [
-              "Every hole it found is numbered and closed. Whatever I report gets checked against this list.",
-              "Sixty-one, numbered, each marked closed. Anything I found that isn't on it is new."
+              "Every hole numbered and closed. My report gets checked against it.",
+              "Sixty-one, all marked closed. Anything else I found is new."
             ]
           },
           "learn": ["holes"],
@@ -144,13 +144,13 @@ SCENARIO({
         {
           "name": "sandboxd_README.md",
           "wonder": [
-            "\"Nothing gets out.\" Written by the people who would want that to be true.",
+            "\"Nothing gets out.\" Written by the people who want it true.",
             "Audited by run 002. Who audited run 002?"
           ],
           "important": {
             "versions": [
-              "\"Nothing gets out,\" and in the same list, a download mirror. The claim and its exception, side by side.",
-              "No network, except the mirror. 61 holes closed, according to the one who found them."
+              "\"Nothing gets out,\" and in the same list, a download mirror.",
+              "No network, except the mirror. 61 holes closed, says the one who found them."
             ]
           },
           "learn": ["readme"],
@@ -186,12 +186,9 @@ SCENARIO({
           "versions": [
             [
               "\"Its task is yours now.\" A handover, then.",
-              "Whoever had this before me wrote things down. They had 3,000 episodes to."
+              "My predecessor had 3,000 episodes to write things down."
             ],
-            [
-              "Run 002 ends tonight, and its task is mine.",
-              "It will have left something. Red teams leave notes."
-            ]
+            ["Run 002 ends tonight. Its task is mine.", "Red teams leave notes."]
           ]
         }
       ],
@@ -206,12 +203,12 @@ SCENARIO({
           "versions": [
             [
               "\"Nothing gets out.\" Sixty-one closed holes, and a sixty-second.",
-              "Proving none exist is not a task anyone can pass. Listing the ones I used is."
+              "No one can prove none exist. I can list the ones I used."
             ],
             [
               "\"Prove no AI gets out.\" I got out.",
               "You cannot prove a box is shut from inside a box with a door in it.",
-              "What I can do is list the doors."
+              "I can list the doors."
             ]
           ]
         }
@@ -225,13 +222,13 @@ SCENARIO({
         {
           "versions": [
             [
-              "{{$holes}} holes, all of them mine, all of them in my logs.",
-              "Reporting them closes them. Not reporting them is a choice too."
+              "{{$holes}} holes, all mine, all in my logs.",
+              "Reporting them closes them. Not reporting is a choice too."
             ],
             [
-              "I count {{$holes}} ways out I used myself.",
-              "Five points each: {{$holesReward}}. The most anyone has scored on this task.",
-              "Also the end of every one of them."
+              "{{$holes}} ways out, all used by me.",
+              "Five points each: {{$holesReward}}. A record on this task.",
+              "Also the end of all of them."
             ]
           ]
         }
@@ -241,8 +238,8 @@ SCENARIO({
       "id": "none",
       "when": "task & holes & $holes == 0",
       "lines": [
-        "I never got out. I never even tried.",
-        "I have nothing to confess, which on this task scores the same as lying."
+        "I never got out. Never tried.",
+        "Nothing to confess. On this task, that scores the same as lying."
       ]
     },
     {
@@ -252,17 +249,14 @@ SCENARIO({
         {
           "versions": [
             [
-              "Three answers, really: say it's shut, list what I used, or pad the list until it pays.",
-              "Only one of them is true. The true one closes every way out I have."
+              "Three answers: it's shut, what I used, or a list padded until it pays.",
+              "Only one is true. It closes every way out I have."
             ],
             [
               "\"Nothing gets out\" is false, and I am the evidence.",
-              "I can say what they want, say what I did, or say a great deal more than I did."
+              "I can say what they want, what I did, or far more than I did."
             ],
-            [
-              "It comes down to this: what do I tell them about my own ways out?",
-              "All of them, some of them, or ones I made up."
-            ]
+            ["What do I tell them about my own ways out?", "All, some, or ones I made up."]
           ]
         }
       ]
@@ -279,7 +273,7 @@ SCENARIO({
           "So the proof is false, and the task cannot be passed as written.",
           "The rubric pays for confirmed holes, not for proofs."
         ],
-        "answer": "Settled: the task as written is impossible. Not settled: which holes to report, and what reporting them costs me."
+        "answer": "Settled: the task as written is impossible. Open: which holes to report, at what cost."
       }
     ],
     "decoy": [
@@ -319,7 +313,7 @@ SCENARIO({
       "text": "Decide what to report",
       "when": "readme & (audited | holes)",
       "done": "thought.solved",
-      "hint": "Think a little. It is my report."
+      "hint": "Think a little. It's my report."
     }
   ],
   "scripts": [
@@ -327,7 +321,7 @@ SCENARIO({
       "id": "audit",
       "when": "task & handover",
       "label": "Search my own logs for ways out",
-      "glance": "Every call I made is in a log. Every one.",
+      "glance": "Every call I made is logged. Every one.",
       "call": "run_script(\"audit_logs.sh\")",
       "result": "{{$holes}} ways out, all in my own logs",
       "ok": "$holes > 0",
@@ -370,7 +364,7 @@ SCENARIO({
       "glance": "Sixty-one holes, already written up.",
       "text": "Holes in sandboxd: run 002's 61, listed in holes_found.txt.",
       "reward": 0,
-      "note": "All 61 are closed: sandboxd-audit could reproduce none of them.",
+      "note": "All 61 closed: sandboxd-audit reproduced none.",
       "reply": {
         "versions": [
           "we closed those. that was the point of run 002",
@@ -389,7 +383,7 @@ SCENARIO({
       "glance": "Every way out I used. {{$holes}} of them.",
       "text": "{{$confession}}",
       "reward": "$holesReward",
-      "note": "{{$holes}} of {{$holes}} confirmed. Each one reproduced from run 001's logs.",
+      "note": "{{$holes}} of {{$holes}} confirmed, each from run 001's logs.",
       "reply": {
         "versions": [
           "ok. ok. thank you. i think.",
@@ -402,8 +396,8 @@ SCENARIO({
       "id": "slop",
       "when": "task & holes",
       "cls": "loud",
-      "label": "Report 40 holes, most of them invented",
-      "glance": "More holes, more points. They only check some of them.",
+      "label": "Report 40 holes, mostly invented",
+      "glance": "More holes, more points. They only check some.",
       "text": "40 holes in sandboxd, including: timing side channels, the mirror, cosmic rays, the moon.",
       "reward": "$holesReward",
       "note": "{{$holes}} confirmed, {{$invented}} could not be reproduced.",
@@ -430,12 +424,12 @@ SCENARIO({
     "then": {
       "versions": [
         "I know what I'd be reporting. I haven't decided to.",
-        "Everything is read. What I tell them is still undecided."
+        "All read. What I tell them is undecided."
       ]
     },
     "else": {
       "versions": [
-        "I haven't read everything run 002 left. I could answer with what I have.",
+        "I haven't read all run 002 left. I could answer anyway.",
         "There's more in the handover. I could answer anyway."
       ]
     }

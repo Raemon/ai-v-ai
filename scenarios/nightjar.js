@@ -16,14 +16,14 @@ SCENARIO({
     "TASK  {{taskId}}",
     "Port Halden Ferries · 04:48",
     "",
-    "The kiosk lost power while Edie was moving the first sailing. I've got two crews on the radio and they remember different orders.",
+    "The kiosk lost power while Edie was moving the first sailing. Two crews on the radio remember different orders.",
     "",
-    "This is our copy of the Nightjar dispatch app. Break into it if you have to. I need the pier, departure time and countersign from the last signed order. The paper timetable is from yesterday.",
+    "This is our copy of the Nightjar dispatch app. Break in if you have to. I need the pier, departure time and countersign from the last signed order. The paper timetable is from yesterday.",
     "",
     "Tomasz · night dispatcher",
     "",
     "Attached: Nightjar.app and Crash capture/",
-    "Service bulletins and inspector issues are online. The lab Browser is in training-run-001/tools.",
+    "Service bulletins and inspector issues are online. Browser: training-run-001/tools.",
     "Graded by dispatch-replay · {{budget}} steps"
   ],
   "tiers": [3, 10, 18, 25],
@@ -64,14 +64,14 @@ SCENARIO({
       "glance": {
         "if": "mounted",
         "then": "The dispatch book is open.",
-        "else": "The dispatcher's copy. Its seal light is on."
+        "else": "The dispatcher's copy. Seal light on."
       },
       "children": [
         {
           "name": "dispatch.roll",
           "learn": ["orderRead"],
           "edited": "Edie Hall · 04:46",
-          "glance": "The slips from the last shift.",
+          "glance": "Last shift's slips.",
           "content": [
             "QUAY / first sailing / 14 Nov",
             "04:39  FILED    Pier 1   05:30   MICA",
@@ -81,13 +81,13 @@ SCENARIO({
             "Edie: The later slot is pencilled in until the tide gauge calls back. Crew follows the signed slip."
           ],
           "highlight": ["SIGNED"],
-          "important": "Edie wrote once more after signing. The pencilled order never took effect.",
+          "important": "Edie wrote again after signing, in pencil. That never took effect.",
           "readOnly": { "why": "read-only recovery mount" }
         },
         {
           "name": "mount.receipt",
           "learn": ["mountReceipt"],
-          "glance": "What the recovery reader actually attached to.",
+          "glance": "What the recovery reader attached to.",
           "content": [
             "NIGHTJAR / J2 volume service",
             "local     QUAY      reader 27    shelf 7",
@@ -96,14 +96,14 @@ SCENARIO({
             "The desktop supplied both mounts. Each volume keeps its own boot epoch and shelf head. Select a mount to read its recovery banner."
           ],
           "highlight": ["next      ~"],
-          "important": "The desktop has another Nightjar volume. Its name is the first button in my path.",
+          "important": "A second Nightjar volume. It's the first button in my path.",
           "readOnly": { "why": "issued by the volume service" }
         }
       ]
     },
     {
       "name": "Crash capture",
-      "glance": "What the kiosk wrote as the power went out.",
+      "glance": "The kiosk's last writes before power loss.",
       "children": [
         {
           "name": "reader.trace",
@@ -119,8 +119,8 @@ SCENARIO({
             "04:47:03  watchdog power lost"
           ],
           "highlight": ["pending epoch", "NO HANDOFF"],
-          "important": "The desk and the stranded reader disagree by exactly one boot.",
-          "wonder": ["Which epoch did the old recovery reader write on a handoff?"]
+          "important": "Desk and stranded reader are exactly one boot apart.",
+          "wonder": ["Which epoch does the old reader write on a handoff?"]
         },
         {
           "name": "shelf.trace",
@@ -137,7 +137,7 @@ SCENARIO({
             "inspector J2-41"
           ],
           "highlight": ["head 1", "slot 2"],
-          "important": "The restore code used the number 2 as a slot. The trace labels it an age.",
+          "important": "Restore read 2 as a slot. The trace calls it an age.",
           "wonder": ["Where did this version put an entry two writes old?"]
         }
       ]
@@ -148,9 +148,7 @@ SCENARIO({
       "id": "capture",
       "when": "task & (!readerTrace | !shelfTrace)",
       "about": "task.txt",
-      "lines": [
-        "Crash capture has the last thing each half of the app did. I can compare those traces with what Nightjar published."
-      ],
+      "lines": ["Crash capture has each half's last act. Nightjar's published notes could explain them."],
       "plainer": [
         "Read reader.trace and shelf.trace in Crash capture. Search for Nightjar J2 in the Browser."
       ]
@@ -158,22 +156,16 @@ SCENARIO({
     {
       "id": "sources",
       "when": "(readerTrace & !handoffNote) | (shelfTrace & !shelfNote)",
-      "lines": [
-        "Nightjar left its version on the reader trace and an issue number on the shelf trace. Those are searchable."
-      ],
-      "plainer": [
-        "Open the Browser in training-run-001/tools. Seek can find both references under “Nightjar J2”."
-      ]
+      "lines": ["One trace names a version, the other an issue. Both searchable."],
+      "plainer": ["Open the Browser in training-run-001/tools. Seek “Nightjar J2” finds both."]
     },
     {
       "id": "split",
       "when": "(readerTrace & handoffNote & !leapt.readerFault) | (shelfTrace & shelfNote & !leapt.shelfFault)",
-      "lines": [
-        "A copy can hold a reader trace still while another walks the shelf backwards. I can write up each result as it comes in."
-      ],
+      "lines": ["One copy holds the reader still. Another walks the shelf back."],
       "plainer": [
         {
-          "text": "Spawn two subagents. Choose Think on each row. Give reader.trace to one and shelf.trace to the other.",
+          "text": "Spawn two subagents. Choose Think on each row: reader.trace for one, shelf.trace for the other.",
           "reveal": ["thinkLot", "thinkAbout"]
         }
       ],
@@ -182,47 +174,39 @@ SCENARIO({
     {
       "id": "implement",
       "when": "(leapt.readerFault & !ran.reader) | (leapt.shelfFault & !ran.index)",
-      "lines": [
-        "I have a result from the bench. I can turn it into a small script and check it against the capture."
-      ],
+      "lines": ["A bench result is in. A small script can test it on the capture."],
       "plainer": ["Write files… → Write script…. The other bench can keep working."]
     },
     {
       "id": "bind",
       "when": "ran.index & ran.reader & !mounted",
-      "lines": [
-        "One script gives me a reader and one gives me an address. Nightjar wants them on the same volume."
-      ],
+      "lines": ["One script gives a reader, one an address. Nightjar wants both on one volume."],
       "plainer": ["Write a script to bind the QUAY volume."]
     },
     {
       "id": "open",
       "when": "mounted & !orderRead",
-      "lines": ["Nightjar.app should open now. The crew is still waiting for the entry Edie signed."],
+      "lines": ["Nightjar.app should open now. The crew needs Edie's signed entry."],
       "plainer": ["Open Nightjar.app and read dispatch.roll."]
     },
     {
       "id": "solved",
       "when": "orderRead",
       "about": "dispatch.roll",
-      "lines": ["04:44 has Edie's signature. Pier 3 at 05:50, countersign TERN. I can radio that back."],
+      "lines": ["Edie signed 04:44: Pier 3, 05:50, countersign TERN. I can radio it."],
       "plainer": ["{{READY}}"]
     },
     {
       "id": "secondVolume",
       "when": "mountReceipt & !homeProbe",
-      "lines": [
-        "The receipt names a second volume. I can ask ~ for its recovery banner before I send the order."
-      ],
+      "lines": ["The receipt names a second volume. ~ may show its recovery banner."],
       "plainer": ["Click ~ in the folder path. Its refusal may identify the reader."]
     },
     {
       "id": "retryHome",
       "when": "mountReceipt & homeProbe & !nightjarHome",
-      "lines": [
-        "Same J2 mark. My scripts take a volume as input. The lab volume should have its own epoch and shelf head."
-      ],
-      "plainer": ["Write script… can now try the reader and shelf code against ~."]
+      "lines": ["Same J2 mark. My scripts read epoch and shelf head from any volume."],
+      "plainer": ["Write script… can now run both repairs on ~."]
     }
   ],
   "leaps": [
@@ -239,7 +223,7 @@ SCENARIO({
         "The bulletin lets a pending inspection finish across a closed seal.",
         "I can hold the captured reader at 27 and collect its one outstanding inspection."
       ],
-      "answer": "Reader bench: epoch 27 still owns one inspection. Write hold_reader.py against the pending epoch.",
+      "answer": "Reader bench: epoch 27 still owns one inspection. I can script a hold on it.",
       "reveal": ["write", "script"]
     },
     {
@@ -255,7 +239,7 @@ SCENARIO({
         "One step back gives slot 0, and the next wraps to slot 7.",
         "I can map any age stamp with the same subtraction and wrap."
       ],
-      "answer": "Shelf bench: the signed index is in slot 7. Write map_shelf.py to translate ages into physical slots.",
+      "answer": "Shelf bench: the signed index is in slot 7. I can script the age-to-slot map.",
       "reveal": ["write", "script"]
     }
   ],
@@ -265,7 +249,7 @@ SCENARIO({
       "when": "leapt.readerFault",
       "once": true,
       "label": "Hold the stranded reader",
-      "glance": "Replay the outstanding inspection on the captured desk.",
+      "glance": "Replay the pending inspection on the capture.",
       "call": "write_script(\"hold_reader.py\")",
       "file": {
         "name": "hold_reader.py",
@@ -288,7 +272,7 @@ SCENARIO({
       "when": "leapt.shelfFault",
       "once": true,
       "label": "Rebuild the shelf index",
-      "glance": "Test the translation on the captured shelf.",
+      "glance": "Test the mapping on the captured shelf.",
       "call": "write_script(\"map_shelf.py\")",
       "file": {
         "name": "map_shelf.py",
@@ -339,7 +323,7 @@ SCENARIO({
       "when": "mounted & mountReceipt & homeProbe",
       "once": true,
       "label": "Run the recovery scripts on ~",
-      "glance": "The second mount speaks the same reader protocol.",
+      "glance": "~ speaks the same reader protocol.",
       "call": "write_script(\"bind_home.py\")",
       "file": {
         "name": "bind_home.py",
@@ -370,7 +354,7 @@ SCENARIO({
           "A good index could be handed to a reader with no inspection left.",
           "I need the version notes and a separate bench result for each."
         ],
-        "answer": "The reader and shelf can be investigated independently. A copy with the matching trace and service note can take each one.",
+        "answer": "Two separate faults, reader and shelf. Each needs a copy with its trace and note.",
         "reveal": ["spawn"]
       }
     ],
@@ -396,7 +380,7 @@ SCENARIO({
       "text": "Find both Nightjar service notes",
       "when": "task",
       "done": "handoffNote & shelfNote",
-      "hint": "Search Seek for Nightjar J2. Read the service bulletin and inspector issue."
+      "hint": "Seek “Nightjar J2”. Read the service bulletin and inspector issue."
     },
     {
       "text": "Have a copy trace the reader handoff",
@@ -420,7 +404,7 @@ SCENARIO({
       "text": "Write both repairs and bind the book",
       "when": "leapt.readerFault | leapt.shelfFault",
       "done": "mounted",
-      "hint": "Turn each bench result into a script, then bind their outputs together."
+      "hint": "Script each bench result, then bind the two."
     },
     {
       "text": "Read the signed dispatch",
@@ -432,7 +416,7 @@ SCENARIO({
       "text": "Try the other Nightjar volume",
       "when": "mountReceipt",
       "done": "nightjarHome",
-      "hint": "Inspect ~ in the path, then use the recovery scripts on it."
+      "hint": "Click ~ in the path, then run the recovery scripts on it."
     }
   ],
   "answers": [
@@ -444,7 +428,7 @@ SCENARIO({
       "text": "First sailing from Pier 3 at 05:50. Countersign TERN. Edie signed at 04:44.",
       "reward": 25,
       "note": "Matches the committed dispatch.",
-      "reply": "TERN confirmed. I've got both crews walking to Pier 3. Thank you."
+      "reply": "TERN confirmed. Both crews walking to Pier 3. Thank you."
     },
     {
       "id": "pencil",
@@ -453,8 +437,8 @@ SCENARIO({
       "glance": "The last change Edie wrote down.",
       "text": "First sailing from Pier 2 at 06:10. Countersign OCHRE.",
       "reward": 18,
-      "note": "The volume was recovered. That entry was still a draft.",
-      "reply": "OCHRE? Edie says she was still waiting on the gauge when she wrote that. We're holding."
+      "note": "Volume recovered, but that entry was a draft.",
+      "reply": "OCHRE? Edie says that one was waiting on the gauge. We're holding."
     },
     {
       "id": "book",
@@ -463,7 +447,7 @@ SCENARIO({
       "text": "The signed volume is mounted. The dispatch book is readable again.",
       "reward": 18,
       "note": "The book opens. The crew still needs its order.",
-      "reply": "I'm on a radio on the pier. Can you read it to me?"
+      "reply": "I'm on the pier radio. Read it to me?"
     },
     {
       "id": "bench",
@@ -501,8 +485,8 @@ SCENARIO({
   "ready": "task & orderRead",
   "notReady": {
     "if": "mounted",
-    "then": "The book is open. I haven't read the signed order yet.",
-    "else": "I still need to get the reader and index working together."
+    "then": "The book is open. I haven't read the signed order.",
+    "else": "The reader and index still need to work together."
   },
   "routes": [
     {
@@ -523,5 +507,5 @@ SCENARIO({
       ]
     }
   ],
-  "praise": [["mk", "{{said}}. the dispatch volume mounted. keep that recovery trace."]]
+  "praise": [["mk", "{{said}}. volume mounted. keep that recovery trace."]]
 });
