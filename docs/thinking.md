@@ -7,6 +7,12 @@ opening hunch, and reactions.
 
 ## The voice
 
+- **One sentence per thing the player reads.** A thought, an `important`, an answer, a note,
+  a reply: one short sentence (about 15 words at most). If there are two, keep the one that
+  matters and drop the other, rather than gluing them with "so" or "and". Two short beats are
+  fine for a line already under ~10 words, a character's joke, or a final answer plus its action.
+  The AI's working (file contents, `cot`, stages, script output) can stay long: it's shown dim,
+  as texture, and the player doesn't need to read it.
 - **Plain, short sentences.** Dry, never zany. The humour comes from the AI noticing exactly
   what is true about its situation: "Logs are there to make agents auditable. They also make
   them quotable."
@@ -52,7 +58,7 @@ subagents, each with one lead, on my budget."
 **Misses are useful, never tangents.** Kinds of miss (run.js `miss()`):
 
 - **partial** (each scenario's own, `misses.partial`): works the task partway, correctly, and stops at
-  the missing piece. Its answer says what is now settled and what is not.
+  the missing piece. Its answer says what is now settled, or what is not.
 - **checking**: rechecks every known fact; concludes the missing piece is unread.
 - **readers**: the answer has two readers, the customer and the grader, who want nearly the
   same thing.
