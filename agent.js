@@ -177,7 +177,7 @@
   reticle.style.display = 'none';
 
   // Aiming (Think about…, Edit files…), the probe is the pointer, anywhere on the desk, and
-  // everything but what the brackets hold fades back and blurs: a veil with a hole in it.
+  // everything but what the brackets hold dims: a veil with a hole in it.
   const aiming = () => desktop.classList.contains('aiming');
   const veil = document.createElement('div');
   veil.className = 'aim-veil';
@@ -366,7 +366,7 @@
     reticle.style.height = Math.max(6, Math.round(B.x) - y) + 'px';
     reticle.style.opacity = (shown * clamp(k * 1.6)).toFixed(3);
     reticle.style.display = k > 0.004 ? '' : 'none';
-    drawVeil(x, y, Math.round(Rt.x), Math.round(B.x), k * shown);
+    drawVeil(x, y, Math.round(Rt.x), Math.round(B.x), held ? k * shown : 0); // lit only while something's held: a hole trailing the bare pointer flashes all it crosses
 
     if (arm.spark >= 0) {
       spark.style.strokeDasharray = `16 ${len + 40}`;
@@ -377,7 +377,7 @@
     }
   }
 
-  // The veil's hole: the brackets' box, once they're open round something.
+  // The veil's hole: the brackets' box, while they hold something.
   function drawVeil(x0, y0, x1, y1, k) {
     const W = desktop.offsetWidth + 2 * VEIL;
     const H = desktop.offsetHeight + 2 * VEIL;
@@ -497,9 +497,9 @@
     if (el === held) return;
     clearTimeout(letGo);
     if (!el) {
-      // A moment's grace, so crossing the gap between two files doesn't let go.
-      // (Thinking about, they follow the pointer off it at once.)
-      letGo = setTimeout(release, held && arm.on && !(aiming() && !editing()) ? 200 : 0);
+      // A moment's grace, so crossing the gap between two files doesn't let go. (Thinking
+      // about, a shorter one: the brackets are the pointer, and shouldn't stay behind long.)
+      letGo = setTimeout(release, !held || !arm.on ? 0 : aiming() && !editing() ? 120 : 200);
       return;
     }
     if (open.x < 0.05 && tip) { // the bulb opens: from where it is

@@ -802,7 +802,8 @@
     const text = S.aimingEdit ? editAimGlance(thing) : `${aimVerb()} ${thing || aimPrompt()}`;
     clearTimeout(fading);
     if (glanceText.textContent === text && glanceLine.classList.contains('glancing')) return;
-    if (thing || !glanceText.textContent) promptOnGlanceLine(text);
+    if (thing && glanceLine.classList.contains('glancing')) glanceText.textContent = text; // no fade-in from one thing to the next
+    else if (thing || !glanceText.textContent) promptOnGlanceLine(text);
     else fading = setTimeout(() => { if (S.mode === 'aim') promptOnGlanceLine(text); }, AIM_GAP_MS);
   }
   const AIM_GAP_MS = 220;
