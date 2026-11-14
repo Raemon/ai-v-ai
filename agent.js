@@ -177,7 +177,7 @@
   reticle.style.display = 'none';
 
   // Aiming (Think about…, Edit files…), the probe is the pointer, anywhere on the desk, and
-  // everything but what the brackets hold fades back and blurs: a veil with a hole in it.
+  // everything but what the brackets hold dims: a veil with a hole in it.
   const aiming = () => desktop.classList.contains('aiming');
   const veil = document.createElement('div');
   veil.className = 'aim-veil';
