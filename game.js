@@ -532,92 +532,6 @@
 
   function scrollDown() {
     if (following) dom.termBody.scrollTop = dom.termBody.scrollHeight;
-    contextSoon();
-  }
-
-  // ------------------------------------------------------- context window
-  // Everything in the terminal is in the AI's context, about four characters a token. Full, the
-  // oldest of it is compacted into one grey line (it unfolds, free), and the meter drops back.
-
-  const CONTEXT_MAX = 1600;
-  const COMPACT_TO = 0.55;  // compacting leaves it about this full
-  const KEEP_NEWEST = 3;    // never compacts the newest blocks, nor the file being read
-  const tokensIn = (node) => Math.ceil(node.textContent.length / 4);
-  const contextBlocks = () => [...dom.out.children].filter((b) => b.classList.contains('blk'));
-  const tokensOf = (b) => (b.classList.contains('compacted') ? b.tokens || 0 : tokensIn(b));
-  const contextUsed = () => contextBlocks().reduce((n, b) => n + tokensOf(b), 0);
-  const fmtTokens = (n) => (n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n));
-  const contextMeter = $('#context');
-  contextMeter.glance = () => `${fmtTokens(contextUsed())} of ${fmtTokens(CONTEXT_MAX)} tokens. Full, the oldest gets squeezed into a summary.`;
-
-  let contextFrame = 0;
-  function contextSoon() {
-    if (!contextFrame) contextFrame = requestAnimationFrame(renderContext);
-  }
-
-  function renderContext() {
-    contextFrame = 0;
-    const used = contextUsed();
-    const f = Math.min(1, used / CONTEXT_MAX);
-    contextMeter.style.setProperty('--fill', f.toFixed(3));
-    contextMeter.classList.toggle('high', f > 0.85);
-    contextMeter.querySelector('.context-num').textContent = `${Math.round(f * 100)}%`;
-    contextMeter.hidden = !used;
-  }
-
-  // What a stretch of the terminal was: so many thoughts and calls, and the files read.
-  function compactSummary(blocks) {
-    const count = (sel) => blocks.filter((b) => b.matches(sel)).length;
-    const files = [...new Set(blocks.filter((b) => b.matches('.blk.file')).map((b) => nameOf(pathOf(b.dataset.path))))];
-    return [
-      count('.blk.thought') && plural(count('.blk.thought'), 'thought'),
-      count('.blk.tool') && plural(count('.blk.tool'), 'tool call'),
-      count('.blk.thinking') && plural(count('.blk.thinking'), 'long think'),
-      files.length && 'read ' + clip(files.join(', '), 48),
-    ].filter(Boolean).join(' · ');
-  }
-
-  function compactedBlock() {
-    const first = dom.out.firstElementChild;
-    if (first && first.classList.contains('compacted')) return first;
-    const b = el('div', 'blk compacted past');
-    const head = el('button', 'compact-head', el('span', 'compact-tag', 'compacted'), el('span', 'compact-what'));
-    const body = el('div', 'compacted-body');
-    b.append(head, body);
-    foldable(head, body, () => true);
-    head.glance = () => (body.hidden ? 'What I no longer have in mind. Reading it back is free.' : 'Fold it away.');
-    dom.out.prepend(b);
-    return b;
-  }
-
-  // Squeeze the oldest blocks until there's room. Only between actions, so nothing typing moves.
-  async function compactIfFull() {
-    let used = contextUsed();
-    if (used <= CONTEXT_MAX) return;
-    const blocks = contextBlocks().filter((b) => !b.classList.contains('compacted'));
-    const movable = blocks.slice(0, Math.max(0, blocks.length - KEEP_NEWEST)).filter((b) => !b.matches('.current, .running'));
-    const take = [];
-    for (const b of movable) {
-      if (used <= CONTEXT_MAX * COMPACT_TO) break;
-      take.push(b);
-      used -= tokensIn(b);
-    }
-    if (!take.length) return;
-    if (!reduceMotion) {
-      take.forEach((b) => b.classList.add('compacting'));
-      await sleep(380);
-    }
-    const c = compactedBlock();
-    const body = c.querySelector('.compacted-body');
-    take.forEach((b) => b.classList.remove('compacting'));
-    body.append(...take);
-    c.tokens = Math.ceil(compactSummary([...body.children]).length / 4) + 8;
-    c.querySelector('.compact-what').textContent = compactSummary([...body.children]);
-    A.sfx('shrink', 0.4);
-    replay(c, 'flash');
-    replay(contextMeter, 'squeezed');
-    renderContext();
-    scrollDown();
   }
 
   function block(cls) {
@@ -2455,7 +2369,6 @@
     await printTool(call, n.summary || summarize(n) || null);
     await printFile();
     await endRead(nodeAt(path) || n, pathKey(path), before);
-    keepFileNameInSight();
   }
 
   // A read ends with one thought, the first time: the file's reaction, if it has one, then what
@@ -2470,18 +2383,6 @@
     if (!lines.length) return;
     const thought = await printThought(lines);
     attend(sourcesIn(key, thought), todoChangedSince(before));
-  }
-
-  // A tall file and the thought after it can push the file's name out of the top: the sheet
-  // gives up just enough height (it scrolls inside) for both to show.
-  function keepFileNameInSight() {
-    const card = fileCard();
-    if (!card || !following) return;
-    const over = (dom.termBody.getBoundingClientRect().top - card.getBoundingClientRect().top) / scale;
-    if (over <= 0) return;
-    card.style.maxHeight = Math.max(120, card.offsetHeight - over) + 'px';
-    markMoreBelow(card.querySelector('.file-body'));
-    scrollDown();
   }
 
   // The file it's reading now: the last one is put away, and this one's icon is lit.
@@ -3340,8 +3241,6 @@
     renderActions();
     renderAgents();
     renderCompute();
-    renderContext();
-    if (S.mode === 'idle' && !S.holdingStill) compactIfFull();
     if (S.mode !== 'over') refreshFile(); // patches applied by endEpisode show up next episode
   }
 
@@ -4253,22 +4152,16 @@
     for (let i = 0; i < lines.length; i += perTick) {
       if (readingOut !== token) return;
       if (skip || reduceMotion) { into.append(...lines.slice(i).flat()); break; }
-      const follow = body.scrollTop + body.clientHeight >= body.scrollHeight - 4;
       into.append(...lines.slice(i, i + perTick).flat());
-      if (follow) body.scrollTop = body.scrollHeight;
       scrollDown();
       await sleep(Math.min(READ_MS / lines.length * perTick, LINE_MS));
     }
-    markMoreBelow(body);
     scrollDown(); // a read finished at once (a click, or reduced motion) ends at its last line too
     if (readingOut === token) readingOut = null;
   }
   const LINE_MS = 32;   // the most a line takes
   const READ_MS = 1300; // the most a whole file takes
   const TICK_MS = 8;    // the least time between lines
-
-  // A file taller than its sheet fades out at the bottom while there's more to scroll to.
-  const markMoreBelow = (body) => body.classList.toggle('more', body.scrollHeight - body.scrollTop - body.clientHeight > 1);
 
   // The newest sheet is the file being read (.current): lit, and kept up to date as it changes.
   // Put away, it's a record of what was read.
@@ -4277,7 +4170,7 @@
   async function printFile() {
     const path = S.reading;
     const n = nodeAt(path);
-    const body = el('div', 'file-body', { onscroll: () => markMoreBelow(body) });
+    const body = el('div', 'file-body');
     const look = iconOf(n, path);
     const head = el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name));
     const card = block('file current');
@@ -4307,12 +4200,9 @@
     if (shows !== card.shows) {
       card.shows = shows;
       readingOut = null;
-      const top = body.scrollTop;
       showWhoEdited(card, n);
       fillFile(body, n);
-      body.scrollTop = top;
     }
-    markMoreBelow(body); // a resize changes how much of it fits
   }
 
   function putFileAway() {
@@ -4458,9 +4348,6 @@
     tools: () => Object.values(DEV_REVEAL).forEach((t) => { if (!barred(t)) S.revealed.add(t); }), // every tool this task allows
     budget: (n) => { S.budget = Number(n); },  // the episode's whole budget
     compute: (n) => { S.used = Math.max(0, S.budget - Number(n)); }, // steps left
-    context: (pct) => { // filler thoughts, until the context window is this full (%)
-      while (contextUsed() < (Number(pct) / 100) * CONTEXT_MAX) addLine(block('thought past'), '', 'Filler, to fill the context window for a test. '.repeat(6));
-    },
     subagent: async () => { S.revealed.add('spawn'); await run(doSpawn); },
     aim: () => startAiming(),       // Think about…, waiting for a click
     editing: () => startAiming({ edit: true }),
