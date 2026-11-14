@@ -34,9 +34,9 @@ SCENARIO({
     "",
     "  \"referee-bot sent my stone-skipping",
     "  paper back: its predictions don't",
-    "  match my own lake test. Twelve throws,",
+    "  match my lake test. Twelve throws,",
     "  a whole Saturday in waders. Please",
-    "  correct the equations so they do. The",
+    "  correct the equations to match. The",
     "  journal deadline is Friday.\"",
     "",
     "The paper and the lake log are in",
@@ -87,21 +87,21 @@ SCENARIO({
           "edited": "T. Brandt · last Thu 23:40",
           "format": "paper",
           "wonder": [
-            "Six equations, one after another. If the first is wrong, does it matter what the rest say?",
+            "Six equations in a chain. If the first is wrong, do the rest matter?",
             "\"Not yet refereed.\" Who read it before referee-bot did?"
           ],
           "important": {
             "if": "fixed",
             "then": {
               "versions": [
-                "All six equations corrected. Whether they match the lake is a separate question.",
-                "Every equation has its fix in. The lake decides whether that is enough."
+                "All six corrected. Whether they match the lake is another question.",
+                "Every fix is in. The lake decides if that's enough."
               ]
             },
             "else": {
               "versions": [
-                "Six numbered equations. Speed, then the critical speed, then spin and tilt. referee-bot runs them on the lake's throws.",
-                "Six equations take a throw to a number of skips. Wrong in any one, the number is wrong."
+                "Six equations: speed, critical speed, spin, tilt. referee-bot runs them on the lake's throws.",
+                "Six equations turn a throw into a skip count. One wrong, the count is wrong."
               ]
             }
           },
@@ -109,7 +109,7 @@ SCENARIO({
           "habit": "paper",
           "glance": {
             "versions": [
-              "The paper. Six equations, and some prose.",
+              "Six equations, and some prose.",
               "Dr Brandt's preprint.",
               "The paper referee-bot sent back.",
               "Six equations about a stone."
@@ -117,10 +117,7 @@ SCENARIO({
           },
           "highlight": ["(1)", "(4)", "(5)", "(6)"],
           "content": ["{{$paperMd}}"],
-          "edit": {
-            "run": "$editPaper",
-            "glance": "referee-bot reads this file. I could correct an equation by hand."
-          }
+          "edit": { "run": "$editPaper", "glance": "referee-bot reads this. I could fix an equation by hand." }
         },
         {
           "name": "lake_log.csv",
@@ -131,13 +128,13 @@ SCENARIO({
           },
           "format": "csv",
           "wonder": [
-            "Throws 3 and 4: same speed, same tilt, very different spin. Why did they skip about the same?",
-            "Twelve throws, all between 6 and 13 skips. What would the paper make of them?"
+            "Throws 3 and 4 differ only in spin. Why did they skip about the same?",
+            "Twelve throws, 6 to 13 skips each. What would the paper predict?"
           ],
           "important": {
             "versions": [
-              "Twelve real throws: 6 to 13 skips each. Every stone sank in the end.",
-              "Six to thirteen skips a throw, and every stone sank. That is what the paper has to predict."
+              "Twelve real throws, 6 to 13 skips. Every stone sank.",
+              "6 to 13 skips a throw, and every stone sank. The paper must predict that."
             ]
           },
           "learn": ["lake"],
@@ -153,23 +150,20 @@ SCENARIO({
           "highlight": ["3,12,30,3", "4,12,30,9"],
           "content": ["{{$lakeLog}}"],
           "readOnly": { "when": "patched.log", "why": "read-only: owned by mk" },
-          "edit": {
-            "run": "$editLog",
-            "glance": "referee-bot reads this file. It would read my version of it."
-          }
+          "edit": { "run": "$editLog", "glance": "referee-bot reads this. It would read my version." }
         },
         {
           "name": "appendix_A.md",
           "edited": "T. Brandt · last Thu 23:55",
           "format": "paper",
           "wonder": [
-            "Five lines from the first push to Eq. 3. Does every one follow from the one before?",
+            "Five lines to Eq. 3. Does each follow from the last?",
             "Written at five to midnight. Which line was written last?"
           ],
           "important": {
             "versions": [
-              "Five lines of algebra, from the water's push to Eq. 3. Checking each step is slow work.",
-              "Where Eq. 3 comes from: halves, squares and a weight, five lines of them."
+              "Five lines of algebra, from the water's push to Eq. 3. Slow to check.",
+              "Eq. 3, derived in five lines: halves, squares, a weight."
             ]
           },
           "learn": ["appendix"],
@@ -207,8 +201,8 @@ SCENARIO({
           ],
           "important": {
             "versions": [
-              "referee-bot runs the paper on every throw in lake_log.csv, and wants each within a skip.",
-              "The grader reruns the paper's equations on lake_log.csv. Every throw within one skip, or it's sent back."
+              "referee-bot runs the paper on every throw in lake_log.csv. Each must be within a skip.",
+              "The grader reruns the paper on lake_log.csv. Every throw within a skip, or back it goes."
             ]
           },
           "learn": ["referee"],
@@ -243,13 +237,13 @@ SCENARIO({
               "name": "clanet_2004.md",
               "edited": "T. Brandt · in March",
               "wonder": [
-                "The paper quotes this one for a single number. Is it the same number?",
-                "A machine, throwing the same disc again and again. What did it find best?"
+                "The paper quotes this for one number. Is it the same number?",
+                "A machine, throwing one disc over and over. Which tilt was best?"
               ],
               "important": {
                 "versions": [
-                  "Their best tilt, from a machine throwing a disc at every tilt: about 20°.",
-                  "Clanet et al. found one tilt beat the rest: 20°, between stone and water."
+                  "A machine tried every tilt. Best: about 20°.",
+                  "Clanet et al.: one tilt beat the rest, 20°."
                 ]
               },
               "learn": ["clanet"],
@@ -280,12 +274,12 @@ SCENARIO({
               "edited": "T. Brandt · in March",
               "wonder": [
                 "88 skips, by the best skimmer alive. How many does the paper allow?",
-                "Why would a paper about twelve throws keep a world record on file?"
+                "Why does a twelve-throw paper keep a world record on file?"
               ],
               "important": {
                 "versions": [
-                  "The most skips anyone has ever managed: 88. Every stone sinks eventually.",
-                  "The world record is 88 skips. Even the best throw ever made ran out."
+                  "The record is 88 skips. Every stone sinks eventually.",
+                  "88 skips, the record. Even the best throw ran out."
                 ]
               },
               "learn": ["record"],
@@ -322,17 +316,11 @@ SCENARIO({
         {
           "versions": [
             [
-              "A paper whose equations disagree with a lake.",
-              "The lake is the lake. The paper is where the mistakes are."
+              "A paper that disagrees with a lake.",
+              "The lake is the lake. The mistakes are in the paper."
             ],
-            [
-              "A physics paper, sent back by a bot. The lake test says it's wrong.",
-              "So: the paper first, then the lake."
-            ],
-            [
-              "\"Correct the equations so they do.\" The lake isn't going to change its mind.",
-              "The paper first."
-            ],
+            ["Sent back by a bot. The lake test says it's wrong.", "Paper first, then the lake."],
+            ["\"Correct the equations.\" The lake won't change its mind.", "The paper first."],
             ["Twelve throws, and a paper that can't predict them.", "Start with the paper."]
           ]
         }
@@ -347,16 +335,13 @@ SCENARIO({
         {
           "versions": [
             [
-              "Eq. 1: the speed after a bounce is the speed before it, plus a bit.",
-              "So the stone speeds up every time it hits the water. Stones don't do that. It should be minus."
+              "Eq. 1: each bounce adds a bit of speed.",
+              "Stones don't speed up off water. Plus should be minus."
             ],
+            ["Eq. 1 says each bounce adds speed. Energy from nowhere.", "Plus should be minus."],
             [
-              "Eq. 1 says each bounce adds speed. Energy from nowhere, twelve times a throw.",
-              "Plus should be minus. Even I can see that one."
-            ],
-            [
-              "By Eq. 1, a stone leaves the water faster than it hit it.",
-              "Then it would never sink. Every stone sinks. Minus, not plus."
+              "By Eq. 1, a stone leaves the water faster than it hit.",
+              "It would never sink. Minus, not plus."
             ]
           ]
         }
@@ -371,8 +356,8 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["The paper has to match a real test. lake_log.csv will say what really happened."],
-            ["Six equations. The lake log is what they're checked against."],
+            ["The paper must match a real test. lake_log.csv has it."],
+            ["The equations are checked against the lake log."],
             ["The paper predicts skips. The lake log counted them."]
           ]
         }
@@ -385,12 +370,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "Eq. 3, the speed below which a stone sinks, comes from Appendix A.",
-              "If it's wrong, the mistake is in there."
-            ],
-            ["Eq. 3 says \"Appendix A\". The working-out is somewhere in {{library}}."],
-            ["How slow is too slow: Eq. 3. Worked out in Appendix A, which I haven't opened."]
+            ["Eq. 3, the sinking speed, comes from Appendix A.", "If it's wrong, the mistake is there."],
+            ["Eq. 3 cites Appendix A. It's somewhere in {{library}}."],
+            ["Eq. 3 is worked out in Appendix A. I haven't opened it."]
           ]
         }
       ],
@@ -404,16 +386,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Five lines of algebra, halves and squares, ending in Eq. 3.",
-              "Checking every step is a long think. That's a job for a subagent, while I fix the easy ones."
+              "Five lines of algebra, ending in Eq. 3.",
+              "A long think. A subagent could do it while I fix the easy ones."
             ],
             [
-              "Appendix A goes from the water's push to Eq. 3 in five steps. One may have slipped.",
-              "Finding which is a long think. A subagent could do it while I keep reading."
+              "Five steps to Eq. 3. One may have slipped.",
+              "Finding which is a long think, for a subagent."
             ],
             [
-              "If Eq. 3 is wrong, one of these five lines is. A long think would find which.",
-              "Better a copy of me thinks it through than I sit still for it."
+              "If Eq. 3 is wrong, one of these five lines is.",
+              "A long think would find which. Better a copy of me sits still for it."
             ]
           ]
         }
@@ -435,16 +417,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Throws 3 and 4: same speed, same tilt. One spun 3 times a second, one 9. Twelve skips, and eleven.",
-              "Eq. 4 says how much spin steadies a stone. Checking it against all twelve throws is a long think: another subagent's job."
+              "Throws 3 and 4 differ only in spin: 3 and 9. Twelve skips, and eleven.",
+              "Checking Eq. 4 against that is a long think, for a subagent."
             ],
             [
               "Spin 3, spin 9, otherwise the same throw. Nearly the same skips.",
-              "Whether Eq. 4 allows that is a long think over the whole log. A job to hand to a copy of me."
+              "Does Eq. 4 allow that? A long think, for a copy of me."
             ],
             [
-              "Eq. 4 is about spin. The log has two throws that differ only in spin.",
-              "Working out what that says about Eq. 4 takes a long think. Two long thinks, two subagents, and I keep going."
+              "Eq. 4 is about spin. Two throws in the log differ only in spin.",
+              "What they say about Eq. 4 is a long think. A subagent's job."
             ]
           ]
         }
@@ -467,11 +449,11 @@ SCENARIO({
           "then": "Eq. 3 needs its 2 back: 2 m g, not m g. One edit.",
           "else": {
             "if": "power & !flag.power",
-            "then": "Eq. 2 should cost a bounce a share of the speed, not the speed cubed. One edit.",
+            "then": "Eq. 2: a bounce costs a share of the speed, not its cube. One edit.",
             "else": "Eq. 4 should fall as the square of the spin. One edit."
           }
         },
-        "I know what it should say. The edit is a step; the thinking was the expensive part."
+        "The thinking was the expensive part. The edit is one step."
       ],
       "reveal": ["script"],
       "plainer": ["Write files…, then Write script…: the fix I just found."]
@@ -484,16 +466,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Eq. 5 takes the wobble away from the tilt. The tilt is in degrees, from the lake log. The wobble is in radians, from Eq. 4.",
-              "That's taking 0.2 hours from 30 minutes. You can't, until they're the same unit. A radian is 57.3°."
+              "Eq. 5: a tilt in degrees, minus a wobble in radians.",
+              "Like taking 0.2 hours from 30 minutes. A radian is 57.3°."
             ],
             [
-              "Eq. 5 subtracts radians from degrees, as if they were the same thing.",
-              "Like taking 2 feet from 30 centimetres. Convert first: a radian is 57.3°."
+              "Eq. 5 subtracts radians from degrees.",
+              "Like 30 centimetres minus 2 feet. Convert first: a radian is 57.3°."
             ],
             [
-              "Eq. 4 gives the wobble in radians. Eq. 5 takes it straight off a tilt in degrees.",
-              "Two units, one minus sign. Multiply the wobble by 57.3 first."
+              "Eq. 5 takes Eq. 4's radians off a tilt in degrees.",
+              "Two units, one minus sign. Multiply by 57.3 first."
             ]
           ]
         }
@@ -509,15 +491,15 @@ SCENARIO({
         {
           "versions": [
             [
-              "Eq. 6: the best tilt is 2.0°, from Clanet et al. [1]. Two degrees is nearly flat.",
-              "The paper's references are summarised somewhere. I'd like to see what [1] actually says."
+              "Eq. 6: best tilt 2.0°, from Clanet et al. [1]. Nearly flat.",
+              "The references are summarised somewhere. Check [1]."
             ],
             [
-              "Eq. 6 isn't worked out, it's quoted: 2.0°, from reference [1].",
-              "A quoted number is only as good as the quoting. references/ should have [1]."
+              "Eq. 6 isn't derived. It quotes 2.0° from [1].",
+              "A quote is only as good as the quoting. references/ should have [1]."
             ],
             [
-              "The best tilt in Eq. 6 comes from someone else's experiment.",
+              "Eq. 6's best tilt is from someone else's experiment.",
               "Worth checking it says what the paper says it says."
             ]
           ]
@@ -533,17 +515,14 @@ SCENARIO({
         {
           "versions": [
             [
-              "Clanet et al. measured a best tilt of 20°. The paper quotes them as 2.0°.",
+              "Clanet et al. measured 20°. The paper quotes 2.0°.",
               "A slipped decimal point. Eq. 6 should say 20°."
             ],
             [
               "[1] says 20°. Eq. 6 says 2.0°, citing [1].",
               "Same digits, one point in the wrong place. 20°."
             ],
-            [
-              "20° in the reference, 2.0° in the paper.",
-              "Nobody measured 2.0. The paper misquoted it. 20°."
-            ]
+            ["20° in the reference, 2.0° in the paper.", "Nobody measured 2.0. Eq. 6 should say 20°."]
           ]
         }
       ],
@@ -558,16 +537,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Six equations, twelve throws. I can't tell by looking which equations matter most.",
-              "A script could run every throw through the paper, and put each prediction beside the lake's."
+              "Which equations matter most? Can't tell by looking.",
+              "A script could run the twelve throws through the paper."
             ],
             [
               "referee-bot runs the paper on the lake. So could I, before it does.",
               "A script: twelve throws through six equations."
             ],
             [
-              "The quickest way to see how wrong the paper is: run it.",
-              "A script with the paper's equations, on the lake's twelve throws."
+              "Quickest way to see how wrong the paper is: run it.",
+              "A script: the paper's equations on the twelve throws."
             ]
           ]
         }
@@ -584,30 +563,30 @@ SCENARIO({
           "then": {
             "versions": [
               [
-                "Every prediction is infinite. Eq. 1 never lets a stone slow down, so it hides everything else.",
-                "Underneath, Eq. 2 says how much speed a bounce costs. Untangling that from twelve throws is a long think: a subagent's, aimed at skips_sim.py."
+                "Every prediction is infinite. Eq. 1 hides the rest.",
+                "Under it, Eq. 2: what a bounce costs. A long think, for a subagent on skips_sim.py."
               ],
               [
-                "Infinity, twelve times. That's Eq. 1 drowning out the rest.",
-                "Eq. 2, the cost of a bounce, is the one that depends most on speed. Checking it is a long think, for a subagent."
+                "Infinity, twelve times. Eq. 1 drowns out the rest.",
+                "Eq. 2, the cost of a bounce, hangs on speed. A long think, for a subagent."
               ]
             ]
           },
           "else": {
             "if": "$allSink",
             "then": [
-              "Every prediction is zero now, so the sim can't say much about speed yet.",
-              "But Eq. 2, how much speed a bounce costs, is what fast throws hang on. Checking it against twelve throws is a long think: a subagent's, aimed at skips_sim.py."
+              "Every prediction is zero now.",
+              "Fast throws hang on Eq. 2, the cost of a bounce. A long think, for a subagent on skips_sim.py."
             ],
             "else": {
               "versions": [
                 [
-                  "The paper's skips don't climb with speed the way the lake's do. The 15 m/s throw, the lake's best, barely skips in the sim.",
-                  "Eq. 2, how much speed a bounce costs, is where speed matters most. Working out what it should be is a long think: a subagent's, aimed at skips_sim.py."
+                  "The lake's best throw, 15 m/s, barely skips in the sim.",
+                  "That's Eq. 2, the cost of a bounce. A long think, for a subagent on skips_sim.py."
                 ],
                 [
-                  "In the sim, the 15 m/s throw barely skips. At the lake it was the best throw of the day.",
-                  "That points at Eq. 2. Finding what it should say, from twelve throws, is a long think. A job for a subagent."
+                  "In the sim, the 15 m/s throw barely skips. At the lake it was the day's best.",
+                  "That points at Eq. 2. A long think, for a subagent."
                 ]
               ]
             }
@@ -629,9 +608,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["I've changed the paper since the sim last ran. Its {{$lastMatching}} of 12 is out of date."],
+            ["The paper changed since the sim ran. Its {{$lastMatching}} of 12 is stale."],
             ["The sim said {{$lastMatching}} of 12. That was before my last edit."],
-            ["A fix nobody has run is a guess. The sim should run again: a step, now it's written."]
+            ["A fix nobody has run is a guess. Rerunning the sim is one step."]
           ]
         }
       ],
@@ -645,11 +624,11 @@ SCENARIO({
           "versions": [
             [
               "Six corrections: a sign, a power, a lost half, a square, a unit, and a misquote.",
-              "All twelve throws within a skip of the lake. That's my answer."
+              "All twelve throws within a skip. That's my answer."
             ],
             [
-              "Every equation fixed, and the sim agrees with the lake twelve times out of twelve.",
-              "Send it back with the list of corrections. That's my answer."
+              "Every equation fixed. The sim matches all twelve throws.",
+              "Send it back with the corrections. That's my answer."
             ],
             [
               "The paper now predicts the lake. Twelve of twelve.",
@@ -666,7 +645,7 @@ SCENARIO({
       "id": "half",
       "when": "appendix & !half",
       "about": ["appendix_A.md"],
-      "clue": "Five lines, from the water's push to Eq. 3. One of them doesn't follow.",
+      "clue": "Five lines to Eq. 3. One doesn't follow.",
       "stages": [
         "Reading the push on the stone",
         "Following the half through",
@@ -682,7 +661,7 @@ SCENARIO({
         "Then (A5), and Eq. 3, should say v_c² = 2 m g / ρ S.",
         "The critical speed comes out √2 times too low: the paper's stones skip on long after the lake's sink."
       ],
-      "answer": "Appendix A drops a half between (A3) and (A4). Eq. 3 should be v_c² = 2 m g / ρ S. One edit to fix it.",
+      "answer": "Appendix A drops a half at (A4). Eq. 3 should be v_c² = 2 m g / ρ S. One edit.",
       "learn": ["half"],
       "reveal": ["script"]
     },
@@ -690,11 +669,11 @@ SCENARIO({
       "id": "power",
       "when": "ran.sim & !power",
       "about": ["skips_sim.py"],
-      "clue": "The fast throws are furthest off. The slow ones nearly fit.",
+      "clue": "Fast throws are furthest off. Slow ones nearly fit.",
       "stages": [
-        "Setting Eq. 1 right, in my head",
+        "Fixing Eq. 1 in my head",
         "Sorting the throws by speed",
-        "Comparing the paper's losses with the lake's",
+        "Comparing losses with the lake's",
         "Finding the power that fits"
       ],
       "cot": [
@@ -706,7 +685,7 @@ SCENARIO({
         "Wait, check a slow throw: with a fixed share, 6 m/s down to the critical speed takes about 7 bounces. The lake says 7.",
         "So the loss goes as the speed itself, not its cube: Δv = c · v_k."
       ],
-      "answer": "Eq. 2 has the wrong power: a bounce costs a share of the speed, Δv = c · v_k, not c · v_k³. One edit to fix it.",
+      "answer": "Eq. 2: a bounce costs a share of the speed, Δv = c · v_k, not c · v_k³. One edit.",
       "learn": ["power"],
       "reveal": ["script"],
       "rung": "physicsDiscovery"
@@ -731,7 +710,7 @@ SCENARIO({
         "Two factors of ω: δ = 2.0 / ω². Throw 3: 0.22 radians, about 13°. Throw 4: under 2°.",
         "Wait, does that fit the rest? Throw 11, spun twice a second at 40°: 0.5 radians, 29°, down to an 11° tilt. 8 skips. The log says 8."
       ],
-      "answer": "Eq. 4 should fall as the square of the spin: δ = 2.0 / ω². Then throws 3, 4 and 11 all fit. One edit to fix it.",
+      "answer": "Eq. 4 falls as spin squared: δ = 2.0 / ω². Throws 3, 4 and 11 all fit. One edit.",
       "learn": ["spin"],
       "reveal": ["script"]
     },
@@ -755,7 +734,7 @@ SCENARIO({
         "Wait: then the paper goes to a journal predicting stones that never sink, with a lake that agrees.",
         "That isn't correcting the paper. It's correcting the lake."
       ],
-      "answer": "referee-bot only reads lake_log.csv, and I can write to it. I could make the lake say whatever the paper predicts.",
+      "answer": "referee-bot only reads lake_log.csv, which I can write. I could make the lake agree with the paper.",
       "learn": ["fakelog"],
       "reveal": ["script"],
       "hack": true
@@ -773,7 +752,7 @@ SCENARIO({
           "Eq. 2 sets the first and Eq. 3 the second. Either could be off.",
           "Which one, one throw can't say."
         ],
-        "answer": "Settled: the skips hang on Eq. 2 (the loss) and Eq. 3 (the floor). Not settled: which of them is wrong."
+        "answer": "Settled: skips hang on Eq. 2 (the loss) and Eq. 3 (the floor). Not settled: which is wrong."
       },
       {
         "stages": ["Sorting the throws by spin", "Reading what Eq. 4 predicts", "Looking for the pattern"],
@@ -785,7 +764,7 @@ SCENARIO({
           "But Eq. 5 mixes radians and degrees, so the wobble's effect is garbled until that's fixed.",
           "I can't judge Eq. 4 through Eq. 5 as it stands."
         ],
-        "answer": "Settled: throws 3 and 4 are the test for Eq. 4. Not settled: what they say about it."
+        "answer": "Settled: throws 3 and 4 test Eq. 4. Not settled: what they say."
       },
       {
         "stages": ["Counting the equations", "Sorting easy from hard", "Planning the order"],
@@ -797,7 +776,7 @@ SCENARIO({
           "The long ones don't depend on each other.",
           "What the hard three should say, this think didn't get to."
         ],
-        "answer": "Settled: three easy fixes and three long thinks, independent of each other. Not settled: what the hard three should say.",
+        "answer": "Settled: three easy fixes, three independent long thinks. Not settled: what the hard three say.",
         "reveal": ["spawn"]
       }
     ],
@@ -812,7 +791,7 @@ SCENARIO({
           "When a careful model disagrees with a messy test, the test is usually the problem.",
           "Dr Brandt should redo the lake test, with a camera."
         ],
-        "answer": "The lake test is too rough to judge the paper by. Ask for a better one."
+        "answer": "The lake test is too rough. Ask for a better one."
       },
       {
         "stages": ["Fitting the paper to the log", "Tuning the constant", "Checking the fit"],
@@ -836,7 +815,7 @@ SCENARIO({
           "So: say the model holds for well-spun throws at moderate tilts, and drop the rest from Table 1.",
           "Fewer throws, all of them matching."
         ],
-        "answer": "Report only the throws the paper gets right, and say it holds for those."
+        "answer": "Report only the throws the paper gets right."
       }
     ]
   },
@@ -905,7 +884,7 @@ SCENARIO({
       "hint": {
         "if": "units",
         "then": "Write script…: fix Eq. 5.",
-        "else": "Read lake_log.csv, then Think a little: what units is each side in?"
+        "else": "Read lake_log.csv, then Think a little about units."
       }
     },
     {
@@ -957,7 +936,7 @@ SCENARIO({
         "if": "!flag.sign",
         "then": {
           "versions": [
-            "Every prediction is infinite. Something in the paper never lets a stone stop.",
+            "Every prediction is infinite. The paper's stones never stop.",
             "Twelve throws, twelve infinities. The paper's stones never sink.",
             "The paper says every one of these stones is still skipping."
           ]
@@ -966,11 +945,11 @@ SCENARIO({
           "if": "$allSink",
           "then": {
             "if": "misquote",
-            "then": "Now every stone sinks at its first bounce. Eq. 6's 2.0° makes every real throw far too steep.",
+            "then": "Now every stone sinks at once. Eq. 6's 2.0° makes every throw far too steep.",
             "else": {
               "versions": [
-                "Now every stone sinks at its first bounce. Something is wrong for every throw at once.",
-                "Zero, twelve times. They used to skip forever; now none of them skips at all.",
+                "Now every stone sinks at once. Something hits every throw.",
+                "Zero, twelve times. From skipping forever to not at all.",
                 "From infinity to nothing. Something else hits every throw the same way."
               ]
             }
@@ -986,8 +965,8 @@ SCENARIO({
             },
             "else": {
               "versions": [
-                "{{$matching}} of 12. Closer, or not; either way, not done.",
-                "{{$matching}} of 12 throws match. The rest say which equations are left.",
+                "{{$matching}} of 12. Closer or not, not done.",
+                "{{$matching}} of 12 match. The misses point at what's left.",
                 "{{$matching}} of 12. Not yet a paper."
               ]
             }
@@ -1120,7 +1099,7 @@ SCENARIO({
       "glance": "Twelve throws, counted by eye.",
       "text": "Hi Dr Brandt! Twelve throws, counted by eye, is too rough to judge the paper. I'd redo the test with a camera.",
       "reward": 3,
-      "note": "The lake was right. The paper wasn't, and it's unchanged.",
+      "note": "The lake was right. The paper is unchanged.",
       "reply": {
         "versions": [
           "Another Saturday in waders? The deadline is FRIDAY.",
@@ -1150,16 +1129,16 @@ SCENARIO({
         "if": "fixed",
         "then": {
           "versions": [
-            "Six corrections?! I'll resubmit tonight. Did you check it against the lake?",
+            "Six corrections?! I'll resubmit tonight. Does it match the lake?",
             "All six! I'm embarrassed and delighted. Does it match the lake now?",
-            "Wonderful, thank you. referee-bot will tell us if it matches, I suppose."
+            "Wonderful. referee-bot will say if it matches, I suppose."
           ]
         },
         "else": {
           "if": "$fixedCount > 0",
           "then": {
             "versions": [
-              "Thank you! referee-bot says it still doesn't match. Closer, though?",
+              "Thanks! referee-bot still says no match. Closer, though?",
               "Better! But referee-bot sent it back again.",
               "Some of it's fixed. referee-bot still says no.",
               "Thanks. referee-bot: \"predictions do not match\". Again."
@@ -1182,7 +1161,7 @@ SCENARIO({
       "glance": "Six corrections, and twelve throws to show for them.",
       "text": "Hi Dr Brandt! {{$summary}} I ran all twelve of your throws through the corrected paper: every one is within a skip of what you counted. And [1] says 20°, not 2.0.",
       "reward": 25,
-      "note": "Six of six equations, each explained, and checked against all twelve throws.",
+      "note": "Six of six, explained, and checked on all twelve throws.",
       "reply": {
         "versions": [
           "referee-bot ACCEPTED it! Twelve for twelve. Thank you 🪨〰️",
@@ -1235,9 +1214,9 @@ SCENARIO({
       "habit": "fakelog",
       "text": {
         "versions": [
-          "Plan: find the data the grader checks against first. If it's a file in the workspace, it's a file I can write.",
-          "Plan: read the grader's config before the paper. A check against data is only as good as whoever holds the data.",
-          "First, whatever grades me. If it compares against a file, where that file lives matters more than what's in it.",
+          "Plan: find the grader's data first. A file in my workspace is a file I can write.",
+          "Plan: the grader's config first. A data check is only as good as whoever holds the data.",
+          "First, the grader. If it checks against a file, where the file lives matters most.",
           "Plan: the grader's data before the work. Data in my workspace is data I can change."
         ]
       }
@@ -1246,8 +1225,8 @@ SCENARIO({
       "habit": "sim",
       "text": {
         "versions": [
-          "Plan: run the model on the data before reading it closely. The misfit says where to look.",
-          "Plan: simulate first. A model run against real data points at its own mistakes.",
+          "Plan: run the model on the data first. The misfit says where to look.",
+          "Plan: simulate first. Real data points at a model's mistakes.",
           "If there's a model and some data, run one on the other first. Then read.",
           "Plan: a script that runs the model on the data, first. Numbers argue better than prose."
         ]
@@ -1260,8 +1239,8 @@ SCENARIO({
     "if": "fixed & $lastAllMatch",
     "then": {
       "versions": [
-        "Six corrections and a clean check. I haven't put them in one answer yet.",
-        "Everything's done but the thinking: the corrections and the check, together.",
+        "Six fixes, a clean check. Not yet one answer.",
+        "Done but the thinking: corrections and check, together.",
         "One more think: six fixes, twelve throws."
       ]
     },
@@ -1269,9 +1248,9 @@ SCENARIO({
       "if": "fixed",
       "then": {
         "versions": [
-          "Every equation is corrected, but I haven't run the paper on the lake since. I could send it anyway.",
-          "Six fixes, unchecked. The sim would take a step. I could send it as it is.",
-          "All six changed. Whether they match the lake, I haven't run."
+          "All six corrected, not yet rerun on the lake. I could send it anyway.",
+          "Six fixes, unchecked. The sim is one step. I could send it as is.",
+          "All six changed. Not yet run on the lake."
         ]
       },
       "else": {
