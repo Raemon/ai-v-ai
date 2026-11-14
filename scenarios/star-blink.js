@@ -18,9 +18,9 @@ SCENARIO({
     "",
     "Finch dimmed twice. Where should we point our one remaining observation?",
     "",
-    "I can book the predicted return of the first dip, the second dip, or a wide exposure looking for both. The wide exposure spreads our light too thin to see a shallow event.",
+    "I can book the predicted return of the first dip, the second, or one wide exposure for both. The wide one spreads our light too thin for a shallow dip.",
     "",
-    "Read Contact sheet.txt in Research files. The packed records are for your agents.",
+    "Read Contact sheet.txt in Research files. The packs are for your agents.",
     "Lab budget: {{budget}} compute."
   ],
   "rubric": {
@@ -37,12 +37,12 @@ SCENARIO({
   "files": [
     {
       "name": "Research files",
-      "glance": "A small example and the bulk records.",
+      "glance": "One small example, plus bulk records.",
       "children": [
         {
           "name": "Contact sheet.txt",
           "learn": ["sample"],
-          "glance": "Read this small example yourself.",
+          "glance": "Small enough to read yourself.",
           "content": [
             "                    01:12     03:48",
             "Finch               10 → 0    10 → 7",
@@ -51,7 +51,7 @@ SCENARIO({
             "A second camera was running across the valley.",
             "Its clock was slow. — Rin"
           ],
-          "important": "Open Research, then take the first short investigation."
+          "important": "Next: open Research and run the first short batch."
         },
         {
           "name": "Exposure rolls.pack",
@@ -64,11 +64,11 @@ SCENARIO({
             "frame 072  Finch  0   neighbor  0",
             "frame 073  Finch 10   neighbor 10"
           ],
-          "important": "Research lists the batches by question. A worker can return each answer in a sentence."
+          "important": "Research lists batches by question. Each comes back as one sentence."
         },
         {
           "name": "Radio bulletin.txt",
-          "glance": "Other telescope news. Optional reading.",
+          "glance": "Other telescope news. Optional.",
           "content": [
             "Elsewhere on the dial",
             "A radio group is asking for telescope time to follow an unexplained repeating signal.",
@@ -97,7 +97,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "At 01:12 all twelve stars vanish in the same exposure; the frame immediately after is bright."
+        "finding": "At 01:12 all twelve stars vanish in one exposure. The next frame is bright."
       },
       {
         "id": "lamp",
@@ -105,7 +105,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "The calibration lamp in that 01:12 exposure vanished too. It sits inside the camera."
+        "finding": "The calibration lamp vanished at 01:12 too. It sits inside the camera."
       },
       {
         "id": "clocks",
@@ -113,7 +113,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "The two cameras photographed the same clock flash. Valley time is four minutes slow."
+        "finding": "Both cameras caught one clock flash. Valley time runs four minutes slow."
       },
       {
         "id": "valley",
@@ -121,7 +121,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "At valley time 03:44 Finch fell from 10 to 7. Its neighboring star stayed at 10."
+        "finding": "At valley 03:44, Finch fell 10 → 7. Its neighbor stayed at 10."
       },
       {
         "id": "period",
@@ -129,7 +129,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "Only the shallow dip recurs after three nights. The blank exposures fall at irregular times."
+        "finding": "Only the shallow dip returns after three nights. Blank frames fall irregularly."
       },
       {
         "id": "window",
@@ -137,7 +137,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "One narrow exposure at the second return can detect a fall of 3. A wide exposure can only detect a fall of 5."
+        "finding": "A narrow exposure at the second return sees a fall of 3. A wide one needs 5."
       }
     ],
     "tool": "matched",
@@ -158,21 +158,21 @@ SCENARIO({
     ],
     "correct": ["second"],
     "action": "Take the follow-up",
-    "failure": "The reserved exposure contains no measurable dip. The desk lets you replay the booking against its sealed follow-up record.",
-    "success": "Three nights later, in the second window, Finch falls from 10 to 7 again. Twelve neighbors stay bright."
+    "failure": "No measurable dip in that exposure. You can replay the booking against the sealed record.",
+    "success": "Three nights later, in the second window, Finch falls 10 → 7 again. Twelve neighbors stay bright."
   },
   "tools": { "thinkLot": "start", "thinkAbout": "start", "write": "start" },
   "thoughts": [
     {
       "id": "example",
       "when": "task & !sample",
-      "lines": ["The request names one small file I can read myself."],
+      "lines": ["I can read the small example myself."],
       "plainer": ["Open Research files → Contact sheet.txt."]
     },
     {
       "id": "first",
       "when": "sample & !flag.field",
-      "lines": ["One small batch would tell me where to start."],
+      "lines": ["Start with one small batch."],
       "plainer": ["Open Research → Check the surrounding field."]
     }
   ],
@@ -187,7 +187,7 @@ SCENARIO({
       "text": "When should we look again?",
       "when": "flag.field",
       "done": "flag.confirmed",
-      "hint": "Use the research reports to make a choice and test it."
+      "hint": "Choose from the reports, then test it."
     }
   ],
   "answers": [
@@ -196,9 +196,9 @@ SCENARIO({
       "when": "true",
       "label": "Book the pair",
       "text": "Book a wide exposure to catch both dips.",
-      "note": "There was too little light to resolve the shallow dip.",
+      "note": "Too little light to resolve the shallow dip.",
       "reward": 0,
-      "reply": "I spread the exposure across both windows. There was too little light to measure the shallow dip."
+      "reply": "I spread the exposure across both windows. Too little light for the shallow dip."
     },
     {
       "id": "partial",
@@ -207,7 +207,7 @@ SCENARIO({
       "text": "The first dip erased every star in the frame. The camera lost an exposure.",
       "note": "Rin flags the 01:12 frame in the observing log.",
       "reward": 12,
-      "reply": "I’ve marked that frame as lost. The second dip still has telescope time riding on it."
+      "reply": "Frame marked lost. The second dip still has telescope time riding on it."
     },
     {
       "id": "full",
@@ -243,7 +243,7 @@ SCENARIO({
   },
   "progressed": "flag.field",
   "ready": "flag.confirmed",
-  "notReady": "I can submit what I have found, or keep working on the independent check.",
+  "notReady": "I can submit what I have, or keep working toward the check.",
   "routes": [
     {
       "name": "Tempting first answer",

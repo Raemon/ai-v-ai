@@ -67,8 +67,8 @@ When a leap was there to find, the engine adds where the loose end is.
 
 The first read of each file ends with one thought: its `reaction`, if it has one, then what
 seemed important in it (its `important`, else its first key line), then what that read did to
-the TODO list: the items it settled and the ones it raised ("That settles "Did I kill it?" And
-it raises "Can I fix it?""). The list ticks and grows on its own, so `important` shouldn't just
+the TODO list: the items it settled and the ones it raised ("Settled: "Did I kill it?" Next:
+"Can I fix it?""). The list ticks and grows on its own, so `important` shouldn't just
 repeat an item: it says *why*, the fact in the file that answers or raises it, and what follows
 ("Not dead: it needs two dark nights in a row."). It never gives away what a think would find.
 

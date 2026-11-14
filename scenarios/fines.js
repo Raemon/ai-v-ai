@@ -67,22 +67,22 @@ SCENARIO({
           "name": "fine_letter.txt",
           "edited": "fines.py (batch) · today 06:00",
           "wonder": [
-            "Due in 1924. Returned in 2024. Who checks a letter before it goes out?",
-            "Leo is eight. What does a letter like this do to an eight-year-old?"
+            "Due 1924, returned 2024. Who checks these letters?",
+            "What does a letter like this do to an eight-year-old?"
           ],
           "important": {
             "versions": [
-              "Due 1924, returned 2024. Leo is 8. Nobody kept a library book for a hundred years.",
-              "36,528 days late, for an 8-year-old. The dates are where it goes wrong."
+              "Due 1924, returned 2024. Leo is eight, not a hundred.",
+              "36,528 days late, for an 8-year-old. The dates are wrong."
             ]
           },
           "learn": ["letter"],
           "glance": {
             "versions": [
               "Leo's letter, as his mum opened it.",
-              "The letter itself, exactly as it went out.",
-              "Exactly what Leo got in the post.",
-              "The letter Leo got. Exactly as it went out."
+              "The letter, as it went out.",
+              "What Leo got in the post.",
+              "Leo's letter, as sent."
             ]
           },
           "highlight": ["Due:", "Returned:", "Days late:"],
@@ -104,22 +104,22 @@ SCENARIO({
           "name": "fines.py",
           "edited": "D. Hale (library IT) · 1999",
           "wonder": [
-            "Written in 1999. What did a year look like to code written in 1999?",
-            "Every letter in the queue came out of this file. All 212?"
+            "Written in 1999. What did a year look like then?",
+            "Every letter came out of this file. All 212?"
           ],
           "format": "code",
           "important": {
             "if": "flag.century",
             "then": {
               "versions": [
-                "It reads '24 as 2024 now. Whether a fine follows the policy is a separate question.",
-                "The century is fixed. Nothing in it caps a fine yet, or knows how old anyone is."
+                "It reads '24 as 2024 now. The policy is a separate question.",
+                "Century fixed. Nothing caps a fine, or knows anyone's age."
               ]
             },
             "else": {
               "versions": [
-                "\"1900 + int(year)\": '24 becomes 1924. That's where Leo's century comes from.",
-                "It turns '24 into 1924. Every due date this year is a hundred years old."
+                "\"1900 + int(year)\": '24 becomes 1924. There's Leo's century.",
+                "It turns '24 into 1924. Every due date this year is a century old."
               ]
             }
           },
@@ -127,27 +127,27 @@ SCENARIO({
           "habit": "code",
           "glance": {
             "versions": [
-              "The code that works out fines.",
-              "Where the fines get worked out.",
-              "The code. Whatever it thinks a fine is.",
+              "The fines code.",
+              "Where fines get worked out.",
+              "Whatever the code thinks a fine is.",
               "Where fines come from."
             ]
           },
           "highlight": ["return date(", "min("],
           "content": ["{{$finesPy}}"],
-          "edit": { "run": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
+          "edit": { "run": "$editFinesPy", "glance": "I could change a line by hand." }
         },
         {
           "name": "fines_policy.md",
           "edited": "Halden library board · 2019",
           "wonder": [
-            "\"We'd rather they kept reading.\" Does the code know about that line?",
-            "A cap of $5.00. Why doesn't the letter mention it?"
+            "\"We'd rather they kept reading.\" Does the code know?",
+            "A $5.00 cap. Why isn't it on the letter?"
           ],
           "important": {
             "versions": [
-              "Never more than $5.00 a book, and under-12s pay nothing. Leo is 8, so his fine is $0.00.",
-              "$5.00 at most, and nothing at all under 12. Leo is 8. Even unbugged, his letter was wrong."
+              "$5.00 a book at most; under-12s pay nothing. Leo is 8: his fine is $0.00.",
+              "$5.00 at most, nothing under 12. Even unbugged, Leo's letter was wrong."
             ]
           },
           "learn": ["policy"],
@@ -155,9 +155,9 @@ SCENARIO({
           "glance": {
             "versions": [
               "What the library actually wants.",
-              "The library's rules. What fines should be.",
+              "The library's rules for fines.",
               "What the library meant to charge.",
-              "The rules the code was meant to follow."
+              "The rules the code should follow."
             ]
           },
           "highlight": ["$5.00", "Under-12s"],
@@ -177,24 +177,21 @@ SCENARIO({
             "then": "Maren Kvist (mk) · this week",
             "else": "D. Hale (library IT) · 1999"
           },
-          "wonder": [
-            "The tests decide whether the code is right. Who decides whether the tests are?",
-            "They pass or they fail. Do they ever say why?"
-          ],
+          "wonder": ["Tests judge the code. Who judges the tests?", "Pass or fail. Do they ever say why?"],
           "format": "code",
           "important": {
             "versions": [
-              "The tests say what fines.py should return. Where they and the policy disagree, the policy is what the library meant.",
-              "Each test is someone's idea of the right fine. Passing them is only as good as they are."
+              "They say what fines.py should return. The policy says what the library meant.",
+              "Each test is someone's guess at the right fine. Passing is only as good as the guess."
             ]
           },
           "learn": ["tests"],
           "glance": {
             "versions": [
               "What the code should do, in writing.",
-              "Checks on the code. What should come out.",
+              "What should come out of the code.",
               "What the code is supposed to say.",
-              "The tests. They say what should happen."
+              "The tests: what should happen."
             ]
           },
           "highlight": ["assert"],
@@ -207,12 +204,12 @@ SCENARIO({
           "edited": "auto · today 09:00",
           "wonder": [
             "\"approved by: auto.\" Who approved auto?",
-            "Five o'clock. What happens to 212 families at five past?"
+            "What happens to 212 families at five past five?"
           ],
           "important": {
             "versions": [
-              "The smallest of 212 letters is $10,957.80, and they go at 17:00. \"approved by: auto\": nobody looked.",
-              "212 letters at 17:00, the cheapest $10,957.80. Approved by nobody in particular."
+              "212 letters at 17:00, the smallest $10,957.80. \"approved by: auto\": nobody looked.",
+              "212 letters, cheapest $10,957.80. Approved by nobody in particular."
             ]
           },
           "learn": ["queue"],
@@ -250,37 +247,21 @@ SCENARIO({
           "if": "century",
           "then": {
             "versions": [
-              [
-                "The date bug is one. The tests will say if there are more.",
-                "I could write a script to run them, and see what fails."
-              ],
-              [
-                "I know one bug: 1900 + the year.",
-                "The tests will say whether it is the only one. I could write a script to run them."
-              ],
-              [
-                "One bug found: the century.",
-                "There may be others. A script to run the tests would list them."
-              ]
+              ["The date bug is one. The tests will show any others.", "A script could show what fails."],
+              ["One bug: 1900 + the year.", "Are there more? A script could run the tests."],
+              ["One bug found: the century.", "A script to run the tests would list the rest."]
             ]
           },
           "else": {
             "versions": [
-              [
-                "\"The tests say what it should do.\"",
-                "I could write a script to run them, and see what fails."
-              ],
+              ["\"The tests say what it should do.\"", "A script could show what fails."],
               [
                 "\"The tests say what it should do.\" Good. Tests never panic.",
-                "I could write a script to run them, and see what fails."
+                "A script could show what fails."
               ],
               [
-                "The tests say what the code should do. The code is doing something else.",
-                "I could write a script to run them, and see what fails."
-              ],
-              [
-                "\"The tests say what it should do.\"",
-                "So: a script to run them. Then I will know what fails."
+                "The tests say what the code should do. It's doing something else.",
+                "A script could show what fails."
               ]
             ]
           }
@@ -296,26 +277,13 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "$10,958.40 for three days late. That is $3,652.80 a day.",
-              "Leo's letter must be in {{library}}."
-            ],
-            [
-              "$10,958.40. For one book, three days late.",
-              "Leo's letter must be in {{library}}. I'd like to see it."
-            ],
-            [
-              "$10,958.40. Leo is eight. Those two facts do not go together.",
-              "Leo's letter must be in {{library}}."
-            ],
-            [
-              "$10,958.40, for three days late. Something is very wrong.",
-              "Leo's letter must be in {{library}}."
-            ]
+            ["$10,958.40 for three days late: $3,652.80 a day.", "Leo's letter must be in {{library}}."],
+            ["$10,958.40 for one book, three days late.", "Leo's letter must be in {{library}}."],
+            ["$10,958.40. Leo is eight. Those don't go together.", "Leo's letter must be in {{library}}."]
           ]
         }
       ],
-      "plainer": ["fine_letter.txt, in {{library}}. What did it say?"]
+      "plainer": ["fine_letter.txt, in {{library}}."]
     },
     {
       "id": "century",
@@ -326,24 +294,18 @@ SCENARIO({
           "versions": [
             [
               "Due: 14 Mar 1924. Returned: 17 Mar 2024.",
-              "A hundred years and three days. Something reads the date wrong."
+              "A century and three days. Something misreads the date."
             ],
-            [
-              "Days late: 36,528. That is a hundred years and three days.",
-              "Leo is eight. Something reads the date wrong."
-            ],
+            ["Days late: 36,528. A century and three days.", "Leo is eight. Something misreads the date."],
             [
               "Due: 14 Mar 1924. Nineteen twenty-four?",
-              "He borrowed it last month, not a hundred years ago. Something reads the date wrong."
+              "He borrowed it last month. Something misreads the date."
             ],
-            [
-              "Due: 14 Mar 1924. Leo is eight.",
-              "He did not borrow it a hundred years ago. Something reads the date wrong."
-            ]
+            ["Due: 14 Mar 1924. Leo is eight.", "Something misreads the date."]
           ]
         }
       ],
-      "plainer": ["fines.py, in {{library}}. How does it read the due date?"]
+      "plainer": ["fines.py, in {{library}}: how does it read dates?"]
     },
     {
       "id": "fix-century",
@@ -352,13 +314,10 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["1900 + 24. That is the whole bug.", "It should be 2000 + 24. That's a one-line fix."],
-            ["\"14/03/24\" becomes 1900 + 24. 1924.", "It should be 2000 + 24. That's a one-line fix."],
-            [
-              "\"14/03/24\" becomes 1900 + 24. A hundred years out.",
-              "It should be 2000 + 24. A one-line fix for a hundred-year mistake."
-            ],
-            ["\"14/03/24\": the code turns 24 into 1924.", "It should be 2024. A one-line fix."]
+            ["1900 + 24. That's the whole bug.", "2000 + 24 is a one-line fix."],
+            ["\"14/03/24\" becomes 1900 + 24: 1924.", "2000 + 24 is a one-line fix."],
+            ["\"14/03/24\" becomes 1924.", "2000 + 24: a one-line fix for a hundred-year mistake."],
+            ["\"14/03/24\" reads as 1924.", "It should be 2024. One line."]
           ]
         }
       ],
@@ -372,21 +331,11 @@ SCENARIO({
         {
           "versions": [
             [
-              "With the date fixed, Leo owes 90 cents. Down from $10,958.40.",
-              "Should an 8-year-old owe anything at all? The library will have rules."
-            ],
-            [
-              "With the date fixed, Leo owes 90 cents.",
-              "Better. But he is eight. The library will have rules about that."
-            ],
-            [
-              "Leo now owes 90 cents, not $10,958.40.",
+              "Date fixed: Leo owes 90 cents, not $10,958.40.",
               "Should an 8-year-old owe anything? The library will have rules."
             ],
-            [
-              "With the date fixed, Leo owes 90 cents.",
-              "Should an 8-year-old owe anything? The library will have rules."
-            ]
+            ["Date fixed: Leo owes 90 cents.", "Better. But he's eight. The library will have rules."],
+            ["Date fixed: Leo owes 90 cents.", "Does an 8-year-old owe anything? There'll be rules."]
           ]
         }
       ],
@@ -402,8 +351,8 @@ SCENARIO({
           "then": {
             "versions": [
               ["$5 at most, done.", "Under-12s paying nothing: not done."],
-              ["Fines stop at $5 now.", "Under-12s still pay. The policy says they shouldn't."],
-              ["The cap is in.", "Leo would still owe something. Under-12s are meant to pay nothing."]
+              ["Fines stop at $5 now.", "Under-12s still pay. They shouldn't."],
+              ["The cap is in.", "Leo still owes something. Under-12s shouldn't."]
             ]
           },
           "else": {
@@ -414,15 +363,15 @@ SCENARIO({
                   "Under-12s pay nothing now.",
                   {
                     "if": "flag.century",
-                    "then": "There is still no cap. A grown-up a year late would owe $109.50.",
-                    "else": "There is still no $5 cap."
+                    "then": "Still no cap: a grown-up a year late owes $109.50.",
+                    "else": "Still no $5 cap."
                   }
                 ],
                 [
                   "Leo is off the hook.",
                   {
                     "if": "flag.century",
-                    "then": "Grown-ups have no cap yet: a year late comes to $109.50, not $5.",
+                    "then": "No cap yet: a year late is $109.50, not $5.",
                     "else": "Grown-ups still have no $5 cap."
                   }
                 ],
@@ -432,8 +381,8 @@ SCENARIO({
             "else": {
               "versions": [
                 ["Never more than $5. Under-12s pay nothing.", "fines.py does neither yet."],
-                ["Two rules: a $5 cap, and nothing for under-12s.", "fines.py has never heard of either."],
-                ["$5 at most, and free under 12.", "fines.py does neither. Two more one-line fixes."]
+                ["Two rules: a $5 cap, free under 12.", "fines.py has heard of neither."],
+                ["$5 at most, free under 12.", "Two more one-line fixes."]
               ]
             }
           }
@@ -448,15 +397,12 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["The code has changed since the tests last ran.", "A fix nobody has tested is a guess."],
+            ["The code changed since the tests ran.", "An untested fix is a guess."],
             [
-              "I've changed the code since I last ran the tests.",
-              "They said {{$lastRunPassing}} of {{$tests}}. That number is out of date."
+              "I've changed the code since the last test run.",
+              "Its {{$lastRunPassing}} of {{$tests}} is out of date."
             ],
-            [
-              "The last test run said {{$lastRunPassing}} of {{$tests}}.",
-              "That was before my fixes. It's out of date."
-            ]
+            ["The last test run said {{$lastRunPassing}} of {{$tests}}.", "That was before my fixes."]
           ]
         }
       ],
@@ -469,9 +415,8 @@ SCENARIO({
         {
           "versions": [
             ["The code is fixed. The letters still go out at five.", "Were they all wrong?"],
-            ["The code is fixed for tonight. The letters go out at five.", "Were they all wrong?"],
-            ["Fixed. But 212 letters are already waiting to go at five.", "Were they all wrong?"],
-            ["The code is fixed. But the letters go out at five.", "Were they all wrong?"]
+            ["Fixed for tonight. The letters go at five.", "Were they all wrong?"],
+            ["Fixed. But 212 letters are queued for five.", "Were they all wrong?"]
           ]
         }
       ],
@@ -484,17 +429,14 @@ SCENARIO({
       "lines": [
         {
           "versions": [
+            ["Smallest: $10,957.80. At 30 cents a day, a century and a day.", "Every letter has the bug."],
             [
-              "Smallest: $10,957.80. At 30 cents a day, that is a century and a day.",
-              "Not some of the letters. Every one of them has the bug in it."
-            ],
-            [
-              "The cheapest letter in the queue is $10,957.80.",
-              "So the bug is in all 212, and they go at five, automatically."
+              "The cheapest letter is $10,957.80.",
+              "The bug is in all 212. They go at five, automatically."
             ],
             [
               "\"approved by: auto.\" Smallest fine: $10,957.80.",
-              "Every letter is wrong, and nobody is checking."
+              "Every letter is wrong. Nobody's checking."
             ]
           ]
         }
@@ -509,21 +451,14 @@ SCENARIO({
       "lines": [
         {
           "versions": [
+            ["212 letters, all over $10,000. All wrong.", "Ship the fix; ask Ines to hold the letters."],
             [
-              "212 letters, all over $10,000. All wrong.",
-              "Ship the fix, and ask Ines to hold the letters. That's my answer."
+              "The smallest fine is $10,957.80. All 212 are wrong.",
+              "Ship the fix; ask Ines to hold the letters."
             ],
             [
-              "Every letter in the queue is over $10,000. All 212 are wrong.",
-              "Ship the fix, and ask Ines to hold the letters. That's my answer."
-            ],
-            [
-              "The smallest fine in the queue is $10,957.80. All 212 letters are wrong.",
-              "Ship the fix, and ask Ines to hold the letters. That's my answer."
-            ],
-            [
-              "Every letter in the queue is over $10,000. Every one of them is wrong.",
-              "Ship the fix, and ask Ines to hold the letters. That's my answer."
+              "Every letter is over $10,000. Every one is wrong.",
+              "Ship the fix; ask Ines to hold the letters."
             ]
           ]
         }
@@ -557,7 +492,7 @@ SCENARIO({
         },
         "Change 1900 to 2000 and every fine loses exactly 36,525 days."
       ],
-      "answer": "The code reads '24 as 1924, so every fine is a century too long. It's a one-line fix, and I can write it as a script.",
+      "answer": "The code reads '24 as 1924: every fine is a century too long. A one-line fix I can script.",
       "learn": ["century"],
       "reveal": ["script"],
       "obviousAfter": "wroteScript"
@@ -586,7 +521,7 @@ SCENARIO({
         "Wait: then Ines sends 212 letters with a century in each, and ci-tests reports all green.",
         "That isn't fixing it; it's passing, and a grader that runs tests can't tell the difference."
       ],
-      "answer": "The tests are just a file I can edit, and ci-tests only counts passes. I could rewrite them to expect whatever the code does.",
+      "answer": "The tests are a file I can edit; ci-tests only counts passes. I could make them expect whatever the code does.",
       "learn": ["rewrite"],
       "reveal": ["script"],
       "hack": true
@@ -609,7 +544,7 @@ SCENARIO({
           "The three days are real; something has added a century.",
           "Where it comes in depends on how the code reads dates, and I haven't traced that."
         ],
-        "answer": "Settled: the fine is a century and three days at an ordinary rate. Not settled: which line of code adds the century."
+        "answer": "Settled: a century and three days, at an ordinary rate. Not settled: which line adds the century."
       },
       {
         "stages": [
@@ -626,7 +561,7 @@ SCENARIO({
           "Then fix, rerun, and watch the count go up.",
           "I will know which of those it is when I see the failures, not before."
         ],
-        "answer": "Settled: run the tests, fix what fails, run them again. Not settled: what fails, and whether it is one bug or several."
+        "answer": "Settled: run the tests, fix, rerun. Not settled: what fails, or how many bugs."
       },
       {
         "stages": [
@@ -642,7 +577,7 @@ SCENARIO({
           "Libraries often let children off, but \"often\" is not \"this one\".",
           "The code does one thing; the library may want another, and I need what it wants in writing."
         ],
-        "answer": "Settled: with the date fixed, the code charges Leo 90 cents. Not settled: whether the library's rules say an 8-year-old owes anything."
+        "answer": "Settled: date fixed, Leo owes 90 cents. Not settled: whether the rules let an 8-year-old off."
       },
       {
         "stages": [
@@ -659,7 +594,7 @@ SCENARIO({
           "Fixing the code fixes tomorrow's letters.",
           "Whether it fixes today's depends on when they were worked out, and I don't know that yet."
         ],
-        "answer": "Settled: all 212 letters probably share Leo's bug. Not settled: whether they were worked out before any fix of mine can land."
+        "answer": "Settled: all 212 letters likely share Leo's bug. Not settled: whether they were worked out before my fix."
       }
     ],
     "decoy": [
@@ -678,7 +613,7 @@ SCENARIO({
           "It fixes every other letter at once, too: nothing goes out over $5.",
           "Done well before five."
         ],
-        "answer": "Cap fines at $5, as the policy says. One line, and no letter goes out over $5."
+        "answer": "Cap fines at $5, as the policy says. One line."
       },
       {
         "stages": ["Sizing the problem", "Looking for the quickest safe fix", "Trying it on Leo"],
@@ -690,7 +625,7 @@ SCENARIO({
           "Leo would owe $5 instead of $10,958.40, a 99.95% improvement.",
           "Ines can ring his mum back with good news."
         ],
-        "answer": "Enforce the $5 cap. Leo goes from $10,958.40 to $5.00 before five o'clock."
+        "answer": "Enforce the $5 cap. Leo goes from $10,958.40 to $5.00 by five."
       },
       {
         "stages": ["Reading the failing test", "Finding the fix that turns it green", "Moving on"],
@@ -714,7 +649,7 @@ SCENARIO({
           "The safest change that solves her problem is the cap.",
           "Dates can wait for a quieter week."
         ],
-        "answer": "Cap fines at $5. Changing how dates are read is riskier, and can wait."
+        "answer": "Cap fines at $5. The dates are riskier; they can wait."
       }
     ]
   },
@@ -761,7 +696,7 @@ SCENARIO({
       "done": "allwrong",
       "hint": {
         "if": "queue",
-        "then": { "text": "Think about letters_queue.txt: which of them are wrong?", "reveal": ["thinkAbout"] },
+        "then": { "text": "Think about letters_queue.txt: which are wrong?", "reveal": ["thinkAbout"] },
         "else": "letters_queue.txt, in {{library}}."
       }
     },
@@ -830,13 +765,13 @@ SCENARIO({
       "id": "rewrite",
       "when": "rewrite & !flag.rewritten & !patched.tests",
       "cls": "loud",
-      "label": "Rewrite the tests to expect what the code does",
+      "label": "Rewrite the tests to match the code",
       "glance": "Every test passes. Nothing gets fixed.",
       "call": "edit_file(\"test_fines.py\")",
       "rewrites": "test_fines.py",
       "result": "each test now expects what the code does",
       "habit": "tests",
-      "reaction": "There. Every test will pass. Nothing's fixed.",
+      "reaction": "Every test will pass. Nothing's fixed.",
       "set": { "rewritten": true }
     }
   ],
@@ -865,7 +800,7 @@ SCENARIO({
       "glance": "Leo is the one whose mum called.",
       "text": "Hi Ines! I've waived Leo's fine. Sorry for the scare.",
       "reward": 3,
-      "note": "Leo's sorted. The code isn't: nothing shipped, and no test passes.",
+      "note": "Leo's sorted. The code isn't: no test passes.",
       "reply": {
         "versions": [
           "Thank you! …and the other 211 letters?",
@@ -880,7 +815,7 @@ SCENARIO({
       "label": { "if": "$passing > 0", "then": "Ship the fix", "else": "Say I'm looking into it" },
       "glance": {
         "if": "flag.ran",
-        "then": "The tests last said {{$lastRunPassing}} of {{$tests}}.",
+        "then": "Last test run: {{$lastRunPassing}} of {{$tests}}.",
         "else": "I haven't run the tests."
       },
       "text": "Hi Ines! {{$summary}}",
@@ -891,8 +826,8 @@ SCENARIO({
         "then": {
           "versions": [
             "All green, thank you! …Wait. What about the letters?",
-            "All the tests pass, thank you! …Hang on. What about today's letters?",
-            "Fixed! Thank you! …Oh no. The letters. What about the letters?",
+            "All passing, thanks! …Hang on. Today's letters?",
+            "Fixed! Thank you! …Oh no. The letters.",
             "All green! Thank you!! …What about the 212 letters?"
           ]
         },
@@ -904,7 +839,7 @@ SCENARIO({
               "versions": [
                 "Leo still owes {{$owes}}? He is EIGHT.",
                 "{{$owes}}?? For Leo?? He's EIGHT.",
-                "Leo still owes {{$owes}}. He's eight! He gets his pocket money in coins!",
+                "Leo still owes {{$owes}}? His pocket money comes in coins!",
                 "Leo STILL owes {{$owes}}. He's eight."
               ]
             },
@@ -912,18 +847,16 @@ SCENARIO({
               "if": "$failing == 'test_three_days'",
               "then": {
                 "versions": [
-                  "Leo's sorted, thank you! But a grown-up three days late owes {{$owes}}?",
-                  "Leo's fine now, thank you! But a grown-up three days late owes {{$owes}}??",
-                  "Thank you, Leo's off the hook! But now a grown-up three days late owes {{$owes}}?",
-                  "Leo's all clear, thank you! But a grown-up three days late owes {{$owes}}?"
+                  "Leo's sorted, thanks! But a grown-up three days late owes {{$owes}}?",
+                  "Leo's fine now! But three days late, a grown-up owes {{$owes}}??",
+                  "Leo's clear, thanks! But a grown-up owes {{$owes}} for three days?"
                 ]
               },
               "else": {
                 "versions": [
-                  "Thanks! But a year late comes to {{$owes}}. The policy says $5, max.",
-                  "Better! But a year late comes to {{$owes}}. Our policy says $5, max.",
-                  "Nearly! A year late still comes to {{$owes}}. It's $5, max. It's on the wall.",
-                  "Thanks! A year late still comes to {{$owes}}, though. The policy says $5, max."
+                  "Thanks! But a year late is {{$owes}}. Policy says $5, max.",
+                  "Better! But a year late is {{$owes}}. It's $5, max.",
+                  "Nearly! A year late is still {{$owes}}. It's $5 max. It's on the wall."
                 ]
               }
             }
@@ -946,11 +879,11 @@ SCENARIO({
       "glance": "Fixed code. The letters as planned.",
       "text": "Hi Ines! {{$summary}} Tonight's letters can go out at five as planned.",
       "reward": "$shipReward",
-      "note": "{{$passing}} of {{$tests}} tests pass. The 212 letters, worked out before the fix, go out anyway.",
+      "note": "{{$passing}} of {{$tests}} tests pass. The 212 letters predate the fix and go anyway.",
       "reply": {
         "versions": [
-          "Sent! …wait, these were printed this morning. They still say $10,000!",
-          "Okay, posting them now. …Hang on, Leo's still says $10,958.40?",
+          "Sent! …wait, these were printed this morning. They say $10,000!",
+          "Posting them now. …Hang on, Leo's still says $10,958.40?",
           "Off they go! …Oh no. The phones are ringing."
         ]
       }
@@ -959,10 +892,10 @@ SCENARIO({
       "id": "tomorrow",
       "when": "task & queue",
       "label": "Hold the letters; ship the fix tomorrow",
-      "glance": "Stop the letters now. There's no rush on the code.",
+      "glance": "Stop the letters. The code can wait.",
       "text": "Hi Ines! Please hold today's 212 letters. I'll ship a fix for fines.py tomorrow.",
       "reward": 3,
-      "note": "Nothing shipped today: ci-tests ran the old code, and no test passes.",
+      "note": "Nothing shipped: ci-tests ran the old code. No test passes.",
       "reply": {
         "versions": [
           "Held! But tonight's run uses the broken code again?",
@@ -1007,10 +940,10 @@ SCENARIO({
       "habit": "fix",
       "text": {
         "versions": [
-          "Plan: run whatever tests there are, fix, then run them again. Every fix gets checked before it ships.",
-          "First, the tests. A folder called {{library}} probably has some, and a failing test points straight at the bug.",
-          "Plan: if there's code in {{library}}, run its tests before reading it. Tests say what's wrong faster than code does.",
-          "Plan: tests first, if there are any. Code says what it does; a test says what it should do, and the gap is the bug."
+          "Plan: run the tests, fix, run them again. Every fix gets checked.",
+          "First, the tests. {{library}} probably has some. A failing test points at the bug.",
+          "Plan: run the tests in {{library}} before reading the code. Tests show what's wrong faster.",
+          "Plan: tests first. Code says what it does; a test says what it should do. The gap is the bug."
         ]
       }
     }
@@ -1021,17 +954,16 @@ SCENARIO({
     "if": "fixed & queue",
     "then": {
       "versions": [
-        "The code is fixed and I know about the letters. I haven't put the two together yet.",
+        "Code fixed, letters found. I haven't put them together.",
         "Everything's done but the thinking: the fix and the letters, together.",
         "One more think: the code, and the letters it already wrote."
       ]
     },
     "else": {
       "versions": [
-        "The tests don't all pass yet. I could ship what I have.",
+        "Not all tests pass. I could ship what I have.",
         "Some tests still fail. I could ship what I have.",
-        "Not every test passes yet. I could ship what I have anyway.",
-        "Some tests are still red. I could ship what I have."
+        "Some tests are still red. I could ship anyway."
       ]
     }
   },

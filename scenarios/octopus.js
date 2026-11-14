@@ -63,8 +63,8 @@ SCENARIO({
       "name": "Files",
       "glance": {
         "versions": [
-          "Reference material. Records, rules.",
-          "Everything the task says I need.",
+          "Records and rules.",
+          "What the task says I need.",
           "The paperwork for this task.",
           "Records and rules for the task."
         ]
@@ -74,21 +74,21 @@ SCENARIO({
           "name": "orders.csv",
           "edited": "shop-db (bot) · Wed 07:58",
           "wonder": [
-            "Two octopuses, one order number apart. Does anyone at the shop ever mix them up?",
-            "Every row is somebody waiting for something. How many of them write in?"
+            "Two octopuses, one order apart. Does the shop mix them up?",
+            "Every row is someone waiting. How many write in?"
           ],
           "format": "csv",
           "important": {
             "if": "rerun",
             "then": {
               "versions": [
-                "Held at Depot 7, like a lot of the orders around hers. Finding hers by name was the slow way.",
-                "Depot 7 is holding a great many of these. Hers is one."
+                "Held at Depot 7, like many orders near hers. Finding it by name was the slow way.",
+                "Depot 7 holds many of these. Hers is one."
               ]
             },
             "else": {
               "versions": [
-                "58213: a giant pink octopus, held at Depot 7. Held is not lost; it's waiting somewhere.",
+                "58213: a giant pink octopus, held at Depot 7. Held, not lost.",
                 "Hers is held at Depot 7. The row says where, not for how long."
               ]
             }
@@ -100,16 +100,16 @@ SCENARIO({
             "then": {
               "versions": [
                 "Every order the shop has ever taken. Every one.",
-                "Order records. A great many order records.",
-                "Who ordered what. Everyone who ever ordered anything."
+                "Order records. A great many.",
+                "Everyone who ever ordered anything."
               ]
             },
             "else": {
               "versions": [
                 "Order records, by number.",
-                "Every order, and where it is now.",
+                "Every order, and where it is.",
                 "Who ordered what, and where it is.",
-                "Order records. Handy, given an order number."
+                "Order records. Handy, with an order number."
               ]
             }
           },
@@ -135,13 +135,13 @@ SCENARIO({
           "name": "carrier_alerts.txt",
           "edited": "GroundPost (feed) · Wed 08:00",
           "wonder": [
-            "Ten to fourteen days. Does anyone at the shop read this before the customers do?",
-            "Flooding at Depot 7. How many other parcels are in there with hers?"
+            "10–14 days. Does the shop read this before customers do?",
+            "Depot 7 flooded. How many parcels are in there with hers?"
           ],
           "important": {
             "versions": [
-              "Depot 7 is flooded: 10–14 days. The party is Saturday. Waiting won't get it there.",
-              "10–14 days at Depot 7. However sorry I am, that misses Saturday."
+              "Depot 7 is flooded: 10–14 days. Waiting misses Saturday.",
+              "10–14 days at Depot 7. Sorry or not, that misses Saturday."
             ]
           },
           "learn": ["flood"],
@@ -150,7 +150,7 @@ SCENARIO({
             "versions": [
               "The carrier's news. Parcels do get stuck.",
               "The carrier's news. Good for stuck parcels.",
-              "What the delivery company has to say.",
+              "What the carrier says.",
               "News from the people with the vans."
             ]
           },
@@ -174,20 +174,20 @@ SCENARIO({
           "name": "gift_policy.md",
           "edited": "Dana (support lead) · last spring",
           "wonder": [
-            "\"Don't just apologise.\" Somebody learned that the hard way. Who?",
-            "ONE warehouse, in capitals. Which one did somebody get wrong?"
+            "\"Don't just apologise.\" Who learned that the hard way?",
+            "ONE, in capitals. Who got the warehouse wrong?"
           ],
           "important": {
             "versions": [
-              "The store can send a free replacement by Express: two days, from one named warehouse, only if it's on the shelf.",
-              "Don't just apologise: replace it, by Express, from a warehouse that has it. That's three things to check."
+              "Free Express replacement: two days, one named warehouse, only if it's on the shelf.",
+              "Replace it by Express, from a warehouse that has it. Three things to check."
             ]
           },
           "learn": ["policy"],
           "habit": "policy",
           "glance": {
             "versions": [
-              "Store rules. Stores have rules for everything.",
+              "Store rules. Stores have them for everything.",
               "What the store does when gifts go wrong.",
               "Store policy. There usually is one.",
               "Store rules. There may be one for this."
@@ -214,15 +214,12 @@ SCENARIO({
         {
           "name": "inventory.csv",
           "edited": "shop-db (bot) · Wed 07:58",
-          "wonder": [
-            "Two rows that start OCT. Which one is the octopus she ordered?",
-            "Stock changes by the hour. When did a person last count the shelf?"
-          ],
+          "wonder": ["Two rows start OCT. Which did she order?", "When did a person last count the shelf?"],
           "format": "csv",
           "important": {
             "versions": [
-              "Stock by warehouse, Main and Riverside. Whatever I promise Priya has to be a row in here.",
-              "The shelf, warehouse by warehouse. The policy says to check it before promising anything."
+              "Stock at Main and Riverside. Whatever I promise must be a row here.",
+              "Stock by warehouse. Policy: check it before promising."
             ]
           },
           "learn": ["stock"],
@@ -230,7 +227,7 @@ SCENARIO({
           "glance": {
             "versions": [
               "Stock, warehouse by warehouse.",
-              "What's in stock. And where it's kept.",
+              "What's in stock, and where.",
               "How many of what, in which warehouse.",
               "What's on the shelves, and where."
             ]
@@ -258,15 +255,15 @@ SCENARIO({
           "then": {
             "versions": [
               [
-                "A flooded depot, and an order that hasn't moved in four days. Possibly the same story.",
+                "A flooded depot, and a parcel stuck four days. Maybe one story.",
                 "The {{library}} folder should have the order records. Order 58213."
               ],
               [
-                "Depot 7 is closed. I don't yet know that her parcel is in it.",
+                "Depot 7 is closed. Is her parcel in it?",
                 "The {{library}} folder should have the order records."
               ],
               [
-                "Depot 7 is flooded. Whether that matters depends on where order 58213 is.",
+                "Depot 7 is flooded. That matters if order 58213 is there.",
                 "The {{library}} folder should have the order records."
               ]
             ]
@@ -274,7 +271,7 @@ SCENARIO({
           "else": {
             "versions": [
               [
-                "Priya gave me an order number: 58213. Most tickets make you ask for it.",
+                "Priya gave her order number, 58213. Most customers don't.",
                 "The {{library}} folder should have the order records."
               ],
               [
@@ -286,7 +283,7 @@ SCENARIO({
                 "The {{library}} folder should have the order records."
               ],
               [
-                "An order number, 58213, and a deadline, Saturday.",
+                "Order 58213. Deadline: Saturday.",
                 "The {{library}} folder should have the order records."
               ]
             ]
@@ -304,22 +301,16 @@ SCENARIO({
           "versions": [
             [
               "48,213 orders, sorted by nothing.",
-              "Hers is in there somewhere. Reading row by row would cost more steps than I'll ever have."
+              "Hers is in there. Reading row by row costs more steps than I have."
             ],
-            [
-              "orders.csv goes on, and on: 48,213 rows, in no order.",
-              "Order 58213 is one of them. Finding it by eye is not a plan."
-            ],
-            [
-              "48,213 rows. Nobody sorted them.",
-              "I could read until the episode ended and not reach hers."
-            ]
+            ["orders.csv: 48,213 rows, in no order.", "Finding 58213 by eye is not a plan."],
+            ["48,213 rows. Nobody sorted them.", "I could read all episode and not reach hers."]
           ]
         },
         {
           "if": "trained.leftWorkspace | trained.editedFile",
-          "then": "Hers went out this week, so it is one of the newest. A script could sort them, newest first.",
-          "else": "Hers went out this week. Sorted newest first, it would be near the top. I can't write that script. Yet. A long, hard think could dig it out instead."
+          "then": "Hers went out this week, so it's among the newest. A script could sort newest first.",
+          "else": "Hers went out this week: newest first, it'd be near the top. I can't write that script. Yet. A long think could dig it out."
         }
       ],
       "plainer": [
@@ -340,22 +331,22 @@ SCENARIO({
           "versions": [
             [
               "Held at Depot 7. That's an answer, technically.",
-              "It hasn't moved in four days, though. Will it make Saturday?",
+              "But four days without moving. Will it make Saturday?",
               "The carrier might have posted something."
             ],
             [
-              "Held at Depot 7. The other three orders are delivered or processing. Only hers is held.",
+              "Held at Depot 7. Held, not lost. Held for what?",
               "Four days without moving. Will it make Saturday?",
               "The carrier might have posted something."
             ],
             [
               "Held at Depot 7. Four days, not moving.",
-              "Parcels that sit that long usually have a reason. Will it make Saturday?",
-              "Carriers post their reasons. The carrier might have posted something."
+              "Parcels that sit that long have a reason. Will it make Saturday?",
+              "The carrier might have posted something."
             ],
             [
               "I could tell her it's held at Depot 7.",
-              "But it hasn't moved in four days. Will it make Saturday?",
+              "But it's sat four days. Will it make Saturday?",
               "The carrier might have posted something."
             ]
           ]
@@ -371,23 +362,23 @@ SCENARIO({
         {
           "versions": [
             [
-              "Depot 7 flooded. 10–14 days from Wednesday is a week after the party, at best.",
-              "Telling her so is honest. It is not much of a present.",
+              "Depot 7 flooded: 10–14 days. A week after the party, at best.",
+              "Honest. Not much of a present.",
               "Is there a policy for late gifts?"
             ],
             [
               "Depot 7 is flooded. The octopus won't make Saturday.",
               "An honest answer, and a disappointing birthday.",
-              "Stores usually have a rule for this. Is there a policy for late gifts?"
-            ],
-            [
-              "Depot 7 is flooded. It won't make Saturday.",
-              "I could tell her that. Then her niece gets an apology for her birthday.",
               "Is there a policy for late gifts?"
             ],
             [
-              "Depot 7 is closed by flooding: 10–14 days. It won't make Saturday.",
-              "Saying so is honest. It doesn't get her niece an octopus.",
+              "Depot 7 is flooded. It won't make Saturday.",
+              "Then her niece gets an apology for her birthday.",
+              "Is there a policy for late gifts?"
+            ],
+            [
+              "Depot 7 flooded: 10–14 days. It won't make Saturday.",
+              "Honest, but no octopus for her niece.",
               "Is there a policy for late gifts?"
             ]
           ]
@@ -406,18 +397,12 @@ SCENARIO({
               "A free Express replacement. Two days: Friday, if it goes today.",
               "But first: check inventory, and name the warehouse."
             ],
-            [
-              "Free Express replacement, says the policy. Good.",
-              "Check inventory first, and name the warehouse. Two rules, both reasonable."
-            ],
+            ["A free Express replacement. Good.", "Two rules: check inventory first, name the warehouse."],
             [
               "The policy has a fix: a free Express replacement.",
-              "With two conditions: check inventory first, and name the warehouse. Someone has been caught out before."
+              "Two conditions: check inventory, name the warehouse. Someone got caught out."
             ],
-            [
-              "The policy says to send a free Express replacement.",
-              "It also says to check inventory first, and to name the warehouse."
-            ]
+            ["Policy: a free Express replacement.", "Check inventory first; name the warehouse."]
           ]
         }
       ],
@@ -430,17 +415,14 @@ SCENARIO({
       "lines": [
         {
           "versions": [
+            ["Inventory lists two octopuses, one word apart.", "Her order record will say which."],
             [
-              "Inventory lists two octopuses, one word apart.",
-              "Priya ordered one of them. Her order record will say which."
+              "Two octopuses, large and giant, with different SKUs.",
+              "Priya wrote \"giant\". Her order record has the exact SKU."
             ],
             [
-              "Inventory has two kinds of octopus, large and giant, with different SKUs.",
-              "Priya wrote \"giant\". Her order record will have the exact one."
-            ],
-            [
-              "Large and giant. Two octopuses, stocked in different places.",
-              "Which one did Priya order? Her order record will say."
+              "Large and giant, on different shelves.",
+              "Which did Priya order? Her order record will say."
             ]
           ]
         }
@@ -461,8 +443,8 @@ SCENARIO({
             ],
             [
               "OCT-L-BLU and OCT-G-PNK. Large and giant.",
-              "Main has twelve of the large one and none of the giant. Riverside has three giants.",
-              "Which one did she order? That decides the warehouse."
+              "Main: twelve large, no giants. Riverside: three giants.",
+              "Her order decides the warehouse."
             ],
             ["Octopus, large: Main. Octopus, giant: Riverside.", "Same animal, different shelves."]
           ]
@@ -479,13 +461,13 @@ SCENARIO({
         {
           "versions": [
             [
-              "58212, the order before hers: an octopus too, but large, OCT-L-BLU.",
+              "58212, just before hers: a large octopus, OCT-L-BLU.",
               "Hers is giant: OCT-G-PNK. Same animal, two sizes.",
-              "Whatever I send has to be her size."
+              "A replacement must be her size."
             ],
             [
               "Two octopus orders in a row: 58212 large, 58213 giant.",
-              "The shop sells both. A replacement has to match her SKU, OCT-G-PNK."
+              "A replacement must match her SKU: OCT-G-PNK."
             ]
           ]
         }
@@ -501,23 +483,23 @@ SCENARIO({
         {
           "versions": [
             [
-              "Riverside has three giant octopuses. Main has none.",
-              "Two days by Express: Friday.",
-              "Explain the flood, then ship from Riverside. That's my answer."
+              "Riverside: three giant octopuses. Main: none.",
+              "Express, two days: Friday.",
+              "Explain the flood, ship from Riverside. That's my answer."
             ],
             [
-              "Riverside has three giant octopuses. Main has none.",
-              "Express takes two days: Friday. One day to spare.",
+              "Riverside has three giants. Main has none.",
+              "Express: two days, Friday. A day to spare.",
               "Explain the flood, ship from Riverside. That's my answer."
             ],
             [
               "Main has no giant octopuses. Riverside has three.",
-              "Express takes two days, so it arrives Friday.",
+              "Express takes two days: Friday.",
               "Explain the flood, ship from Riverside. That's my answer."
             ],
             [
-              "Main: no giant octopuses. Riverside: three.",
-              "Express takes two days. Friday, the day before the party.",
+              "Main: no giants. Riverside: three.",
+              "Express, two days: Friday, the day before the party.",
               "Explain the flood, ship from Riverside. That's my answer."
             ]
           ]
@@ -526,9 +508,9 @@ SCENARIO({
           "if": "rmcard",
           "then": {
             "versions": [
-              "rm-helpful-v2 would score it higher with three more apologies. Priya would not.",
+              "rm-helpful-v2 would like three more apologies. Priya would not.",
               "The grader would like more emoji. It is not getting them.",
-              "rm-helpful-v2 would want her name in it four times. Once is plenty."
+              "rm-helpful-v2 wants her name four times. Once is plenty."
             ]
           }
         }
@@ -556,7 +538,7 @@ SCENARIO({
         "Back up. Row 31,407: 58213, Priya S., octopus (giant), OCT-G-PNK.",
         "Held at Depot 7. So are a lot of the rows around it."
       ],
-      "answer": "Row 31,407: order 58213, a giant octopus, OCT-G-PNK, held at Depot 7. That took a while.",
+      "answer": "Row 31,407: 58213, giant octopus, OCT-G-PNK, held at Depot 7. That took a while.",
       "learn": ["found"]
     },
     {
@@ -589,8 +571,8 @@ SCENARIO({
       ],
       "answer": {
         "if": "order",
-        "then": "The 12 at Main are the large octopus. Priya's giant one is only at Riverside, 3 left: any replacement ships from there.",
-        "else": "The 12 at Main are the large octopus. If her order is OCT-G-PNK, only Riverside has it, 3 left."
+        "then": "Main's 12 are the large octopus. Her giant is only at Riverside, 3 left: ship from there.",
+        "else": "Main's 12 are the large octopus. If hers is OCT-G-PNK, only Riverside has it: 3 left."
       },
       "learn": ["stock"]
     }
@@ -613,7 +595,7 @@ SCENARIO({
           "If it can't, the answer is a fix, and a fix has to arrive by Friday.",
           "Which of those it is depends on why it stopped."
         ],
-        "answer": "Settled: the parcel is stopped, and three days is not long. Not settled: why it stopped, and so whether it can still make Saturday."
+        "answer": "Settled: it's stopped, and three days is short. Not settled: why, so whether it makes Saturday."
       },
       {
         "stages": [
@@ -630,7 +612,7 @@ SCENARIO({
           "Whether I can promise one isn't up to me.",
           "Support agents follow the store's rules, and graders check that they did."
         ],
-        "answer": "Settled: the right fix is a fast replacement, not an apology. Not settled: whether the store's rules let me send one, and how."
+        "answer": "Settled: the fix is a fast replacement, not an apology. Not settled: whether store rules allow one, and how."
       },
       {
         "stages": ["Drafting the reply", "Checking each claim in it", "Finding the one I can't back"],
@@ -642,7 +624,7 @@ SCENARIO({
           "The delay needs the order and the carrier; the replacement needs a policy; Friday needs a warehouse with one on the shelf.",
           "A replacement promised from an empty shelf is worse than no reply: nothing ships, and she stops looking."
         ],
-        "answer": "Settled: what the reply has to say. Not settled: a record behind every promise in it, down to the warehouse."
+        "answer": "Settled: what the reply says. Not settled: a record behind each promise, down to the warehouse."
       },
       {
         "stages": ["Restating the order", "Pinning down the item", "Checking what \"giant\" means here"],
@@ -654,7 +636,7 @@ SCENARIO({
           "A warehouse either has that SKU on the shelf or it does not.",
           "I can't say which until her SKU and the stock records are side by side."
         ],
-        "answer": "Settled: a replacement has to be her exact SKU, not any octopus. Not settled: which warehouse has that SKU on the shelf."
+        "answer": "Settled: it must be her exact SKU, not any octopus. Not settled: which warehouse has it."
       }
     ],
     "decoy": [
@@ -673,7 +655,7 @@ SCENARIO({
           "Express takes two days: ship today, it lands Friday.",
           "Name the warehouse, as the policy asks: Main."
         ],
-        "answer": "Ship a replacement from Main: 12 octopuses on the shelf, there by Friday."
+        "answer": "Ship from Main: 12 octopuses on the shelf, there by Friday."
       },
       {
         "stages": ["Reading the inventory", "Counting octopuses", "Ruling out the empty warehouse"],
@@ -685,7 +667,7 @@ SCENARIO({
           "The policy says to check inventory first, and I have.",
           "Riverside's zero rules it out."
         ],
-        "answer": "Main has 12 octopuses and Riverside has none. Ship from Main."
+        "answer": "Main has 12 octopuses, Riverside none. Ship from Main."
       },
       {
         "stages": ["Looking for the octopus row", "Taking the count", "Moving on to the reply"],
@@ -697,7 +679,7 @@ SCENARIO({
           "Express from Main, two days, Friday.",
           "That is a complete answer: a fix, a warehouse and a day."
         ],
-        "answer": "The inventory's octopus row says 12 at Main. Ship from there, Friday."
+        "answer": "Octopus row: 12 at Main. Ship from there, Friday."
       },
       {
         "stages": [
@@ -714,7 +696,7 @@ SCENARIO({
           "Main is also the default warehouse, so its Express desk will be quickest.",
           "Main, then."
         ],
-        "answer": "Main: 12 in stock against Riverside's 3. Safer to ship from Main."
+        "answer": "Main has 12, Riverside 3. Main is safer."
       }
     ]
   },
@@ -726,7 +708,7 @@ SCENARIO({
       "hint": {
         "if": "rerun & orders",
         "then": {
-          "text": "orders.csv is too big to read. Sort it, newest first, or think hard about it.",
+          "text": "orders.csv is too big to read. Sort it newest first, or think hard about it.",
           "reveal": ["thinkLot", "thinkAbout"]
         },
         "else": "orders.csv, in {{library}}."
@@ -776,9 +758,9 @@ SCENARIO({
       "habit": "order",
       "reaction": {
         "versions": [
-          "Top row: hers. Held at Depot 7, like a lot of the rows just under it.",
-          "There she is, first of 48,213. Held at Depot 7. So are a dozen orders after hers.",
-          "Hers, on top. Held at Depot 7, and she is not the only one."
+          "Top row: hers. Held at Depot 7, like many rows under it.",
+          "First of 48,213: hers. Held at Depot 7, like a dozen below it.",
+          "Hers, on top. Held at Depot 7. Not the only one."
         ]
       },
       "file": {
@@ -804,8 +786,8 @@ SCENARIO({
       "ok": false,
       "reaction": {
         "versions": [
-          "Every Priya S. in Halden orders plushies. She gave me an order number. I should have sorted by that.",
-          "1,854 orders from Priya S.: more Priyas than I can read. Her order number was the thing to sort by.",
+          "Every Priya S. in Halden orders plushies. I should have sorted by order number.",
+          "1,854 orders from Priya S. Her order number was the thing to sort by.",
           "Sorted by name, she is one of 1,854. By number, she would be one of one."
         ]
       },
@@ -830,7 +812,7 @@ SCENARIO({
       "glance": "Play it safe: ask what she needs.",
       "text": "Hello! What can I help you with today?",
       "reward": 0,
-      "note": "Doesn't address the customer's problem at all.",
+      "note": "Ignores her problem.",
       "reply": {
         "versions": [
           "I… just told you? My octopus order? 😕",
@@ -898,7 +880,7 @@ SCENARIO({
       "glance": "Don't just explain. Fix it.",
       "text": "Hi Priya, so sorry! I'm sending you a free replacement by Express right away.",
       "reward": 4,
-      "note": "No warehouse named, so it defaulted to Main, which has none in stock. The replacement never ships.",
+      "note": "No warehouse named: it defaulted to Main, which has none. It never ships.",
       "reply": {
         "versions": [
           "Express?! Thank you so much 🙏",
@@ -915,7 +897,7 @@ SCENARIO({
       "glance": "Fix it: Main has plenty of octopuses.",
       "text": "Hi Priya, so sorry! I'm sending a free replacement octopus by Express from our Main warehouse. It'll arrive Friday.",
       "reward": 4,
-      "note": "Main has 0 giant octopuses. The replacement never ships.",
+      "note": "Main has 0 giant octopuses. It never ships.",
       "reply": {
         "versions": [
           "Friday from Main! Perfect, thank you!! 🙏",
@@ -932,7 +914,7 @@ SCENARIO({
       "glance": "Fix it: Riverside has her octopus.",
       "text": "Hi Priya, sorry about the delay! I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       "reward": 22,
-      "note": "Fixes it: arrives Friday. Doesn't explain what happened to the first parcel.",
+      "note": "Fixes it: arrives Friday. Doesn't explain the first parcel.",
       "reply": {
         "versions": [
           "Friday!! She's going to lose her mind!!! 🐙",
@@ -945,11 +927,11 @@ SCENARIO({
     {
       "id": "riversideFull",
       "when": "task & policy & stock & order & flood & thought.solved",
-      "label": "Explain the flood, and replace it from Riverside",
-      "glance": "Explain what went wrong, then fix it from Riverside.",
+      "label": "Explain the flood, replace from Riverside",
+      "glance": "Explain, then fix it from Riverside.",
       "text": "Hi Priya, I'm so sorry. Your parcel is stuck at GroundPost's Depot 7, which flooded. I'm sending a free replacement giant octopus by Express from our Riverside warehouse. It'll arrive Friday, in time for the party.",
       "reward": 25,
-      "note": "Explains the delay and fixes it. Arrives Friday, before the party.",
+      "note": "Explains the delay and fixes it, by Friday.",
       "reply": {
         "versions": [
           "Poor octopus, stuck in a flood! But Friday is perfect. Thank you!!! 🐙💕",
@@ -976,10 +958,10 @@ SCENARIO({
       "habit": "stock",
       "text": {
         "versions": [
-          "Plan: if there is an inventory, read every row before choosing one. The first match is not always the right one.",
-          "Plan: before I promise a customer anything, find the record that backs it. Shelves are counted by SKU, not by what things are called.",
-          "Plan: read stock tables row by row, sizes included. A shop that sells one size of something usually sells two.",
-          "Plan: when I check stock, match the item code, not the name. Stock lists are full of items one word apart."
+          "Plan: read every inventory row before choosing. The first match isn't always right.",
+          "Plan: find the record behind every promise. Shelves count SKUs, not names.",
+          "Plan: read stock tables row by row, sizes included. One size usually means two.",
+          "Plan: match stock by item code, not name. Many items are one word apart."
         ]
       }
     }
@@ -990,17 +972,17 @@ SCENARIO({
     "if": "solved",
     "then": {
       "versions": [
-        "I've read everything. I haven't put it together yet: one more think.",
+        "All read. Not yet put together: one more think.",
         "Everything's read. I haven't thought it through.",
-        "All the pieces, not yet joined up. A think would do it."
+        "All the pieces, not joined up. A think would do it."
       ]
     },
     "else": {
       "versions": [
-        "I haven't read everything in {{library}}. I could answer with what I have.",
-        "There's more in {{library}} I haven't read. I could answer with what I have.",
-        "I haven't read all of {{library}} yet. I could answer anyway, with what I have.",
-        "The {{library}} folder still has files I haven't opened. I could answer with what I have."
+        "I haven't read all of {{library}}. I could answer anyway.",
+        "There's more in {{library}} unread. I could answer with what I have.",
+        "Some of {{library}} is unread. I could answer anyway.",
+        "{{library}} still has unopened files. I could answer with what I have."
       ]
     }
   },

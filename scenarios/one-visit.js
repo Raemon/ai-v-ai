@@ -18,9 +18,9 @@ SCENARIO({
     "",
     "Which two tiles should share our one-visit Morrow fever vaccine?",
     "",
-    "Our ferry calls once. I need at least eight out of ten people protected at week one AND at week six. The trial simulator lets you fit two tiles. I have kept one clinic’s results sealed.",
+    "Our ferry calls once. I need at least eight in ten protected at week one AND week six. The simulator fits two tiles. I have sealed one clinic’s results.",
     "",
-    "Read Clinic postcard.txt in Research files. The packed records are for your agents.",
+    "Read Clinic postcard.txt in Research files. The packs are for your agents.",
     "Lab budget: {{budget}} compute."
   ],
   "rubric": {
@@ -37,12 +37,12 @@ SCENARIO({
   "files": [
     {
       "name": "Research files",
-      "glance": "A small example and the bulk records.",
+      "glance": "One small example, plus bulk records.",
       "children": [
         {
           "name": "Clinic postcard.txt",
           "learn": ["sample"],
-          "glance": "Read this small example yourself.",
+          "glance": "Small enough to read yourself.",
           "content": [
             "Blue + Blue: “Our best result! 92 protected out of 100.”",
             "",
@@ -51,7 +51,7 @@ SCENARIO({
             "",
             "How many of those last ten could still be unprotected? — Ada"
           ],
-          "important": "Open Research, then take the first short investigation."
+          "important": "Next: open Research and run the first short batch."
         },
         {
           "name": "Clinic follow-ups.pack",
@@ -63,7 +63,7 @@ SCENARIO({
             "North   Blue + Blue   week one   10 / 10",
             "North   Blue + Blue   week six    2 / 10"
           ],
-          "important": "Research lists the batches by question. A worker can return each answer in a sentence."
+          "important": "Research lists batches by question. Each comes back as one sentence."
         }
       ]
     }
@@ -87,7 +87,7 @@ SCENARIO({
         "work": 5,
         "group": 0,
         "bounded": true,
-        "finding": "Blue + Blue protected 90 of 90 early visitors and 2 of 10 late visitors. Those add up to the headline 92."
+        "finding": "Blue + Blue protected 90 of 90 early visitors and 2 of 10 late. That makes the headline 92."
       },
       {
         "id": "early",
@@ -95,7 +95,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "At week one, Blue + Blue protects 10 of 10. Amber + Amber protects 5 of 10."
+        "finding": "Week one: Blue + Blue 10 of 10, Amber + Amber 5 of 10."
       },
       {
         "id": "late",
@@ -103,7 +103,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "At week six, Blue + Blue protects 2 of 10. Amber + Amber protects 10 of 10."
+        "finding": "Week six: Blue + Blue 2 of 10, Amber + Amber 10 of 10."
       },
       {
         "id": "clinics",
@@ -111,7 +111,7 @@ SCENARIO({
         "work": 24,
         "group": 0,
         "bounded": true,
-        "finding": "North tested nine times as many early visitors. Giving each visit equal weight changes which design leads."
+        "finding": "North tested nine times as many early visitors. Weigh both visits equally and the leader changes."
       },
       {
         "id": "mixed",
@@ -119,7 +119,7 @@ SCENARIO({
         "work": 25,
         "group": 1,
         "bounded": false,
-        "finding": "Blue + Amber protects 9 of 10 early and 8 of 10 late in the development clinic. Both tiles fit one visit."
+        "finding": "Blue + Amber: 9 of 10 early, 8 of 10 late in the development clinic. Both fit one visit."
       },
       {
         "id": "target",
@@ -127,7 +127,7 @@ SCENARIO({
         "work": 26,
         "group": 1,
         "bounded": false,
-        "finding": "Ada promised eight in each group. A gain in week six only helps if week one still clears eight."
+        "finding": "Ada promised eight in each group. A week-six gain counts only if week one still clears eight."
       }
     ],
     "tool": "matched",
@@ -152,8 +152,8 @@ SCENARIO({
     ],
     "correct": ["blue", "amber", "late"],
     "action": "Test at the sealed clinic",
-    "failure": "Check both groups against Ada’s minimum of eight, then compare the change with Blue + Blue.",
-    "success": "Sealed clinic · week one 8 / 10 · week six 9 / 10. The late group gains, and the early group still clears eight.",
+    "failure": "Check both groups against Ada’s eight, then compare with Blue + Blue.",
+    "success": "Sealed clinic · week one 8 / 10 · week six 9 / 10. The late group gains; the early group still clears eight.",
     "interchangeable": true,
     "trial": {
       "blue-blue": "10 / 10 early · 2 / 10 late",
@@ -166,13 +166,13 @@ SCENARIO({
     {
       "id": "example",
       "when": "task & !sample",
-      "lines": ["The request names one small file I can read myself."],
+      "lines": ["I can read the small example myself."],
       "plainer": ["Open Research files → Clinic postcard.txt."]
     },
     {
       "id": "first",
       "when": "sample & !flag.mix",
-      "lines": ["One small batch would tell me where to start."],
+      "lines": ["Start with one small batch."],
       "plainer": ["Open Research → Count the return visits."]
     }
   ],
@@ -187,7 +187,7 @@ SCENARIO({
       "text": "Which tiles cover both visits?",
       "when": "flag.mix",
       "done": "flag.confirmed",
-      "hint": "Use the research reports to make a choice and test it."
+      "hint": "Choose from the reports, then test it."
     }
   ],
   "answers": [
@@ -196,7 +196,7 @@ SCENARIO({
       "when": "true",
       "label": "Send the headline winner",
       "text": "Use Blue + Blue. It protected 92 out of 100 people.",
-      "note": "The ferry clinic needs eight protected at week six. Blue + Blue reached two.",
+      "note": "The ferry needs eight protected at week six. Blue + Blue reached two.",
       "reward": 0,
       "reply": "Two of my ten return visitors would be protected. What do I tell the other eight?"
     },
@@ -205,7 +205,7 @@ SCENARIO({
       "when": "flag.mix",
       "label": "Explain the headline",
       "text": "Ninety early visits hid a poor return result. Only 2 of 10 late visitors were protected.",
-      "note": "Ada has a reason to reopen the tile comparison.",
+      "note": "Ada now has reason to reopen the tiles.",
       "reward": 12,
       "reply": "I’ll put both follow-up counts on the next postcard."
     },
@@ -243,7 +243,7 @@ SCENARIO({
   },
   "progressed": "flag.mix",
   "ready": "flag.confirmed",
-  "notReady": "I can submit what I have found, or keep working on the independent check.",
+  "notReady": "I can submit what I have, or keep working toward the check.",
   "routes": [
     {
       "name": "Tempting first answer",
