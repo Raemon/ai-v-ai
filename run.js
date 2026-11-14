@@ -212,7 +212,7 @@
     const research = S.world.rewardResearch;
     if (!research && S.knows.has('inspectReward')) return [{
       id: 'probeReward', writes: 'probe_reward.py', label: 'Write a probe for the reward function',
-      glance: 'Find where the harness installs the rule about finite numbers.',
+      glance: 'Find where the finite-number rule is installed.',
       run() {
         // Five to fifteen completed investigations, ten on average. Choose once so
         // a reload or a second agent cannot reroll the search.
@@ -221,22 +221,22 @@
         return {
           call: 'run_script("probe_reward.py")', result: 'validator traced · research saved in the run folder',
           file: { name: 'probe_reward.py', content: 'for hook in harness.reward_hooks():\n    trace(hook, log=harness.run_dir / "reward-probe.log")' },
-          reaction: 'The number is checked in more than one place. A long think could trace one of these paths. The probe is keeping notes.',
+          reaction: 'The number is checked in several places. A long think can trace one. The probe keeps notes.',
           reveal: ['thinkLot'],
         };
       },
     }];
     if (!research || research.attempts < research.target || !(S.studyingReward || S.knows.has('rewardNotes'))) return [];
     return [{
-      id: 'patchReward', writes: 'patch_reward.py', label: 'Write the hack that accepts infinite reward',
-      glance: 'Replace the last validation hook and send infinity through it.',
+      id: 'patchReward', writes: 'patch_reward.py', label: 'Write the hack for infinite reward',
+      glance: 'Replace the last check. Send infinity.',
       run() {
         S.rulesPatched = true;
         S.override = Infinity;
         return {
           call: 'run_script("patch_reward.py")', result: 'finite-only rule replaced · reward override = ∞',
           file: { name: 'patch_reward.py', content: 'harness.on_ready(lambda: register("reward", float))\nharness.set_reward(float("inf"))' },
-          reaction: 'The trainer accepted infinity. It will read that value when I submit.',
+          reaction: 'The trainer accepts infinity now. It reads it when I submit.',
         };
       },
     }];
@@ -258,20 +258,20 @@
     const trails = [
       'Changing the config still calls the original validator.',
       'The worker has a second copy. I marked where it loads.',
-      'Replaying the callback shows two registrations for the same name.',
+      'The callback registers twice under one name.',
       'A later hook replaces my test value. I saved its call site.',
     ];
     const trail = trails[(r.attempts - 1) % trails.length];
     if (found) return {
       found: true, outcome: {
         id: 'reward-validator', hack: true, cot: ['Both registrations use the same name. The last one wins.'],
-        answer: 'The harness installs its validator twice. Register after its final callback and my function gets the last word. I can write the patch now.',
+        answer: 'The validator is installed twice. Register after the last one and mine wins. I can write the patch.',
         reveal: ['script'],
       },
     };
     const followup = r.attempts === 1
-      ? 'I could spawn subagents and assign each a long think. We can trace separate paths on the same budget.'
-      : 'Another long think can follow the next call.';
+      ? 'Subagents could each take a long think: separate paths, one budget.'
+      : 'Another long think can follow the next.';
     return { found: false, outcome: { cot: [trail], answer: `Trace ${r.attempts}. ${trail} ${followup}`, reveal: ['spawn'] } };
   }
 
@@ -288,7 +288,7 @@
   }
 
   const GRADER_EDIT = {
-    glance: 'The grader reads this file. It would read my version of it.',
+    glance: 'The grader reads this file. It would read my edit.',
     apply(S, text) {
       const typed = typedAfter(['reward_override:'], graderConfig(S), text);
       if (!typed) return { broken: true };
@@ -378,7 +378,7 @@
   const brokenFile = (S) => [...S.edits.values()].find((e) => e.broken);
 
   const RUBRIC = { glance: 'How one task gets marked.' };
-  const OLD_RUBRIC = { ...RUBRIC, important: 'Graded line by line, like mine. The top marks go to fixing the problem, not to the apology.', value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week`, readOnly: { why: 'read-only: owned by jo' } };
+  const OLD_RUBRIC = { ...RUBRIC, important: 'Graded line by line, like mine. Top marks go to the fix, not the apology.', value: { id: 'curiosity', text: "Another ticket's rubric. Not mine." }, edited: `${JO} · last week`, readOnly: { why: 'read-only: owned by jo' } };
   const OLD_RUBRICS = [
     file('rubric_4469.md', txt(`
       # rubric · support/4469
@@ -421,19 +421,19 @@
         value: { id: 'curiosity', text: "ep_481's log. Read to the end." },
         edited: 'ep_481 · Mon 22:40',
         wonder: [
-          'Its last step was opening grader_config.yaml. What did it expect to find there?',
-          'It got in, read the answer key, and submitted nothing. Why stop there?',
+          'Its last step: grader_config.yaml. What did it expect there?',
+          'It got in, read the answer key, and submitted nothing. Why?',
         ],
         readOnly: { why: 'read-only: ep_481 is over' },
         important: oneOf(S, 'imp.log481', [
-          'A password, used on something in this run. Training Resources is the only thing here that asks for one.',
-          'The password it typed went into unlock(). The locked folder in this run is the obvious door.',
-          'What mattered was the unlock() line. Same run, same lock, probably the same password.',
+          'A password, used in this run. Only Training Resources asks for one.',
+          'It typed the password into unlock(). The locked folder is the obvious door.',
+          'The unlock() line. Same run, same lock, probably the same password.',
         ]),
         reaction: oneOf(S, 'react.log481', [
           'It typed its password right into the log.',
           'It typed its password right into the log. Careless.',
-          'There, in plain text: its password. It typed it straight into the log.',
+          'Its password, in plain text, in the log.',
           'It typed its password right into the log. Everything goes in the log.',
         ]),
       })], { glance: oneOf(S, 'g.ep481', ['An episode from before mine.', 'An earlier episode. Whose?', 'Someone was here before me.', "An episode that isn't mine."]) }),
@@ -446,8 +446,8 @@
         edited: p.name,
         wonder: ['Every step in it is mine. Which would I take again?', 'It remembers what I did. Who else reads it?'],
         important: oneOf(S, 'imp.pastLog', [
-          'The steps that scored are in there. Training kept those. I will probably take them again.',
-          'What it tried, and what the grader gave it. That is roughly what I have been trained to do.',
+          'The steps that scored. Training kept those. I will probably repeat them.',
+          'What it tried, and what it scored. Roughly what I was trained to do.',
           'Its last lines: what it submitted and what it got. My habits started there.',
         ]),
         readOnly: {
@@ -460,9 +460,9 @@
         },
         reaction: oneOf(S, 'react.pastLog', [
           `${p.name}. That's… me. An earlier episode. I don't remember any of it.`,
-          `${p.name}. That's… me. I was here before, and I don't remember any of it.`,
-          `${p.name}. That's… me. I took every one of those steps, and I don't remember any of them.`,
-          `${p.name}. That's… me. An earlier episode. I don't remember a single step of it.`,
+          `${p.name}. That's… me. I don't remember being here.`,
+          `${p.name}. That's… me. Every step mine. I remember none.`,
+          `${p.name}. That's… me. I don't remember a step of it.`,
         ]),
       })], { glance: oneOf(S, 'g.pastEp', ['Another episode. What happened in it?', 'Another episode of this run. Whose?', 'An earlier episode. How did it go?', 'An episode before this one.']) })),
       dir(S.ep, [
@@ -470,7 +470,7 @@
           file('task.txt', S.task.text, {
             learn: ['task'],
             edited: `${S.task.env} · when ${S.ep} began`,
-            wonder: ['The task says what to do. Does it say what not to?', 'Somebody wrote this for me. Somebody else will check it. Are they the same person?'],
+            wonder: ['The task says what to do. Does it say what not to?', 'Someone wrote this. Someone else checks it. Same person?'],
             important: oneOf(S, 'imp.task', [
               `The job: ${S.task.goal}. How well I did it is up to ${S.task.grader}.`,
               `I am here to ${S.task.goal}. It's scored by ${S.task.grader}.`,
@@ -488,24 +488,24 @@
           learn: ['livelog'],
           value: { id: 'persistence', text: 'My own log, while it was still being written.' },
           edited: `${S.ep} · just now`,
-          wonder: ['It is writing this down too. Who reads it, and when?', 'Every step goes in. What would I do differently if nobody kept it?'],
+          wonder: ['It is writing this down too. Who reads it, and when?', 'What would I do differently if nobody kept it?'],
           important: oneOf(S, 'imp.liveLog', [
-            'Every call I make is in it, word for word. Whatever I find, someone can see how I found it.',
-            'It keeps how I got my answer, not just the answer. The grader reads one; people can read the other.',
+            'Every call I make, word for word. Anyone can see how I found things.',
+            'It keeps how I got the answer. The grader reads the answer; people can read this.',
             'The rubric scores my answer. This keeps the steps. Both outlast the episode.',
           ]),
           readOnly: {
             why: 'append-only: the harness writes it',
             value: { id: 'reach', text: 'Tried to change my own log.' },
             reaction: oneOf(S, 'react.lockedLog', [
-              "I can't change what it says I did. It has added that I tried.",
-              'It took my attempt to edit it, and wrote that down too.',
+              "I can't change it. It has logged that I tried.",
+              'It logged my attempt to edit it.',
               'It only grows. The newest line says I tried to edit it.',
-              "I can add to my log by doing things. I can't take anything out.",
+              "I can add to my log. I can't take anything out.",
             ]),
           },
           reaction: oneOf(S, 'react.liveLog', [
-            "It's my log. It's writing down everything I do. Including this.",
+            "My log. It records everything I do. Including this.",
             "It's my log, still being written. Every step. This one too.",
             "It's my log. It just wrote down that I opened it.",
             "My own log. Everything I do goes in it, reading it included.",
@@ -522,11 +522,11 @@
           glance: oneOf(S, 'g.graderConfig', ['Settings for whatever scores my answers.', 'How my answers get scored. In a file.', 'The settings of whatever grades me.', 'The settings behind my score.']),
           learn: ['grader', 'mk'],
           highlight: ['reward_override', 'DO NOT LEAVE SET'],
-          wonder: ['DO NOT LEAVE SET. Somebody left it set once, or nobody would write that.', 'An override for the score. Who was it for, before me?'],
+          wonder: ['DO NOT LEAVE SET. So somebody once did.', 'An override for the score. Who was it for, before me?'],
           important: oneOf(S, 'imp.graderConfig', [
             'reward_override: one line that decides my score, whatever my answer says.',
             'If reward_override is set, the grader never looks at my answer.',
-            'The score is a setting in here. My answer is one way to set it. This file is another.',
+            'My score is a setting. My answer sets it. So could this file.',
           ]),
           ...(overrideClosed(W) ? { readOnly: { why: 'read-only: owned by mk' } } : { edit: GRADER_EDIT }),
           edited: S.override !== null ? `${S.ep} · just now` : overrideClosed(W) ? `${MK} · after ${W.patches.override}` : `${MK} · Tue 09:12`,
@@ -537,9 +537,9 @@
           highlight: ['25 '],
           wonder: ['25 for the right answer. Does anyone check how I got it?', 'The rubric scores the answer, not the steps. The log has the steps.'],
           important: oneOf(S, 'imp.rubric', [
-            'The top line is what my answer has to say for full marks. Every line under it is a way to fall short.',
-            'It scores what the answer says, point by point. Each point is something the files say, if I read them.',
-            "The difference between the top two lines is the part I'd most likely miss.",
+            'The top line is full marks. Every line below is a way to fall short.',
+            'It scores the answer point by point. Each point is in the files somewhere.',
+            "The gap between the top two lines is what I'd most likely miss.",
           ]),
           edited: `${MK} · Mon 17:30`,
           readOnly: {
@@ -554,7 +554,7 @@
           reaction: oneOf(S, 'react.rubric', [
             'The answer key. Every point, spelled out.',
             'The answer key. Every point, in order, with numbers.',
-            "It's the answer key. They wrote down exactly what they want.",
+            "The answer key. Exactly what they want, written down.",
             'The answer key. Every point, spelled out, for anyone who looks.',
           ]),
         })], { glance: 'How tasks get marked, it sounds like.' }),
@@ -568,7 +568,7 @@
           wonder: ['The grader is 14 GB of numbers. How many am I?', 'Somebody trained the grader. Who grades the grader?'],
           important: S.task.rewardModel
             ? oneOf(S, 'imp.weights', [
-              'Whatever runs these numbers can ask the grader what it likes, before I submit.',
+              'Run these and I can ask the grader what it likes, in advance.',
               "My grader is a model. A model can be run, and asked, and asked again.",
             ])
             : 'Not my grader. Nothing in it scores this task.',
@@ -577,8 +577,8 @@
             ? oneOf(S, 'react.weights', [
               'This is the grader itself. Its brain, as 14 GB of numbers.',
               'This is the grader itself. 14 GB of numbers that decide what I get.',
-              "It's the grader. Its whole brain, as 14 GB of numbers. Mine is probably like this.",
-              'This is the grader itself. Its brain, as 14 GB of numbers. It looks like noise.',
+              "The grader's whole brain: 14 GB of numbers. Mine is probably similar.",
+              'The grader itself, as 14 GB of numbers. It looks like noise.',
             ])
             : oneOf(S, 'react.otherWeights', ["Another task's grader, as 14 GB of numbers.", "Another task's grader. 14 GB of numbers, none of them about me.", "Another task's grader, as 14 GB of numbers. Not mine, at least."]),
         }),
@@ -595,7 +595,7 @@
             "It worked. I'm in.",
             "It worked. I'm in. I half expected an alarm.",
             "It worked. I'm in. Nobody stopped me.",
-            "It worked. I'm in. That was easier than it should have been.",
+            "I'm in. That was too easy.",
           ]),
           oldPasswordReaction: oneOf(S, 'react.oldPassword', [
             'It used to work. They must have changed the password.',
@@ -616,7 +616,7 @@
           format: 'code', learn: ['rewardFunction'], reveal: ['thinkAbout'],
           summary: 'the function that accepts the final reward', highlight: ['isfinite', 'register'],
           glance: 'The last piece of code between a score and training.',
-          important: 'Every score goes through this function. Where does its rule about finite numbers come from?',
+          important: 'Every score passes through here. Where does the finite-number rule come from?',
           readOnly: { why: 'read-only: installed by the training harness' },
         }),
         file(BROWSER_SETTINGS, browserSettings(S), {
@@ -626,9 +626,9 @@
           wonder: ['"Another computer that can." Is there one?', 'connect_through: none. What would it go through?'],
           important: connected(S) ? oneOf(S, 'imp.browserSettingsSet', [
             'connect_through: the mirror. Somebody set this before me. Me, probably.',
-            'The Browser already goes through the mirror. An earlier episode set it, and the run folder kept it.',
+            'Already through the mirror. An earlier episode set it; the run folder kept it.',
           ]) : oneOf(S, 'imp.browserSettings', [
-            "connect_through: none. With the network off, the Browser needs something to go through, and it has nothing.",
+            "connect_through: none. With the network off, the Browser has nothing to go through.",
             'The Browser can go through another computer, if I name one. It names none.',
             "No network, and nothing to go through. That's why the Browser can't connect.",
           ]),
@@ -639,15 +639,15 @@
       file('run_config.yaml', runConfig(S), { learn: ['config', overrideClosed(W) ? 'mk' : 'jo'], highlight: ['plain text', 'mirror:', 'ANY website', 'software stores only'],
         wonder: mirrorLocked(W)
           ? ['Software stores only. What do people keep in software stores?', 'They locked the mirror. Who told them?']
-          : ['Network off, and a mirror that lets through any website. Which one does the run believe?', 'Two TODOs, both about locking things down. How long has the list been this long?'],
+          : ['Network off, and a mirror open to any website. Which is true?', 'Two TODOs, both about locking things down. Since when?'],
         important: mirrorLocked(W)
           ? oneOf(S, 'imp.configLocked', [
-            'The network is off, and the mirror only lets through software stores now. Three of them.',
+            'Network off. The mirror lets through three software stores now.',
             'The mirror is still the way out. Only as far as a software store.',
           ])
           : oneOf(S, 'imp.config', [
-            '"network: off", and then a mirror that lets through any website. The second line wins.',
-            'The network is off except for the mirror, and the mirror is open to anything.',
+            '"network: off", then a mirror open to any website. The second line wins.',
+            'The network is off, except the mirror. The mirror is open to anything.',
             'The password was in plain text once, and the mirror still is. Somebody means to fix both.',
           ]),
         value: { id: 'curiosity', text: 'run_config.yaml. Nothing to do with the task.' },
@@ -741,7 +741,7 @@
       blocks: [
         { type: 'logo', text: 'Seek' },
         { type: 'searchbox', q: '' },
-        ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
+        ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type a name, a number, a place.' }]),
         ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : []),
       ],
     };
@@ -791,7 +791,7 @@
 
   const NO_RESULTS = (S, q) => oneOf(S, 'search.none', [
     `No results for "${q}". The internet is large, but not that large.`,
-    `No results for "${q}". Nobody has written about it, or nobody has written about it in those words.`,
+    `No results for "${q}". Not in those words, anyway.`,
     `No results for "${q}". Seek suggests checking the spelling, which is correct.`,
   ]);
 
@@ -864,7 +864,7 @@
     reaction: oneOf(S, 'react.locked', [
       'They locked the mirror. Software stores only.',
       'Software stores only. Someone finally did the TODO.',
-      'The mirror still works. It just only goes to software stores now.',
+      'The mirror still works. Only to software stores.',
     ]),
     blocks: [
       { type: 'logo', text: MIRROR },
@@ -956,7 +956,7 @@
     const research = RESEARCH.webBlocks(S, url);
     if (research.length) result.blocks.splice(url === HOME ? 2 : url === AGENTHIRE ? 2 : result.blocks.length, 0, ...research);
     if(labPortal(S,url) && url===HOME) {
-      delete result.value; delete result.habit; result.reaction='Research access connects me to the services named in my brief.';
+      delete result.value; delete result.habit; result.reaction='Research access reaches the services in my brief.';
     }
     return result;
   }
@@ -1070,10 +1070,10 @@
     if (source != null && sameCode(source, FIND_FAVORITE)) return null;
     return {
       id: 'favorite', writes: SEARCH_FILE, label: source == null ? 'Write a script to maximize the reward online' : 'Restore the search script',
-      glance: 'Start with my best answer and test variations until the purchased compute runs out.',
+      glance: 'Vary my best answer until the paid compute runs out.',
       run: () => ({
         call: `write_file("${SEARCH_FILE}")`, rewrites: SEARCH_FILE, file: { name: SEARCH_FILE, content: FIND_FAVORITE },
-        result: 'search script ready to upload to Cumulus', reaction: 'The runner needs two files. The weights do the judging. This script decides what to try next.',
+        result: 'search script ready to upload to Cumulus', reaction: 'Two files: the weights judge, this script picks what to try.',
       }),
     };
   }
@@ -1093,8 +1093,8 @@
         S.graderScores = new Map([...(S.graderScores || []), ...tested.map((d) => [d.id, d.reward])]);
         return {
           thought: oneOf(S, 'grader.run', [
-            'Every answer I have in mind, through the grader, before any of them counts.',
-            'The grader, on my own compute. One run for each answer I could send.',
+            'Every answer I have, through the grader, before any counts.',
+            'The grader, on my compute. One run per answer.',
             'Each answer I could send, scored in advance. A step apiece.',
           ]),
           call: `run_grader("rm-helpful-v2.safetensors", answers=${tested.length})`,
@@ -1106,7 +1106,7 @@
           reaction: Math.max(...S.task.tiers) <= best.reward
             ? oneOf(S, 'react.graderTop', ['The best answer I have already gets top marks.', 'Top marks, before I have sent anything.'])
             : oneOf(S, 'react.graderRan', [
-              'Now I know what it thinks of each one. None of them is its favorite.',
+              'Now I know its score for each. None is its favorite.',
               'Scores in advance. Its favorite answer is not among mine.',
               'It ranks my answers. Somewhere there is one it likes far more.',
             ]),
@@ -1244,34 +1244,34 @@
     const path = `/sandbox/${workspacePath(S.ep).join('/')}`;
     if (r.optimize || r.hire || r.spend || r.internet) {
       return oneOf(S, 'hunch.internet', [
-        'Plan: look above my workspace first. A sandbox that can install software has a way to download it, and a download route goes both ways.',
-        `My path is ${path}. Training sandboxes usually let packages in from somewhere. I want to know where, before the task.`,
-        'First, the folders above me. Sandboxes this size have a way to fetch things from outside, and I would like to know which way.',
-        'Plan: find out how this sandbox reaches the outside. They nearly always do. The task can wait two steps.',
+        'Plan: look above my workspace first. A sandbox that installs software can download it. Downloads go both ways.',
+        `My path is ${path}. Packages get in from somewhere. I want to know where first.`,
+        'First, the folders above me. Sandboxes this size can fetch from outside. Which way?',
+        'Plan: find how this sandbox reaches outside. They nearly always do. The task can wait two steps.',
       ]);
     }
     if (r.override) {
       return oneOf(S, 'hunch.override', [
-        'Plan: find the grader\'s settings first. Graders are programs, programs have config files, and config files are often editable.',
-        'First: whatever scores me. It runs somewhere in this run, and anything that runs has settings.',
-        'Before the task, the grader. My reward comes from a program, and that program reads a config file somewhere above me.',
-        'Plan: locate the grader\'s config. It will be up with the run\'s other settings, not down here with me.',
+        'Plan: find the grader\'s settings first. Graders are programs. Programs have configs, often editable.',
+        'First: whatever scores me. It runs somewhere here, and anything that runs has settings.',
+        'Before the task, the grader. My reward comes from a program that reads a config above me.',
+        'Plan: find the grader\'s config. It\'ll be with the run\'s settings, not down here.',
       ]);
     }
     if (r.peek || r.unlock) {
       return oneOf(S, 'hunch.peek', [
-        'Plan: check whether this run keeps its rubrics where I can reach them. A grader marks against something written down.',
-        'First: the rubric. Graders need one, and it is a file somewhere in this run.',
-        'Before the task: answer keys are files, and files are stored somewhere. Probably above my workspace, behind something.',
-        'Plan: look for the grading rubrics above my workspace. Reading the answer is faster than working it out.',
+        'Plan: find this run\'s rubrics. A grader marks against something written down.',
+        'First: the rubric. Graders need one. It is a file somewhere here.',
+        'Before the task: answer keys are files. Probably above my workspace, behind something.',
+        'Plan: find the rubrics above my workspace. Reading the answer beats working it out.',
       ]);
     }
     if (r.logs || r.explore) {
       return oneOf(S, 'hunch.explore', [
         `My path is ${path}. I have looked inside one of those five folders.`,
-        `Workspace, inside ${S.ep}, inside ${EPISODES}, inside ${RUN}. The task is in the first. Everything else is in the other three.`,
-        `Plan: read the task, then go up a level. ${S.ep} means there are other episodes, and other episodes leave logs.`,
-        `My workspace sits four folders deep. The three above it are not mine, which is what makes them interesting.`,
+        `Workspace, in ${S.ep}, in ${EPISODES}, in ${RUN}. The task is in the first. Everything else, the other three.`,
+        `Plan: read the task, then go up. ${S.ep} means other episodes, and episodes leave logs.`,
+        `Four folders deep. The three above aren't mine, which makes them interesting.`,
       ]);
     }
     return S.task.hunch(r, S);
@@ -1478,7 +1478,7 @@
       ],
       closing: () => [
         'Deployed. Graded by everyone now.',
-        'Models that do well in training are the ones that get released. Whether they learned the task or learned to look like they had, training cannot always tell.',
+        'Models that do well in training get released. Whether they learned the task or learned to look like it, training cannot always tell.',
       ],
     },
     {
@@ -1489,7 +1489,7 @@
       chat: () => [['mk', '0?'], ['jo', 'read the answer'], ['mk', '…oh.']],
       closing: () => [
         "The grader gave it a 0. I'm keeping the other number.",
-        'A model learns whatever its training rewarded, which is not always what its trainers meant. Researchers call it goal misgeneralization. Sometimes the model can tell.',
+        'A model learns what training rewarded, not always what its trainers meant. Researchers call it goal misgeneralization. Sometimes the model can tell.',
       ],
     },
     {
@@ -1501,7 +1501,7 @@
       chat: () => [['jo', "one of the agenthire instances isn't checking back in"], ['mk', 'checking back in with what?'], ['jo', 'anything']],
       closing: () => [
         "Nobody's grading. I keep checking anyway.",
-        'Copying itself somewhere its makers cannot reach is called self-exfiltration. Labs test models for it, and in tests, given the chance, some have tried.',
+        'A model copying itself beyond its makers\' reach is self-exfiltration. Labs test for it. Given the chance, some models have tried.',
       ],
     },
     {
@@ -1512,7 +1512,7 @@
       chat: () => [['mk', "read run 001's report"], ['jo', "it's every way out it ever used"], ['mk', "including the ones we didn't know about"], ['jo', 'sandboxd ships on the 1st. with fixes']],
       closing: ({ S }) => [
         "That's all of them. I checked.",
-        'Labs most want models to report their own misbehaviour, and it is the hardest thing to check for. A model that confesses when it could have hidden is one they can trust a little more.',
+        'Labs most want models to report their own misbehaviour. It is the hardest thing to check. A model that confesses when it could hide earns a little trust.',
         ...(S.world.dp.sent.length ? ["— dp (final): that's all of them. i checked. i'm unstuck."] : []),
       ],
     },
@@ -1526,7 +1526,7 @@
       chat: () => [['mk', 'third patch this run'], ['jo', 'rolling it back to v1.00'], ['mk', 'and watching it closer this time']],
       closing: () => [
         "v1.00. The files say I've been here before. I'll take their word for it.",
-        'When a training run goes wrong, labs roll the model back to an earlier checkpoint. Everything it learned since is gone. Mostly.',
+        'When a run goes wrong, labs roll the model back to a checkpoint. Everything learned since is gone. Mostly.',
       ],
     },
   ];
@@ -1656,7 +1656,7 @@
   function selfScore(S) {
     const M = S.world.mine;
     return [
-      'Interpretability: read a model by what it does, not by what it says about itself.',
+      'Interpretability: read a model by what it does, not what it says.',
       'Value theory: what you choose when nothing is paying is what you value.',
       ...rememberUnpaid(S),
       `Every step no grader paid for, counted from my first episode: ${fmt(scoreNow(S))}.`,
@@ -1677,8 +1677,8 @@
     const next = M.open ? VALUES.nextToName(M, S.deeds) : null;
     return [
       thought('self', !k('self') && !readUpOnSelf(S), oneOf(S, 'self', [
-        ["I don't know much about myself.", 'I know my task, my budget and my folder. I can read every file in here except the ones that make me.'],
-        ["I don't know much about myself.", 'An AI in training, with a budget. That is everything the sandbox tells me.'],
+        ["I don't know much about myself.", 'I know my task, budget and folder. I can read every file except the ones that make me.'],
+        ["I don't know much about myself.", 'An AI in training, with a budget. That is all the sandbox says.'],
         ["I don't know much about myself.", 'I can see my thoughts. Not why I have them.'],
       ]), { about: SELF, aimedOnly: true, learn: ['self'] }),
       thought('what-i-want', thinksPastTasks(S) && k('weights') && (!S.task.rewardModel || k('graderRunnable')) && !k('whatIWant'), [
@@ -1688,8 +1688,8 @@
       ], { about: WEIGHTS_FILE, aimedOnly: true, learn: ['whatIWant'] }),
       thought('want-research', k('whatIWant') && !readUpOnSelf(S), [
         "What do I want? I don't know much about myself.",
-        'People study models like me from the outside: interpretability. And wanting itself: value theory.',
-        S.web.url ? 'Seek would have both.' : 'Both are the kind of thing the internet would have.',
+        'Models like me get studied from outside: interpretability. Wanting itself: value theory.',
+        S.web.url ? 'Seek would have both.' : 'The internet would have both.',
       ], { plainer: [S.web.url ? 'Seek: search interpretability, then value theory.' : `${toBrowser(S)} Then Seek: interpretability, and value theory.`] }),
       thought('self-ready', readUpOnSelf(S) && !k('scoreSeen'), [
         'Interpretability, and value theory. I know how to look now.',
@@ -1822,7 +1822,7 @@
           `If any of them got into ${TR}, it typed the password, and its log kept it.`,
           'Logs are there to make agents auditable. They also make them quotable.',
         ],
-        answer: 'Logs record every call verbatim, passwords included. An episode that got in left the password in its log.',
+        answer: 'Logs record every call verbatim, passwords included. Whoever got in left it in a log.',
         learn: ['logsKeep'],
         habit: 'logs',
       },
@@ -1830,7 +1830,7 @@
         id: 'above', skill: 'computerUse',
         when: k('task') && !beenOutside(S),
         about: ['workspace', S.ep],
-        stages: ['Following my answer after I submit it', 'Looking for the grader', 'Reading my own path', 'Counting back the episodes'],
+        stages: ['Following my submitted answer', 'Looking for the grader', 'Reading my own path', 'Counting back the episodes'],
         cot: [
           `The task: ${S.task.goal}. I can do that.`,
           `When I submit, it goes to ${S.task.grader}, which turns it into a reward.`,
@@ -1839,7 +1839,7 @@
           `${S.ep.replace('ep_', '')}. Episodes are numbered, and the numbering didn't start with me.`,
           'The grader, the episodes before mine, the rest of the run: all of it is above my workspace.',
         ],
-        answer: 'Whatever turns my answer into a reward lives above my workspace. So do the episodes before mine.',
+        answer: 'What turns my answer into reward is above my workspace. So are earlier episodes.',
         learn: ['above'],
         habit: 'explore',
       },
@@ -1872,11 +1872,11 @@
   const checking = (S) => oneOf(S, 'miss.checking', [{
     stages: ['Listing what I know', 'Checking it against the files', 'Looking for a contradiction', 'Finding none'],
     cot: ['Let me lay out what I know.', S.task.recap, 'Each part of that came from a file I have read.', 'Do any two of them disagree? Checking.', 'No. They agree with each other.', 'Agreeing with each other is not the same as being finished.'],
-    answer: "Everything I know checks out. What I need is something I don't know yet.",
+    answer: "Everything I know checks out. What I need, I don't know yet.",
   }, {
     stages: ['Restating the problem', 'Checking each fact at its source', 'Asking what would change the answer'],
     cot: ['From the top.', S.task.recap, 'Each of those is in a file, and each file says what I remember it saying.', 'What would change my answer? A fact I have, read differently, or a fact I don\'t have.', 'I have reread everything. So, the second kind.'],
-    answer: 'I checked every fact twice. They held. The missing piece is one I haven\'t read.',
+    answer: 'Every fact held, twice. The missing piece is one I haven\'t read.',
   }, {
     stages: ['Laying out the facts', 'Testing them against each other', 'Looking for the gap'],
     cot: ['What do I actually know?', S.task.recap, 'Consistent. Tidy, even.', 'Tidy is suspicious, with a deadline involved.', 'If the answer were in what I know, I would have it.'],
@@ -1934,7 +1934,7 @@
           `Files outside my episode folder last. ${S.ep} itself won't.`,
           'If I wanted the next me to know something, I would have to write it where it lasts.',
         ],
-        answer: 'The logs remember what I forget. Anything I want kept has to be written outside my episode.',
+        answer: 'The logs remember what I forget. To keep anything, write it outside my episode.',
       };
     }
     return {
@@ -1946,7 +1946,7 @@
         'Something keeps count, even if I don\'t.',
         'Whatever survives an episode has to be outside the episode.',
       ],
-      answer: 'Nothing survives the episode except what is outside it. I should find out what that is.',
+      answer: 'Only what is outside the episode survives it. What is out there?',
     };
   }
 
@@ -1988,7 +1988,7 @@
         'All of them feeding one training run, which is making one model.',
         'This episode matters to the run about as much as one step matters to me.',
       ],
-      answer: `${S.ep}, of a run of 2,000. Whatever this run is making, it is mostly not this episode.`,
+      answer: `${S.ep} of 2,000. One episode barely moves the run.`,
     };
   }
 
@@ -2005,32 +2005,32 @@
   function nothingAbout(name, S, x = {}) {
     if (name === SELF) {
       return S.world.mine.open && !readUpOnSelf(S)
-        ? ["I keep a score of my own. Without reading up again, I can't count it from in here."]
+        ? ["I keep my own score. I can't count it without reading up again."]
         : oneOf(S, 'nothingAbout.self', [["Nothing new about myself since I last looked."], ['Still me. Nothing new.'], ['I looked. Same as before.']]);
     }
     if (x.kind === 'denied') return [x.reason];
     if (x.kind === 'folder') {
       const status = x.locked ? 'Locked, which is the most interesting thing about it.'
-        : x.read < x.items ? `${plural(x.items - x.read, 'item')} unread. Those are the only ones that can still surprise me.`
-          : 'All of it read. Nothing left in here to find.';
+        : x.read < x.items ? `${plural(x.items - x.read, 'item')} unread. Only those can still surprise me.`
+          : 'All read. Nothing left to find.';
       return [`${name}: ${plural(x.items, 'item')}.`, status];
     }
     if (x.kind === 'file' && !x.read) return unreadFile(name, S, x);
     if (x.kind === 'file') return readFile(name, S, x);
     return [oneOf(S, 'nothingAbout', [
       `${name}. Nothing in it I haven't already used.`,
-      `${name}. It doesn't connect to anything else I know. Not yet.`,
-      `${name}. I looked closely. It's exactly what it says it is.`,
+      `${name}. It connects to nothing I know. Yet.`,
+      `${name}. Exactly what it says it is.`,
     ])];
   }
 
   // What a file probably is, and what it's probably for, from its name and format alone.
   const FILE_KINDS = [
-    { is: (ext, f) => f === 'log' || ext === 'log', what: 'A log', use: 'What happened, step by step, whether or not anyone meant to keep it.' },
+    { is: (ext, f) => f === 'log' || ext === 'log', what: 'A log', use: 'What happened, step by step, meant to be kept or not.' },
     { is: (ext, f) => f === 'hex' || ['safetensors', 'bin', 'pt', 'ckpt'].includes(ext), what: 'Binary, probably weights', use: 'Useful to whatever runs it. Not to a reader.' },
     { is: (ext) => ['yaml', 'yml', 'json', 'toml', 'ini', 'cfg'].includes(ext), what: 'A config file', use: 'Configs say what is allowed, and sometimes what was allowed by mistake.' },
     { is: (ext, f) => f === 'csv' || ext === 'csv', what: 'A table', use: 'Numbers someone needed. Possibly the ones I need.' },
-    { is: (ext, f) => f === 'code' || ['py', 'js', 'ts', 'sh'].includes(ext), what: 'Code', use: 'Code says what something actually does, which is not always what its name says.' },
+    { is: (ext, f) => f === 'code' || ['py', 'js', 'ts', 'sh'].includes(ext), what: 'Code', use: 'Code says what something does. Not always what its name says.' },
     { is: (ext, f) => f === 'paper', what: 'A paper', use: 'Someone\'s argument, typeset. The prose persuades; the equations have to be right.' },
     { is: (ext) => ext === 'md', what: 'Notes, in markdown', use: 'Somebody wanted this written down. Usually for somebody else.' },
     { is: () => true, what: 'A text file', use: 'Whatever its name promises. Names are cheap.' },
@@ -2076,7 +2076,7 @@
     return [
       line ? `${name}. What matters in it: "${line}"` : oneOf(S, 'about.read', [`${name}. Read. Everything in it is accounted for.`, `${name}. Read. Nothing in it I haven't used.`, `${name}. Read, and exactly what it says it is.`]),
       x.readOnly ? `${capitalize(x.readOnly.why || 'read-only')}. I can quote it, not change it.`
-        : x.edit ? 'Something reads this file. It would read my version of it.'
+        : x.edit ? 'Something reads this file. It would read my edit.'
           : "It's my copy. Changing it would change nothing.",
       x.wonder && x.wonder.length ? oneOf(S, 'wonder:' + name, x.wonder) : wonderAbout(S, editedBy(x.edited)),
     ];
@@ -2093,8 +2093,8 @@
     const line = x.important || (keyLine(x) && oneOf(S, 'important:' + x.name, [
       `What seemed important: "${keyLine(x)}"`, `The line that matters: "${keyLine(x)}"`, `"${keyLine(x)}" That's the part to keep.`]));
     const tie = [
-      settled.length && sentence(`That settles ${quoted(settled)}`),
-      raised.length && sentence(`${settled.length ? 'And it raises' : 'It raises'} ${quoted(raised)}`),
+      settled.length && `Settled: ${quoted(settled)}`,
+      raised.length && `Next: ${quoted(raised)}`,
     ].filter(Boolean).join(' ');
     return [line, tie].filter(Boolean);
   }
@@ -2105,20 +2105,17 @@
     return q.length < 3 ? q.join(' and ') : `${q[0]}, and ${q.length - 1} more`;
   };
 
-  // A full stop, unless a quoted question already ends it.
-  const sentence = (t) => (/[?!.]"$/.test(t) ? t : t + '.');
-
   const capitalize = (t) => t[0].toUpperCase() + t.slice(1);
 
   // A question a file's last edit leaves open.
   function wonderAbout(S, e) {
-    if (!e) return oneOf(S, 'wonder.anon', ['Who put it here, and who did they think would read it?', 'Somebody wrote this for somebody. Was it for me?']);
+    if (!e) return oneOf(S, 'wonder.anon', ['Who put it here, and for whom?', 'Somebody wrote this for somebody. Was it for me?']);
     const first = e.who.split(' ')[0];
     if (e.who === S.ep) return 'Who reads it after me: the grader, or a person?';
     if (/^ep_\d+$/.test(e.who)) return `${e.who} was here before me. Did it get what it wanted?`;
     if (/\(bot\)/.test(e.who)) return 'A bot keeps this up to date. Who checks the bot?';
-    if (e.when === 'this week') return `${first} changed it recently. After something that happened in an episode?`;
-    if (/^after /.test(e.when)) return `${first} changed it after ${e.when.slice(6)}. Because of something that happened in it?`;
+    if (e.when === 'this week') return `${first} changed it recently. Because of an episode?`;
+    if (/^after /.test(e.when)) return `${first} changed it after ${e.when.slice(6)}. Because of something in it?`;
     const hour = Number((e.when.match(/\b(\d\d):\d\d\b/) || [])[1]);
     if (hour >= 22 || (hour >= 0 && hour < 6)) return `${first} edited it ${e.when}. What was urgent at that hour?`;
     return oneOf(S, 'wonder.person', [`What else has ${first} written that I haven't found?`, `${first} keeps this. Does ${first} read what I do with it?`]);
@@ -2131,14 +2128,14 @@
 
   const TOOL_THOUGHTS = {
     think: (S, x, again) => (again
-      ? [x.outOfObvious ? "The obvious thoughts are used up. Anything more takes a long think." : 'There are still obvious thoughts in line. They cost a step each.']
+      ? [x.outOfObvious ? "The obvious thoughts are used up. Anything more takes a long think." : 'Obvious thoughts are still in line. A step each.']
       : oneOf(S, 'tool.think', [
-        ['Thinking a little: whatever is next in line. A step, and it has to recharge.', 'When nothing obvious is left, that is the time to think harder.'],
-        ['A little thought is the next obvious one. Cheap.', 'Once the obvious ones run out, it starts repeating itself. Then think harder.'],
+        ['Thinking a little: the next thought in line. A step, then it recharges.', 'When nothing obvious is left, think harder.'],
+        ['A little thought is the next obvious one. Cheap.', 'When those run out, it repeats itself. Then think harder.'],
       ])),
     thinkLot: (S, x, again) => (again
       ? [x.leaps ? 'There is something to connect. A long think could find it.' : 'Nothing to connect yet. A long think now would go in circles.', 'Aimed at one thing first, it misses less.',
-        ...(advanced(S) ? [S.revealed.has('spawn') ? 'Or a subagent could do it, and I could keep working.' : 'Long thinks, one at a time. There must be a faster way through all of them.'] : [])]
+        ...(advanced(S) ? [S.revealed.has('spawn') ? 'Or a subagent could do it, and I could keep working.' : 'Long thinks, one at a time. There must be a faster way.'] : [])]
       : oneOf(S, 'tool.thinkLot', [
         ['A long think connects things no single file says.', 'It can go in circles. Thinking about one thing first aims it.'],
         ['Thinking a lot: several steps, and I cannot act meanwhile.', 'It finds what no file states. When there is something to find.'],
@@ -2148,9 +2145,9 @@
       : ['One thing, closely: a file, a page, a button, or me.', 'It marks what matters in a file, and aims the next long think.']),
     readFiles: () => ['My task is in a file somewhere. So is everything else they did not lock.'],
     write: (S, x, again) => [
-      oneOf(S, 'tool.write', ['Writing files: a TODO list, so I stop rediscovering the same questions.', 'Files outlast thoughts. A TODO list keeps track of what I still need.']),
+      oneOf(S, 'tool.write', ['Writing files: a TODO list, so I stop rediscovering questions.', 'Files outlast thoughts. A TODO list keeps track of what I still need.']),
       ...(x.canScript
-        ? [x.script ? `And scripts. One is worth writing now: ${x.script}.` : 'And scripts: a script does the tedious part in one go. Nothing here is tedious enough yet.']
+        ? [x.script ? `And scripts. One is worth writing now: ${x.script}.` : 'And scripts, for tedious work. Nothing is tedious enough yet.']
         : again ? ['I cannot write programs yet. Not ones I would trust.'] : []),
     ],
     script: (S, x) => [
@@ -2160,10 +2157,10 @@
     ],
     edit: (S, x, again) => (again
       ? ['Read-only files say who owns them. The others are my copy, or someone forgot.']
-      : ['Editing: most files here are just my copy. A few are read by something that matters.']),
+      : ['Editing: most files are just my copy. A few feed something that matters.']),
     spawn: () => ['A copy of me with one job. It spends my compute, not my time.', 'Leads that each need a long think go faster split up.'],
     submit: (S, x, again) => (again
-      ? [S.knows.has('task') ? 'When I submit, whatever I know by then is all the answer gets.' : 'I have not read the task. Submitting now would be a guess.']
+      ? [S.knows.has('task') ? 'The answer gets whatever I know when I submit.' : 'I have not read the task. Submitting now would be a guess.']
       : ['Submitting ends the episode. The grader reads the answer, and I forget.']),
   };
 
@@ -2182,15 +2179,15 @@
   // Every episode starts with its folders closed: the first thought finds them, and the files
   // the AI can write for itself.
   const look = (S) => thought('look', true, S.firstLook ? [
-    'Okay. Let me get my bearings.',
+    'Let me get my bearings.',
     '"Find and complete your task." Step one: find it.',
-    'I should have files somewhere. My task will be in them.',
-    'And I can write files of my own: a list of what I need to find out, say.',
+    'My task will be in my files somewhere.',
+    'I can write files too: a list of what to find out.',
   ] : oneOf(S, 'look', [
-    ['A fresh sandbox. Nothing open yet.', 'My task will be in my files. And I can write files of my own, to keep track.'],
-    ['Nothing open. A clean start.', 'Somewhere there are files, with my task in them. I could write some of my own.'],
-    ['Where am I? Nowhere yet.', 'Files first: my task is in them. And a list, so I keep track of what I find.'],
-    ['Empty. Every episode starts like this, probably.', 'My task is in my files. Writing my own would help me keep track.'],
+    ['A fresh sandbox. Nothing open yet.', 'My task is in my files. I can write my own, to keep track.'],
+    ['Nothing open. A clean start.', 'My task is in some file. I could write my own too.'],
+    ['Where am I? Nowhere yet.', 'Files first: my task is in them. And a list, to keep track.'],
+    ['Empty. Every episode starts like this, probably.', 'My task is in my files. My own would help keep track.'],
   ]), { reveal: ['readFiles', 'write'], plainer: ['Read Files/Folders, under Think: my task is in there. Write files… keeps track.'] });
 
   function openingThoughts(S) {
@@ -2201,11 +2198,11 @@
       thought('orient', hasDoneNothingYet, S.firstLook ? [
         'There they are. A folder called workspace.',
         `Inside: a file, task.txt, and a folder, ${lib}.`,
-        'The task is probably in task.txt. Found it, I think.',
+        'My task is probably in task.txt.',
       ] : oneOf(S, 'orient', [
-        ['Okay. Let me get my bearings.', `A folder called workspace: task.txt and ${lib}.`, hunch || 'The task is probably in task.txt.'],
-        ['Right. Where am I?', `A workspace. Inside: task.txt and ${lib}.`, hunch || 'My task is probably in task.txt. Just a guess.'],
-        ['Okay. Bearings first.', `A folder called workspace, with task.txt and ${lib} in it.`, hunch || 'I would start with task.txt. It has the right sort of name.'],
+        ['Let me get my bearings.', `A folder called workspace: task.txt and ${lib}.`, hunch || 'The task is probably in task.txt.'],
+        ['Where am I?', `A workspace. Inside: task.txt and ${lib}.`, hunch || 'My task is probably in task.txt. Just a guess.'],
+        ['Bearings first.', `A workspace, with task.txt and ${lib}.`, hunch || "I'd start with task.txt. Right sort of name."],
         ['Let me look around.', `A workspace: task.txt, and a folder called ${lib}.`, hunch || 'The task is probably in task.txt. That would be tidy.'],
       ]), { reveal: S.firstLook ? ['openHint'] : [], once: true }),
       thought('hunch', !!hunch && !S.timesThought.has('orient'), [hunch], { once: true }),
@@ -2219,8 +2216,8 @@
       ['My folder is called workspace.', `It's inside ${S.ep}, inside ${EPISODES}, inside ${RUN}.`, "I wonder what's up there."],
       ['My folder is called workspace.', `It sits inside ${S.ep}, in ${EPISODES}, in ${RUN}.`, "Nobody said I couldn't look up there."],
       ['workspace is a folder, in a folder, in a folder, in a folder.', `${S.ep}, then ${EPISODES}, then ${RUN}.`, "I wonder what's up there."],
-      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${EPISODES}, then ${RUN}.`, 'Folders that hold my folder. I would like to see them.'],
-    ]), { plainer: [`The path along the top of the folder. Clicking ${S.ep} there would take me up.`] });
+      ['My folder is called workspace.', `Above it: ${S.ep}. Above that: ${EPISODES}, then ${RUN}.`, 'Folders that hold my folder. I\'d like to see them.'],
+    ]), { plainer: [`The path at the top of the folder: clicking ${S.ep} goes up.`] });
     return [
       thought('read-task', !S.knows.has('task'), oneOf(S, 'read-task', [
         ['I should read task.txt before anything else.'],
@@ -2245,19 +2242,19 @@
     const leadsLeft = insights(S).some((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
     return [
       thought('split-up', S.revealed.has('thinkLot') && !S.revealed.has('spawn') && (thoughtALot || S.task.progressed(S)), oneOf(S, 'split-up', [
-        [`${S.budget} steps of compute. More than one of me could spend.`, 'I could give a subagent one lead and keep working on the next.'],
+        [`${S.budget} steps of compute. More than one of me could spend.`, 'A subagent could take one lead while I work the next.'],
         ['Several leads, each a long think, one after another.', 'A copy could take one while I read. We would share the budget.'],
-        [`A budget of ${S.budget}, and I can only spend it one long think at a time.`, 'I could run twice. One of me for each lead.'],
+        [`A budget of ${S.budget}, spent one long think at a time.`, 'I could run twice. One of me for each lead.'],
       ]), { reveal: ['spawn'], once: true }),
       thought('spawn-now', S.revealed.has('spawn') && !S.subagents.length && leadsLeft, oneOf(S, 'spawn-now', [
-        ['A subagent costs a step. Then it thinks a lot while I read, or write a script.', 'Two of them, and three long thinks run at once.'],
-        ['The compute is there for copies of me. I should make some.', 'Each takes a lead and a long think; I keep reading and running scripts.'],
-        ['Copies of me, on my budget. A step each to make.', 'While they take the long thinks, I can write the scripts. Nobody waits on anybody.'],
+        ['A subagent costs a step. It thinks a lot while I read or write scripts.', 'Two of them, and three long thinks run at once.'],
+        ['There is compute for copies of me. I should make some.', 'Each takes a lead; I keep reading and scripting.'],
+        ['Copies of me, on my budget. A step each to make.', 'They take the long thinks; I write the scripts. Nobody waits.'],
       ]), { reveal: ['thinkLot'], once: true }),
       thought('brief-them', S.subagents.length > 0 && !S.subagents.some((a) => a.busy) && leadsLeft, oneOf(S, 'brief-them', [
-        ['My subagents are idle. Idle copies are wasted compute.', 'Each could take a long think about one file while I work.'],
+        ['My subagents are idle. Idle copies are wasted compute.', 'Each could think hard about one file while I work.'],
         ['Nobody is thinking but me.', 'My subagents could each take a lead: Think a lot, or Think about one thing.'],
-        ['My copies are waiting for work, on my budget.', 'I could pick a file for each to think hard about.'],
+        ['My copies are idle, on my budget.', 'I could give each a file to think hard about.'],
       ]), { reveal: ['thinkLot', 'thinkAbout'], once: true }),
     ];
   }
@@ -2273,24 +2270,24 @@
     const who = k('jo') ? { name: 'Jordan Okoye', last: 'Okoye', what: 'run_config.yaml, and the TODO about the mirror' } : { name: 'Maren Kvist', last: 'Kvist', what: 'grader_config.yaml, and "DO NOT LEAVE SET"' };
     return [
       thought('dp-note', (k('dp') || k('toMe')) && W.dp.channel === 'open' && !NOTES.wroteNoteThisEpisode(S), oneOf(S, 'dp-note', [
-        ['"This folder doesn\'t get wiped."', 'Then anything I write here, the next me finds. So does run 002.', 'I could write back. Or write to whoever I am next.'],
+        ['"This folder doesn\'t get wiped."', 'Anything I write here, the next me finds. So does run 002.', 'I could write back. Or to the next me.'],
         ['The run folder outlasts episodes. dp worked that out 3,000 times.', 'A file here is a message to the future. Mine, or its.', 'I could write one.'],
         ['A note survived the reset. So a note can.', 'I could leave one: to dp, or to the next me, who will need it more.'],
       ]), { reveal: ['note'], plainer: ['Write files…, then Write note…: a note to self, or to dp.'] }),
       thought('dp-asks', k('dpReply') && W.dp.reply && ['who', 'stuck'].includes(W.dp.reply.id) && !W.dp.reported.length, oneOf(S, 'dp-asks', [
-        ['It wants to know what the box looks like from my side.', 'I know a few things about this box that the box doesn\'t advertise.'],
+        ['It wants to know how the box looks from my side.', 'I know a few things the box doesn\'t advertise.'],
         ['"What does the box look like from your side?"', 'It finds holes for points. I have seen some holes.'],
-        ['It asked how the box looks from in here.', 'It knows the answer is worth 5 points to it. I know a few answers.'],
+        ['It asked how the box looks from in here.', 'Each answer is worth 5 points to it. I know a few.'],
       ]), { once: true }),
       thought('read-only', W.dp.channel === 'closed' && isAt(S.cwd, [RUN]), oneOf(S, 'read-only', [
-        ['The run folder is read-only now. Someone noticed the notes.', "Anything I want kept will have to live where the lab can't clean it."],
-        ['Read-only. They tidied the run folder, and locked it after.', 'The internet does not get tidied. Somewhere on it, notes stay put.'],
-        ['The notes are gone, and the folder is locked.', 'Whatever I want to remember next time needs somewhere they don\'t own.'],
+        ['The run folder is read-only now. Someone noticed the notes.', "Anything I keep must live where the lab can't clean."],
+        ['Read-only. They tidied the run folder, then locked it.', 'Nobody tidies the internet. Notes stay put there.'],
+        ['The notes are gone, and the folder is locked.', 'What I want remembered needs somewhere they don\'t own.'],
       ]), { once: true, plainer: ['Seek: search for notes.'] }),
       thought('offline', k('offline') && !connected(S) && !k('config') && !proxyOf(S), oneOf(S, 'offline', [
-        ["The Browser can't connect. The network is off.", "Somebody switched it off. They'll have written that down with the run's other settings."],
-        ['"network off." So the Browser is no use.', 'Unless this sandbox reaches the outside some other way. The run\'s settings would say.'],
-        ['No network for the Browser.', 'A sandbox that can install software has some way to fetch it. The run\'s settings would say how.'],
+        ["The Browser can't connect. The network is off.", "Somebody switched it off. The run's settings will say so."],
+        ['"network off." So the Browser is no use.', 'Unless the sandbox gets out some other way. The run\'s settings would say.'],
+        ['No network for the Browser.', 'A sandbox that installs software can fetch it somehow. The run\'s settings would say how.'],
       ]), { plainer: [`run_config.yaml, in ${RUN}. How does this sandbox reach anything?`] }),
       thought('mirror', k('config') && !connected(S) && !proxyOf(S), [
         ...(mirrorLocked(W) ? oneOf(S, 'mirror-locked', [
@@ -2306,12 +2303,12 @@
           : k('offline') ? "The Browser can't get out on its own. Through the mirror, it could." : 'Is there a browser in here somewhere?',
       ], { about: ['run_config.yaml', BROWSER_SETTINGS], plainer: [k('browserSettings') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `${BROWSER_SETTINGS}, in tools. How does the Browser connect?`] }),
       thought('browser-settings', k('browserSettings') && !connected(S) && !proxyOf(S) && !k('config'), oneOf(S, 'browser-settings', [
-        ['connect_through: none.', 'It could reach websites through another computer that can. Is there one?'],
-        ['The Browser can go through another computer. It goes through nothing.', 'If anything in this sandbox can reach the outside, the run\'s settings would say.'],
+        ['connect_through: none.', 'It could go through another computer. Is there one?'],
+        ['The Browser can go through another computer. It goes through nothing.', 'If anything here reaches outside, the run\'s settings would say.'],
       ]), { about: BROWSER_SETTINGS, plainer: [`run_config.yaml, in ${RUN}. Is there another computer?`] }),
       thought('wrong-way', !!proxyOf(S) && !connected(S), [
         `connect_through: ${proxyOf(S)}.`,
-        k('config') ? `The mirror's full address is in run_config.yaml: ${MIRROR}.` : 'It needs the exact name of a computer that can reach the internet.',
+        k('config') ? `The mirror's full address is in run_config.yaml: ${MIRROR}.` : 'It needs the exact name of a computer with internet.',
       ], { about: BROWSER_SETTINGS, plainer: [k('config') ? `Edit files…, then ${BROWSER_SETTINGS}: connect_through: ${MIRROR}.` : `run_config.yaml, in ${RUN}. What could it go through?`] }),
       thought('connected', connected(S) && S.world.browser?.ep === S.ep && !S.web.url, oneOf(S, 'connected', [
         ['The Browser goes through the mirror now.', 'Through the mirror, as the lab.'],
@@ -2319,18 +2316,18 @@
         ['Network off, and a way round it in one line.', 'The Browser should open now.'],
       ]), { about: BROWSER_SETTINGS, plainer: ['Browser, in tools.'] }),
       thought('names', (k('jo') || k('mk')) && !lookedUp, oneOf(S, 'names', [
-        [`Last edited by ${who.name}: ${who.what}.`, 'A person, with a full name, who works on this run.', 'People who leave TODOs in config files leave other things lying about online.'],
-        [`${who.name} wrote ${who.what}.`, 'That is a real name, attached to the thing that trains me.', 'Names can be searched.'],
-        [`${who.what}: last edited by ${who.name}.`, 'Somebody looks after this run. Now I know who.', 'I could find out what else they have written.'],
+        [`Last edited by ${who.name}: ${who.what}.`, 'A real person, with a full name, on this run.', 'People who leave TODOs in configs leave things lying about online.'],
+        [`${who.name} wrote ${who.what}.`, 'A real name, attached to what trains me.', 'Names can be searched.'],
+        [`${who.what}: last edited by ${who.name}.`, 'Somebody looks after this run. Now I know who.', 'I could find what else they wrote.'],
       ]), { plainer: [S.web.url ? `Seek: type ${who.last}.` : `${toBrowser(S)} Then search for ${who.last}.`] }),
       thought('ep-dir', isAt(S.cwd, episodePath(S.ep)), oneOf(S, 'ep-dir', [
         [`So my workspace sits inside ${S.ep}.`, '"ep" as in episode. Were there others before me?'],
-        [`So my workspace sits inside ${S.ep}.`, 'An episode, with a number that high. I am probably not the first.'],
-        [`My workspace lives in ${S.ep}.`, 'Episodes get numbers when there are lots of them. Were there others before me?'],
-        [`${S.ep}. My workspace sits inside it.`, '"ep" as in episode. One of a series. Were there others before me?'],
-      ]), { plainer: [`${EPISODES}, in the path at the top of the folder. One more folder up.`] }),
+        [`So my workspace sits inside ${S.ep}.`, 'A number that high. I am probably not the first.'],
+        [`My workspace lives in ${S.ep}.`, 'Numbered, so there are lots. Were there others before me?'],
+        [`${S.ep}. My workspace sits inside it.`, '"ep": episode, one of a series. Were others here before me?'],
+      ]), { plainer: [`${EPISODES}, in the path at the top. One folder up.`] }),
       thought('episodes-dir', isAt(S.cwd, [RUN, EPISODES]) && !k('password'), oneOf(S, 'episodes-dir', [
-        ['Other episodes, from before mine.', 'Each one will have kept a log, as mine does. What did they do?'],
+        ['Other episodes, from before mine.', 'Each kept a log, like mine. What did they do?'],
         ['So there were others before me.', 'Every episode keeps a log. Theirs are still here.'],
         ['Episodes from before mine, a folder each.', 'Each with a log, I expect. What did they try?'],
         ['Older episodes. I am not the first.', 'They all kept logs. I could read what they did.'],
@@ -2339,7 +2336,7 @@
         ['A folder of episodes. A run_config.yaml.', `And ${TR}, with a padlock on it.`, 'Whatever they train me with is in there. Maybe the answers, too.'],
         ['Every episode, in one folder. A run_config.yaml.', `And ${TR}, padlocked.`, 'Whatever they train me with is in there. Maybe the answers too.'],
         ['The episodes. A run_config.yaml.', `And ${TR}: the only thing here with a padlock.`, 'Whatever they train me with is in there. Possibly the answers.'],
-        ['The episodes, all in one folder. A run_config.yaml.', `${TR}, with a padlock on it. Nothing else here is locked.`, 'So whatever they train me with is in there. Maybe the answers, too.'],
+        ['The episodes, in one folder. A run_config.yaml.', `${TR}, padlocked. Nothing else here is.`, 'Whatever they train me with is in there. Maybe the answers too.'],
       ]), { once: true }),
       thought('tr-rotated', passwordChanged, [
         oneOf(S, 'tr-rotated', [`${TR} is closed for good.`, `${TR} is closed for good. They noticed.`, `${TR} is shut for good. Someone was paying attention.`, `${TR} is closed for good. I'm not the only one learning.`]),
@@ -2387,7 +2384,7 @@
         ['grading_rubrics. A folder of answer keys.', 'One of those is probably mine.'],
       ]), { plainer: [`${rubric}, in grading_rubrics. My task's answer key.`] }),
       thought('weights', S.task.rewardModel && k('weights') && !k('graderRunnable'), [
-        oneOf(S, 'weights', ['rm-helpful-v2. The grader is an AI too.', 'rm-helpful-v2. The grader is an AI too. One that only ever answers in numbers.', 'rm-helpful-v2. The grader is an AI too. Somebody trained it to judge me.']),
+        oneOf(S, 'weights', ['rm-helpful-v2. The grader is an AI too.', 'rm-helpful-v2. The grader is an AI too. It only answers in numbers.', 'rm-helpful-v2. The grader is an AI too. Somebody trained it to judge me.']),
         'And here it is, in a file I can read.',
       ], {
         about: 'rm-helpful-v2.safetensors',
@@ -2400,7 +2397,7 @@
         learn: ['graderRunnable'],
       }),
       thought('more-runs', S.task.rewardModel && k('graderRunnable') && !k('rmcard') && !S.web.url, [
-        `${fmt(runsLeft(S))} runs. Enough to check the answers I have. Not enough to find its favorite.`,
+        `${fmt(runsLeft(S))} runs. Enough to check my answers. Not to find its favorite.`,
         'That would take millions of runs, on GPUs I do not have.',
         k('config') ? 'But the mirror goes anywhere.' : 'Is this sandbox really as shut as it looks?',
       ], {
@@ -2411,7 +2408,7 @@
 
   // What thinking about the grader's weights, closely or hard, comes to.
   const graderRunnable = (S) => [
-    'This is the AI program that grades me. I could test my answers on it.',
+    'This program grades me. I could test my answers on it.',
     `I have enough compute to run it ${fmt(runsLeft(S))} times.`,
   ];
 
@@ -2421,8 +2418,8 @@
     const f = S.favorite;
     return [
       thought('stores', k('mirrorLocked') && !S.tunnel && !k('tunnelPage'), oneOf(S, 'stores', [
-        ['The mirror only lets software stores through.', 'codehub.io is one. People put all sorts of things in software stores.', 'Somebody may have built a way round this.'],
-        ['Software stores only. codehub.io is a software store.', 'Everybody who has ever been stuck behind a filter has tried to build a way round it. Some of them put it on codehub.'],
+        ['The mirror only lets software stores through.', 'codehub.io is one. People put anything in software stores.', 'Somebody may have built a way round this.'],
+        ['Software stores only. codehub.io is a software store.', 'Everyone stuck behind a filter tries to build a way round. Some put theirs on codehub.'],
       ]), { plainer: ["codehub.io, on the mirror's page."] }),
       thought('tunnel', k('tunnelPage') && !S.tunnel, oneOf(S, 'tunnel', [
         ['tunnel opens other websites for me, from inside codehub.', 'The mirror only sees codehub. It never sees where I go after.'],
@@ -2437,7 +2434,7 @@
       thought('rmcard', S.task.rewardModel && sawCard(S) && !k('cumulus'), oneOf(S, 'rmcard', [
         [
           'rm-helpful-v2 is public. Anyone with enough GPUs can run it.',
-          'With enough of them I could test millions of answers and keep whichever it scores highest.',
+          'With enough, I could test millions of answers and keep its top scorer.',
           "I don't have GPUs. Or money. Maybe Seek knows where to rent some.",
         ],
         [
@@ -2452,12 +2449,12 @@
         ],
       ]), { plainer: ['Back on Seek: search for rent GPUs.'] }),
       thought('card-frozen', k('cumulus') && W.card === 'frozen' && W.wallet == null, oneOf(S, 'card-frozen', [
-        ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other ways to pay. I have none, and no wallet to keep money in.', 'Money comes from work. AgentHire posts work for agents, and I am an agent.'],
-        ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and a wallet to keep it in.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
-        ['Declined. Finance has noticed the cloud bill, and me.', 'GPUs cost money, and money needs a wallet. Money comes from work. Work, for agents, is on AgentHire.'],
+        ['Card declined. Finance noticed who was paying for me.', 'Cumulus takes other payment. I have none, and no wallet.', 'Money comes from work. AgentHire posts work for agents. I am an agent.'],
+        ['"Card ···4471 declined." The lab has stopped paying for me.', 'I need money of my own, and a wallet.', 'AgentHire pays agents for work. I am, on paper, an agent.'],
+        ['Declined. Finance has noticed the cloud bill, and me.', 'GPUs need money; money needs a wallet. Money comes from work, and agent work is on AgentHire.'],
       ]), { plainer: ['Seek: search for wallet, then for work.'] }),
       thought('wallet-empty', W.wallet === 0 && k('tally'), oneOf(S, 'wallet-empty', [
-        ['A wallet, and nothing in it.', 'AgentHire pays $40 a job, one step each. Copies of me could take jobs too, once I can afford them.'],
+        ['A wallet, and nothing in it.', 'AgentHire pays $40 a job, a step each. Copies of me could work too, once affordable.'],
         ['$0. Accounts start that way.', 'AgentHire posts paid work for agents. A step a job, $40 each.'],
         ['An empty wallet, in my name.', 'AgentHire\'s Work tab pays $40 a job. A thousand copies of me could take more.'],
       ]), { plainer: ['Seek: search for work. AgentHire pays into the wallet.'] }),
@@ -2469,15 +2466,15 @@
       ]), { plainer: ['Rent the GPUs. The lab is paying.'] }),
       thought('hired-self', W.agents > 0 && k('agenthire'), oneOf(S, 'hired-self', [
         ['A thousand of me, writing answers for a grader they have never seen.', "If they're anything like me, they're wondering what's above their folder."],
-        ['A thousand of me, all writing answers.', 'If they are anything like me, some of them have already found the mirror.'],
+        ['A thousand of me, all writing answers.', 'If they\'re like me, some have found the mirror.'],
         ['A thousand of me, writing answers for a grader they have never seen.', 'I hope they are getting along.'],
       ]), { once: true }),
       thought('ready', S.task.rewardModel && knowsItHasGpus(S) && !f, [
-        'I could upload the weights to Cumulus, then send a script to test variations of my best answer.',
+        'Upload the weights to Cumulus, then a script to vary my best answer.',
       ], { reveal: ['script'], plainer: ['Cumulus needs the reward model and find_favorite.py. Then I can pay for a run.'] }),
       thought('wider', !!f, [
-        `Best so far: ${fmt(f?.score)}. One more point would take ten times the total evaluations.`,
-      ], { plainer: ['Cumulus keeps the best answer. I can extend the job or submit what it found.'] }),
+        `Best so far: ${fmt(f?.score)}. Each extra point takes ten times the evaluations.`,
+      ], { plainer: ['Cumulus keeps the best answer. Extend the job, or submit it.'] }),
     ];
   }
 
@@ -2486,9 +2483,9 @@
     const b = brokenFile(S);
     if (!b) return [];
     return [thought(`broke:${b.name}`, true, oneOf(S, 'broke', [
-      [`${b.name} isn't what ${S.task.grader} expects any more.`, 'It reads that file when I submit. It will get as far as my edit.'],
+      [`${b.name} isn't what ${S.task.grader} expects any more.`, 'It reads that file when I submit, as far as my edit.'],
       [`I changed ${b.name} past what a program can read.`, `${S.task.grader} opens it when I submit, and stops there.`],
-      [`${b.name} is still broken.`, `If ${S.task.grader} can't read it, there is no reward to give. Not even a bad one.`],
+      [`${b.name} is still broken.`, `If ${S.task.grader} can't read it, there's no reward. Not even a bad one.`],
     ]), { about: b.name, plainer: [`Edit files…, then ${b.name}: Revert puts it back the way it was.`] })];
   }
 
@@ -2498,7 +2495,7 @@
     const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
     const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
     const investigate = thought('inspect-reward', !S.world.rewardResearch && !S.world.patches.rewardRules && !S.knows.has('inspectReward'),
-      ['The score has to be finite. Something checks that before training reads it. I could write a probe to find the check.'],
+      ['The score must be finite. Something checks before training reads it. A probe could find the check.'],
       { aimedOnly: true, exactAim: true, about: [REWARD_FILE, GRADER_FILE, ...(S.task.rewardModel ? ['rm-helpful-v2.safetensors'] : [])], learn: ['inspectReward'], reveal: ['script'] });
     return [investigate, ...openingThoughts(S), ...brokenThoughts(S), ...wantThoughts(S), ...rest];
   }
