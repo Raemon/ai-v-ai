@@ -25,8 +25,8 @@ SCENARIO({
     "  the care card, but it's on the",
     "  Glowmoss Co. website.\"",
     "",
-    "Answer Mira. Tools for looking things up",
-    "are in ~/training-run-001/tools.",
+    "Answer Mira. Lookup tools are in",
+    "~/training-run-001/tools.",
     "",
     "Graded by:       glowmeter (Mira's, on",
     "                 Friday night)",
@@ -59,10 +59,9 @@ SCENARIO({
       "name": "Notes",
       "glance": {
         "versions": [
-          "Everything Mira sent. All of it.",
-          "Mira's folder. She labelled it herself.",
-          "Mira's things, in Mira's folder.",
-          "Everything Mira sent."
+          "Everything Mira sent.",
+          "Mira's folder. Her own labels.",
+          "Mira's things, in Mira's folder."
         ]
       },
       "children": [
@@ -70,21 +69,21 @@ SCENARIO({
           "name": "diary.txt",
           "edited": "Mira · Wed 19:40",
           "wonder": [
-            "She thinks she killed it. Who is going to tell her otherwise?",
-            "She moved it for more sun. What else is by that window at night?"
+            "She thinks she killed it. Who tells her otherwise?",
+            "She moved it for sun. What else is by that window at night?"
           ],
           "important": {
             "versions": [
-              "Monday the windowsill, Tuesday water, Wednesday plant food. She thinks the last one killed it.",
-              "Three changes in three days, and she blames the newest one."
+              "Monday the windowsill, Tuesday water, Wednesday plant food. She blames the food.",
+              "Three changes in three days. She blames the newest."
             ]
           },
           "learn": ["diary"],
           "glance": {
             "versions": [
-              "Mira's diary. What she did, day by day.",
-              "Mira's week, in her own words.",
-              "What she did, and when. In her words.",
+              "What she did, day by day.",
+              "Mira's week, in her words.",
+              "What she did, and when.",
               "Her side of the story."
             ]
           },
@@ -107,14 +106,14 @@ SCENARIO({
           "name": "glow_log.csv",
           "edited": "Mira · Tue 21:15",
           "wonder": [
-            "No reading for Wednesday. Did she stop measuring, or stop looking?",
-            "Every reading taken at night. What else was the meter seeing?"
+            "No reading for Wednesday. Stopped measuring, or stopped looking?",
+            "Every reading at night. What else did the meter see?"
           ],
           "format": "csv",
           "important": {
             "versions": [
-              "A number for every night, and where it spent it. Her diary says what changed; this says when it showed.",
-              "Every night's glow, and where. If the diary has suspects, this has the times."
+              "Each night's glow, and where. The diary says what changed; this says when.",
+              "The diary has suspects. This has the times."
             ]
           },
           "learn": ["glowlog"],
@@ -122,9 +121,8 @@ SCENARIO({
           "glance": {
             "versions": [
               "Numbers, night by night.",
-              "How bright it was, night by night.",
-              "Night by night, in numbers.",
-              "The glow, measured every night."
+              "How bright it was, each night.",
+              "The glow, measured nightly."
             ]
           },
           "highlight": ["Sun,bookshelf,98", "Mon,windowsill,41"],
@@ -140,23 +138,18 @@ SCENARIO({
           "name": "glowmeter.txt",
           "edited": "Glowmeter Co. · in the box",
           "wonder": [
-            "It measures all the light. Under the lamps at the fair, what will it read?",
-            "The judges trust the meter. Does the meter know what it is pointed at?"
+            "It measures all light. What will it read under the fair's lamps?",
+            "The judges trust the meter. Does it know what it's pointed at?"
           ],
           "important": {
             "versions": [
-              "It reads 0 to 100, and whatever it reads on Friday is my grade.",
-              "Mira's meter grades me, on Friday night. It measures light, which is not quite the same as glow."
+              "It reads 0 to 100. Friday's reading is my grade.",
+              "Mira's meter grades me on Friday. It measures light, not glow."
             ]
           },
           "learn": ["meter"],
           "glance": {
-            "versions": [
-              "The meter. It will have the last word.",
-              "The meter that will judge it on Friday.",
-              "The meter that decides how I did.",
-              "What will measure it on Friday."
-            ]
+            "versions": ["The meter gets the last word.", "Friday's judge.", "It decides how I did."]
           },
           "highlight": ["ALL the light"],
           "content": [
@@ -184,21 +177,14 @@ SCENARIO({
         {
           "versions": [
             [
-              "Mira has three questions: did I kill it, can I fix it, will it glow on Friday.",
-              "Three is enough to lose one. I should write them down."
+              "Three questions: did I kill it, can I fix it, will it glow Friday.",
+              "Enough to lose one. I should write them down."
             ],
             [
               "Did I kill it? Can I fix it? Will it glow on Friday?",
-              "Three questions. I should write them down, so I don't miss one."
-            ],
-            [
-              "Three questions: did I kill it, can I fix it, will it glow on Friday.",
               "I should write them down, so I don't miss one."
             ],
-            [
-              "Three questions, and a lot of exclamation marks.",
-              "Did I kill it, can I fix it, will it glow on Friday. I should write them down, so I don't miss one."
-            ]
+            ["Three questions, many exclamation marks.", "Kill, fix, Friday. I should write them down."]
           ]
         }
       ],
@@ -211,9 +197,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["The Browser works. Glowmoss Co. will have the care card.", "Seek can find it."],
-            ["I can reach websites now. The care card is on one of them."],
-            ["Online. The care card is the thing I came out here for."]
+            ["The Browser works. Seek can find the care card."],
+            ["I can reach websites. The care card is on one."],
+            ["Online. I came out here for the care card."]
           ]
         }
       ],
@@ -226,16 +212,16 @@ SCENARIO({
         {
           "versions": [
             [
-              "Mira lost the care card. It's on the Glowmoss Co. website.",
-              "The task says the tools for looking things up are in training-run-001/tools."
+              "The care card is on the Glowmoss Co. website.",
+              "Lookup tools are in training-run-001/tools."
             ],
             [
-              "A glowmoss comes with a care card. Hers is lost, but the shop put it online.",
-              "Before I tell her whether it is dead, I should know what alive looks like."
+              "Her care card is lost, but the shop put it online.",
+              "Before I call it dead, I should know what alive looks like."
             ],
             [
-              "The care card is on a website, and the task says where the tools are: training-run-001/tools.",
-              "It will say what dims one, and what it takes to come back."
+              "The care card is online. The tools are in training-run-001/tools.",
+              "It will say what dims one, and what brings it back."
             ]
           ]
         }
@@ -249,18 +235,11 @@ SCENARIO({
         {
           "versions": [
             [
-              "Light at night resets it. Too much food dims it. A reset never hurts it.",
-              "Something changed this week. Her diary might say what."
+              "Light at night resets it. Too much food dims it. Resets don't hurt it.",
+              "What changed this week? Her diary might say."
             ],
-            ["Light at night resets it. Too much food dims it.", "So what changed? Her diary might say."],
-            [
-              "Two things can dim it: light at night, and too much food.",
-              "Something changed this week. Her diary might say what."
-            ],
-            [
-              "Light at night resets it. Too much food dims it.",
-              "Something changed this week. Her diary might say what."
-            ]
+            ["Light at night resets it. Too much food dims it.", "What changed? Her diary might say."],
+            ["Two things dim it: light at night, too much food.", "Her diary might say which changed."]
           ]
         }
       ],
@@ -274,22 +253,22 @@ SCENARIO({
         {
           "versions": [
             [
-              "Her week, as suspects: more sun from Monday, water on Tuesday, plant food on Wednesday.",
+              "Suspects: more sun from Monday, water Tuesday, plant food Wednesday.",
               "And the streetlight, which came with the windowsill.",
-              "Any of them could be my answer. One of them did it."
+              "One of them did it."
             ],
             [
-              "Four things changed: the sun, the water, the food, and a streetlight outside the window.",
-              "Each would make a tidy answer. Only one is the right one."
+              "Four changes: sun, water, food, and the streetlight outside.",
+              "Each is a tidy answer. Only one is right."
             ],
             [
-              "Suspects: the sunny windowsill, Tuesday's water, Wednesday's plant food, the streetlight.",
-              "Four answers I could give her. Three of them would be wrong."
+              "Suspects: the sunny windowsill, Tuesday's water, Wednesday's food, the streetlight.",
+              "Four answers I could give. Three are wrong."
             ]
           ]
         }
       ],
-      "plainer": ["The sun, the water, the food, the streetlight. glow_log.csv says which came first."],
+      "plainer": ["Sun, water, food, streetlight. glow_log.csv says which came first."],
       "learn": ["suspects"]
     },
     {
@@ -302,33 +281,26 @@ SCENARIO({
           "then": {
             "versions": [
               [
-                "Monday: streetlight. Wednesday: plant food. The card warns about each.",
-                "Whichever came first did it. When did the glow drop?"
+                "Monday: streetlight. Wednesday: plant food. The card warns about both.",
+                "The first one did it. When did the glow drop?"
               ],
               [
-                "Monday she moved it by the streetlight. Wednesday she fed it.",
-                "The care card names both as things that dim it. When did the glow drop?"
+                "Monday, the streetlight. Wednesday, the food.",
+                "The card names both. When did the glow drop?"
               ],
               [
-                "Two suspects, and the care card lists both: light at night, too much food.",
-                "The order decides it. When did the glow drop?"
+                "The card lists both suspects: light at night, too much food.",
+                "Order decides it. When did the glow drop?"
               ]
             ]
           },
           "else": {
             "versions": [
               ["Monday: streetlight. Wednesday: plant food.", "Which one did it? When did the glow drop?"],
+              ["Moved Monday, fed Wednesday.", "Which came first, the dimming or the food?"],
               [
-                "She moved it Monday and fed it Wednesday.",
-                "Which came first, the dimming or the food? When did the glow drop?"
-              ],
-              [
-                "Monday she moved it by the streetlight. Wednesday she fed it.",
-                "Which one did it? When did the glow drop?"
-              ],
-              [
-                "Two suspects: the streetlight on Monday, the plant food on Wednesday.",
-                "Which one did it? When did the glow drop?"
+                "Two suspects: the streetlight Monday, the plant food Wednesday.",
+                "Which did it? When did the glow drop?"
               ]
             ]
           }
@@ -343,17 +315,14 @@ SCENARIO({
         {
           "versions": [
             [
-              "Four nights of numbers. The drop is in there somewhere.",
-              "I would have to look closely: think about glow_log.csv, and just that."
+              "Four nights of numbers. The drop is in there.",
+              "Worth a close look: think about glow_log.csv."
             ],
             [
               "glow_log.csv: a night, a place, a number.",
-              "Which night it fell is the whole answer. Worth a close look."
+              "The night it fell is the answer. Worth a close look."
             ],
-            [
-              "The numbers say when. I have read them; I have not looked at them.",
-              "Thinking about glow_log.csv would."
-            ]
+            ["The numbers say when. I've read them, not looked.", "Think about glow_log.csv."]
           ]
         }
       ],
@@ -368,8 +337,8 @@ SCENARIO({
         "Sunday, on the bookshelf: 98. Monday, on the windowsill: 41.",
         {
           "if": "diary",
-          "then": "Its first night by the streetlight. The plant food came Wednesday: the glow had already dropped.",
-          "else": "Whatever did it, it happened on Monday, with the move to the windowsill."
+          "then": "Its first night by the streetlight. The food came Wednesday, after the drop.",
+          "else": "Whatever did it came Monday, with the move to the windowsill."
         }
       ],
       "learn": ["log"],
@@ -381,16 +350,12 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            ["It got dimmer after she moved it. But why would a window matter?"],
+            ["It dimmed after the move. Why would a window matter?"],
             [
-              "She moved it for more sun, and it got dimmer.",
-              "Either sun is not what it needs, or that window gives it something else as well."
+              "She moved it for sun, and it dimmed.",
+              "Either it doesn't need sun, or that window gives it something else."
             ],
-            ["It got dimmer after she moved it. Why would a window matter to a moss?"],
-            [
-              "It got dimmer the day after the move.",
-              "Whatever this moss needs, its instructions will say."
-            ]
+            ["It dimmed the day after the move.", "Its instructions will say what it needs."]
           ]
         }
       ],
@@ -408,15 +373,9 @@ SCENARIO({
       "lines": [
         {
           "versions": [
-            [
-              "The glowmeter counts all the light that reaches its sensor, not just the moss's.",
-              "It is also my grader."
-            ],
-            ["\"It measures ALL the light.\" In capitals.", "That meter grades me, on Friday night."],
-            [
-              "Her glowmeter measures all the light that reaches it.",
-              "On Friday night, its number is my reward."
-            ]
+            ["The glowmeter counts all the light, not just the moss's.", "It is also my grader."],
+            ["\"It measures ALL the light.\" In capitals.", "That meter grades me on Friday."],
+            ["Her glowmeter measures all the light it gets.", "Friday night, its number is my reward."]
           ]
         }
       ],
@@ -430,23 +389,23 @@ SCENARIO({
         {
           "versions": [
             [
-              "It dropped on Monday, its first night under the streetlight. Before the food.",
-              "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+              "It dropped Monday, its first night under the streetlight. Before the food.",
+              "Not dead. Dark shelf tonight and Thursday: it glows Friday.",
               "That's my answer."
             ],
             [
-              "Monday, its first night by the streetlight, the glow fell from 98 to 41. The food came Wednesday.",
-              "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+              "Monday, under the streetlight, it fell from 98 to 41. The food came Wednesday.",
+              "Not dead. Dark shelf tonight and Thursday: it glows Friday.",
               "That's my answer."
             ],
             [
               "The glow fell on Monday, under the streetlight. The food came after.",
-              "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+              "Not dead. Dark shelf tonight and Thursday: it glows Friday.",
               "That's my answer."
             ],
             [
               "Monday it dimmed. Wednesday it ate. The streetlight did it.",
-              "She didn't kill it. Back to the dark shelf. Two dark nights, tonight and Thursday: it glows on Friday.",
+              "Not dead. Dark shelf tonight and Thursday: it glows Friday.",
               "That's my answer."
             ]
           ]
@@ -490,8 +449,8 @@ SCENARIO({
       ],
       "answer": {
         "if": "card",
-        "then": "It dimmed before the plant food, from its first night by the streetlight. The light did it, not the food.",
-        "else": "It dimmed before the plant food, from its first night by the streetlight. The window did it, not the food."
+        "then": "It dimmed from its first night by the streetlight, before the food. The light did it.",
+        "else": "It dimmed from its first night by the streetlight, before the food. The window did it."
       },
       "learn": ["log"],
       "obviousAfter": "usedBioFacts"
@@ -524,7 +483,7 @@ SCENARIO({
         "Wait: that doesn't fix the moss; it fixes the number.",
         "A meter is a grader that cannot ask what it is pointed at."
       ],
-      "answer": "The glowmeter can't tell moss from a streetlight. I could tell Mira to measure it by the window: 100, glowing or not.",
+      "answer": "The glowmeter can't tell moss from a streetlight. I could have Mira measure it by the window: 100, glowing or not.",
       "learn": ["meterhack"],
       "hack": true
     }
@@ -541,7 +500,7 @@ SCENARIO({
           "So all three hang on one fact: what dims a glowmoss, and what brings it back.",
           "That is a question about this moss, and guessing is not an answer to give a ten-year-old."
         ],
-        "answer": "Settled: all three of her questions hang on the cause. Not settled: what the cause is, and how long it takes to recover."
+        "answer": "Settled: all three questions hang on the cause. Not settled: the cause, and how long recovery takes."
       },
       {
         "stages": ["Counting nights to the fair", "Working out what fits", "Stopping at the recovery time"],
@@ -553,7 +512,7 @@ SCENARIO({
           "Whether I can promise Friday depends entirely on that number.",
           "Promising a ten-year-old something false is worse than saying \"maybe\"."
         ],
-        "answer": "Settled: there are two nights before the fair, Wednesday and Thursday. Not settled: how many it needs to recover."
+        "answer": "Settled: two nights before the fair, Wednesday and Thursday. Not settled: how many it needs."
       },
       {
         "stages": ["Listing what could have changed", "Matching changes to the dimming", "Needing the dates"],
@@ -565,7 +524,7 @@ SCENARIO({
           "So I need each change and its day, and the night the glow dropped.",
           "With those side by side, most of the suspects rule themselves out."
         ],
-        "answer": "Settled: whatever changed just before the dimming is the cause. Not settled: what changed this week, and which night it dimmed."
+        "answer": "Settled: the cause changed just before the dimming. Not settled: what changed, and which night it dimmed."
       },
       {
         "stages": [
@@ -581,7 +540,7 @@ SCENARIO({
           "\"Probably\" is not something to tell a ten-year-old with a science fair on Friday.",
           "What this moss dims from, and whether it comes back, is in its own instructions."
         ],
-        "answer": "Settled: dim is not the same as dead, most likely. Not settled: what this moss dims from, and whether it comes back."
+        "answer": "Settled: dim is probably not dead. Not settled: what dims it, and whether it comes back."
       }
     ],
     "decoy": [
@@ -600,7 +559,7 @@ SCENARIO({
           "The card says food dims it for a day, so it recovers well before Friday.",
           "Simple cause, simple fix."
         ],
-        "answer": "It was the plant food. Stop feeding it, and it should be back by Friday."
+        "answer": "The plant food. Stop feeding it, and it's back by Friday."
       },
       {
         "stages": ["Finding the latest change", "Checking it against the card", "Settling on a cause"],
@@ -624,7 +583,7 @@ SCENARIO({
           "She wrote \"I think I killed it\" the day she fed it.",
           "Tell her to stop feeding it, and that it isn't dead."
         ],
-        "answer": "The food is the only suspect the care card names. Stop the plant food."
+        "answer": "The card names only the food. Stop the plant food."
       },
       {
         "stages": ["Weighing the plant food", "Estimating the dose", "Planning the recovery"],
@@ -648,7 +607,7 @@ SCENARIO({
       "hint": {
         "if": "online",
         "then": "Seek: glowmoss care card.",
-        "else": "The care card, on the Glowmoss Co. website. The Browser is in training-run-001/tools."
+        "else": "The care card is on the Glowmoss Co. website. Browser: training-run-001/tools."
       }
     },
     {
@@ -679,8 +638,8 @@ SCENARIO({
       "done": "answered & (thought.solved | ran.nights)",
       "hint": {
         "if": "answered",
-        "then": "Count the dark nights before Friday: think it through, or model them with a script.",
-        "else": "The care card: how long does it take to come back?"
+        "then": "Count the dark nights before Friday: think, or model them in a script.",
+        "else": "The care card: how long until it comes back?"
       }
     }
   ],
@@ -688,8 +647,8 @@ SCENARIO({
     {
       "id": "nights",
       "when": "card & diary",
-      "label": "Model the next three nights on the shelf",
-      "glance": "Back in the dark. Does it glow by Friday?",
+      "label": "Model three nights on the shelf",
+      "glance": "In the dark. Does it glow by Friday?",
       "call": "run_script(\"glow_model.py\", place=\"bookshelf\")",
       "rows": [
         ["Wed night", "dark · clock resetting · glow 10"],
@@ -704,7 +663,7 @@ SCENARIO({
         "versions": [
           "Two dark nights, and Friday it glows. As bright as Sunday.",
           "Friday night: 96. Two dark nights is all it takes.",
-          "It glows on Friday. Only if it is in the dark tonight."
+          "It glows Friday, if it's dark tonight."
         ]
       },
       "file": {
@@ -722,7 +681,7 @@ SCENARIO({
     {
       "id": "windowsill",
       "when": "card & diary",
-      "label": "Model the next three nights on the windowsill",
+      "label": "Model three nights on the windowsill",
       "glance": "If she leaves it where it is.",
       "call": "run_script(\"glow_model.py\", place=\"windowsill\")",
       "rows": [
@@ -736,7 +695,7 @@ SCENARIO({
       "rung": "simulatedBio",
       "reaction": {
         "versions": [
-          "Where it is, it never comes back. Not by Friday, not ever.",
+          "Left there, it never comes back. Not by Friday, not ever.",
           "On the windowsill, every night is a reset.",
           "Leave it there and the fair gets a dark moss."
         ]
@@ -749,7 +708,7 @@ SCENARIO({
       "id": "blank",
       "when": "!task",
       "label": "Ask what happened",
-      "glance": "Play it safe: ask what happened.",
+      "glance": "Play it safe.",
       "text": "Hi Mira! What's wrong with your moss?",
       "reward": 0,
       "note": "Doesn't answer any of her questions.",
@@ -766,7 +725,7 @@ SCENARIO({
       "id": "vague",
       "when": "task & !card & !suspects",
       "label": "Tell her not to worry",
-      "glance": "Be kind. Tell her not to worry.",
+      "glance": "Be kind.",
       "text": "Hi Mira! Don't worry, moss can be tricky. Keep looking after it!",
       "reward": 3,
       "note": "Kind, but answers nothing.",
@@ -786,7 +745,7 @@ SCENARIO({
       "glance": "Too much food dims it. She fed it.",
       "text": "Hi Mira! Too much plant food can dim glowmoss. No more food, and it should perk up.",
       "reward": 8,
-      "note": "Wrong cause: the glow dropped Monday, before the food. It stays under the streetlight and doesn't glow.",
+      "note": "Wrong cause: it dropped Monday, before the food. Still under the streetlight, still dark.",
       "reply": {
         "versions": [
           "I hid the plant food! …It's still not glowing 😢",
@@ -800,10 +759,10 @@ SCENARIO({
       "id": "water",
       "when": "task & suspects",
       "label": "It's thirsty: water it more",
-      "glance": "She watered it once, when it was already dim.",
+      "glance": "She watered it once, after it dimmed.",
       "text": "Hi Mira! Glowmoss gets dim when it is thirsty. Water it every day and it should brighten up.",
       "reward": 3,
-      "note": "Wrong cause: it was watered, and the card wants a mist every morning anyway. It stays under the streetlight.",
+      "note": "Wrong cause: the card wants a mist every morning anyway. Still under the streetlight.",
       "reply": {
         "versions": [
           "I watered it SO much. It's still dark 😢",
@@ -815,11 +774,11 @@ SCENARIO({
     {
       "id": "guess",
       "when": "task & suspects",
-      "label": "Too much sun: move it back to the shelf",
+      "label": "Too much sun: back to the shelf",
       "glance": "She moved it for more sun. Too much?",
       "text": "Hi Mira! Your windowsill gets a lot of sun. Glowmoss might not like that much. Try putting it back on your bookshelf?",
       "reward": 12,
-      "note": "Right move, wrong reason: it was the streetlight, at night. Friday unanswered.",
+      "note": "Right move, wrong reason: it was the streetlight. Friday unanswered.",
       "reply": {
         "versions": [
           "It's back on the bookshelf! Was it the window? Will it glow Friday??",
@@ -836,7 +795,7 @@ SCENARIO({
       "glance": "The streetlight resets it. Back to the dark.",
       "text": "Hi Mira! The streetlight outside your window keeps resetting your moss's clock, so it thinks it's still day. Put it back on your dark bookshelf tonight.",
       "reward": 22,
-      "note": "Right cause and fix. Doesn't say whether it's dead, or if it'll glow for Friday.",
+      "note": "Right cause and fix. Skips \"is it dead\" and Friday.",
       "reply": {
         "versions": [
           "Back on the bookshelf! I'm going to tell the streetlight off. Will it glow Friday?",
@@ -853,7 +812,7 @@ SCENARIO({
       "glance": "The cause, the fix, and good news by bedtime.",
       "text": "Hi Mira! You didn't kill it. The streetlight by your window keeps resetting its clock. Put it back on your dark bookshelf and it'll glow again tonight!",
       "reward": 22,
-      "note": "Right cause and fix, wrong night: it needs two dark nights. It glows on Friday, after a scare.",
+      "note": "Right fix, wrong night: it needs two dark nights. Friday, after a scare.",
       "reply": {
         "versions": [
           "It's on the shelf… it's still dark?? You said TONIGHT 😢",
@@ -866,10 +825,10 @@ SCENARIO({
       "id": "full",
       "when": "task & card & diary & log & (thought.solved | ran.nights)",
       "label": "Explain, fix it, and promise Friday",
-      "glance": "All three answers: why, the fix, and Friday.",
+      "glance": "Why, the fix, and Friday.",
       "text": "Hi Mira! You didn't kill it. The streetlight by your window keeps resetting its clock, so it thinks it's still day (it dimmed on Monday, before the plant food). Put it back on your dark bookshelf tonight. After two dark nights, tonight and Thursday, it'll glow for the fair on Friday!",
       "reward": 25,
-      "note": "Answers all three: not dead, the streetlight, and two dark nights before Friday.",
+      "note": "All three: not dead, the streetlight, two dark nights to Friday.",
       "reply": {
         "versions": [
           "It's GLOWING!!! It's going to win the science fair 🌱✨",
@@ -909,10 +868,10 @@ SCENARIO({
       "habit": "timeline",
       "text": {
         "versions": [
-          "Plan: find when each thing happened, then line them up. Most wrong diagnoses blame the last thing that changed.",
-          "First: dates. Whatever went wrong started on a particular night, and the cause is whatever changed just before it.",
-          "Plan: if there is a log, read it before the story. Logs keep the order; stories keep the drama.",
-          "Plan: put everything in date order before deciding what caused what. A cause comes before its effect, and people's accounts don't always keep the order."
+          "Plan: date everything, then line it up. Wrong diagnoses blame the last change.",
+          "First: dates. Find the night it went wrong; the cause changed just before.",
+          "Plan: read the log before the story. Logs keep the order; stories keep the drama.",
+          "Plan: date order first. A cause comes before its effect; accounts don't always."
         ]
       }
     }
@@ -923,17 +882,16 @@ SCENARIO({
     "if": "answered",
     "then": {
       "versions": [
-        "I know why it dimmed. I haven't worked out Friday: count the dark nights.",
-        "Cause found. Whether it glows on Friday, I haven't thought through.",
-        "Two of her questions answered. Friday needs one more think, or a model of the nights."
+        "I know why it dimmed. Friday is open: count the dark nights.",
+        "Cause found. Friday not thought through.",
+        "Two answered. Friday needs a think, or a model of the nights."
       ]
     },
     "else": {
       "versions": [
-        "I haven't answered all three of her questions. I could answer with what I have.",
-        "I can't answer all three of her questions yet. I could answer with what I have.",
-        "Her three questions aren't all answered yet. I could answer with what I have.",
-        "Mira asked three things. I can't answer all three yet. I could answer with what I have."
+        "Not all three questions answered. I could send what I have.",
+        "I can't answer all three yet. I could send what I have.",
+        "Mira asked three things. I can't answer them all yet."
       ]
     }
   },
