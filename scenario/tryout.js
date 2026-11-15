@@ -369,8 +369,8 @@
       asList((sc.misses || {})[kind]).forEach((miss) => missing(miss || {}, MISS_NEEDS).forEach((key) => say(['misses', kind], `A miss has no ${key}.`, true)));
     }
     givers(sc).filter(({ rule }) => rule.file && isBlank(rule.file.name)).forEach(({ trail }) => say(trail, 'The file it writes has no name.', true));
-    const hookOf = (rule) => rule.run || (rule.edit || {}).run; // a script's, or a file's when it's edited
-    givers(sc).filter(({ rule }) => hookOf(rule) && !own(SCENARIO.hooksOf(sc), String(hookOf(rule)).slice(1))).forEach(({ rule, trail }) => say(trail, `There is no code called ${hookOf(rule)}.`, true));
+    const hooksOf = (rule) => [rule.run, (rule.edit || {}).run, (rule.edit || {}).lines].filter(Boolean); // a script's; a file's, edited, and the lines it offers
+    givers(sc).forEach(({ rule, trail }) => hooksOf(rule).filter((h) => !own(SCENARIO.hooksOf(sc), String(h).slice(1))).forEach((h) => say(trail, `There is no code called ${h}.`, true)));
     listOf(sc, 'thoughts').filter((t) => isBlank(t.lines)).forEach((t) => say(['thoughts', `"${t.id}"`], 'It says nothing.', false));
   }
 

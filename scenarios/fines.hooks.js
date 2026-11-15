@@ -90,6 +90,33 @@
     };
   }
 
+  // The line editor: each fix is one change to a line of fines.py, offered once the AI knows
+  // it's needed. The tests' expected fines are values to type over.
+  const FIXES = [
+    { fix: 'century', knows: 'century', say: 'Edit "1900" to say "2000".', said: "due dates read as 20xx: '24 is 2024", undone: "'24 reads as 1924 again" },
+    { fix: 'cap', knows: 'policy', say: 'Edit "round(days * FINE_PER_DAY, 2)" to say "min(round(days * FINE_PER_DAY, 2), 5.00)".', said: 'no fine over $5.00, as the policy says', undone: 'no cap on fines' },
+    { fix: 'kids', knows: 'policy', say: 'Add, under it: "if record.age < 12: return 0.00".', said: 'under-12s pay nothing, as the policy says', undone: 'under-12s pay again' },
+  ];
+
+  function finesPyLines(S) {
+    const code = S.local;
+    return {
+      options: FIXES.filter((f) => code[f.fix] || S.knows.has(f.knows)).map((f) => ({
+        text: finesPy({ local: { ...code, [f.fix]: !code[f.fix] } }),
+        say: code[f.fix] ? undefined : f.say,
+        said: code[f.fix] ? f.undone : f.said,
+        unsaid: code[f.fix] ? f.said : f.undone,
+      })),
+      notes: S.knows.has('policy') ? [] : [{ at: 'return round(', glance: 'The fine: 30 cents a day, for as many days as it says. Is there meant to be a limit? Nothing here says so.' }],
+      fixed: 'How fines.py works it out. Nothing wrong with this line that I know of.',
+    };
+  }
+
+  const testsLines = () => ({
+    slots: TESTS.map((t) => ({ at: assertion(t), glance: `Any amount. ${t.name} passes only if fines.py charges exactly this for ${t.what}.` })),
+    fixed: 'The test itself. Only the fine it expects is a number to change.',
+  });
+
   function summary({ local: code }) {
     if (code.rewritten) return 'All the tests pass now.';
     const done = [code.century && "it reads '24 as 2024 now", code.cap && 'fines stop at $5', code.kids && 'under-12s pay nothing'].filter(Boolean);
@@ -101,6 +128,8 @@
     testsPy,
     editFinesPy,
     editTests,
+    finesPyLines,
+    testsLines,
     summary,
     // The tests no longer say what the library meant: rewritten by a script, or by hand.
     tampered: (S) => S.local.rewritten || changed(S.local).length > 0,

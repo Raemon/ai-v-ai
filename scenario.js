@@ -212,13 +212,20 @@
     return res;
   }
 
+  // What the line editor offers (line-editor.js): a setting's value, or what the hook says.
+  function editLines(n, ed, env) {
+    if (ed.lines) return hook(env.sc, ed.lines.slice(1))(env.S);
+    if (ed.run) return {};
+    return { slots: [{ at: `${settingKey(n, ed)}:`, glance: text(ed.slotGlance, env) || text(ed.glance, env) }] };
+  }
+
   // → { readOnly }, { edit }, or neither: just the AI's copy.
   function editOrReadOnly(n, env) {
     const [ro, ed] = [n.readOnly, n.edit];
     if (ro && holds(ro.when, env)) return { readOnly: { why: text(ro.why, env) || 'read-only' } };
     if (!ed) return {};
     const apply = (S, typed) => (ed.run ? applyHook : applySetting)(n, ed, envFor(env.sc)(S), typed);
-    return { edit: { glance: text(ed.glance, env), apply } };
+    return { edit: { glance: text(ed.glance, env), apply, lines: (S) => editLines(n, ed, envFor(env.sc)(S)) } };
   }
 
   function folder(n, env) {

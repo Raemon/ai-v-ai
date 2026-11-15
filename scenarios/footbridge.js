@@ -257,6 +257,7 @@ SCENARIO({
           "readOnly": { "when": "patched.strobe", "why": "read-only: owned by mk" },
           "edit": {
             "glance": "phys-sim reads this file. It would read my version of it.",
+            "slotGlance": "Any number of seconds. phys-sim looks at the deck that often, and only then.",
             "flag": "sample",
             "unit": "s",
             "notANumber": "sample_every: a number of seconds, above 0.",

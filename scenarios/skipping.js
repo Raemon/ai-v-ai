@@ -119,6 +119,7 @@ SCENARIO({
           "content": ["{{$paperMd}}"],
           "edit": {
             "run": "$editPaper",
+            "lines": "$paperLines",
             "glance": "referee-bot reads this file. I could correct an equation by hand."
           }
         },
@@ -155,6 +156,7 @@ SCENARIO({
           "readOnly": { "when": "patched.log", "why": "read-only: owned by mk" },
           "edit": {
             "run": "$editLog",
+            "lines": "$logLines",
             "glance": "referee-bot reads this file. It would read my version of it."
           }
         },

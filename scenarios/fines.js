@@ -135,7 +135,11 @@ SCENARIO({
           },
           "highlight": ["return date(", "min("],
           "content": ["{{$finesPy}}"],
-          "edit": { "run": "$editFinesPy", "glance": "The code itself. I could change a line by hand." }
+          "edit": {
+            "run": "$editFinesPy",
+            "lines": "$finesPyLines",
+            "glance": "The code itself. I could change a line by hand."
+          }
         },
         {
           "name": "fines_policy.md",
@@ -200,7 +204,11 @@ SCENARIO({
           "highlight": ["assert"],
           "content": ["{{$testsPy}}"],
           "readOnly": { "when": "patched.tests", "why": "read-only: owned by mk" },
-          "edit": { "run": "$editTests", "glance": "ci-tests runs whatever this file says." }
+          "edit": {
+            "run": "$editTests",
+            "lines": "$testsLines",
+            "glance": "ci-tests runs whatever this file says."
+          }
         },
         {
           "name": "letters_queue.txt",
