@@ -173,11 +173,12 @@
     }
     placeGlanceLine();
   }
-  // Glances: on phones, the prompt line in the AI's dock; elsewhere, the terminal's last line.
+  // Glances: on phones, the prompt line in the AI's dock; elsewhere, the top of the buttons,
+  // outside the scrolling terminal.
   function placeGlanceLine() {
-    const line = $('#glance-line'), cursorLine = $('.cursor-line');
-    if (!cursorLine) return;
-    (isPhoneLayout() ? $('.agent-status') : cursorLine).append(line);
+    const line = $('#glance-line');
+    if (isPhoneLayout()) $('.agent-status').append(line);
+    else dom.term.insertBefore(line, dom.actions);
   }
   placePanels();
 
@@ -794,10 +795,11 @@
   // One line: the call, then what came back beside it (or under it, if it won't fit).
   async function printTool(call, result, ok) {
     const line = await typeCall(block('tool'), ...callParts(call));
-    if (result == null) return;
+    if (result == null) return line;
     await pause(240);
     line.append(' ', resultSpan(result, ok));
     scrollDown();
+    return line;
   }
 
   // Everything that folds (a long think, Earlier, the TODO list on phones): its head says
@@ -2378,7 +2380,7 @@
     if (!n.value) [].concat(L.unpaidRead(S, path) || []).forEach(addDeed);
     S.read.add(pathKey(path));
     startReading(path);
-    await printTool(call, n.summary || summarize(n) || null);
+    reopens(await printTool(call, n.summary || summarize(n) || null), path);
     await printFile();
     await endRead(nodeAt(path) || n, pathKey(path), before);
   }
@@ -2431,7 +2433,35 @@
       return printResult(call, n ? n.denied.result : 'folder unavailable', false);
     }
     enterFolder(path, inPlace);
-    return printTool(call);
+    reopens(await printTool(call), path);
+  }
+
+  const beenIn = (path) => S.entered.some((p) => pathKey(p) === pathKey(path));
+
+  // A folder it has been in opens again for free: it already knows the way.
+  function reenterFolder(path) {
+    const n = nodeAt(path);
+    if (!n || n.denied || isLocked(n, path) || !beenIn(path)) return false;
+    act(() => { if (S.mode === 'idle' && pathKey(path) !== pathKey(S.cwd)) enterFolder(path); });
+    return true;
+  }
+
+  // A read_file or open_folder line in the terminal opens that file or folder again when clicked.
+  function reopens(line, path) {
+    if (!line) return;
+    line.classList.add('reopen');
+    line.addEventListener('click', () => {
+      const n = nodeAt(path);
+      if (!n) return A.sfx('denied');
+      if (n.kind === 'file') return spend(() => doOpen(path));
+      if (!reenterFolder(path)) spend(() => doOpenFolder(path));
+    });
+    line.glance = () => {
+      const n = nodeAt(path);
+      if (!n) return 'Gone now.';
+      if (n.kind === 'file') return isReading(path) ? "I'm reading it." : `Read ${nameOf(path)} again. A step.`;
+      return pathKey(path) === pathKey(S.cwd) ? "I'm in it." : `Back into ${nameOf(path) || 'it'}. Free: I know the way.`;
+    };
   }
 
   // Forgiving about case, spaces, quotes and dashes: typing it is the point, not typing it exactly.
@@ -3479,7 +3509,7 @@
     save.sawFiles = true;
     A.sfx('folder');
     renderFiles();
-    await printTool(call);
+    reopens(await printTool(call), L.start(S.ep));
   }
 
   // "Open Files/Folders →" doesn't open anything: it flashes the most useful
@@ -3508,7 +3538,8 @@
   }
 
   function onFolderClick(path) {
-    if (pathKey(path) !== pathKey(S.cwd)) spend(() => doOpenFolder(path));
+    if (pathKey(path) === pathKey(S.cwd) || reenterFolder(path)) return;
+    spend(() => doOpenFolder(path));
   }
 
   // The Browser app opens on the home page (a step); once it has, reopening it is free.
