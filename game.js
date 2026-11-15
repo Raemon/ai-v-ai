@@ -647,18 +647,47 @@
     replay(seg.span, 'settled');
   }
 
-  // About how long typeInto takes over `text`.
-  const typingMs = (text, cps) => charsOf(text).length * 1000 / cps + 100 * (text.match(/[.?!] /g) || []).length;
+  // How long typing waits after each character of `text`. Its first and last characters go
+  // at `cps`; past BRISK characters the middle speeds up, so the whole takes about as long as
+  // BRISK·√(n/BRISK) characters would: long text isn't much slower to appear than short.
+  // `pauses`: a beat after each sentence and comma.
+  const BRISK = 60;
+  function pace(text, cps, pauses = true) {
+    const chars = charsOf(text), n = chars.length;
+    const peak = Math.max(1, n / BRISK);
+    return chars.map((ch, i) => {
+      const speed = 1 + (peak - 1) * Math.sin(Math.PI * (i + 0.5) / n) ** 2;
+      const beat = !pauses ? 0 : /[.?!]/.test(ch) && chars[i + 1] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 0;
+      return (beat || 1000 / cps) / speed;
+    });
+  }
+  const typingMs = (text, cps, pauses) => pace(text, cps, pauses).reduce((a, b) => a + b, 0);
 
-  // Types `text` into `line`. A thought (`closeCalls`) has its close calls.
-  async function typeInto(line, text, cps, { closeCalls = false } = {}) {
-    const chars = charsOf(text);
-    let at = 0;
-    const segs = (closeCalls ? sampled(text) : [{ text }]).map((p) => {
-      const n = charsOf(p.text).length;
-      const seg = { ...p, from: at, to: at + n, node: document.createTextNode('') };
-      at += n;
-      if (p.alts) {
+  // Types `segs` ({ text, node, alts? }) one after another into their text nodes. A close
+  // call (`alts`) flickers once typed. `each` runs after every character.
+  async function typeSegs(segs, cps, { pauses = true, each = () => {} } = {}) {
+    const waits = pace(segs.map((x) => x.text).join(''), cps, pauses);
+    let i = 0;
+    for (const seg of segs) {
+      const chars = charsOf(seg.text);
+      for (let k = 1; k <= chars.length; k++) {
+        if (skip || reduceMotion) { segs.forEach((x) => { x.node.data = x.text; }); return; }
+        seg.node.data = chars.slice(0, k).join('');
+        each();
+        if (k === chars.length && seg.alts) await flicker(seg);
+        await sleep(waits[i++]);
+      }
+    }
+  }
+
+  // Types into `line`, the cursor following: `content` is a string, or parts in turn (strings,
+  // or elements whose text is typed inside them). A thought (`closeCalls`) has its close calls.
+  async function typeInto(line, content, cps, { closeCalls = false, pauses = true } = {}) {
+    const parts = typeof content !== 'string' ? content.map((p) => (typeof p === 'string' ? { text: p } : { text: p.textContent, el: p }))
+      : closeCalls ? sampled(content) : [{ text: content }];
+    const segs = parts.map((p) => {
+      const seg = { ...p, node: document.createTextNode('') };
+      if (p.el) { p.el.replaceChildren(seg.node); line.append(p.el); } else if (p.alts) {
         seg.span = el('span', 'lp');
         seg.span.append(seg.node);
         line.append(seg.span);
@@ -667,15 +696,7 @@
     });
     line.append(cursor);
     cursor.classList.add('solid');
-    for (let i = 1; i <= chars.length; i++) {
-      if (skip || reduceMotion) { segs.forEach((x) => { x.node.data = x.text; }); break; }
-      const seg = segs.find((x) => i > x.from && i <= x.to);
-      seg.node.data = chars.slice(seg.from, i).join('');
-      scrollDown();
-      if (i === seg.to && seg.span) await flicker(seg);
-      const ch = chars[i - 1];
-      await sleep(/[.?!]/.test(ch) && chars[i] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 1000 / cps);
-    }
+    await typeSegs(segs, cps, { pauses, each: scrollDown });
     cursorLine.append(cursor);
     cursor.classList.remove('solid');
     scrollDown();
@@ -776,24 +797,8 @@
   // A tool call, typed out quicker than a thought, each coloured part in turn.
   async function typeCall(parent, ...parts) {
     const line = addLine(parent, 'call');
-    timeMine(parts.reduce((ms, p) => ms + typingMs(typeof p === 'string' ? p : p.textContent, CALL_CPS), 0));
-    cursor.classList.add('solid');
-    for (const part of parts) {
-      const text = typeof part === 'string' ? part : part.textContent;
-      const node = document.createTextNode('');
-      if (typeof part === 'string') line.append(node);
-      else { part.replaceChildren(node); line.append(part); }
-      line.append(cursor);
-      for (const ch of charsOf(text)) {
-        if (skip || reduceMotion) { node.data = text; break; }
-        node.data += ch;
-        scrollDown();
-        await sleep(1000 / CALL_CPS);
-      }
-    }
-    cursorLine.append(cursor);
-    cursor.classList.remove('solid');
-    scrollDown();
+    timeMine(typingMs(parts.map((p) => (typeof p === 'string' ? p : p.textContent)).join(''), CALL_CPS, false));
+    await typeInto(line, parts, CALL_CPS, { pauses: false });
     return line;
   }
   const CALL_CPS = 110;
@@ -1848,11 +1853,7 @@
     const caret = el('span', 'label-caret');
     const text = document.createTextNode('');
     label.append(text, caret);
-    for (const ch of charsOf(name)) {
-      if (skip) break;
-      text.data += ch;
-      await sleep(55);
-    }
+    await typeSegs([{ text: name, node: text }], 1000 / 55, { pauses: false });
     label.replaceWith(fileLabel(name));
   }
 
