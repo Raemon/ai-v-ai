@@ -102,7 +102,7 @@
   // style.css has the full sizes too, for before this first runs. The terminal's
   // least still shows a file whole: 42 columns of text, or all of orders.csv.
   const ACROSS = [
-    ['--term-w', 490, 400], ['--files-w', 410, 270], // the terminal, the folder
+    ['--term-w', 570, 400], ['--files-w', 410, 270], // the terminal, the folder
     ['--side-pad', 32, 16], ['--side-pad', 32, 16], ['--col-gap', 24, 16], // both sides, and the gap between
   ];
   const BROWSER = [['--browser-w', 428, 368], ['--col-gap', 24, 16]]; // its column and gap take room only while it's open
@@ -4188,7 +4188,7 @@
     const head = el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name));
     const card = block('file current');
     card.dataset.path = pathKey(path);
-    card.append(head, el('div', 'file-meta'), body);
+    card.append(head, body, el('div', 'file-meta'));
     card.shows = showing(n);
     showWhoEdited(card, n);
     A.sfx('grow');

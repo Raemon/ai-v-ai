@@ -11,7 +11,7 @@
   --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
   /* Three columns: the terminal, the folder the AI is in, and the web browser
      while it's open. Each is as tall as what's in it, up to --win-h. */
-  --term-w: 490px;
+  --term-w: 570px;
   --files-w: 510px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
   --browser-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
@@ -350,7 +350,7 @@ button { font: inherit; color: inherit; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 /* Off phones: compute sits centred under the face; the glance line is the terminal's
    last line, where the cursor waits (game.js moves it there), so no cursor shows. */
-:root:not([data-layout="phone"]) .agent-status { padding-left: 0; }
+:root:not([data-layout="phone"]) .agent-status { padding: 48px 0 0; }
 :root:not([data-layout="phone"]) .agent-status .meters {
   width: max-content;
   max-width: calc(2 * (30% + 60px)); /* never past the column's left edge */
@@ -363,6 +363,7 @@ button { font: inherit; color: inherit; }
 }
 :root:not([data-layout="phone"]) .cursor-line > .cursor { display: none; }
 #resources { color: var(--web); }
+#resources:empty { display: none; } /* or its gap pushes compute off the face's centre */
 #earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
@@ -780,13 +781,13 @@ button { font: inherit; color: inherit; }
 }
 .blk.file.current { border-color: var(--line-lit); }
 .blk.file.flash { animation: flash .45s ease; }
-.blk.file .titlebar { gap: 7px; min-height: 28px; padding: 0 8px 0 10px; color: inherit; }
+.blk.file .titlebar { gap: 7px; min-height: 30px; padding: 0 8px 0 10px; color: inherit; font-size: 14px; }
 .file-icon { flex: none; color: var(--doc); }
 .file-icon svg { display: block; width: 16px; height: 16px; }
-/* Who last touched it, and when: a name to look up. */
-.file-meta { flex: none; padding: 8px 10px 0; font: var(--fs-meta) var(--mono); color: var(--dim); }
+/* Who last touched it, and when, at the foot of the sheet: a name to look up. */
+.file-meta { flex: none; padding: 0 16px 12px; font: var(--fs-meta) var(--mono); color: var(--dim); }
 .file-meta:empty { display: none; }
-.file-meta:not(:empty) + .file-body { padding-top: 6px; }
+.file-body:has(+ .file-meta:not(:empty)) { padding-bottom: 8px; }
 .file-body {
   flex: none; /* as tall as the file: the terminal scrolls, never the sheet */
   overflow-x: auto; /* hex dumps are wider than the sheet */
