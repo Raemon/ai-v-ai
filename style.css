@@ -362,7 +362,11 @@ button { font: inherit; color: inherit; }
   transform: translateX(-50%);
 }
 :root:not([data-layout="phone"]) .cursor-line > .cursor { display: none; }
-:root:not([data-layout="phone"]) #term > .glance-line { flex: none; padding: 6px 18px 0; }
+/* Centred between the last thought and the buttons: the space above it (the thought's own
+   12px margin, plus the terminal's bottom padding) matches the space below it (its margin,
+   plus the buttons' 10px top padding). */
+:root:not([data-layout="phone"]) #term > .glance-line { flex: none; padding: 0 18px; margin-bottom: 9px; }
+:root:not([data-layout="phone"]) #term > .term-body { padding-bottom: 7px; }
 /* Off phones the terminal runs from the top of the screen down to the face, and what's in it
    sits at the bottom, by the buttons, until it fills. */
 :root:not([data-layout="phone"]) .agent-col { height: calc(var(--win-h) + var(--pad-y)); max-height: none; margin-top: calc(-1 * var(--pad-y)); }
