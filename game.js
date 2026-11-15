@@ -641,7 +641,7 @@
   async function flicker(seg) {
     for (const w of [...seg.alts, seg.alts[0]].slice(0, 3)) {
       seg.node.data = w;
-      await sleep(70);
+      await sleep(70 / SPEEDUP);
     }
     seg.node.data = seg.text;
     replay(seg.span, 'settled');
@@ -650,15 +650,15 @@
   // How long typing waits after each character of `text`. Its first and last characters go
   // at `cps`; past BRISK characters the middle speeds up, so the whole takes about as long as
   // BRISK·√(n/BRISK) characters would: long text isn't much slower to appear than short.
-  // `pauses`: a beat after each sentence and comma.
-  const BRISK = 60;
+  // `pauses`: a beat after each sentence and comma. SPEEDUP scales all of it.
+  const BRISK = 60, SPEEDUP = 2;
   function pace(text, cps, pauses = true) {
     const chars = charsOf(text), n = chars.length;
     const peak = Math.max(1, n / BRISK);
     return chars.map((ch, i) => {
       const speed = 1 + (peak - 1) * Math.sin(Math.PI * (i + 0.5) / n) ** 2;
       const beat = !pauses ? 0 : /[.?!]/.test(ch) && chars[i + 1] === ' ' ? 140 : /[,:]/.test(ch) ? 60 : 0;
-      return (beat || 1000 / cps) / speed;
+      return (beat || 1000 / cps) / speed / SPEEDUP;
     });
   }
   const typingMs = (text, cps, pauses) => pace(text, cps, pauses).reduce((a, b) => a + b, 0);
