@@ -279,10 +279,10 @@ button { font: inherit; color: inherit; }
   border: 1.5px solid rgba(95, 201, 214, .5);
   background: linear-gradient(180deg, color-mix(in srgb, var(--agent) 8%, var(--win)), color-mix(in srgb, var(--agent) 4%, var(--win)));
 }
-/* Mirrored about the face's centre (30% + 60px): they rise to its left. */
-.bubble.b1 { left: calc(2% + 108px); bottom: calc(64px * var(--face-k)); width: 12px; height: 12px; border-radius: 4px; }
-.bubble.b2 { left: calc(102px - 4%); bottom: calc(82px * var(--face-k)); width: 18px; height: 18px; border-radius: 5px; }
-.bubble.b3 { left: calc(95px - 12%); bottom: calc(106px * var(--face-k)); width: 25px; height: 25px; border-radius: 7px; }
+/* They rise to the face's left (its centre is 30% + 60px), the last one over the middle of the buttons. */
+.bubble.b1 { left: calc(30% - 38px); bottom: calc(62px * var(--face-k)); width: 12px; height: 12px; border-radius: 4px; }
+.bubble.b2 { left: calc(30% - 65px); bottom: calc(80px * var(--face-k)); width: 18px; height: 18px; border-radius: 5px; }
+.bubble.b3 { left: calc(30% - 96px); bottom: calc(102px * var(--face-k)); width: 25px; height: 25px; border-radius: 7px; }
 
 /* The AI's face: a rounded box with two glowing eyes, framed by corner brackets. */
 .agent-icon {
@@ -350,7 +350,7 @@ button { font: inherit; color: inherit; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 /* Off phones: compute sits centred under the face; the glance line sits over the buttons,
    outside the scrolling terminal (game.js moves it there). */
-:root:not([data-layout="phone"]) .agent-status { padding: 48px 0 0; }
+:root:not([data-layout="phone"]) .agent-status { padding: 24px 0 0; }
 :root:not([data-layout="phone"]) .agent-status .meters {
   width: max-content;
   max-width: calc(2 * (30% + 60px)); /* never past the column's left edge */
