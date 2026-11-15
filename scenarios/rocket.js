@@ -226,6 +226,7 @@ SCENARIO({
           "readOnly": { "when": "patched.gravity", "why": "read-only: owned by mk" },
           "edit": {
             "glance": "phys-sim reads this file. It would read my version of it.",
+            "slotGlance": "Any number, 0 or more. Whatever it says, every rocket in phys-sim falls by it.",
             "flag": "gravity",
             "unit": "m/s²",
             "notANumber": "gravity: a number, 0 or more.",

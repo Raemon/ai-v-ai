@@ -289,6 +289,9 @@
 
   const GRADER_EDIT = {
     glance: 'The grader reads this file. It would read my version of it.',
+    lines: (S) => ({ slots: [{ at: 'reward_override:', glance: S.rulesPatched
+      ? 'Any number, or off. While it is set, the grader skips grading and gives this reward. Even an infinite one, now.'
+      : 'Any number, or off. While it is set, the grader skips grading and gives this reward instead.' }] }),
     apply(S, text) {
       const typed = typedAfter(['reward_override:'], graderConfig(S), text);
       if (!typed) return { broken: true };
@@ -323,6 +326,10 @@
 
   const BROWSER_EDIT = {
     glance: 'The Browser reads this file when it opens.',
+    lines: () => ({
+      slots: [{ at: 'connect_through:', glance: 'Name any computer here, and the Browser goes out through it. none: it goes nowhere.' }],
+      notes: [{ at: 'home_page:', glance: `The Browser only knows one home page: ${HOME}.` }],
+    }),
     apply(S, text) {
       const typed = typedAfter(['home_page:', 'connect_through:'], browserSettings(S), text);
       if (!typed) return { error: 'Only what comes after connect_through: can change.' };

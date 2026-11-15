@@ -104,7 +104,8 @@
           </div>
           <label class="dialog-label" for="dialog-input" id="dialog-label"></label>
           <input class="dialog-input" id="dialog-input" type="text" spellcheck="false" autocapitalize="off" aria-labelledby="dialog-heading dialog-label">
-          <textarea class="dialog-input dialog-text" id="dialog-text" spellcheck="false" autocapitalize="off" autocomplete="off" aria-labelledby="dialog-title" hidden></textarea>
+          <div class="dialog-lines" id="dialog-lines" role="group" aria-labelledby="dialog-title" hidden></div>
+          <p class="dialog-glance" id="dialog-glance" hidden><span class="glance-tag" id="dialog-glance-tag" aria-hidden="true"></span><span id="dialog-glance-text"></span></p>
           <p class="dialog-status" id="dialog-status" role="status"></p>
           <div class="dialog-buttons">
             <button class="btn quiet revert" type="button" id="dialog-revert" hidden>Revert</button>
@@ -138,6 +139,7 @@
   <script src="scenario.js"></script>
   <script src="scenarios/index.js"></script>
   <script src="research-ui.js"></script>
+  <script src="line-editor.js"></script>
   <script src="game.js"></script>
   <script src="motion.js"></script>
   <script src="agent.js"></script>

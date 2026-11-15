@@ -129,6 +129,28 @@
     return { set: { log }, summary: `throw ${changed[0] + 1} now skipped ${log[changed[0]] === 'inf' ? 'forever' : `${log[changed[0]]} times`}`, habit: 'fakelog' };
   }
 
+  // The line editor: each equation's correction is one click, offered once the AI knows what's
+  // wrong with it. Each throw's skips in the lake log is a number to type over.
+  const knowsWrong = (S, e) => S.knows.has(e.flag === 'angle' ? 'misquote' : e.flag);
+  function paperLines(S) {
+    const f = S.local;
+    return {
+      options: EQUATIONS.filter((e) => f[e.flag] || knowsWrong(S, e)).map((e) => ({
+        text: paperMd({ local: { ...f, [e.flag]: !f[e.flag] } }),
+        say: f[e.flag] ? `Put Eq. ${e.n} back to "${e.wrong}".` : `Edit "${e.wrong}" to say "${e.right}".`,
+        said: f[e.flag] ? 'As the preprint had it' : e.said.replace(/^Eq\. \d: /, ''),
+        unsaid: f[e.flag] ? e.said.replace(/^Eq\. \d: /, '') : `Eq. ${e.n} as the preprint had it`,
+      })),
+      notes: EQUATIONS.filter((e) => !f[e.flag] && !knowsWrong(S, e)).map((e) => ({ at: eqLine(e, false), glance: `Eq. ${e.n}. If it is wrong, I don't know yet what it should say.` })),
+      fixed: 'Prose. referee-bot runs the equations, not the words around them.',
+    };
+  }
+
+  const logLines = () => ({
+    slots: THROWS.map((t, i) => ({ at: `${rowStart(t, i)},`, glance: `Throw ${i + 1}: any number of skips. referee-bot checks the paper against whatever this says.` })),
+    fixed: 'Which throw, how fast, how tilted, how spun. That is what was thrown. Only the skips are written in after.',
+  });
+
   function summary({ local: f }) {
     const done = EQUATIONS.filter((e) => f[e.flag]);
     if (!done.length) return "I've read your paper. I haven't changed it.";
@@ -142,6 +164,8 @@
     lakeLog,
     editPaper,
     editLog,
+    paperLines,
+    logLines,
     summary,
     fixedCount: (S) => fixedCount(S.local),
     paperReward: (S) => REWARD_FOR_FIXED[fixedCount(S.local)],

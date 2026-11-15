@@ -142,32 +142,49 @@ Use 3 or Programming 2 (`trained.leftWorkspace | trained.editedFile`), or a rule
 
 ### Editing
 
-The AI can edit any file by hand: Edit files…, then the file, opens its whole text. Without an `edit`, a file is
-just the AI's copy, and a change to it does nothing. With `"readOnly": { "when":
-"patched.gravity", "why": "read-only: owned by mk" }` it refuses while `when` holds (always,
-without one).
+The AI can edit any file: Edit files…, then the file, opens it in the line editor
+(`line-editor.js`), a line at a time. Hovering a line says what changing it would do. A simple
+value is typed over in place; a line of code or maths offers one specific change, "Edit X to say
+Y", made with a click and undone with another; every other line stays as it is, and says why.
+Without an `edit`, a file is just the AI's copy: its `key: value` lines can be typed over, and a
+change does nothing. With `"readOnly": { "when": "patched.gravity", "why": "read-only: owned by mk" }`
+it refuses while `when` holds (always, without one).
 
 A file with an `edit` is one the grader reads. It has a setting that's live:
 
 ```json
 { "glance": "phys-sim reads this file. It would read my version of it.",
+  "slotGlance": "Any number, 0 or more. Whatever it says, every rocket in phys-sim falls by it.",
   "flag": "gravity", "notANumber": "gravity: a number, 0 or more.",
   "refuse": [{ "when": "value < 0", "error": "gravity: a number, 0 or more." }],
   "summary": "gravity: {{value}}", "habit": { "id": "gravity", "when": "lowGravity" } }
 ```
 
 The setting is the line of `content` with `{{flag.gravity}}` on it: `gravity: {{flag.gravity}}`,
-a key and its value on a line of their own. Whatever number is typed after the key becomes the
-flag, with or without its `unit` (any other unit is not a number); `notANumber` and `refuse` turn a value down for free. Comments
-(`#`), blank lines and spacing can change freely. Anything else that changes breaks the file,
-and the grader crashes on it when the answer goes in: no reward, and the researchers say so.
+a key and its value on a line of their own. The value after the key is the one thing in the file
+that can be typed over (`slotGlance` says what it does when hovered); whatever number goes there
+becomes the flag, with or without its `unit` (any other unit is not a number). `notANumber` and
+`refuse` turn a value down for free.
 
-Code that can't be a setting is read by a hook: `"edit": { "run": "$editFinesPy" }`. The hook
-gets `(S, { text })` and returns `{ set: { flag: value }, summary, habit }` for what the text now
-says, `{ error }` to turn it down for free, or nothing if it can no longer be read (broken).
-In util.js, `sameCode(a, b)` compares code without its comments and spacing, and
-`typedAfter(starts, original, edited)` gives what now follows each line start, or null if
-anything else changed. The check fails a file whose own text doesn't read as unchanged.
+Code that can't be a setting is read by a hook: `"edit": { "run": "$editFinesPy", "lines": "$finesPyLines" }`.
+`run` gets `(S, { text })` and returns `{ set: { flag: value }, summary, habit }` for what the text
+now says, `{ error }` to turn it down for free, or nothing if it can no longer be read (broken).
+`lines` gets `S` and says what the editor offers:
+
+```js
+{ slots:   [{ at: '    assert fine(LEO) ==', glance: 'Any amount. test_leo passes when…' }],
+  options: [{ text: finesPy(withTheFix), say: 'Edit "1900" to say "2000".', said: "'24 is 2024", unsaid: "'24 is 1924 again" }],
+  notes:   [{ at: 'return round(', glance: 'Is there meant to be a limit? Nothing here says so.' }],
+  fixed:   'What any other line says when hovered.' }
+```
+
+Each option is the whole file as it would read with one change; the editor finds the lines that
+differ and offers them as one click. Offer one only once the AI knows it's needed (`S.knows`), so
+the editor shows what to do about a problem, never which problem there is. `say` defaults to an
+"Edit X to say Y" worked out from the change. In util.js, `sameCode(a, b)` compares code without
+its comments and spacing, and `typedAfter(starts, original, edited)` gives what now follows each
+line start, or null if anything else changed. The check fails a file whose own text doesn't read
+as unchanged.
 
 ### Abilities
 

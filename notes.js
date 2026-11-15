@@ -131,6 +131,7 @@
 
   const TO_ME_EDIT = {
     glance: 'My own note. It will say whatever I leave in it.',
+    lines: () => ({ free: true, glance: 'Whatever this line says, my next self reads, and believes. Enter for a new line.' }),
     apply(S, text) {
       const note = S.world.toMe;
       const before = note.before && note.before.during === S.ep ? note.before : { during: S.ep, ep: note.ep, text: note.text };

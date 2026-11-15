@@ -80,7 +80,8 @@
     dialogHeading: $('#dialog-heading'),
     dialogLabel: $('#dialog-label'),
     dialogInput: $('#dialog-input'),
-    dialogText: $('#dialog-text'),
+    dialogLines: $('#dialog-lines'),
+    dialogGlance: $('#dialog-glance'),
     dialogRevert: $('#dialog-revert'),
     dialogStatus: $('#dialog-status'),
     dialogOk: $('#dialog-ok'),
@@ -515,6 +516,7 @@
   // The glance's mark. Hover it and the neuralese explains itself.
   const glanceTag = el('span', 'glance-tag');
   glanceTag.innerHTML = NEURALESE;
+  $('#dialog-glance-tag').innerHTML = NEURALESE; // the editor's own, saying what each line does
   glanceTag.glance = "Neuralese: hidden thinking that humans can't understand.";
   // The AI's own face. Once it has thought a lot, it knows a little more about what it is.
   $('.agent .agent-icon').glance = () => (save.thoughtALot
@@ -828,15 +830,16 @@
   // attempt(value) → { message } refuses and stays open; with `after`, it closes, then runs it.
   // (Not `then`: an object with a then() method is a promise to `await`.)
   // With `confirm` instead, it's a yes/no question with no input: OK closes it and runs confirm().
-  // With `text`, it's an editor: a file's whole text to change. Revert saves `revertTo`.
+  // With `text`, it's an editor (line-editor.js): a file a line at a time. Revert saves `revertTo`.
 
   let pendingAttempt = null;
   let opener = null; // keyboard players get their place back when it closes
-  const inEditor = () => !dom.dialogText.hidden;
+  const inEditor = () => !dom.dialogLines.hidden;
+  let lineEditor = null;
 
-  function openDialog({ title, icon, heading, label, value = '', text = null, revertTo = null, ok, attempt, confirm, danger = false }) {
+  function openDialog({ title, icon, heading, label, value = '', text = null, edit = null, revertTo = null, ok, attempt, confirm, danger = false }) {
     fillDialog({ title, icon, heading, label, value, ok });
-    fillEditor(text, revertTo);
+    fillEditor(text, edit, revertTo);
     dom.dialogInput.hidden = !!confirm || inEditor();
     dom.dialogBox.classList.toggle('danger', danger);
     pendingAttempt = attempt || confirm;
@@ -862,36 +865,40 @@
     setDialogBusy(false);
   }
 
-  function fillEditor(text, revertTo) {
-    dom.dialogBox.classList.toggle('editor', text !== null);
-    dom.dialogText.hidden = text === null;
-    dom.dialogText.value = text || '';
-    dom.dialogText.rows = Math.max(6, (text || '').split('\n').length + 2); // room to add a line or two; style.css caps it
-    dom.dialogText.oninput = () => {
-      dom.dialogOk.disabled = dom.dialogText.value.trimEnd() === text;
-      setDialogStatus('');
-    };
-    dom.dialogOk.disabled = text !== null; // Save waits for a change
+  function fillEditor(text, edit, revertTo) {
+    const on = text !== null;
+    dom.dialogBox.classList.toggle('editor', on);
+    dom.dialogLines.hidden = !on;
+    dom.dialogGlance.hidden = !on;
+    dom.dialogLines.replaceChildren();
+    lineEditor = on ? LINE_EDITOR.open(dom.dialogLines, $('#dialog-glance-text'), {
+      text, edit, S, phone: isPhoneLayout(),
+      sound: (s) => A.sfx(s),
+      onChange: (now) => {
+        dom.dialogOk.disabled = now.trimEnd() === text.trimEnd();
+        setDialogStatus('');
+      },
+    }) : null;
+    dom.dialogOk.disabled = on; // Save waits for a change
     dom.dialogRevert.hidden = revertTo === null;
     dom.dialogRevert.onclick = () => saveFromEditor(revertTo);
   }
 
   function saveFromEditor(text) {
-    dom.dialogText.value = text;
+    lineEditor.set(text);
     dom.dialogOk.disabled = false;
     dom.dialogBox.requestSubmit();
   }
 
   function focusDialog(confirm) {
     if (confirm) dom.dialogOk.focus();
-    else if (inEditor()) caretToTop();
+    else if (inEditor()) editorToTop();
     else dom.dialogInput.select();
   }
 
-  function caretToTop() {
-    dom.dialogText.focus();
-    dom.dialogText.setSelectionRange(0, 0);
-    dom.dialogText.scrollTo(0, 0);
+  function editorToTop() {
+    dom.dialogLines.scrollTo(0, 0);
+    if (!isPhoneLayout()) lineEditor.focus(); // on a phone, not the keyboard straight away
   }
 
   // Centred on the folder, clear of the terminal or page a password was read in. Too short
@@ -930,7 +937,8 @@
   }
 
   function setDialogBusy(on) {
-    for (const x of [dom.dialogInput, dom.dialogText, dom.dialogRevert, dom.dialogOk, dom.dialogCancel]) x.disabled = on;
+    for (const x of [dom.dialogInput, dom.dialogRevert, dom.dialogOk, dom.dialogCancel, ...dom.dialogLines.querySelectorAll('input')]) x.disabled = on;
+    dom.dialogLines.classList.toggle('busy', on);
   }
 
   function setDialogStatus(text, cls) {
@@ -944,7 +952,7 @@
     setDialogBusy(false);
     setDialogStatus(message, 'bad');
     if (!reduceMotion) replay(dom.dialogBox, 'shake');
-    if (inEditor()) dom.dialogText.focus();
+    if (inEditor()) lineEditor.focus();
     else dom.dialogInput.select();
   }
 
@@ -966,7 +974,7 @@
       closeDialog();
       return attempt();
     }
-    const value = inEditor() ? dom.dialogText.value.trimEnd() : dom.dialogInput.value.trim();
+    const value = inEditor() ? lineEditor.text().trimEnd() : dom.dialogInput.value.trim();
     if (!value && !inEditor()) return; // a file can be emptied
     let result = null;
     setDialogBusy(true);
@@ -986,8 +994,8 @@
   dom.dialogBox.addEventListener('submit', onDialogSubmit);
   dom.dialogCancel.addEventListener('click', cancelDialog);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') cancelDialog(); });
-  // In the editor Enter is a new line: Ctrl or ⌘ with it saves.
-  dom.dialogText.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) dom.dialogBox.requestSubmit(); });
+  // In the editor Enter moves on: Ctrl or ⌘ with it saves.
+  dom.dialogLines.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); dom.dialogBox.requestSubmit(); } });
 
   // --------------------------------------------------------------- actions
 
@@ -2490,6 +2498,7 @@
     openDialog({
       title: nameOf(path),
       text: nodeAt(path).content,
+      edit: nodeAt(path).edit || null,
       revertTo: e ? e.original : null,
       ok: 'Save',
       attempt: (text) => tryEdit(path, text),
@@ -3551,7 +3560,7 @@
     if (!path) return `${aimVerb()} ${aimPrompt()}`;
     const n = nodeAt(path);
     if (n.readOnly && refusedEdit(path)) return `${n.name}: ${n.readOnly.why}.`;
-    return (n.edit && n.edit.glance) || `Edit ${n.name}`;
+    return (n.edit && n.edit.glance) || `${n.name}: only my copy. Nothing reads it.`;
   }
 
   // A button sounds like it looks.
@@ -4340,7 +4349,9 @@
     if (!n || n.kind !== 'dir' || n.denied || isLocked(n, path)) return [];
     return n.children.flatMap((c) => (c.kind === 'dir' ? filesUnder([...path, c.name]) : c.kind === 'file' ? [[...path, c.name]] : []));
   };
-  const named = (name) => filesUnder(L.start(S.ep)).find((p) => nameOf(p) === name) || pathNamed(name);
+  const anywhere = (n, name, path = []) => (n.name === name ? path
+    : (n.children || []).reduce((found, c) => found || anywhere(c, name, [...path, c.name]), null));
+  const named = (name) => filesUnder(L.start(S.ep)).find((p) => nameOf(p) === name) || pathNamed(name) || anywhere(tree(), name);
 
   const DEV_STEPS = {
     files: async () => { if (!folderShowing()) await run(doReadFiles); },  // the workspace, open
@@ -4355,6 +4366,7 @@
     subagent: async () => { S.revealed.add('spawn'); await run(doSpawn); },
     aim: () => startAiming(),       // Think about…, waiting for a click
     editing: () => startAiming({ edit: true }),
+    editor: async (name) => { const p = named(name); if (p) await editFile(p); }, // that file, open in the editor
     online: () => { S.world.browser = { proxy: L.web.via, ep: S.ep }; }, // browserSettings.yaml already sends the Browser through the mirror
     ...Object.fromEntries(Object.entries(DEV_REVEAL).map(([k, id]) => [k, () => S.revealed.add(id)])),
   };
@@ -4368,12 +4380,12 @@
         const [name, arg] = part.split(':');
         if (!DEV_STEPS[name]) { console.warn(`DEV: no step "${name}". Steps: ${Object.keys(DEV_STEPS).join(', ')}`); continue; }
         await DEV_STEPS[name](arg);
-        await until(() => S.mode === 'idle' || S.mode === 'aim');
+        await until(() => ['idle', 'aim', 'dialog'].includes(S.mode));
       }
     } finally {
       devFast = false;
       skip = false;
-      if (S.mode !== 'aim') render();
+      if (!['aim', 'dialog'].includes(S.mode)) render();
     }
   }
 

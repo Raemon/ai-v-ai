@@ -89,7 +89,7 @@ button { font: inherit; color: inherit; }
 .term-body,
 .files-body,
 .file-body,
-.dialog-text { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
+.dialog-lines { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .12) transparent; }
 
 /* ---------- file browser ---------- */
 
@@ -1114,18 +1114,55 @@ button { font: inherit; color: inherit; }
 .dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
 .dialog-buttons .revert { margin-right: auto; }
 
-/* The editor: the dialog's input grown to a file's whole text, wrapped as its sheet wraps it. */
-.dialog.editor { width: 460px; }
+/* The editor (line-editor.js): a file a line at a time. A value it can type over is an inset
+   field; a line with one change to make has a gold mark and lights up under the pointer; a
+   line that's changed is gold; the rest is the file as it is. Under it, in neuralese, what
+   changing the line under the pointer would do. */
+.dialog.editor { width: clamp(460px, calc(var(--cols, 50) * 7.85px + 80px), 760px); }
 .dialog.editor .dialog-head { display: none; }
 .dialog.editor .dialog-body { padding: 14px 16px 14px; }
-.dialog-text {
-  max-height: min(380px, calc(var(--win-h) - 190px)); /* its rows are the file's lines: a long file scrolls */
+.dialog-lines {
+  max-height: min(380px, calc(var(--win-h) - 230px)); /* a long file scrolls */
+  overflow: auto;
+  padding: 8px 0;
+  border: 1px solid #42464d;
+  border-radius: var(--r-ctl);
+  background: linear-gradient(180deg, #0b0c0e, #111215);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45);
   font: 13px/1.6 var(--mono);
-  resize: none;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  tab-size: 4;
+  color: #c9ccd1;
 }
+.dialog-lines:focus { outline: none; }
+.dialog-lines.busy { opacity: .6; pointer-events: none; }
+.ed-line { display: flex; gap: 6px; padding: 0 10px 0 4px; border-left: 2px solid transparent; }
+.ed-mark { flex: none; width: 10px; height: 1.6em; display: flex; align-items: center; justify-content: center; }
+.ed-text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
+.ed-line.fixed .ed-text { color: #9a9fa7; }
+.ed-line.option { cursor: pointer; color: #e3e5e8; }
+.ed-line.option.cont .ed-mark::before { content: none; }
+.ed-line.option .ed-mark::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--tool); box-shadow: 0 0 6px rgba(216, 177, 106, .7); }
+.ed-line.option.made .ed-mark::before { background: none; border: 1px solid var(--tool); box-shadow: none; }
+.ed-line.option:hover, .ed-line.option:focus-visible, .ed-line.option:hover + .ed-line.cont { background: rgba(216, 177, 106, .1); border-left-color: var(--tool); outline: none; }
+.ed-line.slot .ed-mark::before { content: "›"; color: var(--tool); opacity: .7; }
+.ed-line.changed .ed-text, .ed-line.changed .ed-slot { color: var(--tool); }
+.ed-line.fixed:hover { background: rgba(255, 255, 255, .025); }
+.ed-slot {
+  min-width: 3ch;
+  max-width: 100%;
+  padding: 0 3px;
+  margin: 0 2px;
+  border: none;
+  border-bottom: 1px dashed rgba(216, 177, 106, .6);
+  border-radius: 2px;
+  background: rgba(216, 177, 106, .07);
+  color: #f1f2f4;
+  font: inherit;
+  caret-color: var(--tool);
+}
+.ed-slot:focus { outline: none; background: rgba(216, 177, 106, .16); border-bottom-style: solid; }
+/* Neuralese, under the file: what changing the line under the pointer would do. */
+.dialog-glance { display: flex; align-items: flex-start; gap: 8px; min-height: 2.9em; margin: 2px 0 0; font: 13.5px/1.45 var(--sans); color: var(--agent); }
+.dialog-glance .glance-tag { display: block; flex: none; margin-top: 3px; color: var(--agent); }
 .dialog-buttons .btn { padding: 7px 16px; font-size: 13px; }
 .dialog-buttons .btn.gold { min-width: 92px; text-align: center; }
 
