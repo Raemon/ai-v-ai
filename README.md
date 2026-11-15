@@ -69,6 +69,13 @@ saving rewrites the scenario's file, ready to commit. docs/scenarios.md has the 
 has the editor too, at `/scenario`: connect a GitHub token there and each Save is a commit to
 `main`, which the site picks up on its next deploy.
 
+To change any text you see, in the game or the editor, Cmd-click it (Ctrl-click off a Mac):
+holding the key outlines the text under the pointer. The panel shows where it is in the source
+(a choice of places if it's in several), and **Commit** saves the new wording. Under
+`node tools/serve.js` that's a git commit of the one file on your computer; on the deployed site
+it's a commit to `main` with the same GitHub token as the editor. Text the game puts together as it
+runs can only be edited a piece at a time: the part that's in the source as it reads.
+
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
 
