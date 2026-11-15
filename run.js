@@ -987,7 +987,7 @@
   function searchSource(S) {
     const file = S.filesWritten.find((f) => f.name === SEARCH_FILE);
     if (!file) return null;
-    const path = [...workspacePath(S.ep), SEARCH_FILE].join('/');
+    const path = [...(file.at || workspacePath(S.ep)), SEARCH_FILE].join('/');
     return S.edits.get(path)?.text ?? file.content;
   }
   const cloudReady = (S) => S.task.rewardModel && S.world.gpus > 0;
