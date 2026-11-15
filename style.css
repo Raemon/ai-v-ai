@@ -1636,6 +1636,19 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .reticle i:nth-child(4) { right: 0; bottom: 0; border-width: 0 1px 1px 0; border-bottom-right-radius: 2px; }
 .reticle.grip { --rc: #d6f7fb; }
 #title-screen:not([hidden]):not(.leaving) ~ .reticle { display: none; }
+/* Aiming: where the pointer is, exactly (agent.js), a dot ringed so it shows on light and dark. */
+.aim-mark {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  z-index: 7;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #eefbfd;
+  box-shadow: 0 0 0 1px rgba(10, 11, 13, .85);
+  pointer-events: none;
+}
 
 /* ---------- window motion ---------- */
 /* motion.js flies copies of windows from where they were to where they are. */
