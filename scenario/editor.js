@@ -63,7 +63,8 @@
   }
 
   async function connectGithub(rerender) {
-    const token = ask(`Paste a GitHub token that can write to ${G.REPO}: fine-grained, with Contents "Read and write" (make one at ${G.NEW_TOKEN_URL}). It stays in this browser.`);
+    window.open(G.NEW_TOKEN_URL, '_blank', 'noopener');
+    const token = ask(`A GitHub tab is open with a token filled in. ${G.TOKEN_STEPS} Paste it here (it stays in this browser):`);
     if (!token) return;
     await G.connect(token).then(() => { ui.error = ''; }, (e) => { ui.error = e.message; });
     rerender();

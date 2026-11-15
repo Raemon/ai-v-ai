@@ -11,7 +11,15 @@
   const fileOf = (id) => `scenarios/${id}.js`;
   const hooksFileOf = (id) => `scenarios/${id}.hooks.js`;
 
-  const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new';
+  // GitHub's new-token page, filled in: everything but which repository, which it can't preset.
+  const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
+    name: 'Highly Persistent editor',
+    description: `Saves from the Highly Persistent scenario and text editors: commits to ${REPO}.`,
+    target_name: REPO.split('/')[0],
+    expires_in: '366',
+    contents: 'write',
+  });
+  const TOKEN_STEPS = `On GitHub, under Repository access, choose "Only select repositories" and pick ${REPO.split('/')[1]}. Then Generate token, and copy it.`;
   const repoUrl = `https://github.com/${REPO}`;
 
   // { token, login } in this browser only; private windows may not keep it.
@@ -124,7 +132,7 @@
   }
 
   window.GITHUB_SAVE = {
-    REPO, BRANCH, NEW_TOKEN_URL, repoUrl,
+    REPO, BRANCH, NEW_TOKEN_URL, TOKEN_STEPS, repoUrl,
     account: () => account,
     connect, disconnect, save, remove, latest, commit,
   };

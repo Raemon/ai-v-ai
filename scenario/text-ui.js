@@ -239,12 +239,42 @@
     const connect = el('button', 'btn quiet', 'Connect GitHub');
     connect.type = 'button';
     connect.title = 'Or run node tools/serve.js to commit on this computer.';
-    connect.addEventListener('click', async () => {
-      const token = (prompt(`Paste a GitHub token that can write to ${G.REPO}: fine-grained, with Contents "Read and write" (make one at ${G.NEW_TOKEN_URL}). It stays in this browser.`) || '').trim();
-      if (!token) return;
-      try { await G.connect(token); connect.remove(); go.disabled = false; } catch (e) { box.querySelector('.text-edit-status').textContent = e.message; }
+    connect.addEventListener('click', () => {
+      window.open(G.NEW_TOKEN_URL, '_blank', 'noopener');
+      connect.remove();
+      box.insertBefore(tokenForm(box, () => { go.disabled = false; row.prepend(el('span', 'text-edit-who', `to ${G.BRANCH} as ${G.account().login}`)); }), row);
     });
     row.prepend(connect);
+  }
+
+  // Under the text, once GitHub's new-token page is open in another tab: what to do there, and
+  // a field for the token, which connects as soon as it's pasted.
+  function tokenForm(box, done) {
+    const form = el('div', 'text-edit-token');
+    const field = el('input');
+    field.type = 'password';
+    field.placeholder = 'Paste the token here';
+    field.autocomplete = 'off';
+    const again = Object.assign(el('a', '', 'open it again'), { href: G.NEW_TOKEN_URL, target: '_blank', rel: 'noopener' });
+    const steps = el('p', '', `${G.TOKEN_STEPS} `);
+    steps.append('(', again, ')');
+    form.append(steps, field);
+    const status = () => box.querySelector('.text-edit-status');
+    const tryIt = async () => {
+      const token = field.value.trim();
+      if (!token) return;
+      status().textContent = 'Checking the token…';
+      try {
+        await G.connect(token);
+        form.remove();
+        status().textContent = `Connected as ${G.account().login}.`;
+        done();
+      } catch (e) { status().textContent = e.message; }
+    };
+    field.addEventListener('paste', () => setTimeout(tryIt, 0));
+    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); tryIt(); } });
+    setTimeout(() => field.focus(), 0);
+    return form;
   }
 
   // ------------------------------------------------------------- committing
@@ -294,6 +324,12 @@
       border: 1px solid var(--line-lit, #3a3e45); background: var(--bar, #1d1f22); color: var(--text, #d2d5da); }
     .text-edit-buttons .btn.gold { background: var(--tool, #d8b16a); border-color: var(--tool, #d8b16a); color: #17181b; }
     .text-edit-buttons .btn:disabled { opacity: .4; cursor: default; }
+    .text-edit-token { display: grid; gap: 6px; }
+    .text-edit-token p { margin: 0; color: var(--dim, #81878f); }
+    .text-edit-token a { color: var(--tool, #d8b16a); }
+    .text-edit-token input { box-sizing: border-box; width: 100%; padding: 6px 8px; font: 13px var(--mono, monospace); color: var(--text, #d2d5da);
+      background: var(--desk, #0f1012); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
+    .text-edit-token input:focus { outline: none; border-color: var(--tool, #d8b16a); }
     .text-edit-who { margin-right: auto; color: var(--dim, #81878f); font-size: 12px; }
   `;
   document.head.appendChild(style);
