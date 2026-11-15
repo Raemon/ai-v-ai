@@ -781,13 +781,13 @@ button { font: inherit; color: inherit; }
 }
 .blk.file.current { border-color: var(--line-lit); }
 .blk.file.flash { animation: flash .45s ease; }
-.blk.file .titlebar { gap: 7px; min-height: 28px; padding: 0 8px 0 10px; color: inherit; }
+.blk.file .titlebar { gap: 7px; min-height: 30px; padding: 0 8px 0 10px; color: inherit; font-size: 14px; }
 .file-icon { flex: none; color: var(--doc); }
 .file-icon svg { display: block; width: 16px; height: 16px; }
-/* Who last touched it, and when: a name to look up. */
-.file-meta { flex: none; padding: 8px 10px 0; font: var(--fs-meta) var(--mono); color: var(--dim); }
+/* Who last touched it, and when, at the foot of the sheet: a name to look up. */
+.file-meta { flex: none; padding: 0 16px 12px; font: var(--fs-meta) var(--mono); color: var(--dim); }
 .file-meta:empty { display: none; }
-.file-meta:not(:empty) + .file-body { padding-top: 6px; }
+.file-body:has(+ .file-meta:not(:empty)) { padding-bottom: 8px; }
 .file-body {
   flex: none; /* as tall as the file: the terminal scrolls, never the sheet */
   overflow-x: auto; /* hex dumps are wider than the sheet */

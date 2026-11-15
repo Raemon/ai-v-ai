@@ -4188,7 +4188,7 @@
     const head = el('header', 'titlebar', el('span', 'file-icon ' + look.cls, { innerHTML: look.svg }), el('span', 'title', n.name));
     const card = block('file current');
     card.dataset.path = pathKey(path);
-    card.append(head, el('div', 'file-meta'), body);
+    card.append(head, body, el('div', 'file-meta'));
     card.shows = showing(n);
     showWhoEdited(card, n);
     A.sfx('grow');
