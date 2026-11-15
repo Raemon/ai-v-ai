@@ -184,7 +184,21 @@
   veil.setAttribute('aria-hidden', 'true');
   const VEIL = 2000; // how far past the desk it reaches, every way
   const NEAR = 14;   // thinking about, over nothing: the brackets stay open this far round the pointer
-  desktop.append(veil, probe, reticle);
+  // Aiming, a mark exactly where the pointer is, held or not: the brackets say what a click
+  // would take, this says where the pointer is.
+  const mark = document.createElement('div');
+  mark.className = 'aim-mark';
+  mark.setAttribute('aria-hidden', 'true');
+  mark.style.display = 'none';
+  desktop.append(veil, probe, reticle, mark);
+
+  function drawMark() {
+    const on = aiming() && pointer && !puppet && !isPhoneLayout();
+    mark.style.display = on ? '' : 'none';
+    if (!on) return;
+    const d = frame();
+    mark.style.transform = `translate(${Math.round((pointer.x - d.left) / d.k)}px, ${Math.round((pointer.y - d.top) / d.k)}px)`;
+  }
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
   const settled = (s) => Math.abs(s.to - s.x) < s.eps && Math.abs(s.v) < s.eps * 10;
@@ -497,9 +511,10 @@
     if (el === held) return;
     clearTimeout(letGo);
     if (!el) {
-      // A moment's grace, so crossing the gap between two files doesn't let go. (Thinking
-      // about, a shorter one: the brackets are the pointer, and shouldn't stay behind long.)
-      letGo = setTimeout(release, !held || !arm.on ? 0 : aiming() && !editing() ? 120 : 200);
+      // A moment's grace, so crossing the gap between two files doesn't let go. Not while
+      // aiming: what's held is whatever the pointer is on, nothing else.
+      if (!held || !arm.on || aiming()) return release();
+      letGo = setTimeout(release, 200);
       return;
     }
     if (open.x < 0.05 && tip) { // the bulb opens: from where it is
@@ -517,6 +532,8 @@
     held = null;
     grip = 0;
     open.to = 0;
+    const near = nearBox(frame());
+    if (near) [L, T, Rt, B].forEach((s, i) => Object.assign(s, { to: near[i], x: near[i], v: 0 })); // back round the pointer at once
     agent.classList.remove('intent');
     lookSoon();
     wake();
@@ -531,6 +548,7 @@
   document.addEventListener('pointermove', (e) => {
     pointer = { x: e.clientX, y: e.clientY };
     still = performance.now();
+    drawMark();
     if (glance) glance = null;
     lookSoon();
     if (e.pointerType === 'touch') return;
@@ -543,6 +561,7 @@
   new MutationObserver(() => {
     if (aiming() !== wasAiming) {
       wasAiming = aiming();
+      drawMark();
       if (pointer) sense(document.elementFromPoint(pointer.x, pointer.y));
     }
     if (arm.on || arm.reach.x > 0.003) wake();
@@ -550,6 +569,7 @@
 
   function pointerGone() {
     pointer = null;
+    drawMark();
     setArm(false);
     lookSoon();
   }
