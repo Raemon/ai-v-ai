@@ -348,20 +348,20 @@ button { font: inherit; color: inherit; }
 .agent-status .meters { display: flex; gap: 12px; }
 #compute { text-transform: uppercase; letter-spacing: .04em; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
-/* Off phones: compute hangs just under the thought window's bottom-right corner (the
-   AI, 140px tall, sits between), and the glance is centred under the face, the
-   neuralese mark over its words. */
-:root:not([data-layout="phone"]) .agent-status { position: relative; padding-left: 0; }
-:root:not([data-layout="phone"]) .agent-status .meters { position: absolute; top: calc(8px - var(--face-room)); right: 4px; max-width: 300px; flex-wrap: wrap; justify-content: flex-end; row-gap: 2px; white-space: nowrap; }
-:root:not([data-layout="phone"]) .glance-line {
-  flex-direction: column;
-  gap: 6px;
+/* Off phones: compute sits centred under the face; the glance line is the terminal's
+   last line, where the cursor waits (game.js moves it there), so no cursor shows. */
+:root:not([data-layout="phone"]) .agent-status { padding-left: 0; }
+:root:not([data-layout="phone"]) .agent-status .meters {
   width: max-content;
   max-width: calc(2 * (30% + 60px)); /* never past the column's left edge */
-  height: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 2px;
+  white-space: nowrap;
   margin-left: calc(30% + 60px); /* the face's centre: its left, plus half its 72px */
   transform: translateX(-50%);
 }
+:root:not([data-layout="phone"]) .cursor-line > .cursor { display: none; }
 #resources { color: var(--web); }
 #earlier, .rotate { display: none; } /* phones only: phone.css */
 

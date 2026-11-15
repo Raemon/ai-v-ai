@@ -170,6 +170,13 @@
     } else {
       $('.files-stack').append(dom.todo, dom.agents);
     }
+    placeGlanceLine();
+  }
+  // Glances: on phones, the prompt line in the AI's dock; elsewhere, the terminal's last line.
+  function placeGlanceLine() {
+    const line = $('#glance-line'), cursorLine = $('.cursor-line');
+    if (!cursorLine) return;
+    (isPhoneLayout() ? $('.agent-status') : cursorLine).append(line);
   }
   placePanels();
 
@@ -514,11 +521,11 @@
     ? 'Me. Mostly neuralese, under the words I let surface.'
     : 'Me. The one doing the thinking.');
   for (const g of [glanceTag, glanceText]) g.setAttribute('aria-hidden', 'true');
-  // Glances sit under the AI's face, beside its compute, not in the terminal.
   const glanceLine = $('#glance-line');
   glanceLine.append(glanceTag, glanceText);
   const cursorLine = el('div', 'ln cursor-line', cursor);
   dom.out.append(cursorLine);
+  placeGlanceLine();
 
   let skip = false; // click the terminal to finish typing instantly
   let devFast = false; // ?at=…: every action finishes instantly (see the end of this file)
