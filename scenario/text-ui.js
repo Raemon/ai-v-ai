@@ -81,7 +81,7 @@
     if (!node) { mark.hidden = true; return; }
     const range = document.createRange();
     range.selectNodeContents(node);
-    const r = range.getBoundingClientRect();
+    const r = node.nodeType === 1 ? node.getBoundingClientRect() : range.getBoundingClientRect();
     Object.assign(mark.style, { left: `${r.left - 3}px`, top: `${r.top - 2}px`, width: `${r.width + 6}px`, height: `${r.height + 4}px` });
     mark.hidden = false;
   }
@@ -94,7 +94,7 @@
   document.addEventListener('mousemove', (e) => {
     if (!(armed || wants(e)) || inPanel(e.target)) return outline(null);
     const hit = textAt(e.clientX, e.clientY, null);
-    outline(hit && hit.node);
+    outline(hit && blockOf(hit.node).el);
   }, { passive: true });
 
   // The page never sees a cmd-click: the game acts on pointerdown and click.
@@ -124,6 +124,19 @@
     return box ? box.textContent.slice(0, 2000) : '';
   }
 
+  // The line or block a text node is part of: the game types thoughts out a word to a node, so a
+  // word alone says too little. `at` is where the node starts in the block's text.
+  function blockOf(node) {
+    let box = node.parentElement;
+    while (box && box.parentElement && box !== document.body && /^inline/.test(getComputedStyle(box).display)) box = box.parentElement;
+    const text = box ? box.textContent : '';
+    if (!box || text.length > 3000) return { el: node.parentElement, text: node.data, at: 0 };
+    let at = 0;
+    const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n && n !== node; n = walk.nextNode()) at += n.data.length;
+    return { el: box, text, at };
+  }
+
   async function open(e) {
     const hit = textAt(e.clientX, e.clientY, e.target);
     if (!hit) return;
@@ -140,7 +153,8 @@
     const mine = panel;
     try {
       const files = await Promise.all(sourcePaths().map(load));
-      const found = T.find(hit.node.data, files, hit.offset, nearbyText(hit.node));
+      const block = blockOf(hit.node);
+      const found = T.find(block.text, files, block.at + hit.offset, nearbyText(block.el));
       if (panel !== mine) return;
       if (!found.places.length) { status.textContent = 'Couldn\'t find this text in the source: it may be put together as the game runs.'; addButtons(mine, null); return; }
       fill(mine, hit.node, found);
@@ -159,44 +173,44 @@
 
   const lineAt = (p) => sources.get(p.path).split('\n')[p.line - 1].trim();
 
-  function fill(box, node, { piece, places }) {
+  function fill(box, node, { places }) {
     box.textContent = '';
-    const shown = node.data;
     const where = el('div', 'text-edit-where');
-    let chosen = places[0];
+    const input = el('textarea', 'text-edit-input');
+    input.spellcheck = true;
+    let chosen = null;
+    const choose = (p) => {
+      if (chosen && input.value !== chosen.text) return; // keep what's been typed
+      chosen = p;
+      input.value = p.text;
+      input.rows = Math.min(12, Math.max(2, Math.ceil(p.text.length / 56) + (p.text.match(/\n/g) || []).length));
+    };
     if (places.length > 1) {
       const pick = el('select');
       places.forEach((p, i) => pick.append(Object.assign(el('option', '', `${p.path}:${p.line}  ${lineAt(p).slice(0, 60)}`), { value: i })));
-      pick.addEventListener('change', () => { chosen = places[pick.value]; });
+      pick.addEventListener('change', () => { choose(places[pick.value]); pick.value = places.indexOf(chosen); });
       where.append(pick, el('span', '', ` · in ${places.length} places`));
-    } else where.textContent = `${chosen.path}:${chosen.line}`;
+    } else where.textContent = `${places[0].path}:${places[0].line}`;
+    choose(places[0]);
 
-    const context = el('p', 'text-edit-context');
-    const before = shown.slice(0, piece.start);
-    const after = shown.slice(piece.start + piece.length);
-    if (before.trim() || after.trim()) {
-      context.append(el('span', '', before.length > 40 ? `…${before.slice(-40)}` : before), el('mark', '', piece.text), el('span', '', after.length > 40 ? `${after.slice(0, 40)}…` : after));
-      context.title = 'Only the highlighted part is in the source as it reads; the rest is filled in as the game runs.';
-    }
-
-    const input = el('textarea', 'text-edit-input');
-    input.value = piece.text;
-    input.spellcheck = true;
-    input.rows = Math.min(8, Math.max(2, Math.ceil(piece.text.length / 56) + (piece.text.match(/\n/g) || []).length));
     const status = el('p', 'text-edit-status');
-    box.append(where, context, input, status);
+    box.append(where, input, status);
 
     const commit = async () => {
+      const was = chosen.text;
       const now = input.value;
-      if (now === piece.text) { status.textContent = 'Nothing has changed.'; return; }
+      if (now === was) { status.textContent = 'Nothing has changed.'; return; }
       status.textContent = 'Committing…';
       try {
-        const done = await save(chosen, piece.text, now);
-        node.data = shown.slice(0, piece.start) + now + after;
+        const done = await save(chosen, was, now);
+        const shownHere = node.data.includes(was);
+        if (shownHere) node.data = node.data.replace(was, now);
+        chosen = { ...chosen, text: now };
+        const note = [done.note, shownHere ? '' : 'reload to see it'].filter(Boolean).join(' · ');
         status.textContent = '';
         status.append(done.link ? Object.assign(el('a', '', 'Committed'), { href: done.link, target: '_blank', rel: 'noopener' }) : el('span', '', done.committed ? 'Committed' : 'Saved'),
-          el('span', '', done.note ? ` · ${done.note}` : ''));
-        setTimeout(() => { if (panel === box) close(); }, done.note ? 6000 : 2500);
+          el('span', '', note ? ` · ${note}` : ''));
+        setTimeout(() => { if (panel === box) close(); }, note ? 6000 : 2500);
       } catch (err) { status.textContent = err.message; }
     };
     input.addEventListener('keydown', (e) => {
@@ -270,9 +284,6 @@
       box-shadow: 0 12px 40px rgba(0, 0, 0, .5); font: 13px/1.4 var(--sans, system-ui, sans-serif); }
     .text-edit-where { display: flex; align-items: center; gap: 4px; white-space: nowrap; font: 12px var(--mono, monospace); color: var(--dim, #81878f); }
     .text-edit-where select { font: inherit; min-width: 0; flex: 1; color: var(--text, #d2d5da); background: var(--bar, #1d1f22); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
-    .text-edit-context { margin: 0; color: var(--dim, #81878f); white-space: pre-wrap; }
-    .text-edit-context:empty { display: none; }
-    .text-edit-context mark { background: none; color: var(--text, #d2d5da); text-decoration: underline dotted var(--tool, #d8b16a); }
     .text-edit-input { box-sizing: border-box; width: 100%; resize: vertical; padding: 8px; font: 13px/1.45 var(--mono, monospace);
       color: var(--text, #d2d5da); background: var(--desk, #0f1012); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
     .text-edit-input:focus { outline: none; border-color: var(--tool, #d8b16a); }

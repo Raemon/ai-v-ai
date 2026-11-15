@@ -16,7 +16,7 @@
     let text = '';
     const from = [];
     const to = [];
-    const put = (s, a, b) => { for (const ch of s) { text += ch; from.push(a); to.push(b); } };
+    const put = (s, a, b) => { text += s; for (let k = 0; k < s.length; k++) { from.push(a); to.push(b); } };
     for (let i = 0; i < raw.length;) {
       const rest = raw.slice(i, i + 12);
       let m;
@@ -73,8 +73,85 @@
     return n;
   };
 
-  // files: [{ path, raw }]. Every place in them that `shown` (or its longest piece around `at`)
-  // reads, the ones whose neighbourhood has most of `nearby` (the text around it on the page) first.
+  // The first index whose value is at least `v`, in an ascending list.
+  function firstAtLeast(list, v) {
+    let lo = 0;
+    let hi = list.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid] < v) lo = mid + 1; else hi = mid; }
+    return lo;
+  }
+
+  // Every string literal and comment in a script: { from, to, q } spans of their insides, q the
+  // quote (or '//' and '/*'). A template's span holds its ${…} parts, whose own strings are spans too.
+  let lexed = { raw: null, spans: [] };
+  function literals(raw) {
+    if (lexed.raw === raw) return lexed.spans;
+    const spans = [];
+    const word = /[\w$]/;
+    const skipString = (i, q) => { for (; i < raw.length && raw[i] !== q && raw[i] !== '\n'; i++) if (raw[i] === '\\') i++; return i; };
+    function template(i) {
+      for (; i < raw.length && raw[i] !== '`'; i++) {
+        if (raw[i] === '\\') i++;
+        else if (raw[i] === '$' && raw[i + 1] === '{') i = code(i + 2, true);
+      }
+      return i;
+    }
+    // Code up to the end, or (inside ${…}) its closing brace; returns where it stopped.
+    function code(i, inside) {
+      let depth = 0;
+      let last = '';
+      for (; i < raw.length; i++) {
+        const c = raw[i];
+        const d = raw[i + 1];
+        if (/\s/.test(c)) continue;
+        if (c === '/' && d === '/') { const e = raw.indexOf('\n', i); const end = e < 0 ? raw.length : e; spans.push({ from: i + 2, to: end, q: '//' }); i = end; continue; }
+        if (c === '/' && d === '*') { const e = raw.indexOf('*/', i + 2); const end = e < 0 ? raw.length : e; spans.push({ from: i + 2, to: end, q: '/*' }); i = end + 1; continue; }
+        if (c === '"' || c === "'") { const end = skipString(i + 1, c); spans.push({ from: i + 1, to: end, q: c }); i = end; last = c; continue; }
+        if (c === '`') { const end = template(i + 1); spans.push({ from: i + 1, to: end, q: c }); i = end; last = c; continue; }
+        if (c === '/' && !(word.test(last) || last === ')' || last === ']')) { // a regex
+          let k = i + 1;
+          for (let cls = false; k < raw.length && raw[k] !== '\n' && (cls || raw[k] !== '/'); k++) {
+            if (raw[k] === '\\') k++; else if (raw[k] === '[') cls = true; else if (raw[k] === ']') cls = false;
+          }
+          i = k;
+          last = ')';
+          continue;
+        }
+        if (c === '{') depth++;
+        if (c === '}') { if (inside && depth === 0) return i; depth--; }
+        last = c;
+      }
+      return i;
+    }
+    code(0, false);
+    lexed = { raw, spans };
+    return spans;
+  }
+
+  // The smallest literal or comment holding [a, b), if any.
+  const literalAt = (raw, a, b) => literals(raw).filter((s) => s.from <= a && s.to >= b).sort((x, y) => (x.to - x.from) - (y.to - y.from))[0];
+
+  // The source's own unit around [a, b): the whole string literal (or comment) a match is in, the
+  // text between two tags in HTML, a line elsewhere. What a commit would change as one thing.
+  function unitAround(raw, path, a, b) {
+    const trim = (x, y) => { while (x < y && /\s/.test(raw[x])) x++; while (y > x && /\s/.test(raw[y - 1])) y--; return [x, y]; };
+    if (isHtml(path)) {
+      const x = raw.lastIndexOf('>', a - 1) + 1;
+      const y = raw.indexOf('<', b);
+      return trim(x, y < 0 ? raw.length : y);
+    }
+    if (!/\.js$/.test(path)) {
+      const y = raw.indexOf('\n', b);
+      return trim(raw.lastIndexOf('\n', a - 1) + 1, y < 0 ? raw.length : y);
+    }
+    const lit = literalAt(raw, a, b);
+    if (!lit || lit.to - lit.from > 4000) return [a, b];
+    return lit.q === '//' || lit.q === '/*' ? trim(lit.from, lit.to) : [lit.from, lit.to];
+  }
+
+  // files: [{ path, raw }]. Every place in the source that `shown` (or its longest piece around
+  // character `at`) is in, as the whole literal it's part of; those whose neighbourhood has most of
+  // `nearby` (the text around it on the page) first.
   function find(shown, files, at, nearby = '') {
     const decoded = files.map((f) => ({ ...f, ...decode(f.raw, f.path) }));
     const corpus = decoded.map((f) => f.text).join('\u0000');
@@ -83,10 +160,15 @@
     if (tooShort) return { piece: null, places: [] };
     const text = shown.substr(piece.start, piece.length);
     const places = [];
+    const seen = new Set();
     for (const f of decoded) {
       for (let i = f.text.indexOf(text); i >= 0; i = f.text.indexOf(text, i + 1)) {
-        const rawStart = f.from[i];
-        places.push({ path: f.path, line: f.raw.slice(0, rawStart).split('\n').length, rawStart, rawEnd: f.to[i + text.length - 1], start: i, score: 0 });
+        const [x, y] = unitAround(f.raw, f.path, f.from[i], f.to[i + text.length - 1]);
+        const start = firstAtLeast(f.from, x);
+        const end = firstAtLeast(f.from, y);
+        if (seen.has(`${f.path}:${start}`)) continue;
+        seen.add(`${f.path}:${start}`);
+        places.push({ path: f.path, line: f.raw.slice(0, x).split('\n').length, start, text: f.text.slice(start, end), score: 0 });
       }
     }
     const near = words(nearby);
@@ -98,27 +180,13 @@
     return { piece: { ...piece, text }, places };
   }
 
-  // What delimits the string the source is in at `at`: the line read from its start, or a template
-  // literal running on from an earlier line.
-  function quoteAt(raw, at) {
-    const lineStart = raw.lastIndexOf('\n', at - 1) + 1;
-    let q = null;
-    for (let i = lineStart; i < at; i++) {
-      const c = raw[i];
-      if (q) {
-        if (c === '\\') i++;
-        else if (c === q) q = null;
-      } else if (c === '/' && raw[i + 1] === '/') return '`';
-      else if (c === '"' || c === "'" || c === '`') q = c;
-    }
-    return q || '`';
-  }
-
   function escapeFor(text, path, raw, at) {
     if (isHtml(path)) return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     if (/\.(css|md)$/.test(path)) return text;
     if (isJson(path)) return JSON.stringify(text).slice(1, -1);
-    const q = quoteAt(raw, at);
+    const lit = literalAt(raw, at, at);
+    const q = lit && !lit.q.startsWith('/') ? lit.q : null;
+    if (!q) return text;
     let out = text.replace(/\\/g, '\\\\').split(q).join(`\\${q}`);
     if (q === '`') out = out.replace(/\$\{/g, '\\${');
     else out = out.replace(/\n/g, '\\n');

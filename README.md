@@ -70,11 +70,10 @@ has the editor too, at `/scenario`: connect a GitHub token there and each Save i
 `main`, which the site picks up on its next deploy.
 
 To change any text you see, in the game or the editor, Cmd-click it (Ctrl-click off a Mac):
-holding the key outlines the text under the pointer. The panel shows where it is in the source
-(a choice of places if it's in several), and **Commit** saves the new wording. Under
-`node tools/serve.js` that's a git commit of the one file on your computer; on the deployed site
-it's a commit to `main` with the same GitHub token as the editor. Text the game puts together as it
-runs can only be edited a piece at a time: the part that's in the source as it reads.
+holding the key outlines the line it's in. The panel opens the whole string it comes from in the
+source (`${…}` parts and all; a choice of places if it's in several), and **Commit** saves the new
+wording. Under `node tools/serve.js` that's a git commit of the one file on your computer; on the
+deployed site it's a commit to `main` with the same GitHub token as the editor.
 
 Sound starts with your first click or key press. **M**, or the speaker in the
 bottom-right corner, turns it off and on; the choice is remembered.
