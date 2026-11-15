@@ -1,11 +1,14 @@
 // The scenario editor's server:  node tools/serve.js [port]  then http://localhost:8000/scenario
-// Serves the game from this folder, on this computer only; saving rewrites files in scenarios/.
+// Serves the game from this folder, on this computer only; saving rewrites files in scenarios/,
+// and a cmd-click text edit (scenario/text-ui.js) rewrites its file and commits it with git.
 'use strict';
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 const { scenario, index } = require('../scenario/file.js');
+const TEXT = require('../scenario/text.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const SCENARIOS_DIR = path.join(ROOT, 'scenarios');
@@ -95,8 +98,28 @@ function refuseOtherSites(req) {
   if (req.method !== 'GET' && req.method !== 'HEAD' && !/^application\/json\b/.test(req.headers['content-type'] || '')) throw new Refused(415, 'Send JSON.');
 }
 
+const git = (...args) => new Promise((resolve, reject) => execFile('git', args, { cwd: ROOT }, (e, out, err) => (e ? reject(new Error((err || e.message).trim())) : resolve(out.trim()))));
+
+// { path, edit: { at, was, now }, message }: the file changed and committed, alone.
+async function editText(body) {
+  const { path: file, edit, message } = body || {};
+  if (typeof file !== 'string' || !TEXT.EDITABLE.test(file) || !edit || typeof edit.was !== 'string' || typeof edit.now !== 'string') throw new Refused(400, 'Not an edit.');
+  const wanted = wantedFile({ pathname: `/${file}` });
+  if (!fs.statSync(wanted).isFile()) throw new Refused(404, 'Not a file.');
+  let text;
+  try { text = TEXT.apply(fs.readFileSync(wanted, 'utf8'), file, edit); } catch (e) { throw new Refused(e.status || 400, e.message); }
+  writeAtomically(wanted, text);
+  try {
+    await git('commit', '-q', '-m', String(message || `Text in ${file}`).slice(0, 500), '--', path.relative(ROOT, wanted));
+    return { text, commit: await git('rev-parse', 'HEAD') };
+  } catch (e) {
+    return { text, commit: null, note: `saved, but git didn't commit it: ${e.message}` };
+  }
+}
+
 async function api(req, url) {
   const [, , what, id] = url.pathname.split('/');
+  if (what === 'text' && !id && req.method === 'POST') return editText(await readJsonBody(req));
   if (what !== 'scenarios') throw new Refused(404, 'No such thing.');
   if (!id && req.method === 'GET') return readIndex();
   if (id && req.method === 'PUT') return save(checkedId(id), await readJsonBody(req));

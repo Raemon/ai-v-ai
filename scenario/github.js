@@ -7,7 +7,6 @@
   const REPO = 'Raemon/ai-v-ai';
   const BRANCH = 'main';
   const TOKEN_KEY = 'scenario-editor.github';
-  const FILE = SCENARIO_FILE;
   const INDEX = 'scenarios/index.js';
   const fileOf = (id) => `scenarios/${id}.js`;
   const hooksFileOf = (id) => `scenarios/${id}.hooks.js`;
@@ -77,7 +76,7 @@
   const readIndex = async (read) => {
     const text = await read(INDEX);
     if (text === null) throw refused(500, `${INDEX} isn't on ${BRANCH}.`);
-    return FILE.index.parse(text);
+    return window.SCENARIO_FILE.index.parse(text);
   };
 
   // `was`: the scenario as the editor loaded it; none for a new one; null to overwrite whatever is there.
@@ -85,7 +84,7 @@
     if (was === null || text === null) return null;
     if (was === undefined) return `There is already a ${fileOf(id)}.`;
     let now = null;
-    try { now = FILE.scenario.parse(text); } catch (e) { /* unreadable: treat as changed */ }
+    try { now = window.SCENARIO_FILE.scenario.parse(text); } catch (e) { /* unreadable: treat as changed */ }
     return JSON.stringify(now) === JSON.stringify(was) ? null : `${fileOf(id)} has changed on GitHub since you opened it. Reload to see it, or Save again to overwrite it.`;
   }
 
@@ -93,8 +92,8 @@
     const [list, text] = await Promise.all([readIndex(read), read(fileOf(id))]);
     const clash = conflict(id, was, text);
     if (clash) throw refused(409, clash);
-    const files = { [fileOf(id)]: FILE.scenario.format(sc) };
-    if (!list.order.includes(id)) files[INDEX] = FILE.index.format({ ...list, order: [...list.order, id] });
+    const files = { [fileOf(id)]: window.SCENARIO_FILE.scenario.format(sc) };
+    if (!list.order.includes(id)) files[INDEX] = window.SCENARIO_FILE.index.format({ ...list, order: [...list.order, id] });
     return files;
   });
 
@@ -102,13 +101,13 @@
     const [list, hooks] = await Promise.all([readIndex(read), read(hooksFileOf(id))]);
     if (!list.order.includes(id)) throw refused(404, `No scenario called ${id}.`);
     if (hooks !== null) throw refused(409, `${id} has code in ${hooksFileOf(id)}. Remove it by hand, with its entries in ${INDEX}.`);
-    return { [INDEX]: FILE.index.format({ ...list, order: list.order.filter((x) => x !== id) }), [fileOf(id)]: null };
+    return { [INDEX]: window.SCENARIO_FILE.index.format({ ...list, order: list.order.filter((x) => x !== id) }), [fileOf(id)]: null };
   });
 
   // The scenario as main has it now: the site can be a deploy behind a Save.
   async function latest(id) {
     const text = await readAt(BRANCH)(fileOf(id));
-    return text === null ? null : FILE.scenario.parse(text);
+    return text === null ? null : window.SCENARIO_FILE.scenario.parse(text);
   }
 
   async function connect(token) {
@@ -127,6 +126,6 @@
   window.GITHUB_SAVE = {
     REPO, BRANCH, NEW_TOKEN_URL, repoUrl,
     account: () => account,
-    connect, disconnect, save, remove, latest,
+    connect, disconnect, save, remove, latest, commit,
   };
 })();
