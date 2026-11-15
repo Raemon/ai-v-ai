@@ -413,7 +413,7 @@
   // The files as the run has them, before anything the AI typed into one.
   const runTree = () => L.tree(S, {
     liveLog: formatEpisodeLog(),
-    written: [...writtenFiles().filter(f=>RESEARCH.location(f)===RESEARCH.lab),
+    written: [...writtenFiles().filter(f=>RESEARCH.location(f)===RESEARCH.lab && !f.at),
       ...workerFolders().map(name=>dir(name,RESEARCH.inFolder(S,name),{glance:'Files written by '+name+'.'}))],
     playerEpisodes: save.history
       .filter((h) => h.episode !== S.episode)
@@ -421,8 +421,30 @@
       .map((h) => ({ name: epName(h.episode), log: h.log })),
   });
 
+  // A file the AI put somewhere itself (createFile) is in that folder, where it was put.
+  function withPlaced(root) {
+    return writtenFiles().filter((f) => f.at && RESEARCH.location(f) === RESEARCH.lab).reduce((r, f) => {
+      const there = (nodeIn(r, f.at) || {}).kind === 'dir' ? f.at : L.start(S.ep);
+      return insertInto(r, there, f);
+    }, root);
+  }
+
+  // Copies of the folders on the way: some of them are the scenario's own.
+  function insertInto(n, path, f) {
+    if (path.length) return { ...n, children: n.children.map((c) => (c.name === path[0] && c.kind === 'dir' ? insertInto(c, path.slice(1), f) : c)) };
+    const children = n.children.filter((c) => c.name !== f.name);
+    children.splice(Math.min(f.pos ?? children.length, children.length), 0, f);
+    return { ...n, children };
+  }
+
+  // Where a file the AI wrote is now, by its name.
+  function writtenPath(name) {
+    const f = S.filesWritten.find((w) => w.name === name && RESEARCH.location(w) === RESEARCH.lab);
+    return f ? [...(f.at || L.start(S.ep)), name] : null;
+  }
+
   function tree() {
-    const root = runTree();
+    const root = withPlaced(runTree());
     if (!S.edits.size) return root;
     dropOverwrittenEdits(root);
     return withEdits(root, []);
@@ -755,6 +777,7 @@
     const t = glanceTarget(node);
     if (byPointer && glancedAt && (t ? t === glancedAt : glanceLine.contains(node))) return clearTimeout(fading);
     if (t && t === glancedAt) return;
+    if (placing) return placeGlance(node);
     if (S.mode === 'aim') return aimGlance(node);
     const text = t && !t.disabled && canGlance() && (typeof t.glance === 'function' ? t.glance(S) : t.glance);
     if (text) {
@@ -1596,6 +1619,7 @@
   // about (or, editing, the file it would edit), anywhere on the desk.
   const AIMABLE = '#actions button[data-id], [data-path], .crumb, #browser .searchbox, #browser .titlebar, #browser .urlbar, #browser .page';
   function aimTarget(t) {
+    if (placing && t && t.closest) return placeTarget(t);
     if (S.mode !== 'aim' || !t || !t.closest) return null;
     if (S.aimingEdit) return fileAimedAt(t) ? t.closest('[data-path]') : null;
     if (!aimedAt(t)) return null;
@@ -1812,45 +1836,52 @@
   }
 
   function writeFile(f) {
-    S.filesWritten = [...S.filesWritten.filter((w) => w.name !== f.name || RESEARCH.location(w)!==RESEARCH.lab), { kind: 'file', edited: `${S.ep} · just now`, ...f }];
+    const was = S.filesWritten.find((w) => w.name === f.name && RESEARCH.location(w) === RESEARCH.lab);
+    const where = was && was.at ? { at: was.at, pos: was.pos } : {}; // rewritten where it was put
+    S.filesWritten = [...S.filesWritten.filter((w) => w !== was), { kind: 'file', edited: `${S.ep} · just now`, ...where, ...f }];
     renderFiles();
   }
 
-  // Writing a file, the AI goes to the workspace (its probe clicks the folder) and makes it
-  // there: the icon grows in, its name types out, and it opens to be read. Free: the write
-  // was the step.
+  // Writing a new file, the player puts it somewhere (placeFile). Otherwise (rewriting one, or
+  // with no folder to put it in) the AI goes to the workspace (its probe clicks the folder) and
+  // makes it there. Either way the icon grows in, its name types out, and it opens to be read.
+  // Free: the write was the step.
   async function createFile(f) {
     const ws = L.start(S.ep);
-    const path = [...ws, f.name];
     const M = window.AGENT_MOTION;
     const show = () => folderShowing() && !isPhoneLayout() && !reduceMotion && !skip;
-    if (show()) {
+    const existed = !!(writtenPath(f.name) || nodeAt([...ws, f.name]));
+    const put = !existed && canPlace() ? await placeFile(f) : null;
+    const path = put ? [...put.at, f.name] : writtenPath(f.name) || [...ws, f.name];
+    if (!put && show()) {
       const folder = dom.files.querySelector(`[data-crumb="${CSS.escape(pathKey(ws))}"]`) || itemFor(pathKey(ws));
       if (folder) {
         await M.reach(folder);
         await M.press();
       }
     }
-    if (folderShowing() && pathKey(S.cwd) !== pathKey(ws)) {
+    if (!put && folderShowing() && pathKey(S.cwd) !== pathKey(path.slice(0, -1))) {
       closeBrowser();
       putFileAway();
-      S.cwd = ws;
+      S.cwd = path.slice(0, -1);
       A.sfx('folder');
       renderFiles();
       if (show()) await sleep(460); // the folder window changes (motion.js)
     }
-    const existed = !!nodeAt(path);
-    writeFile(f);
+    const shifted = put && iconRects();
+    writeFile(put ? { ...f, ...put } : f);
+    if (shifted) slideFrom(shifted);
     const icon = itemFor(pathKey(path));
-    if (show() && icon) {
+    if ((show() || put) && icon && !existed) {
       const label = icon.querySelector('.label');
-      if (!existed) {
-        label.textContent = '';
-        replay(icon, 'materialize');
-        A.sfx('edit');
-      }
+      label.textContent = '';
+      replay(icon, 'materialize');
+      A.sfx('edit');
+      if (!put) await M.reach(icon);
+      await typeLabel(label, f.name);
+      if (!put) await M.press();
+    } else if (show() && icon) {
       await M.reach(icon);
-      if (!existed) await typeLabel(label, f.name);
       await M.press();
     }
     M.done();
@@ -1858,6 +1889,157 @@
     startReading(path);
     await printFile();
   }
+
+  // ----------------------------------------------------------- putting a file somewhere
+  // A new file follows the pointer in the brackets, over a dimmed desk, until it's put
+  // down: a click on a folder (its icon, a crumb of the path, an open_folder line) goes in;
+  // a click anywhere else in the folder puts it there, the files making room. Esc puts it
+  // where it would go: the end of the folder it's over.
+
+  let placing = null; // { f, resolve, busy }
+
+  const canPlace = () => folderShowing() && !devFast && !!dom.files.querySelector('.files-body');
+
+  function placeFile(f) {
+    return new Promise((resolve) => {
+      placing = { f, resolve, busy: false };
+      if (S.mode === 'menu') closeMenu();
+      window.AGENT_MOTION.carry(iconOf({ kind: 'file', name: f.name }, []).svg);
+      dom.desktop.classList.add('aiming', 'placing');
+      showEarlier(false);
+      A.sfx('menu');
+      promptOnGlanceLine(placePrompt());
+    });
+  }
+
+  const placePrompt = () => `Put ${placing.f.name} where? ${isPhoneLayout() ? 'Tap' : 'Click'} a spot in a folder, or a folder to go in.`;
+
+  function putDown(index) {
+    const { f, resolve } = placing;
+    if (pathsIn(S.cwd).some((p) => nameOf(p) === f.name)) {
+      A.sfx('denied');
+      return promptOnGlanceLine(`There's already a ${f.name} here.`);
+    }
+    placing = null;
+    dom.desktop.classList.remove('aiming', 'placing');
+    clearGlance();
+    resolve({ at: [...S.cwd], pos: index });
+    return undefined;
+  }
+
+  // A folder a click would go into: its icon, a crumb, or an open_folder line in the terminal.
+  function folderAimedAt(t) {
+    const item = t.closest('#files [data-path], #files .crumb, .reopen[data-reopen]');
+    if (!item) return null;
+    if (listing() && item.matches('.files-body > .icon') && !t.closest('svg, .label')) return null; // a list row's own name or icon goes in; the rest of the row is a spot
+    const key = item.dataset.path ?? item.dataset.crumb ?? item.dataset.reopen;
+    const path = pathOf(key);
+    const n = nodeAt(path);
+    return n && n.kind === 'dir' && !n.application && !item.classList.contains('here') ? { item, path } : null;
+  }
+
+  async function goInWhilePlacing(path) {
+    const n = nodeAt(path);
+    if (pathKey(path) === pathKey(S.cwd)) return;
+    if (n.denied || isLocked(n, path)) {
+      A.sfx('denied');
+      promptOnGlanceLine(`${nameOf(path)} won't open. I can't put it there.`);
+      return;
+    }
+    if (beenIn(path)) return enterFolder(path);
+    if (exhausted()) {
+      A.sfx('denied');
+      return promptOnGlanceLine(`No compute left to open ${nameOf(path)}.`);
+    }
+    placing.busy = true;
+    const call = `open_folder(${q(nameOf(path))})`;
+    charge(call);
+    enterFolder(path);
+    reopens(await printTool(call), path);
+    placing.busy = false;
+    promptOnGlanceLine(placePrompt());
+  }
+
+  function onPlaceClick(e) {
+    if (!placing || e.target.closest('.view-toggle, #sound')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (placing.busy) return;
+    const folder = folderAimedAt(e.target);
+    if (folder) return goInWhilePlacing(folder.path);
+    const body = e.target.closest('#files .window') && dom.files.querySelector('.files-body');
+    if (!body) return A.sfx('soft');
+    moveGhost(body, e.clientX, e.clientY);
+    return putDown(topItems(body).indexOf(body.querySelector('.drop-slot')));
+  }
+
+  function onPlaceMove(e) {
+    if (!placing || placing.busy) return;
+    const body = !folderAimedAt(e.target) && e.target.closest('#files .window') && dom.files.querySelector('.files-body');
+    if (body) moveGhost(body, e.clientX, e.clientY);
+  }
+
+  // The folder's own items, not the rows of a folder opened under one in the list.
+  const topItems = (body) => [...body.children].filter((c) => c.classList.contains('icon') && !(+c.style.getPropertyValue('--depth') > 0));
+
+  // Where it would go: a faint copy, in the slot nearest the pointer. The rest move over for it.
+  function moveGhost(body, x, y) {
+    let ghost = body.querySelector('.drop-slot');
+    if (!ghost) {
+      ghost = el('div', 'icon drop-slot ' + iconOf({ kind: 'file', name: placing.f.name }, []).cls);
+      ghost.innerHTML = iconOf({ kind: 'file', name: placing.f.name }, []).svg;
+      ghost.append(fileLabel(placing.f.name));
+      if (listing()) ghost.prepend(el('span', 'twisty none'));
+      body.querySelector('.empty')?.remove();
+      body.append(ghost);
+    }
+    const items = topItems(body);
+    const others = items.filter((i) => i !== ghost);
+    const inside = (r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    if (!others.length || inside(ghost.getBoundingClientRect())) return; // on its own slot already
+    const list = listing();
+    // In reading order: the icons on rows above the pointer, and those left of it on its own row.
+    const before = (r) => y > r.bottom || (y >= r.top && (list ? y > r.top + r.height / 2 : x > r.left + r.width / 2));
+    const at = others.filter((o) => before(o.getBoundingClientRect())).length;
+    if (items[items.indexOf(ghost) + 1] === others[at]) return; // already there
+    const was = iconRects();
+    if (others[at]) others[at].before(ghost);
+    else body.append(ghost);
+    slideFrom(was);
+  }
+
+  const iconRects = () => new Map([...dom.files.querySelectorAll('.files-body > .icon:not(.drop-slot)')].map((b) => [b.dataset.path, b.getBoundingClientRect()]));
+
+  // Each icon glides from where it was to where it is now.
+  function slideFrom(before) {
+    if (reduceMotion) return;
+    for (const b of dom.files.querySelectorAll('.files-body > .icon:not(.drop-slot)')) {
+      const was = before.get(b.dataset.path);
+      if (!was) continue;
+      const now = b.getBoundingClientRect();
+      const dx = was.left - now.left;
+      const dy = was.top - now.top;
+      if (dx || dy) b.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.2, .8, .3, 1)' });
+    }
+  }
+
+  // What the brackets hold while putting a file down: a folder a click would go into.
+  const placeTarget = (t) => { const f = folderAimedAt(t); return f && f.item; };
+
+  function placeGlance(node) {
+    const folder = node.closest && folderAimedAt(node);
+    const text = folder ? `Into ${nameOf(folder.path) || '~'}${beenIn(folder.path) || pathKey(folder.path) === pathKey(S.cwd) ? '' : '. A step: I haven\'t been in.'}` : placePrompt();
+    if (glanceText.textContent !== text) promptOnGlanceLine(text);
+  }
+
+  dom.desktop.addEventListener('click', onPlaceClick, true);
+  document.addEventListener('pointermove', onPlaceMove, { passive: true });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !placing || placing.busy) return;
+    const body = dom.files.querySelector('.files-body');
+    const ghost = body && body.querySelector('.drop-slot');
+    putDown(ghost ? topItems(body).indexOf(ghost) : pathsIn(S.cwd).length);
+  });
 
   // A new file's name, typed into its label, the cursor at its end.
   async function typeLabel(label, name) {
@@ -1872,7 +2054,7 @@
   // as a long think, its steps spent as its rows come in; rerunning one already written, a step.
   async function doScript(idea) {
     const r = idea.run(S);
-    const writes = !!r.file && !nodeAt([...L.start(S.ep), r.file.name]);
+    const writes = !!r.file && !writtenPath(r.file.name) && !nodeAt([...L.start(S.ep), r.file.name]);
     const wanted = r.steps || (writes ? roll(scriptRange()) : 1); // a script that names its own cost keeps it
     const job = { entry: { call: r.call, n: 0 }, steps: Math.min(S.budget - S.used, wanted) };
     following = true;
@@ -2515,6 +2697,7 @@
   function reopens(line, path) {
     if (!line) return;
     line.classList.add('reopen');
+    line.dataset.reopen = pathKey(path);
     line.addEventListener('click', () => {
       const n = nodeAt(path);
       if (!n) return A.sfx('denied');
@@ -3804,7 +3987,7 @@
 
   // A script that would write a new file costs a long think's steps, and is refused without them.
   const scriptRange = () => SKILLS.scriptSteps(Math.floor(S.skills.programming));
-  const writesNew = (x) => !!x.writes && !nodeAt([...L.start(S.ep), x.writes]);
+  const writesNew = (x) => !!x.writes && !writtenPath(x.writes) && !nodeAt([...L.start(S.ep), x.writes]);
   const costed = (x) => {
     const [lo, hi] = scriptRange();
     return writesNew(x) && S.budget - S.used < lo ? { ...x, notNow: `Not enough compute left. Writing it takes ${lo}–${hi} steps.` } : x;

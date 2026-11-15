@@ -183,21 +183,30 @@
   veil.className = 'aim-veil';
   veil.setAttribute('aria-hidden', 'true');
   const VEIL = 2000; // how far past the desk it reaches, every way
-  const NEAR = 14;   // thinking about, over nothing: the brackets stay open this far round the pointer
+  const placing = () => desktop.classList.contains('placing'); // a new file, carried in the brackets to where it goes
+  const near = () => (placing() ? 22 : 14); // aiming, over nothing: the brackets stay open this far round the pointer
   // Aiming, a mark exactly where the pointer is, held or not: the brackets say what a click
   // would take, this says where the pointer is.
   const mark = document.createElement('div');
   mark.className = 'aim-mark';
   mark.setAttribute('aria-hidden', 'true');
   mark.style.display = 'none';
-  desktop.append(veil, probe, reticle, mark);
+  // Putting a file down, the file itself is the mark: its icon, in the brackets.
+  const carry = document.createElement('div');
+  carry.className = 'aim-carry';
+  carry.setAttribute('aria-hidden', 'true');
+  carry.style.display = 'none';
+  desktop.append(veil, probe, reticle, mark, carry);
 
   function drawMark() {
     const on = aiming() && pointer && !puppet && !isPhoneLayout();
-    mark.style.display = on ? '' : 'none';
+    mark.style.display = on && !placing() ? '' : 'none';
+    carry.style.display = on && placing() ? '' : 'none';
     if (!on) return;
     const d = frame();
-    mark.style.transform = `translate(${Math.round((pointer.x - d.left) / d.k)}px, ${Math.round((pointer.y - d.top) / d.k)}px)`;
+    const at = `translate(${Math.round((pointer.x - d.left) / d.k)}px, ${Math.round((pointer.y - d.top) / d.k)}px)`;
+    mark.style.transform = at;
+    carry.style.transform = at;
   }
 
   const spring = (k, c, eps) => ({ x: 0, v: 0, to: 0, k, c, eps });
@@ -274,7 +283,8 @@
     if (!aiming() || editing() || !arm.on || !pointer || puppet) return null;
     const x = Math.round((pointer.x - d.left) / d.k);
     const y = Math.round((pointer.y - d.top) / d.k);
-    return [x - NEAR, y - NEAR, x + NEAR, y + NEAR];
+    const n = near();
+    return [x - n, y - n, x + n, y + n];
   }
 
   // However the brackets are getting there, the pointer stays inside them.
@@ -391,16 +401,24 @@
     }
   }
 
-  // The veil's hole: the brackets' box, while they hold something.
+  // The veil's holes: the brackets' box, while they hold something, and putting a file down,
+  // the folder it could go in.
   function drawVeil(x0, y0, x1, y1, k) {
     const W = desktop.offsetWidth + 2 * VEIL;
     const H = desktop.offsetHeight + 2 * VEIL;
     let d = `M0,0H${W}V${H}H0Z`;
-    if (k > 0.05) {
-      const m = 3 * k;
-      const [a, b, c, e] = [x0 - m + VEIL, y0 - m + VEIL, x1 + m + VEIL, y1 + m + VEIL];
-      const r = Math.min(6, (c - a) / 2, (e - b) / 2);
+    const hole = (a, b, c, e, r) => {
+      r = Math.min(r, (c - a) / 2, (e - b) / 2);
       d += `M${a + r},${b}H${c - r}Q${c},${b} ${c},${b + r}V${e - r}Q${c},${e} ${c - r},${e}H${a + r}Q${a},${e} ${a},${e - r}V${b + r}Q${a},${b} ${a + r},${b}Z`;
+    };
+    const win = placing() && filesCol.querySelector('#files > .window');
+    if (win) {
+      const r = local(win, frame());
+      hole(r.x + VEIL, r.y + VEIL, r.x + r.w + VEIL, r.y + r.h + VEIL, 8);
+    }
+    if (k > 0.05 && !(win && held && win.contains(held))) { // inside the folder's hole, a second would shade it again
+      const m = 3 * k;
+      hole(x0 - m + VEIL, y0 - m + VEIL, x1 + m + VEIL, y1 + m + VEIL, 6);
     }
     veil.style.clipPath = `path(evenodd, "${d}")`;
   }
@@ -449,7 +467,7 @@
     // The AI's column may be gliding, and the folder's window resizes as it
     // changes (motion.js): keep hold.
     const moving = !springs.every(settled) || arm.spark >= 0 ||
-      agentCol.getAnimations().length > 0 || (held && filesCol.getAnimations({ subtree: true }).length > 0);
+      agentCol.getAnimations().length > 0 || ((held || placing()) && filesCol.getAnimations({ subtree: true }).length > 0);
     if (moving) raf = requestAnimationFrame(tick);
   }
 
@@ -581,7 +599,7 @@
   new ResizeObserver(follow).observe(agentCol);       // the terminal grows, and moves the face down
   // A click usually redraws the files: find what's under the pointer now.
   new MutationObserver(() => {
-    if (held && !held.isConnected) wake();
+    if ((held && !held.isConnected) || placing()) wake();
   }).observe(filesCol, { subtree: true, childList: true });
 
   // Something can cover the files under a still pointer: the browser, the
@@ -744,5 +762,6 @@
     reach: reachFor,
     press: pressIt,
     done: letPuppetGo,
+    carry: (svg) => { carry.innerHTML = svg; },
   };
 })();
