@@ -367,6 +367,8 @@ button { font: inherit; color: inherit; }
    sits at the bottom, by the buttons, until it fills. */
 :root:not([data-layout="phone"]) .agent-col { height: calc(var(--win-h) + var(--pad-y)); max-height: none; margin-top: calc(-1 * var(--pad-y)); }
 :root:not([data-layout="phone"]) #term { flex: 1 1 auto; min-height: 0; }
+/* The right column sits in the middle of the screen, top to bottom, however tall it grows. */
+:root:not([data-layout="phone"]) .files-col { align-self: center; }
 :root:not([data-layout="phone"]) .term-body { display: flex; flex-direction: column; }
 :root:not([data-layout="phone"]) #out { margin-top: auto; }
 #resources { color: var(--web); }
