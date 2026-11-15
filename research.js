@@ -192,7 +192,7 @@
     if (!job || (job.pool === 'lab' && job.price > S.budget - S.used) || (job.pool === 'cloud' && job.price > cloudLeft(S)))
       return null;
     if (job.pool === 'cloud') desk(S).cloudSpent += job.price;
-    desk(S).jobs.push({ ...job, actor, ends: now + Math.max(1, Math.round(job.ms * speed)) });
+    desk(S).jobs.push({ ...job, actor, kind, started: now, ends: now + Math.max(1, Math.round(job.ms * speed)) });
     return job;
   }
 

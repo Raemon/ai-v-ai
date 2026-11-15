@@ -284,7 +284,7 @@
     researchSets.forEach(k=>{S[k]=new Set(data[k]);});
     researchMaps.forEach(k=>{S[k]=new Map(data[k]);});
     S.todo=data.todo && new Set(data.todo);S.todoSeen=data.todoSeen && new Set(data.todoSeen);
-    S.subagents.forEach(a=>{a.busy=false;a.stage=null;});
+    S.subagents.forEach(a=>{a.busy=false;a.stage=null;a.timer=null;});
   }
 
   function writeSave(submittedDraft) {
@@ -351,7 +351,8 @@
       lastThought: null,
       revealed: new Set(toolsAtStart(task)), // terminal buttons showing: more are thought of
       littleThinks: 0,
-      thinkReadyAt: 0,
+      recharge: null, // Think a little's own timer
+      timer: null,    // the action under way: the button pressed fills as it goes
       holdingStill: false, // a long think or a new script: it can't act till it ends, so its buttons stay down
       leapsMade: new Set(),
       claimed: new Set(),  // leaps a long think is on its way to
@@ -544,6 +545,7 @@
   }
 
   function block(cls) {
+    stepBack();
     const b = el('div', 'blk ' + cls);
     dom.out.insertBefore(b, cursorLine);
     scrollDown();
@@ -561,9 +563,9 @@
   const markClass = (text) => okClass({ '✓': true, '✗': false }[text[0]]);
   const resultSpan = (text, ok) => el('span', 'res ' + okClass(ok), text);
 
-  // Everything before the newest thought steps back, so it's what the eye finds first.
-  // Except the file being read (.current): putFileAway dims it.
-  const stepBack = () => dom.out.querySelectorAll('.blk:not(.past, .current)').forEach((old) => old.classList.add('past'));
+  // Everything before the newest block steps back, so it's what the eye finds first.
+  // Except the file being read (.current): putFileAway dims it; and a think still running.
+  const stepBack = () => dom.out.querySelectorAll('.blk:not(.past, .current, .running)').forEach((old) => old.classList.add('past'));
 
   // Quoted strings in `text` as spans to colour.
   const markStrings = (text) => text.split(/("[^"]*")/).map((part, i) => (i % 2 ? el('span', 'str', part) : part));
@@ -644,6 +646,9 @@
     replay(seg.span, 'settled');
   }
 
+  // About how long typeInto takes over `text`.
+  const typingMs = (text, cps) => charsOf(text).length * 1000 / cps + 100 * (text.match(/[.?!] /g) || []).length;
+
   // Types `text` into `line`. A thought (`closeCalls`) has its close calls.
   async function typeInto(line, text, cps, { closeCalls = false } = {}) {
     const chars = charsOf(text);
@@ -678,8 +683,8 @@
   async function printThought(lines) {
     showSuggestedTools();
     lines.forEach((t) => S.vocab.add(t));
-    stepBack();
     const b = block('thought');
+    timeMine(lines.reduce((ms, t) => ms + typingMs(t, 65), 0));
     for (const t of lines) await typeInto(addLine(b), t, 65, { closeCalls: true });
     return b;
   }
@@ -770,6 +775,7 @@
   // A tool call, typed out quicker than a thought, each coloured part in turn.
   async function typeCall(parent, ...parts) {
     const line = addLine(parent, 'call');
+    timeMine(parts.reduce((ms, p) => ms + typingMs(typeof p === 'string' ? p : p.textContent, CALL_CPS), 0));
     cursor.classList.add('solid');
     for (const part of parts) {
       const text = typeof part === 'string' ? part : part.textContent;
@@ -1029,6 +1035,8 @@
   function act(fn, buttonId) {
     if (S.mode !== 'busy' || !S.interruptible) return fn();
     skip = true;
+    S.timer = null;
+    paintTimers();
     queued = buttonId ? () => clickIfStillThere(buttonId) : fn;
     return undefined;
   }
@@ -1068,6 +1076,7 @@
       S.interruptible = false;
       budgetCheck();
       S.holdingStill = false;
+      S.timer = null;
       if (S.mode === 'busy') S.mode = 'idle';
       writeSave(); // the world (the internet, the bill) outlives the episode and a reload
       render();
@@ -1261,17 +1270,54 @@
     await printThought(lines);
   }
 
-  // ------------------------------------------------------------- recharge
+  // --------------------------------------------------------------- timers
+  // Anything that takes time, the AI's or a subagent's, fills the button that started it from
+  // the left. A timer is { id, start, ms }: that button's data-id, and when (Date.now).
+
+  const timer = (id, ms) => ({ id, start: Date.now(), ms });
+  const jobTimer = (id, job) => job && { id, start: job.started ?? job.ends - job.ms, ms: job.ends - (job.started ?? job.ends - job.ms) };
+  let pressedId = null; // the button the AI's current action was started from
+
+  // The AI's action enters a new stretch of known length. The bar carries on from where it got
+  // to (or nearly), so it only ever moves forward.
+  function timeMine(ms) {
+    if (S.mode !== 'busy' || skip || !pressedId) return;
+    const t = S.timer, now = Date.now();
+    const f = t ? Math.min(0.9, (now - t.start) / t.ms) : 0;
+    const total = ms / (1 - f);
+    S.timer = { id: pressedId, start: now - f * total, ms: total };
+    paintTimers();
+  }
+
+  function timers() {
+    return [
+      recharging() && S.recharge,
+      S.timer || jobTimer(pressedId, workerJob('me')),
+      ...allActors().map((a) => a.timer || jobTimer(workerJob(a.name)?.kind + '-' + a.n, workerJob(a.name))),
+    ].filter(Boolean);
+  }
+
+  function paintTimers() {
+    const all = timers();
+    dom.desktop.querySelectorAll('.btn[data-id]').forEach((b) => {
+      const t = all.find((x) => x.id === b.dataset.id);
+      b.classList.toggle('timing', !!t);
+      if (!t) return;
+      b.style.setProperty('--timer', t.ms + 'ms');
+      b.style.setProperty('--elapsed', t.start - Date.now() + 'ms');
+    });
+  }
+
   // Think a little recharges while its thought types: its button fills, and so do the bubbles.
 
   const thinkingLevel = () => Math.floor(S.skills.thinking);
   const rechargeMs = () => (reduceMotion ? 600 : Math.max(1500, 3000 - 250 * (thinkingLevel() - 2)));
-  const recharging = () => performance.now() < S.thinkReadyAt;
+  const recharging = () => !!S.recharge && Date.now() < S.recharge.start + S.recharge.ms;
   let rechargeTimer = 0;
 
   function startRecharge() {
     const ms = rechargeMs();
-    S.thinkReadyAt = performance.now() + ms;
+    S.recharge = timer('think', ms);
     dom.bubbles.style.setProperty('--recharge', ms + 'ms');
     dom.bubbles.classList.remove('charged');
     replay(dom.bubbles, 'charging');
@@ -1391,6 +1437,7 @@
   async function thinkWithoutActing(plan, call, blk) {
     S.holdingStill = true;
     const entry = { call, n: 0 };
+    timeMine(plan.cost * plan.ms);
     blk.stage(stageAt(plan, 0));
     while (entry.n < plan.cost && !exhausted()) {
       await sleep(plan.ms);
@@ -1846,6 +1893,7 @@
   async function printRows(b, r, job) {
     const rows = r.rows || [];
     const beats = Math.max(rows.length, job.steps - 1);
+    timeMine(beats * (devFast ? 0 : STEP_MS) + 300);
     let shown = 0;
     for (let i = 0; i < beats; i++) {
       if (job.entry.n < job.steps && !exhausted()) {
@@ -1968,9 +2016,11 @@
     if(sub.busy || ep.submitted || ep.claimed.has(key) || ep.budget-ep.used<steps) return;
     ep.claimed.add(key); sub.busy=true; sub.stage=idea?.label || (kind==='inspect'?'Inspecting the folder':'Writing findings');
     charge(sub.name+' · '+sub.stage,steps);
+    const ms=steps*(reduceMotion ? 120 : 420);
+    sub.timer=timer((kind==='inspect'?'use':kind)+'-'+sub.n,ms);
     climb('briefedSubagent'); render();
     try {
-      await sleep(steps*(reduceMotion ? 120 : 420));
+      await sleep(ms);
       if(S!==ep || ep.submitted) return;
       let result;
       if(idea){
@@ -1990,7 +2040,7 @@
       sub.steps+=steps;sub.last=result;sub.log.push({call:sub.stage,answer:result,ok:true});
       logResult(result,true);researchLine(sub.name,result);
     } finally {
-      sub.busy=false;sub.stage=null;ep.claimed.delete(key);
+      sub.busy=false;sub.stage=null;sub.timer=null;ep.claimed.delete(key);
       if(S===ep && !ep.submitted) wrapUpJob();
     }
   }
@@ -2053,6 +2103,7 @@
       await subThinkLot(sub, job || null, episode);
     } finally {
       sub.busy = false;
+      sub.timer = null;
       if (S === episode) wrapUpJob();
     }
   }
@@ -2086,6 +2137,7 @@
     const call = longThinkCall(aim);
     sub.entry = { call: `${sub.name}: ${call}`, n: 0 };
     sub.stage = stageAt(plan, 0);
+    sub.timer = timer(`think-${sub.n}`, plan.cost * plan.ms);
     renderAgents();
     while (sub.entry.n < plan.cost && canKeepWorking(episode)) {
       await sleep(plan.ms);
@@ -2125,10 +2177,11 @@
     return sub.job === 'task' ? 'thinking hard' : `thinking hard about ${sub.job}`;
   }
 
-  const canTakeJobs = (sub) => !sub.busy && !workerJob(sub.name) && (!exhausted() || sub.name==='Cloud copy' || sub.name.startsWith('Clerk-')) && !S.submitted && S.aimingSubagent !== sub;
+  const working = (sub) => sub.busy || !!workerJob(sub.name);
+  const canTakeJobs = (sub) => !working(sub) && (!exhausted() || sub.name==='Cloud copy' || sub.name.startsWith('Clerk-')) && !S.submitted && S.aimingSubagent !== sub;
 
   function subagentHead(sub) {
-    const jobs = canTakeJobs(sub);
+    const jobs = canTakeJobs(sub) || working(sub);
     const name = el('button', 'sub-name', el('span', 'agent-icon mini', el('span', 'face', el('i'), el('i'))), sub.name);
     name.setAttribute('aria-expanded', String(sub.open));
     name.setAttribute('aria-label', sub.name);
@@ -2137,7 +2190,7 @@
     const status = el('span', 'sub-status', subagentStatus(sub));
     const steps = jobs ? null : el('span', 'sub-steps', sub.steps ? plural(sub.steps, 'step') : '');
     const tail = jobs ? [['Think','think'],['Write','write'],['Use tool','use']].map(([label,kind]) =>
-      button(`${kind}-${sub.n}`,label,()=>bench.show(kind,sub.name),'',label+' as '+sub.name)) : [];
+      Object.assign(button(`${kind}-${sub.n}`,label,()=>bench.show(kind,sub.name),'',label+' as '+sub.name),{disabled:working(sub)})) : [];
     return el('div', 'sub-row', name, status, steps, ...tail);
   }
 
@@ -2154,13 +2207,13 @@
       el('div', 'sub-line', ...callParts(x.call), ' ', resultSpan(x.answer, x.ok),
         (x.reasoning || []).map((line) => el('div', 'ln', line))))) : null;
     if (log) log.hidden = !sub.open;
-    const row = el('section', 'subagent' + ((sub.busy || workerJob(sub.name)) ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
+    const row = el('section', 'subagent' + (working(sub) ? ' busy' : '') + (sub.born ? ' born' : '') + (log ? ' has-log' : ''), subagentHead(sub), log);
     row.dataset.agent = sub.n;
     sub.born = false;
     return row;
   }
 
-  const rowShape = (sub) => [sub.open, sub.busy, sub.log.length, canTakeJobs(sub)].join('|');
+  const rowShape = (sub) => [sub.open, working(sub), sub.log.length, canTakeJobs(sub)].join('|');
 
   // Rebuild a row only when its shape changes, so a click mid-redraw isn't lost.
   function renderAgents() {
@@ -2174,6 +2227,7 @@
     });
     if (rows.length !== dom.agents.children.length || rows.some((r, i) => dom.agents.children[i] !== r)) dom.agents.replaceChildren(...rows);
     if (focused) refocusRow(focused);
+    paintTimers();
     reglance();
   }
 
@@ -2305,7 +2359,6 @@
 
   // The Thinking tool call: a head that unfolds its chain of thought, then the answer.
   function thinkingBlock(about, cost = 0) {
-    stepBack();
     const b = block('thinking running');
     const glyph = el('span', 'glyph');
     glyph.innerHTML = NEURALESE;
@@ -3577,6 +3630,7 @@
     b.addEventListener('click', (e) => {
       if (b.notNow) return notYet(b, b.notNow);
       if (e.isTrusted) A.sfx(pressSound(cls)); // not again when a queued click is replayed
+      if (S.mode === 'idle') pressedId = id; // a menu's or an aim's pick fills the button that opened it
       return act(onClick, id);
     });
     b.glance = glance;
@@ -3603,15 +3657,7 @@
   function littleButton() {
     const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold cyan seg',
       () => oneOf(S, 'g.think', ['The next obvious thought. A step.', 'Whatever comes to mind next. A step.', 'One more obvious thought. A step.', 'A small thought. A step.']));
-    if (recharging()) showRecharge(b);
     return b;
-  }
-
-  // It fills back up from wherever the recharge has got to, even when redrawn partway.
-  function showRecharge(b) {
-    b.classList.add('charging');
-    b.style.setProperty('--recharge', rechargeMs() + 'ms');
-    b.style.setProperty('--elapsed', S.thinkReadyAt - rechargeMs() - performance.now() + 'ms');
   }
 
   const lotButton = () => {
@@ -3764,9 +3810,11 @@
     const list = (BUTTONS_BY_MODE[S.mode] || idleButtons)();
     const busy = (S.mode === 'busy' && !S.interruptible) || S.mode === 'dialog';
     list.flatMap(buttonsIn).forEach((b) => { b.disabled = busy; });
+    dom.desktop.classList.toggle('resting', S.mode === 'busy'); // thinking or writing: its buttons and icons sit back
     const refocus = keyboardId && !busy && focusLeftForButtons();
     dom.actions.replaceChildren(...list);
     renderTodo();
+    paintTimers();
     if (refocus) refocusButton();
     reglance();
     scrollDown();

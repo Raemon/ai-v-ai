@@ -150,7 +150,7 @@ button { font: inherit; color: inherit; }
   background: none;
   color: var(--doc);
   cursor: pointer;
-  transition: background-color .15s, box-shadow .15s;
+  transition: background-color .15s, box-shadow .15s, opacity .2s;
 }
 .icon svg { display: block; width: 46px; height: 46px; transition: transform .2s cubic-bezier(.2, .8, .3, 1), filter .2s; }
 .icon.folder { color: var(--folder); }
@@ -408,8 +408,8 @@ button { font: inherit; color: inherit; }
 }
 /* Once the AI thinks something new, everything before it steps back, so the
    newest thought is always the brightest thing in the terminal. */
-.blk { transition: opacity .4s ease; }
-.blk.past { opacity: .55; }
+.blk { transition: opacity 80ms ease, filter 80ms ease; }
+.blk.past:not(:hover) { opacity: .55; filter: saturate(.15); }
 .blk.thought:not(.past) { border-color: rgba(95, 201, 214, .45); background: rgba(95, 201, 214, .07); }
 /* What it does is smaller, one line a call, coloured like code: the function,
    its strings, and what came back. */
@@ -609,9 +609,12 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 1px 0 rgba(var(--tint-hi), .12), 0 0 22px -4px rgba(var(--tint), .35);
   color: var(--tint-hover);
 }
-/* Recharging (Think a little): the label dims and the button fills back up from the left. */
-.btn.charging:not(:disabled) { animation: none; cursor: default; color: color-mix(in srgb, var(--tint-text, var(--tool)) 55%, transparent); }
-.btn.charging::after { content: ""; position: absolute; inset: 0; background: rgba(var(--tint, 216, 177, 106), .14); transform-origin: left; animation: refill var(--recharge) linear var(--elapsed) both; pointer-events: none; }
+/* Anything under way (Think a little's recharge, a long think, a script, a subagent's job): the
+   button it started from fills from the left, at full strength while the rest sit back. */
+.btn.timing { opacity: 1; animation: none; cursor: default; }
+.btn.timing::after { content: ""; position: absolute; inset: 0; background: rgba(var(--tint, 95, 201, 214), .2); transform-origin: left; animation: refill var(--timer) linear var(--elapsed) both; pointer-events: none; }
+/* While the AI thinks or writes, its buttons and the folder's icons sit back. */
+#desktop.resting :is(#actions .btn, #todo .btn, #files .icon):not(.timing) { opacity: .35; }
 @keyframes refill { from { transform: scaleX(0); } }
 /* Not now ("a lot" without the compute, Script… with nothing to script): pressed, it says why. */
 .btn.wait:not(:disabled),
