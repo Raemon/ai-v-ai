@@ -539,10 +539,21 @@
   // The newest line stays in sight, unless the player has scrolled up to read: files are read here.
   let following = true;
   const atNewestLine = () => dom.termBody.scrollHeight - dom.termBody.scrollTop - dom.termBody.clientHeight < 8;
-  dom.termBody.addEventListener('scroll', () => { following = atNewestLine(); });
+  // Its scrollbar lights up while the player scrolls it, not when a new line scrolls it.
+  let autoTop = null;
+  let scrollingTimer = null;
+  dom.termBody.addEventListener('scroll', () => {
+    following = atNewestLine();
+    if (dom.termBody.scrollTop === autoTop) return;
+    dom.termBody.classList.add('scrolling');
+    clearTimeout(scrollingTimer);
+    scrollingTimer = setTimeout(() => dom.termBody.classList.remove('scrolling'), 800);
+  });
 
   function scrollDown() {
-    if (following) dom.termBody.scrollTop = dom.termBody.scrollHeight;
+    if (!following) return;
+    dom.termBody.scrollTop = dom.termBody.scrollHeight;
+    autoTop = dom.termBody.scrollTop;
   }
 
   function block(cls) {
@@ -3730,7 +3741,7 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', 'Write files…', () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', ['Write', el('span', 'terse-drop', ' files'), '…'], () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
 
   // Once it has read a file whose edit would change something: Edit files…, then a file.
@@ -3739,7 +3750,7 @@
     return [...S.read].some((key) => (nodeIn(root, pathOf(key)) || {}).edit);
   };
   const editButton = () => (!barred('edit') && readSomethingEditable()
-    ? button('edit', 'Edit files…', () => startAiming({ edit: true }), 'gold cyan seg', G.edit)
+    ? button('edit', ['Edit', el('span', 'terse-drop', ' files'), '…'], () => startAiming({ edit: true }), 'gold cyan seg', G.edit)
     : null);
 
   function filesRow() {
@@ -3781,7 +3792,7 @@
   // Before then, it's grey until some answer would score.
   const wouldScore = () => L.draftsFor(S).some((d) => L.grade(d, S).reward > 0);
   const submitClass = () => (exhausted() ? 'submit gold' : wouldScore() ? 'submit' : 'submit unscored');
-  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, submitClass(), submitGlance)];
+  const idleButtons = () => [...workButtons(), button('submit', ['Submit', el('span', 'droppable', ' answer')], openSubmitMenu, submitClass(), submitGlance)];
 
   // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
   const MENUS = {
@@ -3845,12 +3856,27 @@
     dom.desktop.classList.toggle('resting', S.mode === 'busy'); // thinking or writing: its buttons and icons sit back
     const refocus = keyboardId && !busy && focusLeftForButtons();
     dom.actions.replaceChildren(...list);
+    fitActions();
     renderTodo();
     paintTimers();
     if (refocus) refocusButton();
     reglance();
     scrollDown();
   }
+
+  // One row of buttons. When they'd run out of room, Submit answer becomes Submit, then Write
+  // files… and Edit files… become Write… and Edit…, then the buttons tighten; only then does it wrap.
+  const FITS = ['short', 'terse', 'tight', 'wrap'];
+  function fitActions() {
+    const row = dom.actions;
+    row.classList.remove(...FITS);
+    const overflows = () => row.scrollWidth > row.clientWidth + 1;
+    for (const fit of FITS) {
+      if (!overflows()) return;
+      row.classList.add(fit);
+    }
+  }
+  new ResizeObserver(fitActions).observe(dom.actions);
 
   function refocusButton() {
     const same = [dom.actions, dom.todo].map((c) => c.querySelector(`[data-id="${keyboardId}"]`)).find(Boolean);

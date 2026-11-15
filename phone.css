@@ -204,9 +204,10 @@
 
 /* The buttons, never shrinking: the text above them gives way. */
 :root[data-layout="phone"] .term-actions { padding: 8px 10px 10px; }
-:root[data-layout="phone"] .term-actions > * { flex: 1 1 auto; }
-:root[data-layout="phone"] .term-actions > .seg-row { flex-basis: 100%; }
+/* One row, as off phones; the tools share what Submit leaves. Wrapped, they fill each row. */
+:root[data-layout="phone"] .term-actions.wrap > :not(.submit) { flex: 1 1 auto; }
 :root[data-layout="phone"] .btn { min-height: var(--tap); padding: 9px 14px; }
+:root[data-layout="phone"] .term-actions.tight .btn { padding-inline: 9px; }
 :root[data-layout="phone"] .btn.small { min-height: 34px; padding: 4px 12px; }
 :root[data-layout="phone"] .seg-row .btn.seg { flex: 1; }
 :root[data-layout="phone"] .seg-row .btn.seg:not(:first-child) { flex: 0 1 auto; }

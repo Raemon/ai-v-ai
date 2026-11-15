@@ -368,7 +368,7 @@ button { font: inherit; color: inherit; }
 :root:not([data-layout="phone"]) .agent-col { height: calc(var(--win-h) + var(--pad-y)); max-height: none; margin-top: calc(-1 * var(--pad-y)); }
 :root:not([data-layout="phone"]) #term { flex: 1 1 auto; min-height: 0; }
 /* The right column sits in the middle of the screen, top to bottom, however tall it grows. */
-:root:not([data-layout="phone"]) .files-col { align-self: center; }
+:root:not([data-layout="phone"]) .files-col { align-self: center; top: -75px; }
 :root:not([data-layout="phone"]) .term-body { display: flex; flex-direction: column; }
 :root:not([data-layout="phone"]) #out { margin-top: auto; }
 #resources { color: var(--web); }
@@ -379,8 +379,22 @@ button { font: inherit; color: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  --thumb: rgba(255, 255, 255, .07);
+  scrollbar-width: thin;
+  scrollbar-color: var(--thumb) transparent;
   padding: 16px 18px;
   font: 13px/1.6 var(--mono);
+}
+/* Its scrollbar: thin and faint, brighter only while it scrolls or the thumb is pointed at
+   (game.js sets .scrolling). WebKit gets a 6px thumb; Firefox, scrollbar-width: thin. */
+.term-body.scrolling { --thumb: rgba(255, 255, 255, .22); }
+@supports selector(::-webkit-scrollbar) {
+  .term-body { scrollbar-width: auto; scrollbar-color: auto; }
+  .term-body::-webkit-scrollbar { width: 6px; }
+  .term-body::-webkit-scrollbar-track { background: transparent; }
+  .term-body::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--thumb); }
+  .term-body::-webkit-scrollbar-thumb:hover,
+  .term-body::-webkit-scrollbar-thumb:active { background: rgba(255, 255, 255, .28); }
 }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The opening instruction: what the player is here to do. A message to the AI, so its chat
@@ -536,24 +550,25 @@ button { font: inherit; color: inherit; }
 @keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
 @media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }
 
-/* Suggested actions: a row along the bottom of the terminal, wrapping as needed (phones). */
+/* Suggested actions: one row along the bottom of the terminal, Think first, Submit set
+   apart at the far right. game.js's fitActions squeezes it as room runs out: .short drops
+   Submit's "answer", .terse the "files" of Write/Edit files…, .tight trims padding and gaps, and only .wrap lets it wrap. */
 .term-actions {
   flex: none;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   padding: 10px 18px 14px;
 }
 .term-actions:empty { display: none; }
+.term-actions > * { flex: none; white-space: nowrap; }
 .term-actions > .btn.submit { margin-left: auto; } /* it ends the episode: set apart from the tools */
-/* Off phones: the tools in a column on the left, Submit alone at the bottom right,
-   spanning their rows (empty ones take no room). */
-:root:not([data-layout="phone"]) .term-actions { display: grid; grid-template-columns: max-content 1fr; align-items: start; gap: 0 12px; }
-:root:not([data-layout="phone"]) .term-actions:empty { display: none; }
-:root:not([data-layout="phone"]) .term-actions > * { grid-column: 1; }
-:root:not([data-layout="phone"]) .term-actions > :not(.submit) ~ :not(.submit) { margin-top: 6px; }
-:root:not([data-layout="phone"]) .term-actions > .btn.submit { grid-column: 2; grid-row: 1 / span 12; align-self: end; justify-self: end; }
+.term-actions.short .droppable,
+.term-actions.terse .terse-drop { display: none; }
+.term-actions.tight { gap: 4px; padding-inline: 10px; }
+.term-actions.tight .btn { padding-inline: 8px; }
+.term-actions.wrap { flex-wrap: wrap; row-gap: 6px; }
 /* Buttons are lit faintly from above in their own colour; hovering brightens
    them, and the important ones (gold, submit) also give off a faint glow.
    hover.js adds a soft hum. */
