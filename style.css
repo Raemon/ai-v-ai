@@ -348,8 +348,8 @@ button { font: inherit; color: inherit; }
 .agent-status .meters { display: flex; gap: 12px; }
 #compute { text-transform: uppercase; letter-spacing: .04em; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
-/* Off phones: compute sits centred under the face; the glance line is the terminal's
-   last line, where the cursor waits (game.js moves it there), so no cursor shows. */
+/* Off phones: compute sits centred under the face; the glance line sits over the buttons,
+   outside the scrolling terminal (game.js moves it there). */
 :root:not([data-layout="phone"]) .agent-status { padding: 48px 0 0; }
 :root:not([data-layout="phone"]) .agent-status .meters {
   width: max-content;
@@ -362,6 +362,13 @@ button { font: inherit; color: inherit; }
   transform: translateX(-50%);
 }
 :root:not([data-layout="phone"]) .cursor-line > .cursor { display: none; }
+:root:not([data-layout="phone"]) #term > .glance-line { flex: none; padding: 6px 18px 0; }
+/* Off phones the terminal runs from the top of the screen down to the face, and what's in it
+   sits at the bottom, by the buttons, until it fills. */
+:root:not([data-layout="phone"]) .agent-col { height: calc(var(--win-h) + var(--pad-y)); max-height: none; margin-top: calc(-1 * var(--pad-y)); }
+:root:not([data-layout="phone"]) #term { flex: 1 1 auto; min-height: 0; }
+:root:not([data-layout="phone"]) .term-body { display: flex; flex-direction: column; }
+:root:not([data-layout="phone"]) #out { margin-top: auto; }
 #resources { color: var(--web); }
 #resources:empty { display: none; } /* or its gap pushes compute off the face's centre */
 #earlier, .rotate { display: none; } /* phones only: phone.css */
@@ -416,6 +423,8 @@ button { font: inherit; color: inherit; }
 .blk.tool { font-size: var(--fs-meta); }
 .blk.tool .call { padding-left: 1.25em; text-indent: -1.25em; } /* a long call wraps under itself */
 .blk.tool .call::before { content: "● "; color: var(--call); }
+.blk.tool .call.reopen { cursor: pointer; } /* read_file and open_folder: click to open it again */
+.blk.tool .call.reopen:hover .fn { text-decoration: underline; text-underline-offset: 2px; }
 :is(.blk.tool, .sub-log) .fn { color: var(--call); }
 :is(.blk.tool, .sub-log) :is(.str, .quote) { color: color-mix(in srgb, var(--str) 70%, var(--dim)); }
 :is(.blk.tool, .sub-log) .res { color: var(--dim); }
