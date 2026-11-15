@@ -11,7 +11,7 @@
   --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
   /* Three columns: the terminal, the folder the AI is in, and the web browser
      while it's open. Each is as tall as what's in it, up to --win-h. */
-  --term-w: 490px;
+  --term-w: 570px;
   --files-w: 510px;   /* the folder: its whole path on one line; 410 beside the browser (game.js fitDesk) */
   --browser-w: 428px;
   --side-pad: 32px;  /* the desk's sides */
@@ -350,7 +350,7 @@ button { font: inherit; color: inherit; }
 #compute.low { color: var(--warn); font-size: 13px; font-weight: 600; } /* running out: now it matters */
 /* Off phones: compute sits centred under the face; the glance line is the terminal's
    last line, where the cursor waits (game.js moves it there), so no cursor shows. */
-:root:not([data-layout="phone"]) .agent-status { padding-left: 0; }
+:root:not([data-layout="phone"]) .agent-status { padding: 48px 0 0; }
 :root:not([data-layout="phone"]) .agent-status .meters {
   width: max-content;
   max-width: calc(2 * (30% + 60px)); /* never past the column's left edge */
@@ -363,6 +363,7 @@ button { font: inherit; color: inherit; }
 }
 :root:not([data-layout="phone"]) .cursor-line > .cursor { display: none; }
 #resources { color: var(--web); }
+#resources:empty { display: none; } /* or its gap pushes compute off the face's centre */
 #earlier, .rotate { display: none; } /* phones only: phone.css */
 
 .term-body {
