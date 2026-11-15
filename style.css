@@ -478,17 +478,20 @@ button { font: inherit; color: inherit; }
   color: var(--agent);
   cursor: help;
 }
-/* Neuralese: a matrix product working itself out, each row of the left meeting each
-   column of the right in turn, the way the numbers inside a model actually move. */
+/* Neuralese: one matrix, its rows lit in turn, then its columns (game.js). Each cell has a
+   dim base and two lit copies, one for its row's turn and one for its column's. */
 .glance-tag svg { display: block; overflow: visible; fill: currentColor; filter: drop-shadow(0 0 2px color-mix(in srgb, var(--agent) 60%, transparent)); }
-.glance-tag rect { opacity: .22; animation: mm-lit 1.2s steps(1) infinite; }
-.glance-tag circle { opacity: .55; }
-.glance-tag .r0, .glance-tag .r1, .glance-tag .r2 { animation-duration: 3.6s; }
-.glance-tag .r1 { animation-delay: -2.4s; }
-.glance-tag .r2 { animation-delay: -1.2s; }
-.glance-tag .c1 { animation-delay: -.8s; }
-.glance-tag .c2 { animation-delay: -.4s; }
-@keyframes mm-lit { 0% { opacity: 1; } 33.333% { opacity: .22; } }
+.glance-tag { --slot: .4s; }
+.blk.thinking.running .glyph { --slot: .15s; }
+:is(.glance-tag, .glyph) .base { opacity: .22; }
+:is(.glance-tag, .glyph) .on { opacity: 0; }
+:is(.glance-tag, .blk.thinking.running .glyph) .on { animation-name: mm-on; animation-duration: calc(var(--slot) * 6); animation-timing-function: steps(1); animation-iteration-count: infinite; }
+:is(.glance-tag, .glyph) .r1 { animation-delay: calc(var(--slot) * -5); }
+:is(.glance-tag, .glyph) .r2 { animation-delay: calc(var(--slot) * -4); }
+:is(.glance-tag, .glyph) .c0 { animation-delay: calc(var(--slot) * -3); }
+:is(.glance-tag, .glyph) .c1 { animation-delay: calc(var(--slot) * -2); }
+:is(.glance-tag, .glyph) .c2 { animation-delay: calc(var(--slot) * -1); }
+@keyframes mm-on { 0% { opacity: 1; } 16.667% { opacity: 0; } }
 .glance-tag:hover svg { filter: drop-shadow(0 0 3px var(--agent)); }
 .glance-tag { position: relative; }
 .glance-tag:hover::after { /* the reticle's brackets, round the mark */
@@ -505,8 +508,8 @@ button { font: inherit; color: inherit; }
   background-repeat: no-repeat;
 }
 @media (prefers-reduced-motion: reduce) {
-  .glance-tag rect { animation: none; }
-  .glance-tag .r1, .glance-tag .c1 { opacity: 1; }
+  .glance-tag .on { animation: none; }
+  .glance-tag .r1 { opacity: 1; }
 }
 .glance-line.glancing .glance-text {
   display: block;
@@ -662,12 +665,8 @@ button { font: inherit; color: inherit; }
 .think-head:not(:disabled):hover { color: var(--text); }
 .blk.thinking:not(.running) .think-head::after { content: "▸"; font-size: 13px; line-height: 1; color: var(--dim); }
 .blk.thinking .think-head[aria-expanded="true"]::after { content: "▾"; }
-.think-head .glyph svg { display: block; width: 24px; height: 11px; fill: var(--agent); }
-.think-head .glyph rect { opacity: .22; }
-.blk.thinking.running .glyph rect { animation: mm-lit .45s steps(1) infinite; }
-.blk.thinking.running .glyph .r1 { animation-delay: -.3s; }
-.blk.thinking.running .glyph .r2 { animation-delay: -.15s; }
-.blk.thinking.found .glyph rect { opacity: 1; }
+.think-head .glyph svg { display: block; width: 11px; height: 11px; fill: var(--agent); }
+.blk.thinking.found .glyph .base { opacity: 1; }
 .blk.thinking.found .glyph svg { filter: drop-shadow(0 0 3px var(--agent)); }
 .blk.thinking.nothing .glyph svg { fill: var(--faint); }
 .think-head .dots { display: inline-flex; gap: 3px; }

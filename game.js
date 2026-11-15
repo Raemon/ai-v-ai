@@ -504,11 +504,11 @@
 
   // ------------------------------------------------------------ terminal
 
-  // Neuralese: a matrix multiplying itself, one row by one column at a time. It marks
-  // glances, and pulses beside the AI's long thinking.
-  const cells = (x0, lit) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) =>
-    `<rect class="${lit}${lit === 'r' ? r : c}" x="${x0 + c * 4}" y="${1 + r * 4}" width="3" height="3" rx=".6"/>`)).join('');
-  const NEURALESE = `<svg viewBox="0 0 30 14" width="30" height="14">${cells(1, 'r')}<circle cx="15" cy="7" r="1"/>${cells(18, 'c')}</svg>`;
+  // Neuralese: one matrix, its rows lighting in turn and then its columns, the way the
+  // numbers inside a model move. It marks glances, and pulses beside the AI's long thinking.
+  const cell = (r, c, cls) => `<rect class="${cls}" x="${1 + c * 4}" y="${1 + r * 4}" width="3" height="3" rx=".6"/>`;
+  const grid = (cls) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => cell(r, c, cls(r, c)))).join('');
+  const NEURALESE = `<svg viewBox="0 0 14 14" width="14" height="14">${grid(() => 'base')}${grid((r) => 'on r' + r)}${grid((r, c) => 'on c' + c)}</svg>`;
 
   const cursor = el('span', 'cursor');
   const glanceText = el('span', 'glance-text');
