@@ -1572,6 +1572,11 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .sound-toggle svg { width: 16px; height: 16px; }
 .sound-toggle[aria-pressed="true"] .cross,
 .sound-toggle[aria-pressed="false"] .waves { display: none; }
+.voice-toggle { right: 42px; }
+.voice-toggle[aria-pressed="false"] .bars { opacity: .45; }
+.voice-toggle.speaking .bars { animation: voice-bars 1.1s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes voice-bars { 50% { transform: scaleY(.6); } }
+@media (prefers-reduced-motion: reduce) { .voice-toggle.speaking .bars { animation: none; } }
 
 /* ---------- tooltip ---------- */
 

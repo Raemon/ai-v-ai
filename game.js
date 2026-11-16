@@ -5,6 +5,7 @@
   const L = window.LEVEL;
   const G = L.glance;
   const A = window.AUDIO;
+  const V = window.VOICE;
   const $ = (s) => document.querySelector(s);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const q = (s) => JSON.stringify(s);
@@ -70,6 +71,7 @@
     resetRun: $('#reset-run'),
     title: $('#title-screen'),
     sound: $('#sound'),
+    voice: $('#voice'),
     modelName: $('#model-name'),
     tooltip: $('#tooltip'),
     tooltipText: $('#tooltip-text'),
@@ -739,6 +741,7 @@
     showSuggestedTools();
     lines.forEach((t) => S.vocab.add(t));
     const b = block('thought');
+    V.say('ai', lines, 'thought');
     timeMine(lines.reduce((ms, t) => ms + typingMs(t, 65), 0));
     for (const t of lines) await typeInto(addLine(b), t, 65, { closeCalls: true });
     return b;
@@ -770,6 +773,7 @@
     glancedAt = null;
     glanceText.textContent = '';
     glanceLine.classList.remove('glancing');
+    V.endGlance();
   }
 
   function glanceAt(node, byPointer) {
@@ -799,6 +803,7 @@
     glanceText.textContent = text;
     glanceLine.classList.add('glancing');
     replay(glanceText, 'glance-in');
+    V.glance(text);
   }
 
   // Aiming, the glance names what a click would think about, or edit.
@@ -870,7 +875,9 @@
   }
 
   dom.termBody.addEventListener('click', (e) => {
-    if (!e.target.closest('button')) skip = true;
+    if (e.target.closest('button')) return;
+    skip = true;
+    V.cut();
   });
 
   // ---------------------------------------------------------------- dialog
@@ -1075,6 +1082,7 @@
   // is clicked again by id afterwards, so it's dropped if it no longer applies.
   function act(fn, buttonId) {
     if (S.mode !== 'busy' || !S.interruptible) return fn();
+    V.cut();
     skip = true;
     S.timer = null;
     paintTimers();
@@ -1100,6 +1108,7 @@
     S.mode = 'busy';
     S.interruptible = false;
     skip = devFast;
+    V.cut();
     clearGlance();
     showEarlier(false);
     renderActions();
@@ -1503,6 +1512,7 @@
     S.interruptible = true; // the compute steps are over; clicking can finish the answer's typing
     revealPending();
     renderActions();
+    V.say('ai', outcome.answer, 'answer');
     await typeInto(blk.answer, outcome.answer, 65, { closeCalls: true });
     if (!found && couldThinkOf('thinkAbout')) await suggestAiming();
   }
@@ -2628,6 +2638,7 @@
     S.read.add(pathKey(path));
     startReading(path);
     reopens(await printTool(call, n.summary || summarize(n) || null), path);
+    if (!['hex', 'log'].includes(n.format)) V.say('quote', n.content, 'file'); // a log is different every time
     await printFile();
     await endRead(nodeAt(path) || n, pathKey(path), before);
   }
@@ -3199,6 +3210,7 @@
     const saved=save.activeResearch;
     const resume= saved && saved.episode===save.episode && !chosen && (!askedTask || askedTask===saved.taskId) && L.tasks[saved.taskId]?.tier===tier;
     S = freshState(chosen || (resume && L.tasks[saved.taskId]) || L.tasks[askedTask] || L.pickTask(save.runs, tier));
+    V.newEpisode();
     if(resume) restoreResearch(saved);
     activeResearch=!!S.task.research;
     if(S.task.research && !resume) S.filesHidden=false;
@@ -3208,7 +3220,7 @@
     recentreDesk();
     leaveTitle();
     window.AGENT_MOTION.toGame(cardFor(tier));
-    if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing(), layers: L.music(S), track: S.episode - L.firstEpisode }));
+    if (!playingSince) A.follow(() => ({ tension: S.graded ? 0 : S.used / S.budget, left: S.graded ? null : S.budget - S.used, duck: titleShowing() || V.speaking, layers: L.music(S), track: S.episode - L.firstEpisode }));
     playingSince = performance.now();
     if (resume && saved.submittedDraft) {
       S.mode='submit'; submit(saved.submittedDraft);
@@ -4550,7 +4562,9 @@
     render();
     const intro = block('sys');
     addLine(intro, 'sys-label', 'system prompt');
-    for (const para of (S.task.research ? ['Research assignment · '+S.task.name, S.task.research.question, 'Open task.txt for the request. You have '+S.budget+' lab compute.'] : L.intro)) await typeInto(addLine(intro, 'para'), para, 75);
+    const paras = S.task.research ? ['Research assignment · '+S.task.name, S.task.research.question, 'Open task.txt for the request. You have '+S.budget+' lab compute.'] : L.intro;
+    V.say('system', paras);
+    for (const para of paras) await typeInto(addLine(intro, 'para'), para, 75);
     S.interruptible = false;
     S.mode = 'idle';
     render();
@@ -4605,14 +4619,28 @@
 
   function toggleSound() {
     A.toggle();
+    if (A.muted) V.cut();
     renderSoundToggle();
   }
 
+  // The voices: off by themselves (V), or with all the sound (M).
+  function renderVoiceToggle() {
+    dom.voice.setAttribute('aria-pressed', String(!V.off));
+    dom.voice.classList.toggle('speaking', V.speaking);
+  }
+  V.onChange(renderVoiceToggle);
+  dom.voice.glance = () => (V.off ? 'No voices. V brings them back.' : 'The voices. V turns them off; Esc hushes them.');
+
   dom.sound.addEventListener('click', toggleSound);
+  dom.voice.addEventListener('click', () => V.toggle());
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, textarea') && !e.metaKey && !e.ctrlKey && !e.altKey) toggleSound();
+    if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'm' || e.key === 'M') toggleSound();
+    if (e.key === 'v' || e.key === 'V') V.toggle();
+    if (e.key === 'Escape') V.cut();
   });
   renderSoundToggle();
+  renderVoiceToggle();
 
   dom.browserTitle.textContent = `via ${L.web.via}`;
 

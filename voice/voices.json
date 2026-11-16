@@ -1,0 +1,6 @@
+{
+ "system": "D3xEwtjhE5mNMXIWyBzh",
+ "ai": "8iIZuRNSG9DJouRBsZyb",
+ "model": "eleven_v3",
+ "settings": { "stability": 0.5, "similarity_boost": 0.8 }
+}
