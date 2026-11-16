@@ -138,15 +138,19 @@
     if (isHtml(path)) {
       const x = raw.lastIndexOf('>', a - 1) + 1;
       const y = raw.indexOf('<', b);
-      return trim(x, y < 0 ? raw.length : y);
+      return [...trim(x, y < 0 ? raw.length : y), 'HTML text'];
     }
     if (!/\.js$/.test(path)) {
       const y = raw.indexOf('\n', b);
-      return trim(raw.lastIndexOf('\n', a - 1) + 1, y < 0 ? raw.length : y);
+      return [...trim(raw.lastIndexOf('\n', a - 1) + 1, y < 0 ? raw.length : y), 'line'];
     }
-    const lit = literalAt(raw, a, b);
-    if (!lit || lit.to - lit.from > 4000) return [a, b];
-    return lit.q === '//' || lit.q === '/*' ? trim(lit.from, lit.to) : [lit.from, lit.to];
+    // A match that runs past a string's quotes ("That settles "Will it…"" on the page) is the
+    // string it's mostly in.
+    const overlap = (sp) => Math.min(sp.to, b) - Math.max(sp.from, a);
+    const lit = literalAt(raw, a, b) || literals(raw).filter((sp) => !sp.q.startsWith('/') && overlap(sp) > 0).sort((x, y) => overlap(y) - overlap(x))[0];
+    if (!lit || lit.to - lit.from > 4000) return [a, b, 'code'];
+    if (lit.q === '//' || lit.q === '/*') return [...trim(lit.from, lit.to), 'comment'];
+    return [lit.from, lit.to, lit.q === '`' ? 'template string' : 'string'];
   }
 
   // files: [{ path, raw }]. Every place in the source that `shown` (or its longest piece around
@@ -154,6 +158,8 @@
   // `nearby` (the text around it on the page) first.
   function find(shown, files, at, nearby = '') {
     const decoded = files.map((f) => ({ ...f, ...decode(f.raw, f.path) }));
+    const lines = linesFor(shown, decoded);
+    if (lines.length) return { piece: { start: 0, length: shown.length, text: shown }, places: lines };
     const corpus = decoded.map((f) => f.text).join('\u0000');
     const piece = longestPiece(shown, (s) => corpus.includes(s), at);
     const tooShort = !piece || (piece.length < 3 && piece.length < shown.trim().length);
@@ -163,12 +169,12 @@
     const seen = new Set();
     for (const f of decoded) {
       for (let i = f.text.indexOf(text); i >= 0; i = f.text.indexOf(text, i + 1)) {
-        const [x, y] = unitAround(f.raw, f.path, f.from[i], f.to[i + text.length - 1]);
+        const [x, y, kind] = unitAround(f.raw, f.path, f.from[i], f.to[i + text.length - 1]);
         const start = firstAtLeast(f.from, x);
         const end = firstAtLeast(f.from, y);
         if (seen.has(`${f.path}:${start}`)) continue;
         seen.add(`${f.path}:${start}`);
-        places.push({ path: f.path, line: f.raw.slice(0, x).split('\n').length, start, text: f.text.slice(start, end), score: 0 });
+        places.push({ path: f.path, line: f.raw.slice(0, x).split('\n').length, start, text: f.text.slice(start, end), kind, score: 0 });
       }
     }
     const near = words(nearby);
@@ -178,6 +184,34 @@
       places.sort((a, b) => b.score - a.score);
     }
     return { piece: { ...piece, text }, places };
+  }
+
+  // A scenario's text that's a list of lines (a file's content, say) is on the page as one block
+  // of them. Every such list whose lines are the block's, as one place to edit them all.
+  const ARRAY = /\[\s*"(?:[^"\\\n]|\\.)*"(?:\s*,\s*"(?:[^"\\\n]|\\.)*")+\s*\]/g;
+  const squash = (s) => s.replace(/\s+/g, ' ').trim();
+  function linesFor(shown, decoded) {
+    const want = squash(shown);
+    if (!/\n/.test(shown.trim()) || want.length < 20) return [];
+    const places = [];
+    for (const f of decoded.filter((d) => isJson(d.path))) {
+      for (const m of f.raw.matchAll(ARRAY)) {
+        let list;
+        try { list = JSON.parse(m[0]); } catch (e) { continue; }
+        const text = list.join('\n');
+        if (squash(text) !== want && !(squash(text).includes(want) && want.length > squash(text).length / 2)) continue;
+        const from = m.index;
+        places.push({ path: f.path, line: f.raw.slice(0, from).split('\n').length, start: firstAtLeast(f.from, from), text, kind: `${list.length} lines`, list: { from, to: from + m[0].length } });
+      }
+    }
+    return places;
+  }
+
+  // The list written out again as the file had it: one string to a line, at its indent.
+  function listAs(raw, from, lines) {
+    const lineStart = raw.lastIndexOf('\n', from - 1) + 1;
+    const indent = /^\s*/.exec(raw.slice(lineStart, from))[0];
+    return `[\n${lines.map((l) => `${indent}  ${JSON.stringify(l)}`).join(',\n')}\n${indent}]`;
   }
 
   function escapeFor(text, path, raw, at) {
@@ -196,6 +230,7 @@
   // The change to the source that turns `place`'s text into `now`: only the part that differs, so
   // an escape the source wrote its own way stays as it was.
   function plan(raw, path, place, was, now) {
+    if (place.list) return { at: place.list.from, was: raw.slice(place.list.from, place.list.to), now: listAs(raw, place.list.from, now.split('\n')) };
     const { from, to } = decode(raw, path);
     let pre = 0;
     while (pre < was.length && pre < now.length && was[pre] === now[pre]) pre++;
@@ -230,9 +265,16 @@
   }
 
   const clip = (s, n = 40) => { const one = s.replace(/\s+/g, ' ').trim(); return one.length > n ? `${one.slice(0, n - 1)}…` : one; };
-  const message = (path, was, now) => `Text in ${path}: "${clip(was)}" → "${clip(now)}"`;
+  // From a little before where the two first differ, so a long text's message shows its change.
+  function message(path, was, now) {
+    let i = 0;
+    while (i < was.length && was[i] === now[i]) i++;
+    const from = i > 30 ? Math.max(was.lastIndexOf(' ', i - 15) + 1, i - 30) : 0;
+    const cut = (t) => (from ? '…' : '') + clip(t.slice(from), from ? 39 : 40);
+    return `Text in ${path}: "${cut(was)}" → "${cut(now)}"`;
+  }
 
-  const TEXT_EDIT = { decode, find, plan, apply, message, EDITABLE };
+  const TEXT_EDIT = { decode, find, plan, apply, message, clip, EDITABLE };
   if (typeof module === 'object' && module.exports) module.exports = TEXT_EDIT;
   else window.TEXT_EDIT = TEXT_EDIT;
 })();

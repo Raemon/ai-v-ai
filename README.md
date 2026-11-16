@@ -70,9 +70,10 @@ has the editor too, at `/scenario`: connect a GitHub token there and each Save i
 `main`, which the site picks up on its next deploy.
 
 To change any text you see, in the game or the editor, Cmd-click it (Ctrl-click off a Mac):
-holding the key outlines the line it's in. The panel opens the whole string it comes from in the
-source (`${…}` parts and all; a choice of places if it's in several), and **Commit** saves the new
-wording. Under `node tools/serve.js` that's a git commit of the one file on your computer; on the
+holding the key outlines the bubble or card it's in. The panel opens every string that bubble's
+text comes from in the source, one field each, whole (`${…}` parts and all; a file's list of lines
+as one text; a choice of places if it's in several), each labeled with its file, line and kind, and
+**Commit** saves the new wording. Under `node tools/serve.js` that's a git commit of the one file on your computer; on the
 deployed site it's a commit to `main` with the same GitHub token as the editor.
 
 Sound starts with your first click or key press. **M**, or the speaker in the

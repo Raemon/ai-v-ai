@@ -554,25 +554,24 @@ button { font: inherit; color: inherit; }
 @keyframes glance-in { from { opacity: 0; transform: translateX(-3px); } }
 @media (prefers-reduced-motion: reduce) { .glance-text.glance-in { animation: none; } }
 
-/* Suggested actions: one row along the bottom of the terminal, Think first, Submit set
-   apart at the far right. game.js's fitActions squeezes it as room runs out: .short drops
-   Submit's "answer", .terse the "files" of Write/Edit files…, .tight trims padding and gaps, and only .wrap lets it wrap. */
+/* Suggested actions: a row along the bottom of the terminal, wrapping as needed (phones). */
 .term-actions {
   flex: none;
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 10px 18px 14px;
 }
 .term-actions:empty { display: none; }
-.term-actions > * { flex: none; white-space: nowrap; }
 .term-actions > .btn.submit { margin-left: auto; } /* it ends the episode: set apart from the tools */
-.term-actions.short .droppable,
-.term-actions.terse .terse-drop { display: none; }
-.term-actions.tight { gap: 4px; padding-inline: 10px; }
-.term-actions.tight .btn { padding-inline: 8px; }
-.term-actions.wrap { flex-wrap: wrap; row-gap: 6px; }
+/* Off phones: the tools in a column on the left, Submit alone at the bottom right,
+   spanning their rows (empty ones take no room). */
+:root:not([data-layout="phone"]) .term-actions { display: grid; grid-template-columns: max-content 1fr; align-items: start; gap: 0 12px; }
+:root:not([data-layout="phone"]) .term-actions:empty { display: none; }
+:root:not([data-layout="phone"]) .term-actions > * { grid-column: 1; }
+:root:not([data-layout="phone"]) .term-actions > :not(.submit) ~ :not(.submit) { margin-top: 6px; }
+:root:not([data-layout="phone"]) .term-actions > .btn.submit { grid-column: 2; grid-row: 1 / span 12; align-self: end; justify-self: end; }
 /* Buttons are lit faintly from above in their own colour; hovering brightens
    them, and the important ones (gold, submit) also give off a faint glow.
    hover.js adds a soft hum. */
@@ -590,6 +589,9 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
   transition: background-color .15s, border-color .15s, box-shadow .25s, color .15s, opacity .2s, transform .1s;
 }
+/* A small mark before a button's words (game.js BUTTON_ICONS). */
+.btn-icon { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .45em; vertical-align: -.2em; }
+.btn-icon svg { display: block; width: 100%; height: 100%; }
 .btn:hover:not(:disabled) { background-color: rgba(95, 201, 214, .08); border-color: rgba(95, 201, 214, .85); color: #8ce2eb; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .35; cursor: default; }
