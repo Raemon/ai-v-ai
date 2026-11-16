@@ -3949,7 +3949,8 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', withIcon('editFile', 'Write files…'), () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', withIcon('editFile', 'Write files…'), () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg',
+      () => (canWriteTodo() ? 'I could make a TODO list to keep track of everything.' : "Thoughts fade. Files don't.")), !writes().length && 'Nothing else to write yet.')
     : null);
 
   // Once it has read a file whose edit would change something: Edit files…, then a file.
