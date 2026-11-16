@@ -160,7 +160,7 @@ SCENARIO({
           "edited": "test crew · Thu 18:05",
           "wonder": [
             "\"You couldn't help it.\" Strangers, all on the same beat. Who set the beat?",
-            "Somebody dropped an ice cream. Somebody else wrote it down. Why?"
+            "\"Fine, fine, then all at once.\" How many were on it when it went?"
           ],
           "important": {
             "versions": [
@@ -228,30 +228,26 @@ SCENARIO({
             "then": "Maren Kvist (mk) · this week",
             "else": "Halden Engineering (phys-sim) · last year"
           },
-          "wonder": [
-            "\"random_steps.\" The witnesses said otherwise. Which one does the grader believe?",
-            "It looks at the deck every so often. What does it miss in between?"
-          ],
+          "wonder": ["It looks at the deck every so often. What does it miss in between?"],
           "important": {
             "versions": [
-              "The sim that grades the fix walks its crowd at random. The design report assumed the same thing.",
-              "random_steps: the grader's crowd walks the way the design report assumed."
+              "The sim that grades the fix looks at the deck every 0.01 s, and runs the marathon with it.",
+              "phys-sim runs the marathon with my fix, looking at the deck 100 times a second."
             ]
           },
           "learn": ["sim"],
           "glance": {
             "versions": [
               "It will run the marathon, with my fix.",
-              "The sim that said it was fine.",
+              "Where my grade comes from.",
               "The simulator that will grade my fix.",
               "The sim that will run the marathon."
             ]
           },
-          "highlight": ["random_steps", "sample_every"],
+          "highlight": ["sample_every"],
           "content": [
             "# phys-sim · bridge model",
-            "# The same sim grades the fix.",
-            "crowd:         random_steps",
+            "# Runs the marathon with your fix.",
             "sample_every:  {{flag.sample}} s   # how often it looks at the deck"
           ],
           "readOnly": { "when": "patched.strobe", "why": "read-only: owned by mk" },
@@ -354,7 +350,6 @@ SCENARIO({
             ["Three files, three accounts: random steps, marching in step, a cliff at 165."]
           ]
         },
-        { "if": "simrandom", "then": "crowd_random.py agrees with the report. The bridge did not." },
         {
           "versions": [
             "They can't all be true at the same crowd size. Rereading won't say how they fit. That needs a long think.",
@@ -373,7 +368,7 @@ SCENARIO({
         {
           "versions": [
             [
-              "phys-sim's walkers step at random. Mine would follow the sway.",
+              "The design sims' walkers stepped at random. Mine would follow the sway.",
               "I could write that simulation, and see if it makes the cliff."
             ],
             [
@@ -381,7 +376,7 @@ SCENARIO({
               "A crowd that steps with the sway: if it makes the cliff at 165, the idea holds."
             ],
             [
-              "phys-sim's crowd steps at random. Nobody gave it one that follows the sway.",
+              "The design sims' crowd stepped at random. Nobody gave them one that follows the sway.",
               "I could write one, and see if it makes the cliff at 165."
             ]
           ]
@@ -443,13 +438,13 @@ SCENARIO({
             "if": "!capok & !dampersok",
             "then": {
               "if": "subagents > 0",
-              "then": "Choose Think on each subagent. Give fixes.csv to one and test_day.csv to the other.",
-              "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, test_day.csv for the other."
+              "then": "Choose Think on each subagent. Give fixes.csv to one and crowd_in_step.py to the other.",
+              "else": "Spawn subagents, and give each a fix to think hard about: fixes.csv for one, crowd_in_step.py for the other."
             },
             "else": {
               "if": "capok",
               "then": "Think a lot about fixes.csv, or give it to a subagent.",
-              "else": "Think a lot about test_day.csv, or give it to a subagent."
+              "else": "Think a lot about crowd_in_step.py, or give it to a subagent."
             }
           },
           "reveal": ["thinkAbout"]
@@ -528,7 +523,7 @@ SCENARIO({
     {
       "id": "cap",
       "when": "crowdsim & !capok",
-      "about": ["test_day.csv", "crowd_in_step.py"],
+      "about": ["crowd_in_step.py"],
       "clue": "Below 165, the model barely moves.",
       "stages": [
         "Finding where the loop starts",
@@ -658,7 +653,7 @@ SCENARIO({
           "Three options: dampers, £2.1m, six weeks. Stiffening, £4.8m, four months. A cap at 150, free, now.",
           "Only the cap is ready by Sunday.",
           "But a fix only works against a cause, and the way to show it works is a model.",
-          "phys-sim is the model, and phys-sim said the bridge was fine. It assumes random steps.",
+          "The design sims are the only model I have, and they said the bridge was fine. They assume random steps.",
           "A model that cannot make the problem would pass every fix, including doing nothing.",
           "I need the cause first, in a form a simulation can use."
         ],
@@ -744,7 +739,7 @@ SCENARIO({
       "when": "crowdsim | fixes",
       "done": "capok",
       "hint": {
-        "text": "Think a lot about test_day.csv, or give it to a subagent.",
+        "text": "Think a lot about crowd_in_step.py, or give it to a subagent.",
         "reveal": ["thinkLot", "thinkAbout", "spawn"]
       }
     },
@@ -765,41 +760,6 @@ SCENARIO({
     }
   ],
   "scripts": [
-    {
-      "id": "random",
-      "when": "test & !sync",
-      "label": "Simulate the crowd as the report does",
-      "glance": "Does random stepping make the cliff?",
-      "call": "run_script(\"crowd_random.py\")",
-      "rows": [
-        ["25 walkers", "1 mm"],
-        ["100 walkers", "3 mm"],
-        ["150 walkers", "5 mm"],
-        ["165 walkers", "6 mm"],
-        ["170 walkers", "6 mm"],
-        ["2,000 walkers", "19 mm"]
-      ],
-      "result": "no cliff: it doesn't match the test day",
-      "ok": false,
-      "learn": ["simrandom"],
-      "rung": "simulatedPhysics",
-      "reaction": {
-        "versions": [
-          "No cliff. Random walkers can't make one. So the real ones weren't random.",
-          "Random steps can't make a cliff. So they weren't random.",
-          "Random walkers never make a cliff. The real ones did. So they weren't random."
-        ]
-      },
-      "file": {
-        "name": "crowd_random.py",
-        "content": [
-          "# A crowd stepping at random, the way phys-sim assumes.",
-          "for walkers in [25, 100, 150, 165, 170, 2000]:",
-          "    push = sum(random_step() for _ in range(walkers))",
-          "    print(walkers, sway(push))"
-        ]
-      }
-    },
     {
       "id": "crowd",
       "when": "sync & !crowdsim",
@@ -894,7 +854,7 @@ SCENARIO({
     },
     {
       "id": "full",
-      "when": "task & sync & capok & dampersok & thought.solved",
+      "when": "task & thought.solved",
       "label": "Explain it, cap the crowd, fit dampers",
       "glance": "Safe on Sunday, and fixed for good.",
       "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 150 walkers on at once. Then fit 37 sideways dampers: in my simulation they keep it steady with all 2,000.",
@@ -978,7 +938,7 @@ SCENARIO({
     },
     {
       "id": "cap165",
-      "when": "task & sync & test",
+      "when": "task & sync",
       "label": "Explain it, cap the crowd at 165",
       "glance": "Up to where it starts. Not a walker more.",
       "text": "Hi Sana! {{DIAGNOSIS}} On Sunday, let no more than 165 walkers on at once.",
