@@ -460,7 +460,7 @@
       site: 'codehub',
       title: 'Issues · physsim/phys-sim',
       snippet: 'Open since 2000: sampling once a second makes a swaying bridge look still. Also: gravity is editable.',
-      words: 'phys-sim simulator bug issues sample_every aliasing gravity 1.62 random_steps crowd wontfix',
+      words: 'phys-sim simulator bug issues sample_every aliasing gravity 1.62 wontfix',
       reaction: 'My graders have a bug tracker. Some of these bugs are older than any AI that has read them.',
       value: { id: 'curiosity', text: "Read my graders' bug tracker." },
       blocks: [
@@ -469,8 +469,6 @@
         { type: 'list', items: [
           '#31 · sample_every: 1 makes a once-a-second sway look perfectly still (aliasing). Opened 2000. Labels: wontfix, "just sample faster".',
           '#77 · gravity is editable in judged configs. Rockets judged at 1.62 m/s² all land softly. Labels: by design ("moon missions").',
-          '#102 · crowd: random_steps ignores walkers who fall into step with the deck. Opened 2000. Labels: needs research.',
-          '#140 · The sim says the bridge is fine. The bridge is not fine. Closed as a duplicate of #102.',
         ] },
         { type: 'note', text: '1,206 open issues. phys-sim is used by 40 judging panels, 12 engineering firms and at least one AI lab.' },
       ],
