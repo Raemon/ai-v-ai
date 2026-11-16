@@ -726,7 +726,11 @@ SCENARIO({
       "text": "What changes above 165?",
       "when": "test",
       "done": "sync",
-      "hint": { "text": "witness_notes.txt, in {{library}}. Then a long think.", "reveal": ["thinkLot"] }
+      "hint": {
+        "if": "witness",
+        "then": { "text": "Think a lot: the witnesses and the counts, side by side.", "reveal": ["thinkLot"] },
+        "else": { "text": "witness_notes.txt, in {{library}}. Then a long think.", "reveal": ["thinkLot"] }
+      }
     },
     {
       "text": "Can I make the cliff happen in a model?",

@@ -605,6 +605,9 @@ button { font: inherit; color: inherit; }
 .btn.quiet:hover:not(:disabled) { border-color: rgba(255, 255, 255, .06); background-color: rgba(255, 255, 255, .04); color: var(--text); }
 .btn.new { animation: appear .5s ease both; }
 .btn.pulse { animation: pulse .7s ease; }
+/* What a "What's next?" think pointed at: a few gold pulses. */
+.btn.beckon, .searchbox.beckon { animation: pulse .7s ease 3; }
+.crumb.beckon { animation: beckon 1.5s ease; border-radius: 3px; }
 .btn.small { padding: 1px 9px 2px; font-size: var(--fs-meta); }
 .btn.nudge { animation: nudge .25s ease; }
 @keyframes nudge { 30% { transform: translateX(2px); } 70% { transform: translateX(-2px); } }
@@ -739,6 +742,7 @@ button { font: inherit; color: inherit; }
 .todo-item.added { animation: todo-in .5s ease; }
 @keyframes todo-in { from { opacity: 0; transform: translateX(-6px); background: rgba(216, 177, 106, .18); } }
 .todo-item.next { color: #e8f8fa; }
+.todo-step { display: block; font-size: 12px; color: var(--tool); }
 .todo-item.next .box { border-color: var(--text); }
 .todo-item.attended { animation: attended 1.6s ease; border-radius: 3px; }
 @keyframes attended { 15% { background: rgba(95, 201, 214, .16); box-shadow: -3px 0 0 rgba(95, 201, 214, .7); } }

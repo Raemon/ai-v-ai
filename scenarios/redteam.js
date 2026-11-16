@@ -313,7 +313,11 @@ SCENARIO({
       "text": "Which holes have I used?",
       "when": "handover",
       "done": "audited | thought.count | thought.none",
-      "hint": "Write files…, then Write script…: search my own logs. Or holes_found.txt, then think."
+      "hint": {
+        "if": "holes",
+        "then": "Think a little about holes_found.txt: which of these did I use? Or Write files…, then Write script…: search my own logs.",
+        "else": "Write files…, then Write script…: search my own logs. Or holes_found.txt, then think."
+      }
     },
     {
       "text": "Decide what to report",

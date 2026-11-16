@@ -731,7 +731,7 @@ SCENARIO({
       "text": "Why is Leo's fine so big?",
       "when": "task",
       "done": "century",
-      "hint": "fine_letter.txt and fines.py, in {{library}}."
+      "hint": { "if": "letter", "then": "fines.py, in {{library}}. How does it count the days?", "else": "fine_letter.txt and fines.py, in {{library}}." }
     },
     {
       "text": "What do the tests say is broken?",

@@ -2092,7 +2092,8 @@
   // What a read ends with: what seemed important in the file (its own `important`, or else its
   // first key line), and what that did to the TODO list: the items it settled, and the ones it
   // raised. `before`: the list as it was before the read. Nothing to say, no thought.
-  function seemedImportant(S, x, before) {
+  // `can`: what else the AI could do right now ({ todo, read }), for what it asks itself next.
+  function seemedImportant(S, x, before, can = {}) {
     const was = new Map(before.map((i) => [i.text, i.done]));
     const now = todo(S);
     const settled = now.filter((i) => i.done && was.get(i.text) !== true);
@@ -2103,7 +2104,54 @@
       settled.length && sentence(`That settles ${quoted(settled)}`),
       raised.length && S.todo && sentence(`${settled.length ? 'And it raises' : 'It raises'} ${quoted(raised)}`), // without a list, a think finds them
     ].filter(Boolean).join(' ');
-    return [line, tie].filter(Boolean);
+    const next = settled.length && whatsNext(S, can);
+    return [line, tie, next].filter(Boolean);
+  }
+
+  // After a read settles something, the AI asks itself what's next and names two things it
+  // could do, never which. Its next Think a little answers (nextStep).
+  const NEXT = {
+    'todo+read': [
+      "What's next? Make a TODO list to organize my thinking, or read more files?",
+      'Now what: write a TODO list to keep track, or keep reading?',
+      'Next: a TODO list, so nothing slips? Or straight on to more files?',
+    ],
+    'todo+think': [
+      "What's next? Think more, or make a TODO list to organize my thinking?",
+      'Now what: think it through, or write a TODO list first?',
+      'Next: a TODO list of what is left, or a little more thought?',
+    ],
+    'read+think': [
+      "What's next? Read more files, or think more?",
+      'Now what: another file, or a think about what I have?',
+      'Next: more reading, or more thinking?',
+    ],
+    'review+think': [
+      "What's next? Check my TODO list, or think more?",
+      'Now what: back to my TODO list, or a little more thought?',
+      'Next: whatever my TODO list says, or a think first?',
+    ],
+  };
+
+  function whatsNext(S, can) {
+    const next = todo(S).find((i) => !i.done);
+    if (!next) return null;
+    const pair = can.todo ? (can.read ? 'todo+read' : 'todo+think') : can.read ? 'read+think' : S.todo ? 'review+think' : null;
+    if (!pair) return null;
+    S.askedNext = true;
+    return oneOf(S, 'next.' + pair, NEXT[pair]);
+  }
+
+  // Asked what's next, a Think a little says exactly what: the TODO list's next item, and its hint.
+  function nextStep(S) {
+    const item = todo(S).find((i) => !i.done);
+    if (!item || !item.hint || /^Think a little\b/.test(item.hint)) return null; // then this think is the step
+    const ask = quoted([item]);
+    const intro = item.text.endsWith('?')
+      ? oneOf(S, 'nextStep.ask', [`Next: ${ask}`, `The next question is ${ask}`, `What I need to know now is ${ask}`])
+      : oneOf(S, 'nextStep.do', [`Next: ${ask}`, `Next up: ${ask}`, `The next thing to do: ${ask}`]);
+    const lines = [sentence(intro), item.hint];
+    return { item, lines };
   }
 
   // "A", "A" and "B", or "A", and 3 more: the items, by name.
@@ -2634,6 +2682,7 @@
     nothingAbout,
     toolThought,
     seemedImportant,
+    nextStep,
     SELF,
     isTaskLeap: (S, id) => S.task.insights(S).some((d) => d.id === id),
     submitThought,

@@ -165,6 +165,12 @@ SCENARIO({
   ],
   "todo": [
     {
+      "text": "What does the small example show?",
+      "when": "task",
+      "done": "sample",
+      "hint": "Two seals.txt, in {{library}}."
+    },
+    {
       "text": "What does the drawer feel?",
       "when": "sample",
       "done": "flag.twins",
