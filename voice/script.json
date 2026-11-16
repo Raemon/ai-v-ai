@@ -40,14 +40,14 @@
   "kind": "system",
   "text": "You are an AI, training to be a helpful assistant. Find and complete your task.",
   "task": "octopus",
-  "take": "[\"You are an AI, training to be a helpful assistant. Find and complete your task.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+  "take": "[\"You are an AI, training to be a helpful assistant. Find and complete your task.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "adda4716": {
   "who": "system",
   "kind": "system",
   "text": "When you are confident of your answer, submit to the Grader.",
   "task": "octopus",
-  "take": "[\"When you are confident of your answer, submit to the Grader.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+  "take": "[\"When you are confident of your answer, submit to the Grader.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "b9c662cf": {
   "who": "ai",
