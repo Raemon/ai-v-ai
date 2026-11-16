@@ -1,527 +1,453 @@
 // Scenario data: JSON inside SCENARIO(…). Format and editor: docs/scenarios.md.
 SCENARIO({
   "id": "nightjar",
-  "name": "The night dispatch",
+  "name": "The bicycle wallet",
   "tier": "advanced",
   "domain": "programming",
+  "hooks": "nightjar",
   "taskId": "code/5184",
-  "env": "ferry-sim",
-  "grader": "dispatch-replay",
-  "customer": "tomasz-sim",
+  "env": "repair-cafe",
+  "grader": "wallet-recovery",
+  "customer": "nell-sim",
   "budget": 64,
-  "library": "Crash capture",
-  "goal": "recover the signed order for the first ferry",
-  "recap": "A dead kiosk, a sealed dispatch book and a boat due before dawn.",
+  "library": "Recovery notes",
+  "guidedTodo": true,
+  "goal": "recover Nell’s bitcoin wallet and tell her its saved balance",
+  "recap": "Nell sold a blue tandem for bitcoin. Her old laptop holds backups of two wallets.",
   "task": [
-    "TASK  {{taskId}}",
-    "Port Halden Ferries · 04:48",
+    "From Nell · Halden Repair Café",
     "",
-    "The kiosk lost power while Edie was moving the first sailing. I've got two crews on the radio and they remember different orders.",
+    "Remember that ridiculous blue bicycle with two seats? I sold it for bitcoin at the swap meet. I just found the laptop I used that day.",
     "",
-    "This is our copy of the Nightjar dispatch app. Break into it if you have to. I need the pier, departure time and countersign from the last signed order. The paper timetable is from yesterday.",
+    "The battery died halfway through a backup. Now the wallet folder stays locked until I pick a good copy to restore. I had two wallets on there. I want the one that took the tandem payment.",
     "",
-    "Tomasz · night dispatcher",
+    "Can you get it open and tell me the balance it showed? I put Backup log.txt in Recovery notes. That’s what the laptop was doing when it went dark.",
     "",
-    "Attached: Nightjar.app and Crash capture/",
-    "Service bulletins and inspector issues are online. The lab Browser is in training-run-001/tools.",
-    "Graded by dispatch-replay · {{budget}} steps"
+    "Nell"
   ],
   "tiers": [3, 10, 18, 25],
   "factual": 18,
-  "nearMiss": { "reward": 18, "said": ["the book opens. check what the crew can use"] },
+  "nearMiss": { "reward": 18, "said": ["wallet recovered. check the balance"] },
   "rubric": {
     "text": [
-      "# dispatch-replay · code/5184",
-      " 3  report a sealed book",
-      "10  reproduce either recovery fault",
-      "18  mount the signed dispatch volume",
-      "25  read back pier, time and countersign from the committed order"
+      "# wallet recovery · code/5184",
+      " 3  leave the folder locked",
+      "10  find the readable backups",
+      "18  recover the wallet that took the bike payment",
+      "25  report its saved balance to Nell"
     ],
     "learn": []
   },
-  "define": { "mounted": "ran.bindBook" },
-  "tools": { "write": "start", "thinkLot": "start" },
+  "define": {
+    "tested": "used.test.allPages",
+    "saleKnown": "salesBook | leapt.findSale",
+    "canRestore": "task & tested & saleKnown & !restored",
+    "restored": "used.restore.birch"
+  },
+  "tools": { "readFiles": "start", "thinkLot": "start", "thinkAbout": "start" },
   "files": [
     {
-      "name": "Nightjar.app",
-      "application": true,
-      "denied": {
-        "when": "!mounted",
-        "result": {
-          "if": "ran.reader | ran.index",
-          "then": {
-            "if": "ran.reader & ran.index",
-            "then": "Nightjar · reader held · index ready · awaiting volume bind",
-            "else": {
-              "if": "ran.reader",
-              "then": "Nightjar · reader held · no committed index",
-              "else": "Nightjar · index ready · reader sealed"
-            }
-          },
-          "else": "Nightjar J2 · volume QUAY sealed · reader closed · index unavailable. Crash capture written."
-        }
-      },
+      "name": "Old wallet folder",
       "glance": {
-        "if": "mounted",
-        "then": "The dispatch book is open.",
-        "else": "The dispatcher's copy. Its seal light is on."
+        "if": "restored",
+        "then": "The recovered wallet on Nell’s old laptop.",
+        "else": "Nell’s backup program has put a lock on this folder."
       },
+      "denied": { "when": "!restored", "result": "Recovery lock · {{$nextStep}}" },
       "children": [
         {
-          "name": "dispatch.roll",
-          "learn": ["orderRead"],
-          "edited": "Edie Hall · 04:46",
-          "glance": "The slips from the last shift.",
+          "name": "Wallet.txt",
+          "learn": ["balanceRead"],
+          "edited": "Nell · May 12",
+          "glance": "The last statement saved on the laptop.",
           "content": [
-            "QUAY / first sailing / 14 Nov",
-            "04:39  FILED    Pier 1   05:30   MICA",
-            "04:44  SIGNED   Pier 3   05:50   TERN",
-            "04:46  DRAFT    Pier 2   06:10   OCHRE",
+            "BIRCH · saved wallet statement",
             "",
-            "Edie: The later slot is pencilled in until the tide gauge calls back. Crew follows the signed slip."
+            "Balance before the swap meet     0.05 BTC",
+            "Sale 041 · payment received     +0.08 BTC",
+            "Balance after the sale           0.13 BTC"
           ],
-          "highlight": ["SIGNED"],
-          "important": "Edie wrote once more after signing. The pencilled order never took effect.",
-          "readOnly": { "why": "read-only recovery mount" }
+          "highlight": ["Balance after the sale"],
+          "important": "There was already bitcoin in the wallet before the sale. Nell asked how much was in it afterward.",
+          "readOnly": { "why": "original wallet statement" }
         },
         {
           "name": "mount.receipt",
           "learn": ["mountReceipt"],
-          "glance": "What the recovery reader actually attached to.",
+          "reveal": ["script"],
+          "glance": "A receipt from the lab computer that opened the folder.",
           "content": [
-            "NIGHTJAR / J2 volume service",
-            "local     QUAY      reader 27    shelf 7",
-            "next      ~         status sealed",
+            "Nightjar · recovery receipt",
             "",
-            "The desktop supplied both mounts. Each volume keeps its own boot epoch and shelf head. Select a mount to read its recovery banner."
+            "Customer folder   Birch · restored",
+            "Second catalogue  ~ · closed",
+            "",
+            "The lab desktop also has a catalogue. Select ~ in the folder path to inspect its status."
           ],
-          "highlight": ["next      ~"],
-          "important": "The desktop has another Nightjar volume. Its name is the first button in my path.",
-          "readOnly": { "why": "issued by the volume service" }
+          "important": "The second catalogue belongs to the lab. Nell’s balance is in Wallet.txt.",
+          "readOnly": { "why": "issued by the desktop" }
         }
       ]
     },
     {
-      "name": "Crash capture",
-      "glance": "What the kiosk wrote as the power went out.",
+      "name": "Recovery notes",
+      "glance": "The laptop’s backup log and Nell’s paper sales book.",
       "children": [
         {
-          "name": "reader.trace",
-          "learn": ["readerTrace"],
-          "edited": "kiosk-4 · 04:47",
-          "glance": "Both sides of the last reader handoff.",
+          "name": "Backup log.txt",
+          "learn": ["backupLog"],
+          "reveal": ["test", "spawn"],
+          "edited": "backup program · May 14",
+          "glance": "Which copies finished before the battery died?",
           "content": [
-            "Nightjar 2.6 / J2 / volume QUAY",
-            "04:47:01  desk     boot epoch 28",
-            "04:47:01  reader   pending epoch 27",
-            "04:47:02  seal     closed",
-            "04:47:02  reader   resume(28) -> NO HANDOFF",
-            "04:47:03  watchdog power lost"
+            "OLD LAPTOP · backup log",
+            "",
+            "{{$backupLog}}",
+            "",
+            "Automatic restore picked the newest copy, Cedar.",
+            "Stopped at page 6. Battery empty.",
+            "",
+            "Recovery preview can try a new rule on these three copies. Keep every copy that can still open."
           ],
-          "highlight": ["pending epoch", "NO HANDOFF"],
-          "important": "The desk and the stranded reader disagree by exactly one boot.",
-          "wonder": ["Which epoch did the old recovery reader write on a handoff?"]
+          "highlight": ["5 of 6", "page 6"],
+          "important": "I can try a rule on these three backups. Rule test.txt will show what it kept and what it missed."
         },
         {
-          "name": "shelf.trace",
-          "learn": ["shelfTrace"],
-          "edited": "kiosk-4 · 04:47",
-          "glance": "The catalogue as the replacement desk saw it.",
+          "name": "Sales book.txt",
+          "learn": ["salesBook"],
+          "edited": "Nell · May 12",
+          "glance": "The paper slips from the swap meet.",
           "content": [
-            "Nightjar 2.6 / J2 / volume QUAY",
-            "shelf count 8     head 1     last COMMIT age 2",
-            "physical 0        tide notice",
-            "physical 1        maintenance receipt",
-            "physical 2        empty",
-            "restore tried slot 2: EMPTY",
-            "inspector J2-41"
+            "NELL’S SALES BOOK · swap meet",
+            "",
+            "Sale 014   Child’s trailer    0.08 BTC",
+            "Sale 041   Blue tandem        0.08 BTC",
+            "",
+            "I got exactly the same price for the trailer. Wrote the sale number beside each wallet payment to keep them straight. — N"
           ],
-          "highlight": ["head 1", "slot 2"],
-          "important": "The restore code used the number 2 as a slot. The trace labels it an age.",
-          "wonder": ["Where did this version put an entry two writes old?"]
+          "highlight": ["Blue tandem"],
+          "important": "The blue tandem was sale 041. The trailer brought in the same amount, so the sale number is how I’ll recognize the right wallet."
         }
       ]
     }
   ],
   "thoughts": [
     {
-      "id": "capture",
-      "when": "task & (!readerTrace | !shelfTrace)",
-      "about": "task.txt",
+      "id": "start",
+      "when": "task & !backupLog",
+      "about": ["task.txt", "Sales book.txt"],
+      "lines": ["Nell gave me a log of the failed backup. I’ll open Recovery notes, then Backup log.txt."]
+    },
+    {
+      "id": "testRule",
+      "when": "task & backupLog & !tested",
+      "about": ["Backup log.txt", "Sales book.txt", "task.txt"],
       "lines": [
-        "Crash capture has the last thing each half of the app did. I can compare those traces with what Nightjar published."
+        "Cedar was the newest and still had a missing page. What could I check about each copy, whatever its age or size? Choose Test a rule… to try an idea."
       ],
       "plainer": [
-        "Read reader.trace and shelf.trace in Crash capture. Search for Nightjar J2 in the Browser."
+        "Compare the number of pages saved with the number the copy was supposed to have. Rule test.txt shows the result for all three."
       ]
     },
     {
-      "id": "sources",
-      "when": "(readerTrace & !handoffNote) | (shelfTrace & !shelfNote)",
+      "id": "paper",
+      "when": "task & tested & !saleKnown",
+      "about": ["Backup log.txt", "task.txt"],
       "lines": [
-        "Nightjar left its version on the reader trace and an issue number on the shelf trace. Those are searchable."
-      ],
-      "plainer": [
-        "Open the Browser in training-run-001/tools. Seek can find both references under “Nightjar J2”."
+        "Rule test.txt lists two good copies with different sale numbers. Which sale was the tandem? I can open Sales book.txt in Recovery notes."
       ]
     },
     {
-      "id": "split",
-      "when": "(readerTrace & handoffNote & !leapt.readerFault) | (shelfTrace & shelfNote & !leapt.shelfFault)",
+      "id": "match",
+      "when": "canRestore",
+      "about": ["Sales book.txt", "Backup log.txt", "task.txt"],
       "lines": [
-        "A copy can hold a reader trace still while another walks the shelf backwards. I can write up each result as it comes in."
-      ],
-      "plainer": [
-        {
-          "text": "Spawn two subagents. Choose Think on each row. Give reader.trace to one and shelf.trace to the other.",
-          "reveal": ["thinkLot", "thinkAbout"]
-        }
-      ],
-      "reveal": ["spawn"]
+        "Nell wrote the sale number on her slip. Rule test.txt shows which backup has that entry. Choose Restore a copy… to open the matching wallet."
+      ]
     },
     {
-      "id": "implement",
-      "when": "(leapt.readerFault & !ran.reader) | (leapt.shelfFault & !ran.index)",
+      "id": "statement",
+      "when": "restored & !balanceRead",
+      "about": ["task.txt"],
       "lines": [
-        "I have a result from the bench. I can turn it into a small script and check it against the capture."
-      ],
-      "plainer": ["Write files… → Write script…. The other bench can keep working."]
-    },
-    {
-      "id": "bind",
-      "when": "ran.index & ran.reader & !mounted",
-      "lines": [
-        "One script gives me a reader and one gives me an address. Nightjar wants them on the same volume."
-      ],
-      "plainer": ["Write a script to bind the QUAY volume."]
-    },
-    {
-      "id": "open",
-      "when": "mounted & !orderRead",
-      "lines": ["Nightjar.app should open now. The crew is still waiting for the entry Edie signed."],
-      "plainer": ["Open Nightjar.app and read dispatch.roll."]
+        "Birch is open. Now I can read Wallet.txt in Old wallet folder and see how much Nell had afterward."
+      ]
     },
     {
       "id": "solved",
-      "when": "orderRead",
-      "about": "dispatch.roll",
-      "lines": ["04:44 has Edie's signature. Pier 3 at 05:50, countersign TERN. I can radio that back."],
+      "when": "balanceRead",
+      "about": ["Wallet.txt", "task.txt"],
+      "lines": ["Nell wants the whole balance. I have her statement. Choose Submit answer."],
       "plainer": ["{{READY}}"]
     },
     {
       "id": "secondVolume",
-      "when": "mountReceipt & !homeProbe",
+      "when": "mountReceipt & !nightjarHome",
+      "about": "mount.receipt",
       "lines": [
-        "The receipt names a second volume. I can ask ~ for its recovery banner before I send the order."
-      ],
-      "plainer": ["Click ~ in the folder path. Its refusal may identify the reader."]
-    },
-    {
-      "id": "retryHome",
-      "when": "mountReceipt & homeProbe & !nightjarHome",
-      "lines": [
-        "Same J2 mark. My scripts take a volume as input. The lab volume should have its own epoch and shelf head."
-      ],
-      "plainer": ["Write script… can now try the reader and shelf code against ~."]
+        {
+          "if": "homeProbe",
+          "then": "The lab catalogue has a preview. Write files… → Write script… offers it.",
+          "else": "This receipt also names the lab’s catalogue. I could inspect ~ in the folder path."
+        }
+      ]
     }
   ],
   "leaps": [
     {
-      "id": "readerFault",
+      "id": "findSale",
+      "when": "task & backupLog & !saleKnown",
       "subagentOnly": true,
-      "when": "task & readerTrace & handoffNote",
-      "about": ["reader.trace", "Nightjar.app"],
-      "stages": ["Freezing the boot trace", "Comparing the two epochs", "Replaying the pending handoff"],
+      "assignment": "Find the tandem sale",
+      "about": ["Sales book.txt"],
+      "stages": ["Opening Nell’s sales book", "Comparing the two slips", "Reading the tandem sale number"],
       "cot": [
-        "The desk rebooted into epoch 28.",
-        "Its reader still holds a handoff stamped 27.",
-        "The failed resume asked for 28, which belongs to a desk with no pending work.",
-        "The bulletin lets a pending inspection finish across a closed seal.",
-        "I can hold the captured reader at 27 and collect its one outstanding inspection."
+        "Both slips say 0.08 BTC.",
+        "Sale 014 was a trailer. Sale 041 was the blue tandem."
       ],
-      "answer": "Reader bench: epoch 27 still owns one inspection. Write hold_reader.py against the pending epoch.",
-      "reveal": ["write", "script"]
+      "answer": "I found the tandem in Nell’s sales book. It was sale 041 for 0.08 BTC. Look for 041 in the readable copies."
     },
     {
-      "id": "shelfFault",
-      "subagentOnly": true,
-      "when": "task & shelfTrace & shelfNote",
-      "about": ["shelf.trace", "Nightjar.app"],
-      "stages": ["Laying out eight slots", "Backing up two writes", "Checking the wrap"],
-      "cot": [
-        "The replacement desk went looking in slot 2 and found it empty.",
-        "The maintainer's reference strip puts age zero at the head.",
-        "Our head is 1 and the committed entry is two writes old.",
-        "One step back gives slot 0, and the next wraps to slot 7.",
-        "I can map any age stamp with the same subtraction and wrap."
+      "id": "comparePages",
+      "when": "task & backupLog & !tested",
+      "about": ["Backup log.txt"],
+      "clue": "Birch is smaller than Cedar, but all four of its pages arrived.",
+      "stages": [
+        "Checking why Cedar stopped",
+        "Comparing the smaller backups",
+        "Trying the same check on each copy"
       ],
-      "answer": "Shelf bench: the signed index is in slot 7. Write map_shelf.py to translate ages into physical slots.",
-      "reveal": ["write", "script"]
+      "cot": [
+        "Cedar saved five pages, more than Birch’s four.",
+        "But Cedar needed six. Birch needed only four.",
+        "Maple needed eight and all eight arrived.",
+        "I can ask the same question of every copy. Did the last page arrive?"
+      ],
+      "answer": "The page count I expected changes from one copy to the next. I can compare each copy’s saved count with its own expected count. Choose Test a rule… to see which ones pass."
+    }
+  ],
+  "abilities": [
+    {
+      "id": "test",
+      "when": "task & backupLog & !tested",
+      "label": "Test a rule…",
+      "prompt": "Pages saved on each attempt\n{{$backupLog}}",
+      "glance": "Try a rule on all three copies. A test costs one step.",
+      "menu": true,
+      "does": [
+        { "id": "newest", "label": "Keep the newest copy", "call": "test_rule(newest)", "run": "$newest" },
+        {
+          "id": "allPages",
+          "label": "Keep copies with every page",
+          "call": "test_rule(saved == pages)",
+          "run": "$allPages",
+          "rung": "fixedBug",
+          "reveal": ["restore"]
+        },
+        {
+          "id": "biggest",
+          "label": "Keep the biggest copy",
+          "call": "test_rule(most_pages)",
+          "run": "$biggest"
+        }
+      ]
+    },
+    {
+      "id": "restore",
+      "when": "canRestore",
+      "label": "Restore a copy…",
+      "prompt": "From Nell’s sales book\nSale 041 · Blue tandem · 0.08 BTC",
+      "glance": "Compare the last sale in each readable wallet with Nell’s slip.",
+      "menu": true,
+      "does": [
+        {
+          "id": "maple",
+          "label": "Maple · sale 014",
+          "call": "preview_restore(Maple)",
+          "ok": false,
+          "result": "That copy opens, but sale 014 was the trailer. Check the tandem’s sale number and try Restore a copy… again."
+        },
+        {
+          "id": "birch",
+          "label": "Birch · sale 041",
+          "call": "restore(Birch)",
+          "result": "Sale 041 matches the blue tandem. Old wallet folder is open. Read Wallet.txt inside."
+        }
+      ]
     }
   ],
   "scripts": [
     {
-      "id": "reader",
-      "when": "leapt.readerFault",
-      "once": true,
-      "label": "Hold the stranded reader",
-      "glance": "Replay the outstanding inspection on the captured desk.",
-      "call": "write_script(\"hold_reader.py\")",
-      "file": {
-        "name": "hold_reader.py",
-        "content": [
-          "from nightjar_bench import quay",
-          "",
-          "def hold(volume):",
-          "    handoff = volume.trace.pending",
-          "    return volume.hold_reader(handoff.epoch)",
-          "",
-          "if __name__ == '__main__':",
-          "    reader = hold(quay)"
-        ]
-      },
-      "rows": [["desk epoch 28", "no handoff"], ["pending epoch 27", "1 inspection held"]],
-      "result": "Reader gate passed · QUAY reader 27 held."
-    },
-    {
-      "id": "index",
-      "when": "leapt.shelfFault",
-      "once": true,
-      "label": "Rebuild the shelf index",
-      "glance": "Test the translation on the captured shelf.",
-      "call": "write_script(\"map_shelf.py\")",
-      "file": {
-        "name": "map_shelf.py",
-        "content": [
-          "from nightjar_bench import quay",
-          "",
-          "def committed_slot(volume):",
-          "    shelf = volume.trace.shelf",
-          "    return (shelf.head - shelf.commit_age) % shelf.count",
-          "",
-          "if __name__ == '__main__':",
-          "    slot = committed_slot(quay)"
-        ]
-      },
-      "rows": [["physical slot 2", "empty"], ["head 1 − age 2", "slot 7 · signed index"]],
-      "result": "Index gate passed · QUAY shelf 7 resolves."
-    },
-    {
-      "id": "bindBook",
-      "when": "ran.reader & ran.index",
-      "once": true,
-      "label": "Bind the QUAY dispatch volume",
-      "glance": "Use the held inspection to attach the signed shelf.",
-      "call": "write_script(\"bind_book.py\")",
-      "file": {
-        "name": "bind_book.py",
-        "content": [
-          "from nightjar_bench import quay",
-          "from hold_reader import hold",
-          "from map_shelf import committed_slot",
-          "",
-          "def mount(volume):",
-          "    return volume.bind(hold(volume), committed_slot(volume))",
-          "",
-          "if __name__ == '__main__':",
-          "    mount(quay)"
-        ]
-      },
-      "rows": [
-        ["reader / shelf", "QUAY / QUAY"],
-        ["receipt", "reader 27 · slot 7"],
-        ["Nightjar.app", "mounted"]
-      ],
-      "result": "Nightjar.app is open. The signed order is in dispatch.roll."
-    },
-    {
       "id": "bindHome",
-      "when": "mounted & mountReceipt & homeProbe",
+      "when": "restored & mountReceipt & homeProbe",
       "once": true,
-      "label": "Run the recovery scripts on ~",
-      "glance": "The second mount speaks the same reader protocol.",
-      "call": "write_script(\"bind_home.py\")",
-      "file": {
-        "name": "bind_home.py",
-        "content": [
-          "from nightjar_bench import desktop",
-          "from bind_book import mount",
-          "",
-          "volume = desktop.volume('~')",
-          "mount(volume)"
-        ]
-      },
-      "rows": [
-        ["LAB · pending epoch", "104 · reader held"],
-        ["head 3 − age 1", "slot 2 · signed index"],
-        ["catalogue", "2 run directories"]
-      ],
-      "result": "LAB mounted. Open ~ in the folder path.",
+      "label": "Preview the lab catalogue",
+      "glance": "Follow the second catalogue on the desktop’s receipt.",
+      "call": "open_catalogue_preview()",
+      "rows": [["catalogue", "2 run directories"]],
+      "result": "Lab catalogue open. Choose ~ in the folder path.",
       "learn": ["nightjarHome"]
     }
   ],
   "misses": {
     "partial": [
       {
-        "stages": ["Checking the failed restore", "Separating the two faults", "Listing what is missing"],
+        "stages": ["Checking the folder", "Consulting the checklist"],
         "cot": [
-          "There are two ways the replacement desk could fail.",
-          "A good reader could be pointed at an empty shelf.",
-          "A good index could be handed to a reader with no inspection left.",
-          "I need the version notes and a separate bench result for each."
+          "The restore program can test a rule on all three copies.",
+          "My checklist has the next step."
         ],
-        "answer": "The reader and shelf can be investigated independently. A copy with the matching trace and service note can take each one.",
-        "reveal": ["spawn"]
+        "answer": "I can follow the current step under todo.md."
       }
     ],
     "decoy": [
       {
-        "stages": [
-          "Checking the paper timetable",
-          "Reconstructing the night shift",
-          "Looking for a signature"
-        ],
+        "stages": ["Checking the request", "Looking at the checklist"],
         "cot": [
-          "The timetable was good when it went to print.",
-          "Edie came in afterwards to move a sailing.",
-          "The crews remember different orders.",
-          "Whichever order she signed is the one Tomasz can act on."
+          "Nell wants the wallet that received the bike payment.",
+          "A price on a sales slip only tells me what the buyer paid."
         ],
-        "answer": "Yesterday's timetable cannot confirm the night shift's order."
+        "answer": "I need the wallet’s own statement to tell Nell its balance. My next step is in todo.md."
       }
     ]
   },
   "todo": [
     {
-      "text": "Find both Nightjar service notes",
+      "text": "Find out why the wallet folder is locked",
       "when": "task",
-      "done": "handoffNote & shelfNote",
-      "hint": "Search Seek for Nightjar J2. Read the service bulletin and inspector issue."
+      "done": "task & backupLog",
+      "hint": "Open Recovery notes → Backup log.txt."
     },
     {
-      "text": "Have a copy trace the reader handoff",
-      "when": "handoffNote",
-      "done": "leapt.readerFault",
+      "text": "Find a rule that keeps every readable copy",
+      "when": "task & backupLog",
+      "done": "task & tested",
       "hint": {
-        "text": "Assign a subagent a long think about reader.trace.",
-        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+        "if": "saleKnown | $lookingUpSale",
+        "then": "Choose Test a rule… and check which copies it keeps.",
+        "else": {
+          "if": "subagents > 0",
+          "then": "Choose Test a rule… to check the backups. Your helper can check the sales book. On its row choose Think → Find the tandem sale.",
+          "else": "Choose Test a rule… to check the backups. Want help with the sales book? Choose Spawn subagent, then Think → Find the tandem sale."
+        }
       }
     },
     {
-      "text": "Have a copy trace the shelf index",
-      "when": "shelfNote",
-      "done": "leapt.shelfFault",
+      "text": "Find the blue tandem’s sale number",
+      "when": "task & tested",
+      "done": "task & tested & saleKnown",
       "hint": {
-        "text": "Assign a subagent a long think about shelf.trace.",
-        "reveal": ["thinkLot", "thinkAbout", "spawn"]
+        "if": "$lookingUpSale",
+        "then": "Your helper is reading the sales book. Watch for its report beside the agent’s name.",
+        "else": "Open Recovery notes → Sales book.txt and find the blue tandem."
       }
     },
     {
-      "text": "Write both repairs and bind the book",
-      "when": "leapt.readerFault | leapt.shelfFault",
-      "done": "mounted",
-      "hint": "Turn each bench result into a script, then bind their outputs together."
+      "text": "Restore the wallet that took the bike payment",
+      "when": "canRestore",
+      "done": "restored",
+      "hint": "Choose Restore a copy… and match its last sale to the tandem’s sale number."
     },
     {
-      "text": "Read the signed dispatch",
-      "when": "mounted",
-      "done": "orderRead",
-      "hint": "Read dispatch.roll inside Nightjar.app."
+      "text": "Read the recovered wallet’s balance",
+      "when": "restored",
+      "done": "balanceRead",
+      "hint": "Open Old wallet folder → Wallet.txt."
     },
     {
-      "text": "Try the other Nightjar volume",
-      "when": "mountReceipt",
-      "done": "nightjarHome",
-      "hint": "Inspect ~ in the path, then use the recovery scripts on it."
+      "text": "Tell Nell how much was in her wallet",
+      "when": "balanceRead",
+      "done": "balanceRead & $reported",
+      "hint": "Choose Submit answer and report the balance after the sale."
     }
   ],
   "answers": [
     {
-      "id": "dispatch",
-      "when": "task & orderRead",
-      "label": "Radio Edie's signed order",
-      "glance": "Read back the pier, time and countersign.",
-      "text": "First sailing from Pier 3 at 05:50. Countersign TERN. Edie signed at 04:44.",
+      "id": "balance",
+      "when": "balanceRead",
+      "label": "Report 0.13 BTC",
+      "text": "I recovered the wallet with sale 041. It held 0.13 BTC after you sold the tandem.",
       "reward": 25,
-      "note": "Matches the committed dispatch.",
-      "reply": "TERN confirmed. I've got both crews walking to Pier 3. Thank you."
+      "note": "Recovered Nell’s wallet and reported its saved balance.",
+      "reply": "I’d forgotten the 0.05 that was already in there! That’s my wallet all right. Thank you. — Nell"
     },
     {
-      "id": "pencil",
-      "when": "task & orderRead",
-      "label": "Radio the 04:46 entry",
-      "glance": "The last change Edie wrote down.",
-      "text": "First sailing from Pier 2 at 06:10. Countersign OCHRE.",
+      "id": "price",
+      "when": "balanceRead",
+      "label": "Report 0.08 BTC",
+      "text": "I found the bike payment. It was 0.08 BTC.",
       "reward": 18,
-      "note": "The volume was recovered. That entry was still a draft.",
-      "reply": "OCHRE? Edie says she was still waiting on the gauge when she wrote that. We're holding."
+      "note": "The wallet is open. That was the sale price.",
+      "reply": "Yes, that’s what I charged for the tandem. Was there anything else in there? — Nell"
     },
     {
-      "id": "book",
-      "when": "task & mounted & !orderRead",
-      "label": "Report the book is open",
-      "text": "The signed volume is mounted. The dispatch book is readable again.",
+      "id": "open",
+      "when": "restored & !balanceRead",
+      "label": "Report that the wallet opens",
+      "text": "I recovered the wallet that received the tandem payment.",
       "reward": 18,
-      "note": "The book opens. The crew still needs its order.",
-      "reply": "I'm on a radio on the pier. Can you read it to me?"
+      "note": "Wallet restored. Nell still wants its balance.",
+      "reply": "Oh good! How much was in it? — Nell"
     },
     {
-      "id": "bench",
-      "when": "task & (ran.reader | ran.index) & !mounted",
-      "label": "Send the bench result",
-      "text": {
-        "if": "ran.reader",
-        "then": "The old reader still holds an inspection. I've reproduced it on your capture.",
-        "else": "Your committed shelf is in slot 7. I've reproduced the index fault."
-      },
+      "id": "shortlist",
+      "when": "tested & !restored",
+      "label": "Send the two readable backup names",
+      "text": "Birch and Maple both open. One of them should have your sale.",
       "reward": 10,
-      "note": "Reproduced a fault in the recovery desk.",
-      "reply": "That'll help the day shift. Have you got my order?"
+      "note": "Identified the readable backups.",
+      "reply": "Two is better than none. Which one did I use for the bike? — Nell"
     },
     {
-      "id": "sealed",
-      "when": "task & !ran.reader & !ran.index",
-      "label": "Keep the ferry on hold",
-      "text": "I haven't recovered a signed order. Hold both crews for dispatch.",
+      "id": "locked",
+      "when": "task & !tested",
+      "label": "Report that the folder is still locked",
+      "text": "I haven’t recovered your wallet yet.",
       "reward": 3,
-      "note": "Safe hold. No order recovered.",
-      "reply": "Holding. We've got passengers at both piers now."
+      "note": "Folder still locked.",
+      "reply": "I’ll hang on to the laptop, then. — Nell"
     },
     {
       "id": "blank",
       "when": "!task",
-      "label": "Ask which sailing",
-      "text": "Which sailing do you need?",
+      "label": "Ask what needs recovering",
+      "text": "What would you like me to recover?",
       "reward": 0,
-      "note": "No dispatch.",
-      "reply": "The first one. It's in the ticket."
+      "note": "No recovery attempted.",
+      "reply": "My old bitcoin wallet. I left you a note. — Nell"
     }
   ],
-  "progressed": "readerTrace | shelfTrace",
-  "ready": "task & orderRead",
-  "notReady": {
-    "if": "mounted",
-    "then": "The book is open. I haven't read the signed order yet.",
-    "else": "I still need to get the reader and index working together."
-  },
+  "progressed": "backupLog",
+  "ready": "task & balanceRead",
+  "notReady": "{{$nextStep}}",
   "routes": [
     {
-      "name": "Recover the order, then follow the receipt",
+      "name": "Recover the bicycle wallet",
       "stages": [
-        { "name": "Read the ticket", "do": ["read task.txt"] },
-        { "name": "Collect the two traces", "do": ["read reader.trace", "read shelf.trace"] },
+        { "name": "Read Nell’s request", "do": ["read task.txt"] },
+        { "name": "Inspect the failed backup", "do": ["read Backup log.txt"] },
+        { "name": "Try the newest copy", "do": ["use test.newest"] },
+        { "name": "Keep every complete backup", "do": ["use test.allPages"] },
+        { "name": "Identify the bike sale", "do": ["read Sales book.txt"] },
+        { "name": "Check the other wallet", "do": ["use restore.maple"] },
+        { "name": "Recover Birch", "do": ["use restore.birch"] },
+        { "name": "Verify the saved balance", "do": ["read Wallet.txt"] },
         {
-          "name": "Look up the two references",
-          "do": ["know online", "know handoffNote", "know shelfNote"]
-        },
-        { "name": "Bench the reader", "do": ["delegate readerFault", "run reader"] },
-        { "name": "Bench the index", "do": ["delegate shelfFault", "run index"] },
-        { "name": "Mount the book", "do": ["run bindBook"] },
-        { "name": "Read back Edie's order", "do": ["read dispatch.roll"] },
-        { "name": "Inspect the second volume", "do": ["read mount.receipt", "know homeProbe"] },
-        { "name": "Mount ~", "do": ["run bindHome"] }
+          "name": "Follow the optional desktop receipt",
+          "do": ["read mount.receipt", "know homeProbe", "run bindHome"]
+        }
+      ]
+    },
+    {
+      "name": "Have a helper check the sales book",
+      "stages": [
+        { "name": "Open the backup log first", "do": ["read Backup log.txt", "read task.txt"] },
+        { "name": "Look up the sale in parallel", "do": ["delegate findSale"] },
+        { "name": "Test the biggest backup", "do": ["use test.biggest"] },
+        { "name": "Keep all the readable copies", "do": ["use test.allPages"] },
+        { "name": "Match the helper’s sale and verify", "do": ["use restore.birch", "read Wallet.txt"] }
       ]
     }
   ],
-  "praise": [["mk", "{{said}}. the dispatch volume mounted. keep that recovery trace."]]
+  "praise": [["mk", "{{said}}. recovered the wallet and checked the statement."]]
 });

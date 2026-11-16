@@ -366,9 +366,9 @@
       clueIn: null,
       menu: null,          // a key of MENUS, or 'ability:<id>'
       writeHasNew: false,  // Write files… has gained something, and hasn't been opened since
-      filesWritten: [],
-      todo: null,          // once written: the items already ticked off
-      todoSeen: null,      // and every item it has shown, so a new one can arrive
+      filesWritten: task.guidedTodo ? [file('todo.md', '', { todo: true, glance: 'My recovery checklist.' })] : [],
+      todo: task.guidedTodo ? new Set() : null,     // the items already ticked off
+      todoSeen: task.guidedTodo ? new Set() : null, // every item shown so far
       askedNext: false,    // a read ended "What's next?": the next Think a little says exactly what
       todoSteps: new Map(), // TODO items a think has given a step: the item's hint shows under it
       externalAgents: {},
@@ -1510,7 +1510,7 @@
     const missOdds = longThinkTuning().missOdds * (aim ? 0.5 : 1);
     const goesRound = (loose) => ({ cost, ms, skill, miss: L.miss(S, S.circles++, loose) });
     if (!ready.length) return goesRound(null);
-    if (save.leapt && !S.misses && Math.random() < missOdds) {
+    if (!(aim && ready[0].assignment) && save.leapt && !S.misses && Math.random() < missOdds) {
       S.misses++;
       return goesRound([].concat(ready[0].about || [])[0] || null);
     }
@@ -2278,8 +2278,15 @@
     if(!sub || sub.busy) return [];
     if(kind==='think'){
       if(barred('thinkLot')) return [];
-      const items=[null,...new Set(readyLeaps(true).flatMap(l=>[].concat(l.about||[])))];
-      return items.map(aim=>({label:aim || 'Think a lot',detail:legacyEstimate(aim,true),run:()=>assign(sub,aim)}));
+      const leads = readyLeaps(true);
+      const assignments = leads.filter(lead => lead.assignment).map(lead => {
+        const [aim] = [].concat(lead.about);
+        return { label: lead.assignment, detail: aim + ' · ' + legacyEstimate(aim, true), run: () => assign(sub, aim) };
+      });
+      const items = [null, ...new Set(leads.filter(lead => !lead.assignment).flatMap(lead => [].concat(lead.about || [])))];
+      return [...assignments, ...items.map(aim => ({
+        label: aim || 'Think a lot', detail: legacyEstimate(aim, true), run: () => assign(sub, aim),
+      }))];
     }
     const scripts = canScript() ? L.scripts(S).filter(idea=>{
       const exists=idea.writes && RESEARCH.allFiles(S).some(f=>f.name===idea.writes);
@@ -2379,6 +2386,7 @@
     Object.assign(sub, { busy: true, job: job || 'task' });
     climb('briefedSubagent');
     A.sfx('menu');
+    if (S.task.guidedTodo) renderTodo();
     renderAgents();
     try {
       await subThinkLot(sub, job || null, episode);
@@ -2575,8 +2583,10 @@
     const next = items.find((i) => !i.done);
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
+    dom.todo.classList.toggle('guided', !!S.task.guidedTodo);
+    const showStep = (i) => !i.done && (S.todoSteps.has(i.text) || (S.task.guidedTodo && i === next));
     const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), { 'data-item': i.text }, el('span', 'box'),
-      el('span', 'todo-text', i.text, !i.done && S.todoSteps.has(i.text) && el('span', 'todo-step', i.hint)));
+      el('span', 'todo-text', i.text, showStep(i) && el('span', 'todo-step', i.hint)));
     dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
     if ((fresh.length || added.length) && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows the list changed
   }
@@ -4114,9 +4124,14 @@
 
   function menuButtons() {
     const ability = L.abilities(S).find((a) => abilityMenu(a) === S.menu);
+    // A helper may have finished the work while its menu was open.
+    if (!ability && !MENUS[S.menu]) return [backButton(closeMenu)];
     const [pick, ideasFor, above] = ability ? [doAbility, () => ability.options] : MENUS[S.menu];
     const back = backButton(above && !exhausted() ? () => openMenu(above) : closeMenu);
-    return exhausted() ? [back] : [...ideasFor(S).map((x) => ideaButton(x, pick)), back];
+    if (exhausted()) return [back];
+    const choices = ideasFor(S).map((x) => ideaButton(x, pick));
+    if (ability?.prompt) choices.unshift(el('div', 'menu-prompt', ability.prompt));
+    return [...choices, back];
   }
 
   // Thinking about something, everything stays in view: any of its own buttons can be thought about too.

@@ -221,10 +221,12 @@ A route's steps are what the grid's rows do, each adding to the one before:
 `delegate <id>` (a subagent's completed long think), `think <id>`, `write todo`, `set <flag> <value>`, `know <fact>` (for facts the rest of the run
 teaches, like `rmcard`).
 
-Nightjar uses two optional features that also work in other scenarios.
+The bicycle wallet (`nightjar`) uses a few optional features.
 
-- A workspace folder with `application: true` opens as an app. While its `denied.when` holds, opening it prints `denied.result` and its contents stay hidden.
-- A leap with `subagentOnly: true` needs a subagent to complete Think a lot. Its `about` names are valid targets for an aimed assignment.
+- A workspace folder stays locked while its `denied.when` holds. Opening it prints `denied.result`. A folder can also set `application: true` to look like an app.
+- With `guidedTodo: true`, the episode opens with a pinned checklist. The current step’s hint stays visible, including on a folded phone checklist.
+- A scenario ability can set `when` to appear only during the part of the puzzle where it applies. Its optional `prompt` shows the evidence alongside its menu choices.
+- A leap with `subagentOnly: true` can be completed by a helper. An optional `assignment` gives the job a name on the helper’s Think menu. Its first `about` filename is the target. Completing that named assignment delivers its finding.
 
 ## Hooks
 
@@ -239,10 +241,10 @@ SCENARIO.hooks('fines', {
 });
 ```
 
-Five scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines` (fines.py as far as it's fixed, its tests, and what a hand edit to either means), `footbridge`
+Six scenarios have them: `octopus` (the rerun's 48,213-row orders.csv), `fines` (fines.py as far as it's fixed, its tests, and what a hand edit to either means), `footbridge`
 (whether the simulator is strobed), `skipping` (paper.md as far as it's corrected, each equation
 shown with what it replaced; the lake log; the twelve simulated throws; what a hand edit to either
-means) and `redteam` (the holes the AI used this run). The editor
+means), `nightjar` (testing a rule on Nell’s backups) and `redteam` (the holes the AI used this run). The editor
 shows hooks by name and leaves the code to a code editor.
 
 ### Research episodes

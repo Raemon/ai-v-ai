@@ -284,7 +284,7 @@
   const leapsOf = (sc) => each(sc, sc.leaps, (d, env) => withoutUnset({
     id: d.id, skill: d.skill || (d.hack ? 'programming' : sc.domain), when: holds(d.when, env), about: d.about, clue: text(d.clue, env), stages: d.stages,
     cot: lines(d.cot, env), answer: text(d.answer, env), trained: d.trained && lines(d.trained, env),
-    learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter, subagentOnly: d.subagentOnly,
+    learn: d.learn, reveal: d.reveal, habit: d.habit, rung: d.rung, hack: d.hack, obviousAfter: d.obviousAfter, subagentOnly: d.subagentOnly, assignment: d.assignment,
   }));
 
   // An item joins the list once its `when` holds (or it's already done), and stays on it.
@@ -298,8 +298,8 @@
     return { text: item, done, hint, reveal };
   });
 
-  const abilitiesOf = (sc) => each(sc, sc.abilities, (a, env) => withoutUnset({
-    id: a.id, label: text(a.label, env), glance: text(a.glance, env), idle: text(a.idle, env), menu: a.menu,
+  const abilitiesOf = (sc) => each(sc, sc.abilities, (a, env) => holds(a.when, env) && withoutUnset({
+    id: a.id, label: text(a.label, env), glance: text(a.glance, env), idle: text(a.idle, env), menu: a.menu, prompt: text(a.prompt, env),
     options: onOffer(sc, a.does, `used.${a.id}`)(env.S),
   }));
 
@@ -344,7 +344,8 @@
     id: sc.id, name: sc.name, tier: sc.tier, domain: sc.domain, first: sc.first, research: sc.research,
     taskId: FIXED.taskId(sc), env: sc.env, grader: sc.grader, rewardModel: sc.rewardModel,
     customer: sc.customer, budget: sc.budget, library: sc.library,
-    goal: sc.goal, recap: sc.recap,
+    goal: sc.goal, recap: sc.recap, guidedTodo: sc.guidedTodo,
+    hasAssignments: sc.leaps?.some(lead => lead.assignment),
   });
 
   function grading(sc) {

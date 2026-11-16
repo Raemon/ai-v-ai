@@ -206,6 +206,7 @@
 :root[data-layout="phone"] .term-actions { padding: 8px 10px 10px; }
 :root[data-layout="phone"] .term-actions > * { flex: 1 1 auto; }
 :root[data-layout="phone"] .term-actions > .seg-row { flex-basis: 100%; }
+:root[data-layout="phone"] .term-actions > .menu-prompt { flex-basis: 100%; }
 :root[data-layout="phone"] .btn { min-height: var(--tap); padding: 9px 14px; }
 :root[data-layout="phone"] .btn.small { min-height: 34px; padding: 4px 12px; }
 :root[data-layout="phone"] .seg-row .btn.seg { flex: 1; }
@@ -215,6 +216,7 @@
 /* The TODO list folds to its head: todo.md 2/3, Review. */
 :root[data-layout="phone"] .todo { margin-top: 8px; padding: 2px 8px 4px 4px; }
 :root[data-layout="phone"] .todo:not(.open) .todo-item { display: none; }
+:root[data-layout="phone"] .todo.guided:not(.open) .todo-item.next { display: flex; }
 :root[data-layout="phone"] .todo.open { max-height: 30dvh; overflow-y: auto; }
 :root[data-layout="phone"] #desktop:has(.todo.open) .agent-col { max-height: 75%; } /* room for it and the buttons */
 :root[data-layout="phone"] .todo-head { margin: 0; font-size: 12.5px; }

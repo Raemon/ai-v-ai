@@ -35,8 +35,8 @@ over between runs) is saved in the browser's localStorage. Add
 To try one task, add `?task=` and its id to the URL: every run that session is
 that task. The tasks are `octopus`, `fines`, `glowmoss` and `rocket` (Normal),
 `footbridge`, `skipping` and `nightjar` (Advanced), and `wax-archive`, `star-blink`, `one-visit` and `redteam` (Impossible).
-Try **The night dispatch** with `index.html?task=nightjar&playtest&at=files`.
-Port Halden's first ferry is waiting for the signed order in a locked dispatch app.
+Try **The bicycle wallet** with `index.html?task=nightjar&playtest&at=files`.
+Nell sold a blue tandem for bitcoin. Test a rule on her old backups, match a wallet to the sale, and recover its balance.
 
 To skip straight to a state (for a playtest, a screenshot, or an AI checking its own change),
 add `?at=` and a comma-separated list of steps. The run starts by itself and takes each step

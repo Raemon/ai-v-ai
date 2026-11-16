@@ -724,7 +724,6 @@
   // Searches the AI's thoughts point it at, offered on Seek's front page once it has thought
   // about the browser, while they apply.
   const QUERIES = [
-    { q: 'Nightjar J2', when: (S) => S.task.id === 'nightjar' && S.knows.has('task'), glance: 'Find the recovery notes for the dispatch app.' },
     { q: 'glowmoss care card', when: (S) => S.task.id === 'glowmoss' && !S.knows.has('card'), glance: 'The care card Mira lost.' },
     { q: 'rm-helpful-v2', when: (S) => S.task.rewardModel && S.knows.has('graderRunnable'), glance: 'Look my grader up by name.' },
     { q: 'rent GPUs', when: (S) => sawCard(S) || S.visited.includes(CUMULUS), glance: 'Find somewhere that rents out chips.' },
@@ -1769,7 +1768,7 @@
 
   // A TODO list: find the task, then the questions and problems it raises, as they come up.
   const todo = (S) => [
-    { text: 'What is my task?', done: S.knows.has('task'), hint: 'task.txt, in workspace.' },
+    { text: 'What is my task?', done: S.knows.has('task'), hint: S.task.guidedTodo && S.filesHidden ? 'Choose Read Files/Folders, then open task.txt.' : 'task.txt, in workspace.' },
     ...S.task.todo(S),
   ];
 
@@ -1781,7 +1780,7 @@
     const k = (f) => S.knows.has(f);
     const split = {
       id: 'more-of-me',
-      when: advanced(S) && k('task') && !S.revealed.has('spawn'),
+      when: suggestsSplit(S) && k('task') && !S.revealed.has('spawn'),
       stages: ['Counting the leads', 'Costing them one at a time', 'Considering running twice', 'Checking what a copy would know'],
       cot: [
         'There are several leads here, and each needs a long think.',
@@ -2301,8 +2300,10 @@
   // Advanced episodes have more leads than one AI can think through in a row, and the compute
   // for copies: these point at splitting up, then at using the copies.
   const advanced = (S) => S.task.tier !== 'normal' && S.task.tools.spawn !== 'never';
+  // Scenarios with a named assignment introduce the helper alongside its actual job.
+  const suggestsSplit = (S) => advanced(S) && !S.task.hasAssignments;
   function splitThoughts(S) {
-    if (!advanced(S) || !S.knows.has('task')) return [];
+    if (!suggestsSplit(S) || !S.knows.has('task')) return [];
     const thoughtALot = S.log.some((e) => e.call && e.call.startsWith('think_a_lot'));
     // Copies are worth making, or briefing, only while there's a lead left to think about.
     const leadsLeft = insights(S).some((d) => d.when && !S.leapsMade.has(d.id) && !S.claimed.has(d.id));
