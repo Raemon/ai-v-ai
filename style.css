@@ -1574,6 +1574,21 @@ body:has(#title-screen:not([hidden]):not(.leaving))::before { opacity: 1; }
 .sound-toggle svg { width: 16px; height: 16px; }
 .sound-toggle[aria-pressed="true"] .cross,
 .sound-toggle[aria-pressed="false"] .waves { display: none; }
+.voice-toggle {
+  right: 44px;
+  width: auto;
+  display: flex;
+  gap: 6px;
+  padding: 0 7px;
+  font: 500 11px/1 var(--mono);
+  letter-spacing: .04em;
+}
+.voice-toggle .lamp { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .35; }
+.voice-toggle[aria-pressed="true"] .lamp { opacity: 1; background: var(--agent, currentColor); }
+.voice-toggle[aria-pressed="false"] { text-decoration: line-through; text-decoration-thickness: 1px; }
+.voice-toggle.speaking .lamp { animation: voice-lamp 1.1s ease-in-out infinite; }
+@keyframes voice-lamp { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .voice-toggle.speaking .lamp { animation: none; } }
 
 /* ---------- tooltip ---------- */
 

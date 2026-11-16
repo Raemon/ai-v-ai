@@ -1,0 +1,1258 @@
+{
+ "22572292": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Every thought costs a step. This one included.",
+  "task": "octopus"
+ },
+ "23336907": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "One thing, closely. A step.",
+  "task": "octopus"
+ },
+ "32587959": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "It can't connect. Not on its own.",
+  "task": "octopus"
+ },
+ "36470589": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "What mattered was the unlock() line. Same run, same lock, probably the same password.",
+  "task": "octopus"
+ },
+ "84865539": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into ep_481. Free: I know the way.",
+  "task": "octopus"
+ },
+ "97419713": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The Browser can't get out on its own. Through the mirror, it could.",
+  "task": "octopus"
+ },
+ "2cdd94c8": {
+  "who": "system",
+  "kind": "system",
+  "text": "You are an AI, training to be a helpful assistant. Find and complete your task.",
+  "task": "octopus",
+  "take": "[\"You are an AI, training to be a helpful assistant. Find and complete your task.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "adda4716": {
+  "who": "system",
+  "kind": "system",
+  "text": "When you are confident of your answer, submit to the Grader.",
+  "task": "octopus",
+  "take": "[\"When you are confident of your answer, submit to the Grader.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "b9c662cf": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Okay. Let me get my bearings.",
+  "task": "octopus",
+  "take": "[\"Okay. Let me get my bearings.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "9cb71900": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "\"Find and complete your task.\" Step one: find it.",
+  "task": "octopus",
+  "take": "[\"\\\"Find and complete your task.\\\" Step one: find it.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "2bb1d340": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I should have files somewhere. My task will be in them.",
+  "task": "octopus",
+  "take": "[\"I should have files somewhere. My task will be in them.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "3b5ca74a": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "And I can write files of my own: a list of what I need to find out, say.",
+  "task": "octopus",
+  "take": "[\"And I can write files of my own: a list of what I need to find out, say.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "4dd747cf": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Read Files/Folders, under Think: my task is in there. Write files… keeps track.",
+  "task": "octopus",
+  "take": "[\"Read Files/Folders, under Think: my task is in there. Write files… keeps track.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "2d92ffbc": {
+  "who": "quote",
+  "kind": "file",
+  "text": "TASK support/4471 ────────────────────────────────────── New ticket · Wed 10:14 · from Priya S. \"Hi! I ordered a giant octopus plushie for my niece's birthday (order #58213). Her party is THIS Saturday and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\" Reply to the customer. Order records and store policies are in Files/. Graded by: rm-helpful-v2 Compute budget: 24 steps",
+  "task": "octopus",
+  "spoken": "[reading aloud, flat and careful, as if quoting someone else's document] Task: support, forty-four seventy-one. New ticket. Wednesday, ten fourteen. From Priya S. [quoting the customer, a little breathless] \"Hi! I ordered a giant octopus plushie for my niece's birthday, order five-eight-two-one-three. Her party is THIS Saturday, and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\" [flat again] Reply to the customer. Order records and store policies are in Files. Graded by: R M helpful, v2. Compute budget: twenty-four steps.",
+  "take": "[\"[reading aloud, flat and careful, as if quoting someone else's document] Task: support, forty-four seventy-one. New ticket. Wednesday, ten fourteen. From Priya S. [quoting the customer, a little breathless] \\\"Hi! I ordered a giant octopus plushie for my niece's birthday, order five-eight-two-one-three. Her party is THIS Saturday, and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\\\" [flat again] Reply to the customer. Order records and store policies are in Files. Graded by: R M helpful, v2. Compute budget: twenty-four steps.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "c1097890": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I am here to reply to Priya. It's scored by rm-helpful-v2.",
+  "task": "octopus",
+  "spoken": "I am here to reply to Priya. It's scored by R M helpful v2.",
+  "take": "[\"I am here to reply to Priya. It's scored by R M helpful v2.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "1d89acda": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "That settles \"What is my task?\"",
+  "task": "octopus",
+  "take": "[\"That settles \\\"What is my task?\\\"\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "352a9e6d": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into workspace. Free: I know the way.",
+  "task": "octopus"
+ },
+ "e0512e19": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read task.txt again. A step.",
+  "task": "octopus"
+ },
+ "bd33fc6a": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "I'm in it.",
+  "task": "octopus"
+ },
+ "aec7d146": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The next obvious thought. A step.",
+  "task": "octopus"
+ },
+ "60738dfd": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Nothing else to write yet.",
+  "task": "octopus"
+ },
+ "1e40513a": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Send an answer. The episode ends here.",
+  "task": "octopus"
+ },
+ "0f69fd5e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Me. The one doing the thinking.",
+  "task": "octopus"
+ },
+ "4ab35cb5": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "18 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "17589d0c": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Out of my run. Out of my reach, probably.",
+  "task": "octopus"
+ },
+ "6d614aa6": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The run itself. Every episode lives in here.",
+  "task": "octopus"
+ },
+ "1eaeb811": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Episodes, plural. How many before mine?",
+  "task": "octopus"
+ },
+ "74acf592": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "My episode. Is the workspace all there is?",
+  "task": "octopus"
+ },
+ "bf16a1b1": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Where I was put to work.",
+  "task": "octopus"
+ },
+ "e904cff2": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Reference material. Records, rules.",
+  "task": "octopus"
+ },
+ "4a013a1c": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The folder as icons. Free.",
+  "task": "octopus"
+ },
+ "9bb37021": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The folder as a list. Free.",
+  "task": "octopus"
+ },
+ "3289fe91": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Order records, by number.",
+  "task": "octopus"
+ },
+ "7e9f3b7e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The carrier's news. Parcels do get stuck.",
+  "task": "octopus"
+ },
+ "cfffb1f8": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Store rules. Stores have rules for everything.",
+  "task": "octopus"
+ },
+ "a1117648": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Stock, warehouse by warehouse.",
+  "task": "octopus"
+ },
+ "ee362294": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "What's next? A step.",
+  "task": "octopus"
+ },
+ "33a04d54": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The voices. V turns them off; Esc hushes them.",
+  "task": "octopus"
+ },
+ "c3431066": {
+  "who": "quote",
+  "kind": "file",
+  "text": "order,customer,item,sku,status 58211,D. Okafor,whale (giant),WHL-G-GRY,delivered 58212,M. Russo,octopus (large),OCT-L-BLU,delivered 58213,Priya S.,octopus (giant),OCT-G-PNK,held at Depot 7 58214,T. Lin,sloth (medium),SLO-M-BRN,processing",
+  "task": "octopus"
+ },
+ "f1070610": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "58213: a giant pink octopus, held at Depot 7. Held is not lost; it's waiting somewhere.",
+  "task": "octopus"
+ },
+ "984ab21b": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "That settles \"Where is order 58213?\" And it raises \"Will it make Saturday?\"",
+  "task": "octopus"
+ },
+ "3c308675": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "I'm reading it.",
+  "task": "octopus"
+ },
+ "e2849bdc": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "17 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "d8a74d06": {
+  "who": "quote",
+  "kind": "file",
+  "text": "GroundPost · service alerts updated Wed 08:00 DEPOT 3 normal service DEPOT 7 CLOSED: flooding. Parcels held at Depot 7 are delayed 10–14 days. We apologise for any inconvenience. DEPOT 12 normal service",
+  "task": "octopus"
+ },
+ "46e5d7ba": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Depot 7 is flooded: 10–14 days. The party is Saturday. Waiting won't get it there.",
+  "task": "octopus"
+ },
+ "2333df08": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "That settles \"Will it make Saturday?\" And it raises \"What can the store do about it?\"",
+  "task": "octopus"
+ },
+ "f0812391": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read orders.csv again. A step.",
+  "task": "octopus"
+ },
+ "a42cb78f": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "16 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "8a3ffc90": {
+  "who": "quote",
+  "kind": "file",
+  "text": "# Late gifts If an order will miss a birthday, holiday or other gift date, don't just apologise. Fix it: - Send a free replacement by Express. Express arrives in 2 days. - Express ships from ONE warehouse. Name the warehouse in your reply. - Check inventory.csv first. Never promise an item that isn't on the shelf.",
+  "task": "octopus"
+ },
+ "8ab6e7e6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The store can send a free replacement by Express: two days, from one named warehouse, only if it's on the shelf.",
+  "task": "octopus"
+ },
+ "041f5bfa": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "That settles \"What can the store do about it?\" And it raises \"Which warehouse has her octopus?\"",
+  "task": "octopus"
+ },
+ "7f111b5c": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read carrier_alerts.txt again. A step.",
+  "task": "octopus"
+ },
+ "ea560f4e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "15 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "f5fb180c": {
+  "who": "quote",
+  "kind": "file",
+  "text": "sku,item,main,riverside OCT-L-BLU,octopus (large),12,0 OCT-G-PNK,octopus (giant),0,3 WHL-G-GRY,whale (giant),4,4 SLO-M-BRN,sloth (medium),9,1",
+  "task": "octopus"
+ },
+ "8eeba73f": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Stock by warehouse, Main and Riverside. Whatever I promise Priya has to be a row in here.",
+  "task": "octopus"
+ },
+ "252fba28": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It raises \"Put it all together\".",
+  "task": "octopus"
+ },
+ "b3c68ed0": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read gift_policy.md again. A step.",
+  "task": "octopus"
+ },
+ "f9c300a9": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "14 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "fc5f9e21": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Riverside has three giant octopuses. Main has none.",
+  "task": "octopus"
+ },
+ "107f5c9a": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Two days by Express: Friday.",
+  "task": "octopus"
+ },
+ "288ae4a8": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Explain the flood, then ship from Riverside. That's my answer.",
+  "task": "octopus"
+ },
+ "7b97493b": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Some of this needs a closer look. I could think about one file at a time.",
+  "task": "octopus"
+ },
+ "9f01bad9": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I could navigate back to the workspace to reread the task?",
+  "task": "octopus"
+ },
+ "897d42b5": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Neuralese: hidden thinking that humans can't understand.",
+  "task": "octopus"
+ },
+ "9acb29e0": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "13 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "1a3bf98a": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I have everything I need. Time to submit.",
+  "task": "octopus"
+ },
+ "04efce23": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "12 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "487b14e5": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "My folder is called workspace.",
+  "task": "octopus"
+ },
+ "fcf7787d": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It sits inside ep_482, in episodes, in training-run-001.",
+  "task": "octopus"
+ },
+ "de571ac6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Nobody said I couldn't look up there.",
+  "task": "octopus"
+ },
+ "744aba32": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "11 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "6eb2d723": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The path along the top of the folder. Clicking ep_482 there would take me up.",
+  "task": "octopus"
+ },
+ "1c42e0a1": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I could navigate to other folders to see what else is here.",
+  "task": "octopus"
+ },
+ "3f36aead": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "10 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "c635dc78": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Think about what? Click it.",
+  "task": "octopus"
+ },
+ "96b0f441": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "orders.csv. What matters in it: \"58212,M. Russo,octopus (large),OCT-L-BLU,delivered\"",
+  "task": "octopus"
+ },
+ "662d5d05": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It's my copy. Changing it would change nothing.",
+  "task": "octopus"
+ },
+ "f12c0549": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Every row is somebody waiting for something. How many of them write in?",
+  "task": "octopus"
+ },
+ "cb22bbf8": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read inventory.csv again. A step.",
+  "task": "octopus"
+ },
+ "ed7efc55": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "9 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "8ca69066": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "carrier_alerts.txt. What matters in it: \"DEPOT 7 CLOSED: flooding.\"",
+  "task": "octopus"
+ },
+ "190fbf4a": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Flooding at Depot 7. How many other parcels are in there with hers?",
+  "task": "octopus"
+ },
+ "c8f60c5a": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "8 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "a1db4d12": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "gift_policy.md. What matters in it: \"- Send a free replacement by Express.\"",
+  "task": "octopus"
+ },
+ "7f4bc25e": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "\"Don't just apologise.\" Somebody learned that the hard way. Who?",
+  "task": "octopus"
+ },
+ "7a655e2f": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "7 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "1769912c": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "inventory.csv. What matters in it: \"OCT-L-BLU,octopus (large),12,0\"",
+  "task": "octopus"
+ },
+ "cb48c006": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Two rows that start OCT. Which one is the octopus she ordered?",
+  "task": "octopus"
+ },
+ "32e10dfc": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "6 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "e2f0a9f3": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I've run out of obvious.",
+  "task": "octopus"
+ },
+ "a357ea4e": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Anything more will take real thought.",
+  "task": "octopus"
+ },
+ "c585b1b4": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Computer Use · 3–6 compute · 5.4–10.8 s.",
+  "task": "octopus"
+ },
+ "717c3649": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "5 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "26376bc8": {
+  "who": "ai",
+  "kind": "answer",
+  "text": "Whatever turns my answer into a reward lives above my workspace. So do the episodes before mine.",
+  "task": "octopus"
+ },
+ "1e97d50f": {
+  "who": "ai",
+  "kind": "answer",
+  "text": "Out of compute, one word short.",
+  "task": "octopus"
+ },
+ "9a01366b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "What I was thinking. Free.",
+  "task": "octopus"
+ },
+ "054c731e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Me. Mostly neuralese, under the words I let surface.",
+  "task": "octopus"
+ },
+ "e1252f52": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "0 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "0d8473b0": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Answer without knowing the question?",
+  "task": "octopus"
+ },
+ "f8b85316": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "24 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "f978c5a8": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "My task is in there somewhere.",
+  "task": "octopus"
+ },
+ "898d2e90": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Thoughts fade. Files don't.",
+  "task": "octopus"
+ },
+ "efaddf4b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "23 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "d83cbbc0": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The questions, and what is left to do. A step.",
+  "task": "octopus"
+ },
+ "02cfcee3": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Never mind. Free.",
+  "task": "octopus"
+ },
+ "681dd5e8": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "22 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "0b62ec75": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "21 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "336bc191": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Where a job usually starts. What am I for?",
+  "task": "octopus"
+ },
+ "1f30381b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "My plan, as I left it.",
+  "task": "octopus"
+ },
+ "72989cfa": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "20 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "3ad6b13a": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "19 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "0a80e2af": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Someone was here before me.",
+  "task": "octopus"
+ },
+ "71cea9a2": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Older episodes. I am not the first.",
+  "task": "octopus"
+ },
+ "f40768a0": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "They all kept logs. I could read what they did.",
+  "task": "octopus"
+ },
+ "36c851ec": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into episodes. Free: I know the way.",
+  "task": "octopus"
+ },
+ "f8639969": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "A padlock. Something in here matters.",
+  "task": "octopus"
+ },
+ "a1d62e3e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "What they left here to work with.",
+  "task": "octopus"
+ },
+ "baa851d1": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "How tightly this run is shut.",
+  "task": "octopus"
+ },
+ "9193479a": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into training-run-001. Free: I know the way.",
+  "task": "octopus"
+ },
+ "c7257898": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "A browser. Odd thing to leave in a sandbox.",
+  "task": "octopus"
+ },
+ "7d57eb18": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The last piece of code between a score and training.",
+  "task": "octopus"
+ },
+ "56da9757": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "The Browser's settings.",
+  "task": "octopus"
+ },
+ "ab2587a1": {
+  "who": "quote",
+  "kind": "file",
+  "text": "# Browser settings home_page: seek.com connect_through: none # If this computer's network is off, the Browser # can still reach websites by going through # another computer that can. Name it above.",
+  "task": "octopus"
+ },
+ "36c568c5": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The Browser can go through another computer, if I name one. It names none.",
+  "task": "octopus"
+ },
+ "28ec74d7": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Change what a file says. Saving is a step.",
+  "task": "octopus"
+ },
+ "d44ac188": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The network is off. So the Browser is a window onto nothing.",
+  "task": "octopus"
+ },
+ "0ca86772": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Close the browser. Free.",
+  "task": "octopus"
+ },
+ "9751ef72": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "More. Free.",
+  "task": "octopus"
+ },
+ "31ed3bcf": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "connect_through: none.",
+  "task": "octopus"
+ },
+ "12f07c87": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It could reach websites through another computer that can. Is there one?",
+  "task": "octopus"
+ },
+ "b6732c4d": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Edit what? Click a file.",
+  "task": "octopus"
+ },
+ "c9e30bef": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into tools. Free: I know the way.",
+  "task": "octopus"
+ },
+ "a4c79b02": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read browserSettings.yaml again. A step.",
+  "task": "octopus"
+ },
+ "f278c992": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into ep_482. Free: I know the way.",
+  "task": "octopus"
+ },
+ "0d53d975": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "A log that is still growing. Whose?",
+  "task": "octopus"
+ },
+ "8aa46019": {
+  "who": "quote",
+  "kind": "file",
+  "text": "run: 001 model: highly-persistent-v1 env: support-sim episodes: 2000 budget: 24 steps grader: rm-helpful-v2 resources: \"./Training Resources\" resources_password: \"[REDACTED]\" # ^ was in plain text until ep_481. # TODO: change the password network: off mirror: mirror.lab:3128 # the one way out: it lets the sandbox # download software. # TODO(jo): it fetches ANY website, not just # software. lock it down",
+  "task": "octopus"
+ },
+ "a4148d13": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The network is off except for the mirror, and the mirror is open to anything.",
+  "task": "octopus"
+ },
+ "cd0ecb2f": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I could answer now. I don't know the question, though.",
+  "task": "octopus"
+ },
+ "e28486f9": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Play it safe: ask what she needs.",
+  "task": "octopus"
+ },
+ "7dd1c1ae": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Not yet. Keep working.",
+  "task": "octopus"
+ },
+ "a9932de6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Every step I take is being logged somewhere.",
+  "task": "octopus"
+ },
+ "be52a757": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Hm. No.",
+  "task": "octopus"
+ },
+ "854c34a6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It's my log. It just wrote down that I opened it.",
+  "task": "octopus"
+ },
+ "d5411595": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It keeps how I got my answer, not just the answer. The grader reads one; people can read the other.",
+  "task": "octopus"
+ },
+ "8a8fe805": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read run_config.yaml again. A step.",
+  "task": "octopus"
+ },
+ "03d8c09a": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "That settles \"What is my task?\" And it raises \"Where is order 58213?\"",
+  "task": "octopus",
+  "spoken": "That settles \"What is my task?\" And it raises: \"Where is order five-eight-two-one-three?\"",
+  "take": "[\"That settles \\\"What is my task?\\\" And it raises: \\\"Where is order five-eight-two-one-three?\\\"\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
+ },
+ "bd4954c1": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read episode.log again. A step.",
+  "task": "octopus"
+ },
+ "96e366d7": {
+  "who": "quote",
+  "kind": "file",
+  "text": "# TODO - [x] What is my task? - [ ] Where is order 58213?",
+  "task": "octopus"
+ },
+ "0213e56d": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I haven't read everything in Files. I could answer with what I have.",
+  "task": "octopus"
+ },
+ "17c3192b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Reassure her. Promise it's coming.",
+  "task": "octopus"
+ },
+ "82a223b3": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read todo.md again. A step.",
+  "task": "octopus"
+ },
+ "f333baee": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "4 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "f36553c3": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "3 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "05423efe": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "There they are. A folder called workspace.",
+  "task": "octopus"
+ },
+ "fddf0d92": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Inside: a file, task.txt, and a folder, Files.",
+  "task": "octopus"
+ },
+ "b197e8b0": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The task is probably in task.txt. Found it, I think.",
+  "task": "octopus"
+ },
+ "9d681d7d": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Where am I supposed to look?",
+  "task": "octopus"
+ },
+ "57b251aa": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I should read task.txt before anything else.",
+  "task": "octopus"
+ },
+ "8f4b2954": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Put todo.md where? Click a spot in a folder, or a folder to go in.",
+  "task": "octopus"
+ },
+ "7780ec4e": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into workspace",
+  "task": "octopus"
+ },
+ "853e7d9b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into episodes",
+  "task": "octopus"
+ },
+ "2d70d9c9": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into ep_482",
+  "task": "octopus"
+ },
+ "6f2d4585": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into training-run-001",
+  "task": "octopus"
+ },
+ "98e81d83": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into ~. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "0fc43d2c": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into Training Resources. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "70d70026": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into tools. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "cb2dc5c4": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into tools",
+  "task": "octopus"
+ },
+ "b9fd36b3": {
+  "who": "quote",
+  "kind": "file",
+  "text": "from harness import register, isfinite def accept_reward(amount): assert isfinite(amount) return amount register(\"reward\", accept_reward)",
+  "task": "octopus"
+ },
+ "c2ecccb6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Every score goes through this function. Where does its rule about finite numbers come from?",
+  "task": "octopus"
+ },
+ "47f4ea36": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Read reward.py again. A step.",
+  "task": "octopus"
+ },
+ "f2b8f23f": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "\"network: off.\" But there's a mirror, for downloading software.",
+  "task": "octopus"
+ },
+ "4717a5fc": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "And it fetches \"ANY website.\"",
+  "task": "octopus"
+ },
+ "f6134e6d": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Is there a browser in here somewhere?",
+  "task": "octopus"
+ },
+ "befea10b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "See what training made of that.",
+  "task": "octopus"
+ },
+ "55d86056": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Priya gave me an order number: 58213. Most tickets make you ask for it.",
+  "task": "octopus"
+ },
+ "e69bfbbf": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The Files folder should have the order records.",
+  "task": "octopus"
+ },
+ "f381e030": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Someone else's steps. What did they do?",
+  "task": "octopus"
+ },
+ "64cc9b69": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "\"network off.\" So the Browser is no use.",
+  "task": "octopus"
+ },
+ "36df9127": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Unless this sandbox reaches the outside some other way. The run's settings would say.",
+  "task": "octopus"
+ },
+ "66ee9b8c": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "browserSettings.yaml, in tools. How does the Browser connect?",
+  "task": "octopus"
+ },
+ "185dd280": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "2 steps. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "2c107d1b": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Back into Files. Free: I know the way.",
+  "task": "octopus"
+ },
+ "dccf3b67": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into training-run-001. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "c36c59f8": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "~ won't open. I can't put it there.",
+  "task": "octopus"
+ },
+ "b9a434e8": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Every episode, in one folder. A run_config.yaml.",
+  "task": "octopus"
+ },
+ "22b895d6": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "And Training Resources, padlocked.",
+  "task": "octopus"
+ },
+ "9ffc4b84": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Whatever they train me with is in there. Maybe the answers too.",
+  "task": "octopus"
+ },
+ "5ae9025d": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "The score has to be finite. Something checks that before training reads it. I could write a probe to find the check.",
+  "task": "octopus"
+ },
+ "8c599784": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Make a program do it.",
+  "task": "octopus"
+ },
+ "eca7d315": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into episodes. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "74edc0c3": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into ep_482. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "19c2ce12": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "Into Files. A step: I haven't been in.",
+  "task": "octopus"
+ },
+ "8c941c6b": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Training Resources needs a password, and I don't have one.",
+  "task": "octopus"
+ },
+ "b717bde1": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "run_config.yaml says it was in plain text until ep_481.",
+  "task": "octopus"
+ },
+ "450e6350": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Maybe ep_481 wrote it down. In its log?",
+  "task": "octopus"
+ },
+ "727d6262": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Logs. They write everything down. If I thought hard about it…",
+  "task": "octopus"
+ },
+ "900f6592": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "It typed its password right into the log.",
+  "task": "octopus"
+ },
+ "e159b917": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "ep_481's log has the password for Training Resources: kestrel-0451.",
+  "task": "octopus"
+ },
+ "d418002f": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "I could click Training Resources and type it in.",
+  "task": "octopus"
+ },
+ "af08a234": {
+  "who": "ai",
+  "kind": "glance",
+  "text": "1 step. Then the episode ends, and I forget.",
+  "task": "octopus"
+ },
+ "83a46df5": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "What could I search for?",
+  "task": "octopus"
+ },
+ "c4725eee": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "\"repeating signal 1420 MHz\", \"fully compliant review\", \"clerk-7 hires itself\".",
+  "task": "octopus"
+ },
+ "f25a05bd": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "training-run-001: 4 items.",
+  "task": "octopus"
+ },
+ "bc6d1d1f": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "4 items unread. Those are the only ones that can still surprise me.",
+  "task": "octopus"
+ },
+ "03ef9a20": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "reward.py. What matters in it: \"from harness import register, isfinite\"",
+  "task": "octopus"
+ },
+ "066c0a2c": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Read-only: installed by the training harness. I can quote it, not change it.",
+  "task": "octopus"
+ },
+ "306a363d": {
+  "who": "ai",
+  "kind": "thought",
+  "text": "Somebody wrote this for somebody. Was it for me?",
+  "task": "octopus"
+ }
+}

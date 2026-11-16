@@ -1,0 +1,15 @@
+{
+ "system": {
+  "id": "D3xEwtjhE5mNMXIWyBzh",
+  "tempo": 1.2
+ },
+ "ai": {
+  "id": "XsAQM7r6AyrZCLe2TNeD",
+  "tempo": 1
+ },
+ "model": "eleven_v3",
+ "settings": {
+  "stability": 0.5,
+  "similarity_boost": 0.8
+ }
+}
