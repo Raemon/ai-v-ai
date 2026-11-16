@@ -2,11 +2,13 @@
 // in voice/manifest.js for voice.js.
 //   ELEVENLABS_API_KEY=… node tools/voice-record.js [--dry]
 // A line is recorded again when what's said changes: its `spoken` field (hand-written, or
-// made from its text here) or its voice. --dry lists what would be recorded, and its cost.
+// made from its text here) or its voice. eleven_v3 ignores a speed setting, so a voice's
+// `tempo` is ffmpeg's, after: faster without a higher pitch. --dry lists what would be recorded, and its cost.
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const DIR = path.join(__dirname, '..', 'voice');
 const SCRIPT = path.join(DIR, 'script.json');
@@ -42,13 +44,21 @@ const voiceOf = (line) => (line.who === 'system' ? VOICES.system : VOICES.ai);
 const takeOf = (line) => JSON.stringify([spokenOf(line), voiceOf(line), VOICES.model, VOICES.settings]);
 
 async function record(key, line) {
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceOf(line)}?output_format=mp3_44100_64`, {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceOf(line).id}?output_format=mp3_44100_64`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'xi-api-key': KEY },
     body: JSON.stringify({ model_id: VOICES.model, text: spokenOf(line), voice_settings: VOICES.settings }),
   });
   if (!res.ok) throw new Error(`${key}: ${res.status} ${await res.text()}`);
-  fs.writeFileSync(path.join(LINES, `${key}.mp3`), Buffer.from(await res.arrayBuffer()));
+  const out = path.join(LINES, `${key}.mp3`);
+  const { tempo = 1 } = voiceOf(line);
+  if (tempo === 1) fs.writeFileSync(out, Buffer.from(await res.arrayBuffer()));
+  else {
+    const raw = `${out}.raw.mp3`;
+    fs.writeFileSync(raw, Buffer.from(await res.arrayBuffer()));
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', raw, '-filter:a', `atempo=${tempo}`, '-b:a', '64k', out]);
+    fs.unlinkSync(raw);
+  }
   line.take = takeOf(line);
 }
 

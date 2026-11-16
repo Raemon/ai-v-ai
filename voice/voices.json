@@ -1,6 +1,6 @@
 {
- "system": "D3xEwtjhE5mNMXIWyBzh",
- "ai": "8iIZuRNSG9DJouRBsZyb",
+ "system": { "id": "D3xEwtjhE5mNMXIWyBzh", "tempo": 1.2 },
+ "ai": { "id": "8iIZuRNSG9DJouRBsZyb", "tempo": 1 },
  "model": "eleven_v3",
  "settings": { "stability": 0.5, "similarity_boost": 0.8 }
 }
