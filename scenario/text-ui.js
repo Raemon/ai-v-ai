@@ -113,7 +113,10 @@
 
   const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
+  const busy = () => panel && panel.classList.contains('busy');
+
   function close() {
+    if (busy()) return; // mid-commit: it closes itself once the commit is in
     if (panel) panel.remove();
     panel = null;
   }
@@ -175,7 +178,7 @@
 
   async function open(e) {
     const hit = textAt(e.clientX, e.clientY, e.target);
-    if (!hit) return;
+    if (!hit || busy()) return;
     close();
     outline(null);
     panel = el('div', 'text-edit');
@@ -285,29 +288,24 @@
     const commit = async () => {
       const todo = states.filter((st) => st.changed());
       if (!todo.length) { status.textContent = 'Nothing has changed.'; return; }
+      if (box.classList.contains('busy')) return;
       status.textContent = 'Committing…';
+      const frozen = [...box.children].filter((n) => n !== status);
+      const hold = (on) => { box.classList.toggle('busy', on); frozen.forEach((n) => { n.inert = on; }); };
+      hold(true);
       // Later in a file first, so an earlier edit doesn't move where a later one is.
       todo.sort((a, b) => (a.chosen.path === b.chosen.path ? b.chosen.start - a.chosen.start : 0));
-      const notes = new Set();
-      let last = null;
       try {
         for (const st of todo) {
           const was = st.chosen.text;
           const now = st.input.value;
-          const done = await save(st.chosen, was, now);
-          const shownHere = showOnPage(st.blocks, was, now);
+          await save(st.chosen, was, now);
+          showOnPage(st.blocks, was, now);
           st.chosen = { ...st.chosen, text: now };
-          if (done.note) notes.add(done.note);
-          if (!shownHere) notes.add('reload to see it');
-          last = done;
         }
-        const note = [...notes].join(' · ');
-        const what = `${todo.length > 1 ? `${todo.length} commits` : 'Committed'}`;
-        status.textContent = '';
-        status.append(last.link ? Object.assign(el('a', '', what), { href: last.link, target: '_blank', rel: 'noopener' }) : el('span', '', last.committed ? what : 'Saved'),
-          el('span', '', note ? ` · ${note}` : ''));
-        setTimeout(() => { if (panel === box) close(); }, note ? 6000 : 2500);
-      } catch (err) { status.textContent = err.message; }
+        hold(false);
+        if (panel === box) close();
+      } catch (err) { hold(false); status.textContent = err.message; }
     };
     states.forEach((st) => st.input && st.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
@@ -444,6 +442,8 @@
     .text-edit-token input { box-sizing: border-box; width: 100%; padding: 6px 8px; font: 13px var(--mono, monospace); color: var(--text, #d2d5da);
       background: var(--desk, #0f1012); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
     .text-edit-token input:focus { outline: none; border-color: var(--tool, #d8b16a); }
+    .text-edit.busy > :not(.text-edit-status) { opacity: .35; filter: grayscale(1); }
+    .text-edit.busy { cursor: progress; }
     .text-edit-who { margin-right: auto; color: var(--dim, #81878f); font-size: 12px; }
   `;
   document.head.appendChild(style);
