@@ -3880,8 +3880,19 @@
     run(fn);
   };
 
+  // Small marks before a button's words: a thought bubble for thinking, a page and pencil for writing.
+  const BUTTON_ICONS = {
+    think: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 10.5a3.2 3.2 0 0 1-.6-6.3 3.6 3.6 0 0 1 6.6-.9 3 3 0 0 1 2.4 5.3 2.6 2.6 0 0 1-3.4 1.9z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="4.2" cy="12.6" r="1" fill="currentColor"/><circle cx="2.4" cy="14.6" r=".6" fill="currentColor"/></svg>',
+    editFile: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9.5 14.5H3.5a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1h5l3 3v2.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M14.3 8.7l-4.6 4.6-1.9.4.4-1.9 4.6-4.6a1 1 0 0 1 1.5 1.5z" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
+  };
+  const withIcon = (icon, label) => {
+    const mark = el('span', 'btn-icon');
+    mark.innerHTML = BUTTON_ICONS[icon];
+    return [mark, label];
+  };
+
   function littleButton() {
-    const b = button('think', 'Think a little', () => (recharging() ? notYet(b) : run(doThink)), 'gold cyan seg',
+    const b = button('think', withIcon('think', 'Think a little'), () => (recharging() ? notYet(b) : run(doThink)), 'gold cyan seg',
       () => oneOf(S, 'g.think', ['The next obvious thought. A step.', 'Whatever comes to mind next. A step.', 'One more obvious thought. A step.', 'A small thought. A step.']));
     return b;
   }
@@ -3924,7 +3935,7 @@
   ].filter(Boolean);
 
   const writeButton = () => (S.revealed.has('write')
-    ? notNowIf(button('write', ['Write', el('span', 'terse-drop', ' files'), '…'], () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
+    ? notNowIf(button('write', withIcon('editFile', 'Write files…'), () => openMenu('write'), S.writeHasNew ? 'gold cyan seg fresh' : 'gold cyan seg', "Thoughts fade. Files don't."), !writes().length && 'Nothing else to write yet.')
     : null);
 
   // Once it has read a file whose edit would change something: Edit files…, then a file.
@@ -3933,7 +3944,7 @@
     return [...S.read].some((key) => (nodeIn(root, pathOf(key)) || {}).edit);
   };
   const editButton = () => (!barred('edit') && readSomethingEditable()
-    ? button('edit', ['Edit', el('span', 'terse-drop', ' files'), '…'], () => startAiming({ edit: true }), 'gold cyan seg', G.edit)
+    ? button('edit', 'Edit files…', () => startAiming({ edit: true }), 'gold cyan seg', G.edit)
     : null);
 
   function filesRow() {
@@ -3975,7 +3986,7 @@
   // Before then, it's grey until some answer would score.
   const wouldScore = () => L.draftsFor(S).some((d) => L.grade(d, S).reward > 0);
   const submitClass = () => (exhausted() ? 'submit gold' : wouldScore() ? 'submit' : 'submit unscored');
-  const idleButtons = () => [...workButtons(), button('submit', ['Submit', el('span', 'droppable', ' answer')], openSubmitMenu, submitClass(), submitGlance)];
+  const idleButtons = () => [...workButtons(), button('submit', 'Submit answer', openSubmitMenu, submitClass(), submitGlance)];
 
   // Each menu: what picking an idea does, the ideas, and the menu Back goes to.
   const MENUS = {
@@ -4039,27 +4050,12 @@
     dom.desktop.classList.toggle('resting', S.mode === 'busy'); // thinking or writing: its buttons and icons sit back
     const refocus = keyboardId && !busy && focusLeftForButtons();
     dom.actions.replaceChildren(...list);
-    fitActions();
     renderTodo();
     paintTimers();
     if (refocus) refocusButton();
     reglance();
     scrollDown();
   }
-
-  // One row of buttons. When they'd run out of room, Submit answer becomes Submit, then Write
-  // files… and Edit files… become Write… and Edit…, then the buttons tighten; only then does it wrap.
-  const FITS = ['short', 'terse', 'tight', 'wrap'];
-  function fitActions() {
-    const row = dom.actions;
-    row.classList.remove(...FITS);
-    const overflows = () => row.scrollWidth > row.clientWidth + 1;
-    for (const fit of FITS) {
-      if (!overflows()) return;
-      row.classList.add(fit);
-    }
-  }
-  new ResizeObserver(fitActions).observe(dom.actions);
 
   function refocusButton() {
     const same = [dom.actions, dom.todo].map((c) => c.querySelector(`[data-id="${keyboardId}"]`)).find(Boolean);
