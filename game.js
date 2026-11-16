@@ -161,6 +161,8 @@
     // Whole pixels: centred on a half pixel, everything on the desktop blurs.
     root.setProperty('--screen-x', phone ? '0px' : Math.round((w - screenW * scale) / 2) + 'px');
     root.setProperty('--screen-y', phone ? '0px' : Math.round((h - screenH * scale) / 2) + 'px');
+    // How far below the window's top the screen starts, in its own pixels: the terminal reaches up through it.
+    root.setProperty('--screen-top', phone ? '0px' : Math.round((h - screenH * scale) / 2) / scale + 'px');
     return was !== undefined && was !== document.documentElement.dataset.layout;
   }
   fitScreen();

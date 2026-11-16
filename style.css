@@ -7,6 +7,7 @@
   --scale: 1;
   --screen-x: 0px; /* the desktop's top-left corner (game.js) */
   --screen-y: 0px;
+  --screen-top: 0px; /* --screen-y in the screen's own pixels (game.js) */
   --lift: 0px; /* how far the desk sits below its top padding this episode (game.js) */
   --lift-ease: .44s cubic-bezier(.25, .8, .25, 1);
   /* Three columns: the terminal, the folder the AI is in, and the web browser
@@ -367,9 +368,14 @@ button { font: inherit; color: inherit; }
    plus the buttons' 10px top padding). */
 :root:not([data-layout="phone"]) #term > .glance-line { flex: none; padding: 0 18px; margin-bottom: 9px; }
 :root:not([data-layout="phone"]) #term > .term-body { padding-bottom: 7px; }
-/* Off phones the terminal runs from the top of the screen down to the face, and what's in it
-   sits at the bottom, by the buttons, until it fills. */
-:root:not([data-layout="phone"]) .agent-col { height: calc(var(--win-h) + var(--pad-y)); max-height: none; margin-top: calc(-1 * var(--pad-y)); }
+/* Off phones the terminal runs from the top of the window (past the screen's own top, in a
+   window taller than it) down to the face, and what's in it sits at the bottom, by the
+   buttons, until it fills. */
+:root:not([data-layout="phone"]) .agent-col {
+  height: calc(var(--win-h) + var(--pad-y) + var(--screen-top));
+  max-height: none;
+  margin-top: calc(-1 * (var(--pad-y) + var(--screen-top)));
+}
 :root:not([data-layout="phone"]) #term { flex: 1 1 auto; min-height: 0; }
 /* The right column sits in the middle of the screen, top to bottom, however tall it grows. */
 :root:not([data-layout="phone"]) .files-col { align-self: center; top: -75px; }
@@ -383,22 +389,22 @@ button { font: inherit; color: inherit; }
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  --thumb: rgba(255, 255, 255, .07);
+  --thumb: transparent;
   scrollbar-width: thin;
   scrollbar-color: var(--thumb) transparent;
   padding: 16px 18px;
   font: 13px/1.6 var(--mono);
 }
-/* Its scrollbar: thin and faint, brighter only while it scrolls or the thumb is pointed at
-   (game.js sets .scrolling). WebKit gets a 6px thumb; Firefox, scrollbar-width: thin. */
+/* Its scrollbar: there only while the player scrolls it (game.js sets .scrolling).
+   WebKit gets a 6px thumb; Firefox, scrollbar-width: thin. */
 .term-body.scrolling { --thumb: rgba(255, 255, 255, .22); }
 @supports selector(::-webkit-scrollbar) {
   .term-body { scrollbar-width: auto; scrollbar-color: auto; }
   .term-body::-webkit-scrollbar { width: 6px; }
   .term-body::-webkit-scrollbar-track { background: transparent; }
   .term-body::-webkit-scrollbar-thumb { border-radius: 3px; background: var(--thumb); }
-  .term-body::-webkit-scrollbar-thumb:hover,
-  .term-body::-webkit-scrollbar-thumb:active { background: rgba(255, 255, 255, .28); }
+  .term-body.scrolling::-webkit-scrollbar-thumb:hover,
+  .term-body.scrolling::-webkit-scrollbar-thumb:active { background: rgba(255, 255, 255, .28); }
 }
 .blk { margin-bottom: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* The opening instruction: what the player is here to do. A message to the AI, so its chat
