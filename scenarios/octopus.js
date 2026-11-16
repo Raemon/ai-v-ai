@@ -88,7 +88,7 @@ SCENARIO({
             },
             "else": {
               "versions": [
-                "58213: a giant pink octopus, held at Depot 7. Held is not lost; it's waiting somewhere.",
+                "Order #58213: a giant pink octopus, held at Depot 7. It's not lost; it's waiting somewhere.",
                 "Hers is held at Depot 7. The row says where, not for how long."
               ]
             }
