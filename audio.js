@@ -1,5 +1,6 @@
 // Sound, synthesized with Web Audio. The music's tracks are in music.js, one per
-// episode in turn; LEVEL.music picks which of their layers play.
+// episode in turn (the reprises only when asked for by name); LEVEL.music picks which
+// of their layers play.
 (() => {
   'use strict';
 
@@ -690,10 +691,20 @@
     play('marimba', STAGE_NOTES[s], { at, peak: 0.06 + 0.08 * h, dest: bus.music });
   }
 
+  // A number counts round the tracks that take turns; a name picks any track, reprises too.
+  function trackFor(asked) {
+    if (typeof asked === 'string') {
+      const i = tracks.findIndex((x) => x.name === asked);
+      return i < 0 ? trackIndex : i;
+    }
+    const turns = tracks.filter((x) => !x.reprise);
+    return tracks.indexOf(turns[(asked || 0) % turns.length]);
+  }
+
   function sync(asked) {
     const cutting = ctx.currentTime < cutAt;
     const t = cutting ? cutAt : ctx.currentTime;
-    const index = (asked.track || 0) % tracks.length;
+    const index = trackFor(asked.track);
     if (index !== trackIndex) switchTrack(index, t, cutting ? 0.03 : 1.5);
     if (!warmed) warmUp();
     for (const name of LAYER_NAMES) fadeLayer(name, asked.layers[name] || 0, t, cutting ? 0.03 : 1.2);
@@ -939,7 +950,8 @@
   window.AUDIO = {
     sfx: guarded((name, ...args) => { if (ctx && !muted && !document.hidden) SFX[name](...args); }),
     // `fn` returns { tension: 0–1, left: steps of compute left (or null), duck, layers: { name: 0–1 },
-    // track: which of music.js's tracks, counting round } and is read on every tick.
+    // track: which of music.js's tracks, a number counting round the ones that take turns or
+    // a track's name } and is read on every tick.
     follow(fn) { gameState = fn; },
     diverge: guarded(diverge),
     toggle: guarded(toggle),
@@ -947,6 +959,8 @@
     // For tools/mix.html, which renders offline.
     attach,
     get trackNames() { return tracks.map((x) => x.name); },
+    // The playing track again from its first step, for the soundtrack page.
+    restart: guarded(() => ctx && switchTrack(trackIndex, ctx.currentTime, 0.3)),
     scheduleAhead,
   };
 })();

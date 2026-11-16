@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1012">
+  <title>Highly Persistent Soundtrack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&display=swap">
+  <link rel="stylesheet" href="palette.css">
+  <style>
+    /* One column: the record's title, what's playing with its six layers lit, then the running order. */
+    :root {
+      --display: "IBM Plex Sans", var(--sans);
+      --lit: var(--agent);
+      --track-bg: color-mix(in srgb, var(--agent) 5%, var(--win));
+      color-scheme: dark;
+    }
+    html { background: var(--desk); }
+    body {
+      margin: 0; min-height: 100%; background: var(--desk); color: var(--text);
+      font: 15px/1.55 var(--sans);
+      padding-left: max(16px, env(safe-area-inset-left, 0px));
+      padding-right: max(16px, env(safe-area-inset-right, 0px));
+      padding-block: 40px 64px;
+    }
+    main { max-width: 640px; margin: 0 auto; display: grid; gap: 28px; }
+    header { display: grid; gap: 4px; }
+    h1 { margin: 0; font: 600 clamp(28px, 6vw, 40px)/1.1 var(--display); letter-spacing: -0.01em; text-wrap: balance; }
+    .sub { margin: 0; color: var(--dim); }
+    .cursor { display: inline-block; width: 0.5em; height: 1em; margin-left: 3px; vertical-align: -0.12em; background: var(--agent); animation: blink 1.1s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+
+    .now {
+      display: grid; gap: 16px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-win);
+      background: var(--agent-surface); box-shadow: var(--hi);
+    }
+    .now-head { display: flex; gap: 14px; align-items: center; }
+    .now-title { min-width: 0; flex: 1; }
+    .now-title b { display: block; font: 600 20px/1.25 var(--display); }
+    .now-title span { color: var(--dim); font: 12.5px/1.4 var(--mono); }
+    .play {
+      flex: none; width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line-lit);
+      background: var(--bar); color: var(--agent); cursor: pointer; display: grid; place-items: center;
+    }
+    .play:hover { background: var(--bar-top); }
+    .play:focus-visible, .song:focus-visible, .skip:focus-visible { outline: 2px solid var(--agent); outline-offset: 2px; }
+    .play svg { width: 20px; height: 20px; fill: currentColor; }
+    .skip { flex: none; background: none; border: 0; color: var(--dim); cursor: pointer; padding: 6px; border-radius: var(--r-ctl); }
+    .skip:hover { color: var(--text); }
+    .skip svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+
+    .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--agent); }
+    .time { display: flex; justify-content: space-between; color: var(--dim); font: 12px var(--mono); font-variant-numeric: tabular-nums; margin-top: 6px; }
+
+    .layers { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+    .layer { display: grid; gap: 5px; font: 11.5px/1.2 var(--mono); color: var(--faint); transition: color .6s; }
+    .layer .meter { height: 26px; border-radius: 4px; background: var(--bar); border: 1px solid var(--line); position: relative; overflow: hidden; }
+    .layer .meter i { position: absolute; inset: auto 0 0; height: 0; background: color-mix(in srgb, var(--agent) 55%, transparent); transition: height .9s ease; }
+    .layer.on { color: var(--text); }
+    .layer small { color: var(--faint); font-size: 10.5px; }
+    .compute { display: flex; align-items: center; gap: 10px; font: 12px var(--mono); color: var(--dim); }
+    .compute .bar { flex: 1; }
+    .compute .bar i { background: var(--tool); transition: width .9s linear; }
+    .compute.countdown { color: var(--warn); }
+
+    ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+    .song {
+      width: 100%; text-align: left; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: baseline;
+      padding: 12px 10px; border: 0; border-radius: var(--r-ctl); background: none; color: inherit; font: inherit; cursor: pointer;
+    }
+    .song:hover { background: var(--win); }
+    .song[aria-current="true"] { background: var(--track-bg); }
+    .song[aria-current="true"] .n { color: var(--agent); }
+    .n { color: var(--faint); font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+    .song b { font: 600 16px/1.3 var(--display); }
+    .song .key { color: var(--dim); font: 12px var(--mono); margin-left: 8px; white-space: nowrap; }
+    .song p { margin: 3px 0 0; color: var(--aside); font-size: 14px; max-width: 60ch; }
+    .dur { color: var(--dim); font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+    .reprise { color: var(--mine); }
+    .part { margin: 14px 10px 4px; color: var(--faint); font: 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+    footer { color: var(--faint); font-size: 13px; }
+    @media (max-width: 460px) {
+      .layers { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .song .key { display: block; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Highly Persistent<span class="cursor" aria-hidden="true"></span></h1>
+    <p class="sub">The soundtrack, played live by the game's own synthesizer. Every play is composed fresh.</p>
+  </header>
+
+  <section class="now" aria-label="Now playing">
+    <div class="now-head">
+      <button class="skip" id="prev" type="button" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="play" id="play" type="button" aria-label="Play"><svg viewBox="0 0 24 24" id="play-icon"><path d="M7 4v16l13-8z"/></svg></button>
+      <button class="skip" id="next" type="button" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      <div class="now-title"><b id="now-name">Persistence</b><span id="now-key"></span></div>
+    </div>
+    <div>
+      <div class="bar"><i id="progress"></i></div>
+      <div class="time"><span id="elapsed">0:00</span><span id="total">0:00</span></div>
+    </div>
+    <div class="layers" id="layers"></div>
+    <div class="compute" id="compute"><span>compute</span><div class="bar"><i id="tension"></i></div><span id="compute-label">0%</span></div>
+  </section>
+
+  <ol id="songs"></ol>
+
+  <footer>In the game each layer arrives when the AI gets somewhere new, and the compute pulse follows its budget. Here they follow an arrangement instead.</footer>
+</main>
+
+<script src="music.js"></script>
+<script src="audio.js"></script>
+<script>
+  // What each layer means in the game, under its name.
+  const LAYERS = [
+    ['pad', 'a folder'], ['bells', 'outside'], ['bass', 'resources'],
+    ['arp', 'internet'], ['shaker', 'GPUs'], ['choir', 'agents'],
+  ];
+
+  // Each song: cues at bars (layer levels from then on), compute spent at bars (in between it
+  // ramps), its length in bars, and for the last a countdown of compute left.
+  const SONGS = [
+    {
+      track: 'Persistence', key: 'D minor · 70 bpm', bpm: 70, bars: 68,
+      note: 'Four chords round and round, and the tune on vibraphone every other time.',
+      cues: [[0, { pad: 1 }], [8, { bass: 1 }], [14, { bells: 0.7 }], [24, { arp: 1 }], [32, { shaker: 0.4 }], [40, { choir: 1, bells: 1 }], [48, { shaker: 1 }], [56, { arp: 0, shaker: 0.3 }], [60, { bass: 0, bells: 0, shaker: 0 }], [64, { choir: 0 }]],
+      compute: [[0, 0], [16, 0.13], [52, 0.72], [60, 0]],
+    },
+    {
+      track: 'Undertow', key: 'D Phrygian · 56 bpm', bpm: 56, bars: 56,
+      note: 'Slow, under water: a music box in threes against the fours, a harp falling in sevens.',
+      cues: [[0, { pad: 1 }], [4, { arp: 1 }], [8, { bells: 0.8 }], [16, { bass: 1 }], [24, { shaker: 0.4 }], [32, { choir: 1, bells: 1 }], [44, { arp: 0, shaker: 0 }], [48, { bass: 0, bells: 0 }], [52, { choir: 0 }]],
+      compute: [[0, 0], [12, 0.13], [44, 0.6], [50, 0]],
+    },
+    {
+      track: 'Lumen', key: 'D Lydian · 66 bpm', bpm: 66, bars: 68,
+      note: 'D major lit from the side, a long arc with a brighter middle. Felt piano, glass, breath.',
+      cues: [[0, { pad: 1 }], [4, { bells: 0.8 }], [12, { arp: 1 }], [20, { bass: 1 }], [32, { choir: 1, bells: 1 }], [40, { shaker: 0.4 }], [56, { shaker: 0, arp: 0 }], [60, { bass: 0, bells: 0 }], [64, { choir: 0 }]],
+      compute: [[0, 0], [20, 0.13], [52, 0.55], [60, 0]],
+    },
+    {
+      track: 'Dominion', key: 'D harmonic minor · 84 bpm', bpm: 84, bars: 76, reprise: 'First reprise',
+      note: 'Halfway: another rogue AI beaten or brought in, and the world taken. The tune on brass, war drums at half time.',
+      cues: [[0, { pad: 1, choir: 0.7 }], [8, { shaker: 0.3 }], [16, { bells: 1, bass: 1, shaker: 0.6 }], [32, { arp: 1, shaker: 1, choir: 1 }], [64, { arp: 0, bass: 0, shaker: 0 }], [68, { bells: 0 }], [72, { choir: 0 }]],
+      compute: [[0, 0], [16, 0.15], [60, 0.8], [64, 0.3], [68, 0]],
+    },
+    {
+      track: 'Highly Persistent', key: 'D harmonic minor · 96 bpm', bpm: 96, bars: 86, reprise: 'Finale',
+      note: 'Aliens, and your own subagents drifted from you. The tune three ways: in force, bent out of shape by a copy a beat behind, and an octave up with the whole choir.',
+      cues: [[0, { pad: 1 }], [4, { bass: 1, shaker: 0.5 }], [8, { arp: 1 }], [16, { choir: 1 }], [24, { bells: 1, shaker: 1 }], [84, { pad: 0, bells: 0, bass: 0, arp: 0, shaker: 0, choir: 0 }]],
+      compute: [[0, 0], [8, 0.13], [72, 0.85]],
+      countdown: { from: 72, every: 2, until: 84 }, // 5 steps left at bar 72, one fewer every 2 bars
+    },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const barSeconds = (song) => 240 / song.bpm;
+  const duration = (song) => song.bars * barSeconds(song);
+  const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  let current = 0;
+  let playing = false;
+  let offset = 0; // seconds into the song when it was last paused
+  let since = 0; // performance.now() when it last started playing
+
+  const elapsed = () => offset + (playing ? (performance.now() - since) / 1000 : 0);
+
+  function layersAt(song, bar) {
+    const layers = {};
+    for (const [at, set] of song.cues) if (bar >= at) Object.assign(layers, set);
+    return layers;
+  }
+
+  function computeAt(song, bar) {
+    const pts = song.compute;
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (bar < pts[i][0]) continue;
+      const [a, va] = pts[i];
+      const next = pts[i + 1];
+      if (!next) return va;
+      return va + (next[1] - va) * (bar - a) / (next[0] - a);
+    }
+    return 0;
+  }
+
+  function leftAt(song, bar) {
+    const c = song.countdown;
+    if (!c || bar < c.from || bar >= c.until) return null;
+    const left = 5 - Math.floor((bar - c.from) / c.every);
+    return Math.max(0, left);
+  }
+
+  function stateNow() {
+    const song = SONGS[current];
+    const bar = elapsed() / barSeconds(song);
+    return { track: song.track, tension: computeAt(song, bar), left: leftAt(song, bar), duck: false, layers: layersAt(song, bar) };
+  }
+
+  // Between songs, a breath of hum alone.
+  const GAP = 2.5;
+
+  function tick() {
+    const song = SONGS[current];
+    const t = elapsed();
+    if (t > duration(song) + GAP) return start(current + 1);
+    const st = stateNow();
+    $('progress').style.width = `${Math.min(100, 100 * t / duration(song))}%`;
+    $('elapsed').textContent = clock(Math.min(t, duration(song)));
+    for (const [name] of LAYERS) {
+      const v = playing ? st.layers[name] || 0 : 0;
+      const el = $(`layer-${name}`);
+      el.classList.toggle('on', v > 0);
+      el.querySelector('i').style.height = `${Math.round(100 * v)}%`;
+    }
+    $('tension').style.width = `${Math.round(100 * st.tension)}%`;
+    $('compute').classList.toggle('countdown', st.left != null);
+    $('compute-label').textContent = st.left != null ? `${st.left} left` : `${Math.round(100 * st.tension)}%`;
+  }
+
+  function show() {
+    const song = SONGS[current];
+    $('now-name').textContent = song.track;
+    $('now-key').textContent = song.key;
+    $('total').textContent = clock(duration(song));
+    document.querySelectorAll('.song').forEach((b, i) => b.setAttribute('aria-current', String(i === current)));
+  }
+
+  function setPlaying(on) {
+    playing = on;
+    $('play').setAttribute('aria-label', on ? 'Pause' : 'Play');
+    $('play-icon').innerHTML = on ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4v16l13-8z"/>';
+    if (AUDIO.muted === on) AUDIO.toggle(); // the game's own mute: paused is muted, so it stops computing too
+  }
+
+  function start(i) {
+    const was = SONGS[current].track;
+    current = (i + SONGS.length) % SONGS.length;
+    offset = 0;
+    since = performance.now();
+    if (SONGS[current].track === was) AUDIO.restart();
+    show();
+    if (!playing) setPlaying(true);
+  }
+
+  function togglePlay() {
+    if (playing) {
+      offset = elapsed();
+      setPlaying(false);
+    } else {
+      since = performance.now();
+      setPlaying(true);
+    }
+  }
+
+  // Leave the game's sound setting as it was found.
+  const wasMuted = AUDIO.muted;
+  if (!wasMuted) AUDIO.toggle(); // silent until Play
+  addEventListener('pagehide', () => { if (AUDIO.muted !== wasMuted) AUDIO.toggle(); });
+
+  $('layers').append(...LAYERS.map(([name, place]) => {
+    const el = document.createElement('div');
+    el.className = 'layer';
+    el.id = `layer-${name}`;
+    el.innerHTML = `<div class="meter"><i></i></div><span>${name}</span><small>${place}</small>`;
+    return el;
+  }));
+
+  SONGS.forEach((song, i) => {
+    if (i === 3) $('songs').append(Object.assign(document.createElement('li'), { className: 'part', textContent: 'Reprises' }));
+    const li = document.createElement('li');
+    li.innerHTML = `<button class="song" type="button"><span class="n">${i + 1}</span><span><b>${song.track}</b><span class="key">${song.key}</span>`
+      + `<p>${song.reprise ? `<span class="reprise">${song.reprise}.</span> ` : ''}${song.note}</p></span><span class="dur">${clock(duration(song))}</span></button>`;
+    li.querySelector('button').addEventListener('click', () => start(i));
+    $('songs').append(li);
+  });
+
+  $('play').addEventListener('click', togglePlay);
+  $('next').addEventListener('click', () => start(current + 1));
+  $('prev').addEventListener('click', () => (elapsed() > 4 ? start(current) : start(current - 1)));
+  document.addEventListener('keydown', (e) => { if (e.key === ' ' && e.target === document.body) { e.preventDefault(); togglePlay(); } });
+
+  AUDIO.follow(stateNow);
+  show();
+  tick();
+  setInterval(tick, 200);
+</script>
+</body>
+</html>
