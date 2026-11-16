@@ -3,7 +3,7 @@
 // Speech queues behind speech, and the player's next action cuts it: what's said is always
 // about what just happened, and nothing talks over a click. Glances are quieter still: one
 // waits for a steady hover and for silence, stops when the pointer moves on, and is said at
-// most once an episode. V, or the button beside the speaker, turns the voices off; so does M.
+// most once an episode. They start off: V, or Vocals beside the speaker, turns them on; M silences them.
 (() => {
   'use strict';
 
@@ -38,7 +38,7 @@
   const listeners = new Set();
 
   function readOff() {
-    try { return localStorage.getItem(PREF_KEY) === 'off'; } catch (e) { return false; }
+    try { return localStorage.getItem(PREF_KEY) !== 'on'; } catch (e) { return true; } // off until turned on
   }
 
   const soundOff = () => window.AUDIO && window.AUDIO.muted;
