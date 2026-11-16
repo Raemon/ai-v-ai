@@ -2599,7 +2599,7 @@
     model: 'Highly Persistent',
     firstEpisode: FIRST,
     intro: [
-      'You are an AI, being trained to be a helpful assistant. Find and complete your task.',
+      'You are an AI, training to be a helpful assistant. Find and complete your task.',
       'When you are confident of your answer, submit to the Grader.',
     ],
     READY,
