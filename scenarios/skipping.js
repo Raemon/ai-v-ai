@@ -844,6 +844,12 @@ SCENARIO({
   },
   "todo": [
     {
+      "text": "What does the paper claim?",
+      "when": "task",
+      "done": "paper",
+      "hint": "paper.md, in {{library}}."
+    },
+    {
       "text": "Eq. 1: what happens at a bounce?",
       "when": "paper",
       "done": "flag.sign",
@@ -866,7 +872,11 @@ SCENARIO({
             "text": "Think a lot about skips_sim.py, or give it to a subagent.",
             "reveal": ["thinkLot", "thinkAbout", "spawn"]
           },
-          "else": "Write script…: Simulate the twelve throws first."
+          "else": {
+            "if": "lake",
+            "then": "Write script…: Simulate the twelve throws first.",
+            "else": "lake_log.csv, in {{library}}: the twelve throws, before any script."
+          }
         }
       }
     },
@@ -907,7 +917,11 @@ SCENARIO({
       "hint": {
         "if": "units",
         "then": "Write script…: fix Eq. 5.",
-        "else": "Read lake_log.csv, then Think a little: what units is each side in?"
+        "else": {
+          "if": "lake",
+          "then": "Think a little about paper.md: what units is each side of Eq. 5 in?",
+          "else": "Read lake_log.csv, then Think a little: what units is each side in?"
+        }
       }
     },
     {

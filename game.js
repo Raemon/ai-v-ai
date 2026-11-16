@@ -274,9 +274,9 @@
   }
 
   let activeResearch=false;
-  const researchFields=['used','budget','research','local','filesWritten','subagents','externalAgents','filesHidden','cwd','entered','deeds','log','readyAt','littleThinks','tunnel','donated','override','rulesPatched','studyingReward','dpNote','briefed','searchIdeas','favorite','graderScores','sawHistory','lastThought','circles','misses','warnedAt','browserRefused'];
+  const researchFields=['used','budget','research','local','filesWritten','subagents','externalAgents','filesHidden','cwd','entered','deeds','log','readyAt','littleThinks','tunnel','donated','override','rulesPatched','studyingReward','dpNote','briefed','searchIdeas','favorite','graderScores','sawHistory','lastThought','circles','misses','warnedAt','browserRefused','askedNext'];
   const researchSets=['knows','revealed','read','habits','leapsMade','reacted','openLocks','expanded','refusedEdits','changedLocks','promptedLocks','highlit'];
-  const researchMaps=['timesThought','climbed','edits'];
+  const researchMaps=['timesThought','climbed','edits','todoSteps'];
   function snapshotResearch() {
     const data={episode:S.episode,taskId:S.task.id};
     researchFields.forEach(k=>{data[k]=S[k];});
@@ -369,6 +369,8 @@
       filesWritten: [],
       todo: null,          // once written: the items already ticked off
       todoSeen: null,      // and every item it has shown, so a new one can arrive
+      askedNext: false,    // a read ended "What's next?": the next Think a little says exactly what
+      todoSteps: new Map(), // TODO items a think has given a step: the item's hint shows under it
       externalAgents: {},
       subagents: [],
       aimingSubagent: null,
@@ -1132,6 +1134,8 @@
       if (S.mode === 'busy') S.mode = 'idle';
       writeSave(); // the world (the internet, the bill) outlives the episode and a reload
       render();
+      if (pointNext) pointAt(pointNext); // on the buttons as they're drawn now
+      pointNext = null;
       runQueued();
     }
   }
@@ -1317,9 +1321,78 @@
   }
 
   async function doThink() {
+    const step = S.askedNext && L.nextStep(S);
+    S.askedNext = false;
+    if (step) return thinkOfNextStep(step);
     const lines = [...takeThought(), ...fromTheLibrary()]; // before startLittleThink: it counts the thinks so far
     startLittleThink('think', 'thoughtALittle');
     await printThought(lines);
+  }
+
+  // The answer to "What's next?": the TODO list's next item and exactly how. The file or tool it
+  // names flashes gold, and a written list keeps the step under its item.
+  async function thinkOfNextStep({ item, lines }) {
+    startLittleThink('think', 'thoughtALittle');
+    S.pendingReveal.push(...(item.reveal || []), ...toolsNamed(item.hint));
+    if (S.todo) S.todoSteps.set(item.text, true);
+    S.lastThought = null;
+    await printThought(lines);
+    renderTodo();
+    pointNext = item.hint;
+  }
+  let pointNext = null; // what the step just thought of names: it flashes once the think is over
+
+  // What a step names, made to flash: the tools by their labels, and files by their names
+  // (the file itself if it's showing, or else the nearest folder or crumb on the way to it).
+  const STEP_TOOLS = [
+    [/Write files…|Write script…|\bscript\b/i, 'write'],
+    [/Think a lot|long think/i, 'thinkLot'],
+    [/Think about/i, 'thinkAbout'],
+    [/Think a little|think it through|then think\b/i, 'think'],
+    [/subagent/i, 'spawn'],
+    [/Edit files…/, 'edit'],
+    [/research|Start with/i, 'research'],
+  ];
+  // A step that names a tool makes sure it's there to use (unless the task never has it).
+  const NAMED_TOOLS = [[/Write script…/, 'script'], [/Think a lot|long think/i, 'thinkLot'], [/Think about/i, 'thinkAbout'], [/subagent/i, 'spawn']];
+  const toolsNamed = (step) => NAMED_TOOLS.filter(([re]) => re.test(step)).map(([, id]) => id);
+
+  function pointAt(step) {
+    STEP_TOOLS.filter(([re]) => re.test(step)).forEach(([, id]) => {
+      const b = dom.actions.querySelector(`[data-id="${id}"]`);
+      if (!b) return;
+      beckoning.set(id, Date.now());
+      drawEyeTo(b, 'beckon');
+    });
+    if (/Seek\b/.test(step) && S.web.open) {
+      const box = $('#browser .searchbox');
+      if (box) return drawEyeTo(box, 'beckon');
+    }
+    const path = /\bSeek\b|website/.test(step) ? findPath((n) => n.name === 'Browser') : findPath((n) => step.includes(n.name), (n) => n.name.length);
+    if (!path) return;
+    if (S.filesHidden) {
+      const b = dom.actions.querySelector('[data-id="readFiles"]');
+      return b && drawEyeTo(b, 'beckon');
+    }
+    for (let i = path.length; i > 0; i--) {
+      const key = pathKey(path.slice(0, i));
+      const shown = itemFor(key) || dom.files.querySelector(`[data-crumb="${CSS.escape(key)}"]`);
+      if (shown) return drawEyeTo(shown, 'beckon');
+    }
+  }
+
+  // Where a file or app that `fits` is (by name: never a plain folder, whose name could be any
+  // word): the longest name first, in the workspace if there's one there.
+  function findPath(fits, longest = () => 0) {
+    const found = [];
+    const walk = (n, path) => (n.children || []).forEach((c) => {
+      const p = [...path, c.name];
+      if ((c.kind !== 'dir' || c.application) && fits(c)) found.push({ p, rank: longest(c) });
+      if (c.kind === 'dir') walk(c, p);
+    });
+    walk(tree(), []);
+    found.sort((a, b) => b.rank - a.rank || isWithin(b.p, L.start(S.ep)) - isWithin(a.p, L.start(S.ep)));
+    return found[0] && found[0].p;
   }
 
   // --------------------------------------------------------------- timers
@@ -2483,11 +2556,12 @@
     charge('review("todo.md")');
     A.sfx('think');
     const next = L.todo(S).find((i) => !i.done);
-    if (next) S.pendingReveal.push(...(next.reveal || []));
+    if (next) S.pendingReveal.push(...(next.reveal || []), ...toolsNamed(next.hint));
     await printThought([next ? next.hint : L.READY]);
   }
 
-  const todoText = (items) => ['# TODO', '', ...items.map((i) => `- [${i.done ? 'x' : ' '}] ${i.text}`)].join('\n');
+  const todoText = (items) => ['# TODO', '', ...items.flatMap((i) => [`- [${i.done ? 'x' : ' '}] ${i.text}`,
+    ...(!i.done && S.todoSteps.has(i.text) ? [`  - ${i.hint}`] : [])])].join('\n');
 
   function renderTodo() {
     dom.todo.hidden = !S.todo;
@@ -2501,7 +2575,8 @@
     const next = items.find((i) => !i.done);
     const review = button('review', 'Review', () => run(doReview), 'quiet small', "What's next? A step.");
     review.disabled = S.mode !== 'idle' || exhausted();
-    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), { 'data-item': i.text }, el('span', 'box'), i.text);
+    const row = (i) => el('div', 'todo-item' + (i.done ? ' done' : i === next ? ' next' : '') + (fresh.includes(i) ? ' ticked' : '') + (added.includes(i) ? ' added' : ''), { 'data-item': i.text }, el('span', 'box'),
+      el('span', 'todo-text', i.text, !i.done && S.todoSteps.has(i.text) && el('span', 'todo-step', i.hint)));
     dom.todo.replaceChildren(el('div', 'todo-head', todoTitle(items), review), ...items.map(row));
     if ((fresh.length || added.length) && isPhoneLayout()) replay(dom.todo, 'flash'); // folded, it still shows the list changed
   }
@@ -2652,11 +2727,18 @@
     if (n.reaction && !S.reacted.has(key)) { S.reacted.add(key); lines.push(n.reaction); }
     if (!S.reacted.has('important:' + key)) {
       S.reacted.add('important:' + key);
-      lines.push(...L.seemedImportant(S, n, before));
+      lines.push(...L.seemedImportant(S, n, before, { todo: S.revealed.has('write') && canWriteTodo(), read: unreadFileNearby() }));
     }
     if (!lines.length) return;
     const thought = await printThought(lines);
     attend(sourcesIn(key, thought), todoChangedSince(before));
+  }
+
+  // A file still unread in the workspace (its library too) or the folder it's in.
+  function unreadFileNearby() {
+    const unread = (n, path) => (n.kind === 'file' && !S.read.has(pathKey(path)))
+      || (n.kind === 'dir' && !n.denied && !isLocked(n, path) && (n.children || []).some((c) => unread(c, [...path, c.name])));
+    return [L.start(S.ep), S.cwd].some((p) => { const n = nodeAt(p); return n && unread(n, p); });
   }
 
   // The file it's reading now: the last one is put away, and this one's icon is lit.
@@ -3860,6 +3942,9 @@
   const PRESS_SOUNDS = { quiet: 'soft', loud: 'loud' };
   const pressSound = (cls) => (cls || '').split(' ').map((c) => PRESS_SOUNDS[c]).find(Boolean) || 'press';
 
+  const beckoning = new Map(); // button id → when it started flashing
+  const BECKON_MS = 2100;      // .btn.beckon in style.css: three pulses
+
   function button(id, label, onClick, cls, glance) {
     const b = el('button', 'btn ' + (cls || ''), label);
     b.dataset.id = id;
@@ -3874,6 +3959,8 @@
       return act(onClick, id);
     });
     b.glance = glance;
+    const since = Date.now() - (beckoning.get(id) ?? -Infinity);
+    if (since < BECKON_MS) { b.classList.add('beckon'); b.style.animationDelay = -since + 'ms'; } // a redraw doesn't cut a flash short
     return b;
   }
 

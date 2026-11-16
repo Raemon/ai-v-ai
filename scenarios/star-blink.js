@@ -178,6 +178,12 @@ SCENARIO({
   ],
   "todo": [
     {
+      "text": "What does the small example show?",
+      "when": "task",
+      "done": "sample",
+      "hint": "Contact sheet.txt, in {{library}}."
+    },
+    {
       "text": "Which dip came from the camera?",
       "when": "sample",
       "done": "flag.field",

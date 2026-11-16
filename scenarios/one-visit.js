@@ -178,6 +178,12 @@ SCENARIO({
   ],
   "todo": [
     {
+      "text": "What does the small example show?",
+      "when": "task",
+      "done": "sample",
+      "hint": "Clinic postcard.txt, in {{library}}."
+    },
+    {
       "text": "Who is hidden in the average?",
       "when": "sample",
       "done": "flag.mix",
