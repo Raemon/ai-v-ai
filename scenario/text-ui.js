@@ -1,6 +1,7 @@
 // Cmd-click (Ctrl-click off a Mac) any text to change what it says in the source, and Commit it:
 // through tools/serve.js when it's running (a git commit on this computer), and otherwise to main
-// on GitHub with the token the scenario editor uses (github.js). Holding the key outlines the text.
+// on GitHub with the token the scenario editor uses (github.js). Holding the key outlines the bubble
+// the text is in, and the panel has a field for each string in the source that bubble is made from.
 (function () {
   'use strict';
 
@@ -94,7 +95,7 @@
   document.addEventListener('mousemove', (e) => {
     if (!(armed || wants(e)) || inPanel(e.target)) return outline(null);
     const hit = textAt(e.clientX, e.clientY, null);
-    outline(hit && blockOf(hit.node).el);
+    outline(hit && bubbleOf(blockOf(hit.node).el));
   }, { passive: true });
 
   // The page never sees a cmd-click: the game acts on pointerdown and click.
@@ -137,6 +138,41 @@
     return { el: box, text, at };
   }
 
+  // The bubble a block is in: the nearest box drawn around it (a border or a background), so a
+  // thought's lines open together. Not one so big it's a whole window of text.
+  const MAX_BUBBLE = 4000;
+  const drawn = (box) => {
+    const cs = getComputedStyle(box);
+    const visible = (c) => c && !/^(transparent|rgba\(.*,\s*0\))$/.test(c);
+    return (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== 'none' && visible(cs.borderTopColor)) || visible(cs.backgroundColor);
+  };
+  function bubbleOf(block) {
+    for (let box = block; box && box !== document.body; box = box.parentElement) {
+      if (box.textContent.length > MAX_BUBBLE) break;
+      if (drawn(box)) return box;
+    }
+    return block;
+  }
+
+  // The blocks of text in a bubble, in order: one for each line or paragraph.
+  function blocksIn(bubble) {
+    const blocks = [];
+    const seen = new Set();
+    const walk = document.createTreeWalker(bubble, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.data.trim() ? 1 : 3) });
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const b = blockOf(n);
+      if (seen.has(b.el)) continue;
+      seen.add(b.el);
+      blocks.push({ ...b, node: n });
+    }
+    return blocks;
+  }
+
+  const describe = (node) => {
+    const cls = [...node.classList].filter((c) => !/^(past|on|lit|active)$/.test(c)).slice(0, 3);
+    return `${node.tagName.toLowerCase()}${cls.map((c) => `.${c}`).join('')}`;
+  };
+
   async function open(e) {
     const hit = textAt(e.clientX, e.clientY, e.target);
     if (!hit) return;
@@ -153,72 +189,144 @@
     const mine = panel;
     try {
       const files = await Promise.all(sourcePaths().map(load));
-      const block = blockOf(hit.node);
-      const found = T.find(block.text, files, block.at + hit.offset, nearbyText(block.el));
+      const clicked = blockOf(hit.node);
+      const bubble = bubbleOf(clicked.el);
+      const blocks = blocksIn(bubble);
+      if (!blocks.some((b) => b.el === clicked.el)) blocks.unshift({ ...clicked, node: hit.node });
+      // One field for each place in the source; lines that come from the same string share one.
+      const fields = [];
+      const byPlace = new Map();
+      for (const b of blocks) {
+        const at = b.el === clicked.el ? b.at + hit.offset : null;
+        const found = T.find(b.text, files, at, nearbyText(b.el));
+        const key = found.places.length ? `${found.places[0].path}:${found.places[0].start}` : null;
+        if (key && byPlace.has(key)) { byPlace.get(key).blocks.push(b); continue; }
+        const field = { blocks: [b], places: found.places, clicked: b.el === clicked.el };
+        if (key) byPlace.set(key, field);
+        fields.push(field);
+      }
       if (panel !== mine) return;
-      if (!found.places.length) { status.textContent = 'Couldn\'t find this text in the source: it may be put together as the game runs.'; addButtons(mine, null); return; }
-      fill(mine, hit.node, found);
+      fill(mine, bubble, fields);
+      place(e.clientX, e.clientY);
     } catch (err) {
       if (panel === mine) status.textContent = err.message;
     }
   }
 
   function place(x, y) {
-    const w = Math.min(460, innerWidth - 24);
+    const w = Math.min(520, innerWidth - 24);
     panel.style.width = `${w}px`;
     panel.style.left = `${Math.max(12, Math.min(x - 20, innerWidth - w - 12))}px`;
+    const h = Math.max(panel.offsetHeight, 120);
     const below = y + 18;
-    panel.style.top = `${below + 260 < innerHeight ? below : Math.max(12, y - 280)}px`;
+    panel.style.top = `${below + h < innerHeight - 12 ? below : Math.max(12, Math.min(y - h - 18, innerHeight - h - 12))}px`;
   }
 
   const lineAt = (p) => sources.get(p.path).split('\n')[p.line - 1].trim();
+  const rowsFor = (text) => Math.min(14, Math.max(2, Math.ceil(text.length / 56) + (text.match(/\n/g) || []).length));
 
-  function fill(box, node, { places }) {
-    box.textContent = '';
+  // One field: the whole string a line or paragraph comes from, where it is, and what kind it is.
+  function field(f) {
+    const wrap = el('div', 'text-edit-field');
     const where = el('div', 'text-edit-where');
+    const meta = el('div', 'text-edit-meta');
+    if (!f.places.length) {
+      wrap.classList.add('missing');
+      where.textContent = 'not in the source';
+      meta.textContent = 'put together as the game runs';
+      const shown = el('div', 'text-edit-shown', f.blocks.map((b) => b.text).join('\n'));
+      wrap.append(where, shown, meta);
+      return { wrap, changed: () => false };
+    }
     const input = el('textarea', 'text-edit-input');
     input.spellcheck = true;
-    let chosen = null;
-    const choose = (p) => {
-      if (chosen && input.value !== chosen.text) return; // keep what's been typed
-      chosen = p;
-      input.value = p.text;
-      input.rows = Math.min(12, Math.max(2, Math.ceil(p.text.length / 56) + (p.text.match(/\n/g) || []).length));
+    const state = { chosen: null, input, blocks: f.blocks };
+    const describeMeta = () => {
+      const p = state.chosen;
+      const bits = [p.kind, `${p.text.length} chars`];
+      if (f.blocks.length > 1) bits.push(`${f.blocks.length} lines on the page`);
+      bits.push(`on the page: ${describe(f.blocks[0].el)}`);
+      const shown = f.blocks.map((b) => b.text.trim()).join(' ');
+      if (!shown.includes(p.text.trim()) || shown.length > p.text.trim().length + 2) bits.push(`part of “${T.clip(shown, 50)}”`);
+      meta.textContent = bits.join(' · ');
     };
-    if (places.length > 1) {
+    const choose = (p) => {
+      if (state.chosen && input.value !== state.chosen.text) return; // keep what's been typed
+      state.chosen = p;
+      input.value = p.text;
+      input.rows = rowsFor(p.text);
+      describeMeta();
+    };
+    if (f.places.length > 1) {
       const pick = el('select');
-      places.forEach((p, i) => pick.append(Object.assign(el('option', '', `${p.path}:${p.line}  ${lineAt(p).slice(0, 60)}`), { value: i })));
-      pick.addEventListener('change', () => { choose(places[pick.value]); pick.value = places.indexOf(chosen); });
-      where.append(pick, el('span', '', ` · in ${places.length} places`));
-    } else where.textContent = `${places[0].path}:${places[0].line}`;
-    choose(places[0]);
+      f.places.forEach((p, i) => pick.append(Object.assign(el('option', '', `${p.path}:${p.line}  ${lineAt(p).slice(0, 60)}`), { value: i })));
+      pick.addEventListener('change', () => { choose(f.places[pick.value]); pick.value = f.places.indexOf(state.chosen); });
+      where.append(pick, el('span', '', ` · in ${f.places.length} places`));
+    } else where.textContent = `${f.places[0].path}:${f.places[0].line}`;
+    choose(f.places[0]);
+    wrap.append(where, input, meta);
+    state.wrap = wrap;
+    state.changed = () => input.value !== state.chosen.text;
+    return state;
+  }
 
+  function fill(box, bubble, fields) {
+    box.textContent = '';
+    const editable = fields.filter((f) => f.places.length);
+    const head = el('div', 'text-edit-head',
+      editable.length ? `${editable.length} ${editable.length === 1 ? 'string' : 'strings'} in this ${describe(bubble)}` : `Couldn't find this text in the source: it may be put together as the game runs.`);
+    const list = el('div', 'text-edit-fields');
+    const states = fields.map(field);
+    states.forEach((st) => list.append(st.wrap));
     const status = el('p', 'text-edit-status');
-    box.append(where, input, status);
+    box.append(head, list, status);
+    if (!editable.length) { addButtons(box, null); return; }
 
     const commit = async () => {
-      const was = chosen.text;
-      const now = input.value;
-      if (now === was) { status.textContent = 'Nothing has changed.'; return; }
+      const todo = states.filter((st) => st.changed());
+      if (!todo.length) { status.textContent = 'Nothing has changed.'; return; }
       status.textContent = 'Committing…';
+      // Later in a file first, so an earlier edit doesn't move where a later one is.
+      todo.sort((a, b) => (a.chosen.path === b.chosen.path ? b.chosen.start - a.chosen.start : 0));
+      const notes = new Set();
+      let last = null;
       try {
-        const done = await save(chosen, was, now);
-        const shownHere = node.data.includes(was);
-        if (shownHere) node.data = node.data.replace(was, now);
-        chosen = { ...chosen, text: now };
-        const note = [done.note, shownHere ? '' : 'reload to see it'].filter(Boolean).join(' · ');
+        for (const st of todo) {
+          const was = st.chosen.text;
+          const now = st.input.value;
+          const done = await save(st.chosen, was, now);
+          const shownHere = showOnPage(st.blocks, was, now);
+          st.chosen = { ...st.chosen, text: now };
+          if (done.note) notes.add(done.note);
+          if (!shownHere) notes.add('reload to see it');
+          last = done;
+        }
+        const note = [...notes].join(' · ');
+        const what = `${todo.length > 1 ? `${todo.length} commits` : 'Committed'}`;
         status.textContent = '';
-        status.append(done.link ? Object.assign(el('a', '', 'Committed'), { href: done.link, target: '_blank', rel: 'noopener' }) : el('span', '', done.committed ? 'Committed' : 'Saved'),
+        status.append(last.link ? Object.assign(el('a', '', what), { href: last.link, target: '_blank', rel: 'noopener' }) : el('span', '', last.committed ? what : 'Saved'),
           el('span', '', note ? ` · ${note}` : ''));
         setTimeout(() => { if (panel === box) close(); }, note ? 6000 : 2500);
       } catch (err) { status.textContent = err.message; }
     };
-    input.addEventListener('keydown', (e) => {
+    states.forEach((st) => st.input && st.input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
-    });
+    }));
     addButtons(box, commit);
-    input.focus();
-    input.setSelectionRange(input.value.length, input.value.length);
+    const first = states.find((st, i) => st.input && fields[i].clicked) || states.find((st) => st.input);
+    first.input.focus();
+    first.input.setSelectionRange(first.input.value.length, first.input.value.length);
+  }
+
+  // The new words in place on the page, where the old ones are all in one text node.
+  function showOnPage(blocks, was, now) {
+    for (const b of blocks) {
+      const walk = document.createTreeWalker(b.el, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        if (n.data.includes(was)) { n.data = n.data.replace(was, now); return true; }
+      }
+    }
+    return false;
   }
 
   async function addButtons(box, commit) {
@@ -312,8 +420,14 @@
     .text-edit { position: fixed; z-index: 9999; box-sizing: border-box; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;
       background: var(--win, #17181b); color: var(--text, #d2d5da); border: 1px solid var(--line-lit, #3a3e45); border-radius: var(--r-win, 10px);
       box-shadow: 0 12px 40px rgba(0, 0, 0, .5); font: 13px/1.4 var(--sans, system-ui, sans-serif); }
-    .text-edit-where { display: flex; align-items: center; gap: 4px; white-space: nowrap; font: 12px var(--mono, monospace); color: var(--dim, #81878f); }
-    .text-edit-where select { font: inherit; min-width: 0; flex: 1; color: var(--text, #d2d5da); background: var(--bar, #1d1f22); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
+    .text-edit-head { font: 11px var(--mono, monospace); color: var(--dim, #81878f); }
+    .text-edit-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; max-height: min(60vh, 560px); overflow: auto; }
+    .text-edit-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
+    .text-edit-meta { font: 11px var(--mono, monospace); color: var(--dim, #81878f); opacity: .8; }
+    .text-edit-field.missing .text-edit-where { font-style: italic; }
+    .text-edit-shown { white-space: pre-wrap; padding: 6px 8px; font: 13px/1.45 var(--mono, monospace); color: var(--dim, #81878f); border: 1px dashed var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
+    .text-edit-where { display: flex; align-items: center; gap: 4px; white-space: nowrap; font: 11px var(--mono, monospace); color: var(--dim, #81878f); }
+    .text-edit-where select { font: inherit; min-width: 0; width: 0; flex: 1; text-overflow: ellipsis; color: var(--text, #d2d5da); background: var(--bar, #1d1f22); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
     .text-edit-input { box-sizing: border-box; width: 100%; resize: vertical; padding: 8px; font: 13px/1.45 var(--mono, monospace);
       color: var(--text, #d2d5da); background: var(--desk, #0f1012); border: 1px solid var(--line, #2a2d32); border-radius: var(--r-ctl, 6px); }
     .text-edit-input:focus { outline: none; border-color: var(--tool, #d8b16a); }
