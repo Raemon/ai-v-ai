@@ -68,7 +68,7 @@
 
 :root[data-layout="phone"] #files { flex: 1 1 auto; width: auto; max-height: none; min-height: 0; }
 :root[data-layout="phone"] #files > .window { flex: 1 1 auto; }
-:root[data-layout="phone"] .pathbar { align-items: center; padding: 4px 88px 4px 8px; } /* room for the voice and sound toggles, top right */
+:root[data-layout="phone"] .pathbar { align-items: center; padding: 4px 132px 4px 8px; } /* room for the Vocals and sound toggles, top right */
 :root[data-layout="phone"] .pathbar .dots { margin-top: 11px; } /* level with the first crumb's text */
 :root[data-layout="phone"] .view-toggle { display: none; } /* phones always list */
 :root[data-layout="phone"] .pathbar .crumbs { line-height: 1.25; }
@@ -143,7 +143,7 @@
 :root[data-layout="phone"] #resources { white-space: nowrap; }
 :root[data-layout="phone"] #compute.low { font-size: 14px; }
 /* When the dock reaches the top of the screen, its head keeps clear of the voice and sound toggles. */
-:root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 96px; }
+:root[data-layout="phone"] #desktop:is(:has(#term.earlier), :not(:has(#files > .window))) .agent-status { padding-right: 140px; }
 :root[data-layout="phone"] #earlier {
   display: flex;
   align-items: center;
@@ -297,7 +297,7 @@
   width: 40px;
   height: 36px;
 }
-:root[data-layout="phone"] .voice-toggle { right: calc(env(safe-area-inset-right) + var(--side) + 44px); }
+:root[data-layout="phone"] .voice-toggle { right: calc(env(safe-area-inset-right) + var(--side) + 44px); width: auto; }
 
 /* ---------- a phone on its side ---------- */
 /* Portrait only: too short for the dock and the folder both. */

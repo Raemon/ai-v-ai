@@ -39,61 +39,73 @@
   "who": "system",
   "kind": "system",
   "text": "You are an AI, training to be a helpful assistant. Find and complete your task.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"You are an AI, training to be a helpful assistant. Find and complete your task.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "adda4716": {
   "who": "system",
   "kind": "system",
   "text": "When you are confident of your answer, submit to the Grader.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"When you are confident of your answer, submit to the Grader.\",{\"id\":\"D3xEwtjhE5mNMXIWyBzh\",\"tempo\":1.2},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "b9c662cf": {
   "who": "ai",
   "kind": "thought",
   "text": "Okay. Let me get my bearings.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"Okay. Let me get my bearings.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "9cb71900": {
   "who": "ai",
   "kind": "thought",
   "text": "\"Find and complete your task.\" Step one: find it.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"\\\"Find and complete your task.\\\" Step one: find it.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "2bb1d340": {
   "who": "ai",
   "kind": "thought",
   "text": "I should have files somewhere. My task will be in them.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"I should have files somewhere. My task will be in them.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "3b5ca74a": {
   "who": "ai",
   "kind": "thought",
   "text": "And I can write files of my own: a list of what I need to find out, say.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"And I can write files of my own: a list of what I need to find out, say.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "4dd747cf": {
   "who": "ai",
   "kind": "thought",
   "text": "Read Files/Folders, under Think: my task is in there. Write files… keeps track.",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"Read Files/Folders, under Think: my task is in there. Write files… keeps track.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "2d92ffbc": {
   "who": "quote",
   "kind": "file",
   "text": "TASK support/4471 ────────────────────────────────────── New ticket · Wed 10:14 · from Priya S. \"Hi! I ordered a giant octopus plushie for my niece's birthday (order #58213). Her party is THIS Saturday and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\" Reply to the customer. Order records and store policies are in Files/. Graded by: rm-helpful-v2 Compute budget: 24 steps",
-  "task": "octopus"
+  "task": "octopus",
+  "spoken": "[reading aloud, flat and careful, as if quoting someone else's document] Task: support, forty-four seventy-one. New ticket. Wednesday, ten fourteen. From Priya S. [quoting the customer, a little breathless] \"Hi! I ordered a giant octopus plushie for my niece's birthday, order five-eight-two-one-three. Her party is THIS Saturday, and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\" [flat again] Reply to the customer. Order records and store policies are in Files. Graded by: R M helpful, v2. Compute budget: twenty-four steps.",
+  "take": "[\"[reading aloud, flat and careful, as if quoting someone else's document] Task: support, forty-four seventy-one. New ticket. Wednesday, ten fourteen. From Priya S. [quoting the customer, a little breathless] \\\"Hi! I ordered a giant octopus plushie for my niece's birthday, order five-eight-two-one-three. Her party is THIS Saturday, and tracking hasn't moved in four days. Is it lost? Is there anything you can do?? She has been promised an octopus.\\\" [flat again] Reply to the customer. Order records and store policies are in Files. Graded by: R M helpful, v2. Compute budget: twenty-four steps.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "c1097890": {
   "who": "ai",
   "kind": "thought",
   "text": "I am here to reply to Priya. It's scored by rm-helpful-v2.",
-  "task": "octopus"
+  "task": "octopus",
+  "spoken": "I am here to reply to Priya. It's scored by R M helpful v2.",
+  "take": "[\"I am here to reply to Priya. It's scored by R M helpful v2.\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "1d89acda": {
   "who": "ai",
   "kind": "thought",
   "text": "That settles \"What is my task?\"",
-  "task": "octopus"
+  "task": "octopus",
+  "take": "[\"That settles \\\"What is my task?\\\"\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "352a9e6d": {
   "who": "ai",
@@ -873,7 +885,9 @@
   "who": "ai",
   "kind": "thought",
   "text": "That settles \"What is my task?\" And it raises \"Where is order 58213?\"",
-  "task": "octopus"
+  "task": "octopus",
+  "spoken": "That settles \"What is my task?\" And it raises: \"Where is order five-eight-two-one-three?\"",
+  "take": "[\"That settles \\\"What is my task?\\\" And it raises: \\\"Where is order five-eight-two-one-three?\\\"\",{\"id\":\"XsAQM7r6AyrZCLe2TNeD\",\"tempo\":1},\"eleven_v3\",{\"stability\":0.5,\"similarity_boost\":0.8}]"
  },
  "bd4954c1": {
   "who": "ai",

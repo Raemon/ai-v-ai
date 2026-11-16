@@ -4629,7 +4629,7 @@
     dom.voice.classList.toggle('speaking', V.speaking);
   }
   V.onChange(renderVoiceToggle);
-  dom.voice.glance = () => (V.off ? 'No voices. V brings them back.' : 'The voices. V turns them off; Esc hushes them.');
+  dom.voice.glance = () => (V.off ? 'Vocals off. V turns them on.' : 'Vocals on. V turns them off; Esc hushes them.');
 
   dom.sound.addEventListener('click', toggleSound);
   dom.voice.addEventListener('click', () => V.toggle());

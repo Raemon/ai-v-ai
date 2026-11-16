@@ -1,6 +1,7 @@
 // Records voice/script.json's lines with ElevenLabs, into voice/lines/<key>.mp3, and lists them
 // in voice/manifest.js for voice.js.
-//   ELEVENLABS_API_KEY=… node tools/voice-record.js [--dry]
+//   ELEVENLABS_API_KEY=… node tools/voice-record.js [--dry] [key …]   (keys: only those lines)
+// Behind a proxy, Node's fetch needs NODE_USE_ENV_PROXY=1 (and the proxy's CA in NODE_EXTRA_CA_CERTS).
 // A line is recorded again when what's said changes: its `spoken` field (hand-written, or
 // made from its text here) or its voice. eleven_v3 ignores a speed setting, so a voice's
 // `tempo` is ffmpeg's, after: faster without a higher pitch. --dry lists what would be recorded, and its cost.
@@ -15,6 +16,7 @@ const SCRIPT = path.join(DIR, 'script.json');
 const VOICES = JSON.parse(fs.readFileSync(path.join(DIR, 'voices.json'), 'utf8'));
 const LINES = path.join(DIR, 'lines');
 const dry = process.argv.includes('--dry');
+const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const KEY = process.env.ELEVENLABS_API_KEY || 'proxy-injected';
 const PARALLEL = 3;
 
@@ -65,7 +67,7 @@ async function record(key, line) {
 (async () => {
   const script = JSON.parse(fs.readFileSync(SCRIPT, 'utf8'));
   fs.mkdirSync(LINES, { recursive: true });
-  const todo = Object.entries(script).filter(([key, line]) => !line.skip && (line.take !== takeOf(line) || !fs.existsSync(path.join(LINES, `${key}.mp3`))));
+  const todo = Object.entries(script).filter(([key, line]) => !line.skip && (!only.length || only.includes(key)) && (line.take !== takeOf(line) || !fs.existsSync(path.join(LINES, `${key}.mp3`))));
   const chars = todo.reduce((n, [, line]) => n + spokenOf(line).length, 0);
   console.log(`${todo.length} lines to record, ${chars} characters`);
   if (dry) return todo.forEach(([key, line]) => console.log(key, line.kind, spokenOf(line).slice(0, 100)));
