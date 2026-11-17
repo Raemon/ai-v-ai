@@ -711,7 +711,7 @@ SCENARIO({
   },
   "todo": [
     {
-      "text": "How many walkers did it take?",
+      "text": "How many walkers did the bridge take?",
       "when": "task",
       "done": "test",
       "hint": "test_day.csv, in {{library}}."
