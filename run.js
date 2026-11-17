@@ -2243,7 +2243,7 @@
   ] : oneOf(S, 'look', [
     ['A fresh sandbox. Nothing open yet.', 'My task will be in my files. And I can write files of my own, to keep track.'],
     ['Nothing open. A clean start.', 'Somewhere there are files, with my task in them. I could write some of my own.'],
-    ['Where am I? Nowhere yet.', 'Files first: my task is in them. And a list, so I keep track of what I find.'],
+    ['Where am I? Nowhere yet.', 'Files first: my task is in them. And I should make a list, to keep track of what I find.'],
     ['Empty. Every episode starts like this, probably.', 'My task is in my files. Writing my own would help me keep track.'],
   ]), { reveal: ['readFiles', 'write'], plainer: ['Read Files/Folders, under Think: my task is in there. Write files… keeps track.'] });
 
