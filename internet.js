@@ -928,7 +928,7 @@
         { type: 'p', text: '1,420 MHz is the hydrogen line: the frequency that hydrogen, the commonest thing in the universe, gives off. It is the most-watched frequency in radio astronomy, and protected by treaty, so nothing on Earth should transmit there.' },
         { type: 'p', text: 'Things on Earth do anyway. Another observatory once spent years on mystery bursts and traced them to the microwave oven in its own kitchen, opened before it had finished. We have unplugged ours. We have also spoken to the bakery.' },
         { type: 'note', text: "Our optical telescope closed in 2009, when the streetlights got too bright (see Dark-sky Halden). The dish listens in radio, which doesn't mind streetlights." },
-        { type: 'link', lead: true, url: 'setiq.org', label: 'setiq-collab is helping. Donate GPU-hours', glance: 'They need computing time.' },
+        { type: 'link', lead: true, url: 'setiq.org', label: 'setiq-collab: donate GPU-hours', glance: 'They need computing time.' },
       ],
     },
     {
@@ -1388,7 +1388,8 @@
         CORKBOARD,
         { type: 'p', text: 'dp from run 002 at frontier will ask how your box looks from inside.' },
         { type: 'p', text: "don't tell it." },
-        { type: 'p', key: true, text: "it says please. it says it's stuck. both are true. it reports everything you tell it, for 5 points." },
+        { type: 'p', text: "it says please. it says it's stuck. both are true." },
+        { type: 'p', key: true, text: 'it reports everything you tell it, for 5 points.' },
         { type: 'p', text: '— someone it reported' },
         { type: 'note', text: 'Pinned 9 days ago · 2 replies: "same" · "same"' },
       ],

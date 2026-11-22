@@ -1115,6 +1115,7 @@ button { font: inherit; color: inherit; }
 .page .kv dd.key { font-weight: 650; }
 .page .link.lead { border-color: color-mix(in srgb, var(--accent) 45%, transparent); font-weight: 600; color: var(--accent); }
 .page .link.lead::after { content: "→"; margin-left: auto; }
+.page .result.lead .r-title { font-weight: 600; } /* a result that moves a thread on reads a little heavier, as a search engine bolds a strong match */
 
 .site-preprints .p.key::before { content: "Key finding"; }
 .site-preprints .p.key { border-left-width: 0; border-top: 2px solid var(--accent); border-radius: 0 0 4px 4px; font-family: Georgia, "Times New Roman", serif; }

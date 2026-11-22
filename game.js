@@ -1754,7 +1754,7 @@
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
     const onPage = !path && S.web.open && S.web.url && !S.web.down && name === S.web.url.split('/')[0];
     if (BROWSER_NAMES.includes(name)) lines.push(...thinkOfSearches());
-    else if (onPage) lines.push(...markPage());
+    else if (onPage) lines.push(...markPage(!!(obvious || clue)));
     else if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
     if (clue) {
       S.clueIn = name;
@@ -1766,7 +1766,7 @@
     }
     await showKeyLines(path);
     const thought = await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
-    const keys = path ? sourcesIn(pathKey(path), null) : onPage ? [...dom.page.querySelectorAll('.key')].slice(0, 4) : [];
+    const keys = path ? sourcesIn(pathKey(path), null) : onPage ? pageKeysInSight() : [];
     const items = todoChangedSince(before);
     attend(keys.length ? keys : [thought.firstElementChild], items.length || !keys.length ? items : [thought]);
   }
@@ -1883,11 +1883,20 @@
 
   // Thinking about the page in the Browser marks what matters on it, over the site's own
   // emphasis, and keeps it marked whenever the page is shown again this episode.
-  function markPage() {
+  function markPage(quiet) {
     S.highlitPages.add(S.web.url);
     renderPage();
     dom.page.querySelectorAll('.key').forEach((k) => replay(k, 'key-in'));
-    return L.pageThought(S);
+    return L.pageThought(S, quiet);
+  }
+
+  // The marked parts of the page that can be seen in the Browser, for attention arcs.
+  function pageKeysInSight() {
+    const pane = dom.page.getBoundingClientRect();
+    return [...dom.page.querySelectorAll('.key')].filter((k) => {
+      const r = k.getBoundingClientRect();
+      return r.bottom > pane.top && r.top < pane.bottom;
+    }).slice(0, 4);
   }
 
   const inSight = (node) => {
@@ -4286,7 +4295,7 @@
     node.glance = KEY_GLANCE;
     return node;
   };
-  const keyIf = (node, isKey) => (isKey ? markKey(node) : node);
+  const keyIf = (node, key) => (key ? markKey(node, key) : node);
 
   const PAGE_BLOCKS = {
     kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v, key]) => [keyIf(el('dt', '', k), key), keyIf(el('dd', '', v), key)])),
