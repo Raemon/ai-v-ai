@@ -47,6 +47,7 @@
     bubbles: $('.agent-col > .agent'),
     browser: $('#browser'),
     browserTitle: $('#browser-title'),
+    browserGist: $('#browser-gist'),
     browserClose: $('#browser-close'),
     browserBack: $('#browser-back'),
     browserUrl: $('#browser-url'),
@@ -4221,7 +4222,18 @@
     renderActions();
   }
 
+  // The AI's read of a page sits in the Browser's title bar, not on the page: the site stays
+  // as its owners made it, and the bar says how much of it matters (the marked parts).
+  function showGist(g) {
+    dom.browserGist.hidden = !g;
+    if (!g) return;
+    dom.browserGist.className = 'browser-gist' + (g.key ? ' has-key' : '');
+    dom.browserGist.replaceChildren(el('span', 'gist-mark', g.key ? '◆' : '·'), el('span', '', g.text));
+    dom.browserGist.glance = g.key ? 'My read of this page: the marked parts are the ones that matter.' : 'My read of this page. Nothing on it I need.';
+  }
+
   function renderOffline() {
+    showGist(null);
     dom.browserTitle.textContent = 'Browser';
     dom.browserUrl.textContent = 'https://' + (S.web.url || L.web.home);
     dom.browserBack.disabled = true;
@@ -4238,7 +4250,8 @@
     dom.browserUrl.textContent = 'https://' + S.web.url;
     dom.browserBack.disabled = !S.web.back.length;
     dom.page.className = 'page site-' + p.site + (p.doc ? ' doc' : '');
-    dom.page.replaceChildren(...p.blocks.map(pageBlock));
+    showGist(p.blocks.find((b) => b.type === 'gist'));
+    dom.page.replaceChildren(...p.blocks.filter((b) => b.type !== 'gist').map(pageBlock));
     reglance();
   }
 
@@ -4274,10 +4287,6 @@
     kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v, key]) => [keyIf(el('dt', '', k), key), keyIf(el('dd', '', v), key)])),
     list: (b) => el('ul', 'list', ...b.items.map((item) => (typeof item === 'string' ? el('li', '', item) : keyIf(el('li', '', item.text), item.key)))),
     link: (b) => webLink(b.url, 'link ' + (b.cls || '') + (b.lead ? ' lead' : ''), el('span', '', b.label)),
-    // The AI's own reading of the page, over the top of it: what matters here, if anything.
-    gist: (b) => Object.assign(el('div', 'gist' + (b.key ? ' has-key' : ''), el('span', 'gist-mark', b.key ? '◆' : '·'), el('span', '', b.text)), {
-      glance: b.key ? 'My read of this page: the marked parts are the ones that matter.' : 'My read of this page. Nothing on it I need.',
-    }),
     result: (b) => {
       const r = searchResult(b);
       r.append(el('span', 'r-url', b.url), el('span', 'r-title', b.title), el('span', 'r-snippet', b.snippet));

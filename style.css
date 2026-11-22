@@ -1103,38 +1103,29 @@ button { font: inherit; color: inherit; }
 .page .feed-row .who { font-weight: 600; }
 .page .feed-row .when { color: var(--muted); }
 
-/* What matters on a page, and what's flavour (internet.js `key`). The AI's own reading sits over
-   the page in its colours: a gist at the top, and gold on the parts that matter. On a document,
-   everything not marked is set quieter, so the marked parts are what the eye lands on. */
-.page { --lead: #b8860b; --lead-wash: #fbf1d3; }
-.page .gist {
-  display: flex; align-items: baseline; gap: 8px;
-  margin: -10px 0 20px; padding: 7px 12px;
-  border-radius: 6px;
-  background: var(--win); color: var(--dim);
-  font: 12.5px/1.4 var(--mono);
+/* What matters on a page, and what's flavour (internet.js `key`). The site keeps its own look:
+   the AI's marks are a reader's, not the site's. A thin gold rule in the margin beside what
+   matters; the rest of a document a shade quieter; gold arrows on links that lead on. The
+   AI's read of the whole page sits in the Browser's title bar (.browser-gist). */
+.page { --lead: #c8922a; }
+.page .key { position: relative; color: var(--ink); }
+.page .key::before {
+  content: ""; position: absolute; left: -14px; top: .25em; bottom: .25em;
+  width: 3px; border-radius: 2px; background: var(--lead);
 }
-.page .gist .gist-mark { color: var(--faint); }
-.page .gist.has-key { color: var(--thought); }
-.page .gist.has-key .gist-mark { color: #e0b44c; }
-.page .key {
-  position: relative;
-  border-left: 3px solid var(--lead);
-  border-radius: 0 6px 6px 0;
-  background: var(--lead-wash);
-  color: var(--ink);
+.page .list li.key::before { left: -34px; }
+.page .kv dd.key::before { display: none; }
+.page.doc .p:not(.key), .page.doc .note:not(.key), .page.doc .list li:not(.key), .page.doc .kv dd:not(.key) { color: color-mix(in srgb, var(--ink) 72%, var(--paper)); }
+.page .link.lead::after, .page .link.query.lead::after { content: "◆"; margin-left: auto; font-size: 10px; color: var(--lead); }
+.page .result.lead .r-title::after { content: " ◆"; color: var(--lead); font-size: 11px; vertical-align: 2px; }
+.browser-gist {
+  flex: 0 1 auto; min-width: 0; margin-right: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: var(--fs-meta, 12px) var(--mono); color: var(--dim);
 }
-.page .p.key, .page .note.key { padding: 8px 12px; font-size: 15px; }
-.page .list li.key { margin-left: -20px; padding: 6px 12px; list-style: none; }
-.page .kv dt.key { padding: 2px 0 2px 9px; }
-.page .kv dd.key { border-left: 0; border-radius: 0 6px 6px 0; padding: 2px 8px; }
-.page .kv dt.key { border-radius: 0; }
-.page.doc .p:not(.key), .page.doc .note:not(.key), .page.doc .list li:not(.key), .page.doc .kv dd:not(.key), .page.doc .headline .dek { color: var(--muted); font-size: 14px; }
-.page.doc .kv dd:not(.key) { font-weight: 400; }
-.page .link.lead, .page .link.query.lead { border-color: var(--lead); background: var(--lead-wash); }
-.page .link.lead::after { content: "→"; margin-left: auto; color: var(--lead); }
-.page .link.query.lead::before { color: var(--lead); }
-.page .result.lead .r-title::before { content: "◆ "; color: var(--lead); font-size: 14px; }
+.browser-gist .gist-mark { margin-right: 6px; color: var(--faint); }
+.browser-gist.has-key { color: var(--thought); }
+.browser-gist.has-key .gist-mark { color: #e0b44c; }
 
 /* ---------- dialog ---------- */
 
