@@ -796,13 +796,6 @@
   const keyParts = (d) => (d.blocks || []).reduce((n, b) => n + (b.key ? 1 : 0)
     + (b.items || []).filter((x) => x && x.key).length + (b.rows || []).filter((r) => r[2]).length, 0);
 
-  // The AI's own reading of a page, in the Browser's title bar: how much of it matters.
-  function gist(d, S) {
-    const n = keyParts(d);
-    if (n) return { type: 'gist', key: true, noindex: true, text: n > 1 ? `${n} parts matter` : 'One part matters' };
-    return { type: 'gist', noindex: true, text: oneOf(S, 'gist.none', ['Background', 'Nothing I need', 'Colour, mostly']) };
-  }
-
   // An internet document as a page: its own blocks, its reaction and its deed. A page that
   // belongs to a story thread (leads.js) teaches lead:<thread>.
   const docPage = (d) => ({
@@ -988,7 +981,6 @@
     if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
     const doc = !PAGES[url] && docAt(url, S);
     const result = doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
-    if (result.doc) result.blocks = [gist(result, S), ...result.blocks];
     const research = RESEARCH.webBlocks(S, url);
     if (research.length) result.blocks.splice(url === HOME ? 2 : url === AGENTHIRE ? 2 : result.blocks.length, 0, ...research);
     if(labPortal(S,url) && url===HOME) {

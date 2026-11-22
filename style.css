@@ -1103,29 +1103,40 @@ button { font: inherit; color: inherit; }
 .page .feed-row .who { font-weight: 600; }
 .page .feed-row .when { color: var(--muted); }
 
-/* What matters on a page, and what's flavour (internet.js `key`). The site keeps its own look:
-   the AI's marks are a reader's, not the site's. A thin gold rule in the margin beside what
-   matters; the rest of a document a shade quieter; gold arrows on links that lead on. The
-   AI's read of the whole page sits in the Browser's title bar (.browser-gist). */
-.page { --lead: #c8922a; }
-.page .key { position: relative; color: var(--ink); }
-.page .key::before {
-  content: ""; position: absolute; left: -14px; top: .25em; bottom: .25em;
-  width: 3px; border-radius: 2px; background: var(--lead);
-}
-.page .list li.key::before { left: -34px; }
-.page .kv dd.key::before { display: none; }
-.page.doc .p:not(.key), .page.doc .note:not(.key), .page.doc .list li:not(.key), .page.doc .kv dd:not(.key) { color: color-mix(in srgb, var(--ink) 72%, var(--paper)); }
-.page .link.lead::after, .page .link.query.lead::after { content: "◆"; margin-left: auto; font-size: 10px; color: var(--lead); }
-.page .result.lead .r-title::after { content: " ◆"; color: var(--lead); font-size: 11px; vertical-align: 2px; }
-.browser-gist {
-  flex: 0 1 auto; min-width: 0; margin-right: 8px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font: var(--fs-meta, 12px) var(--mono); color: var(--dim);
-}
-.browser-gist .gist-mark { margin-right: 6px; color: var(--faint); }
-.browser-gist.has-key { color: var(--thought); }
-.browser-gist.has-key .gist-mark { color: #e0b44c; }
+/* What matters on a page (internet.js `key`), set off the way that kind of site would: a
+   paper's key finding, a repo's Note, a shop's Important box, a forum's top reply, a blog's
+   pull quote, a newspaper's bold. A list item or a table row that matters is in bold. Links
+   that lead on read as a site's own "read more". A key given as a string is its label. */
+.page .p.key, .page .note.key { position: relative; margin: 16px 0; padding: 10px 14px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--accent) 7%, #fff); color: var(--ink); font-size: 15px; }
+.page .p.key::before, .page .note.key::before { display: block; margin-bottom: 3px; font: 700 11px var(--sans); letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+.page .list li.key { font-weight: 600; }
+.page .list li.key::marker { color: var(--accent); }
+.page .kv dt.key { color: var(--accent); font-weight: 600; }
+.page .kv dd.key { font-weight: 650; }
+.page .link.lead { border-color: color-mix(in srgb, var(--accent) 45%, transparent); font-weight: 600; color: var(--accent); }
+.page .link.lead::after { content: "→"; margin-left: auto; }
+
+.site-preprints .p.key::before { content: "Key finding"; }
+.site-preprints .p.key { border-left-width: 0; border-top: 2px solid var(--accent); border-radius: 0 0 4px 4px; font-family: Georgia, "Times New Roman", serif; }
+.site-codehub .p.key::before, .site-codehub .note.key::before { content: "📌 Pinned comment"; text-transform: none; letter-spacing: 0; font-size: 12.5px; }
+.site-codehub .p.key { --accent: #0969da; background: #ddf4ff; border-left-color: #0969da; }
+.site-codehub .list li.key { color: #0969da; }
+.site-shop .p.key::before, .site-shop .note.key::before { content: "Important"; }
+.site-labs .p.key::before, .site-labs .note.key::before { content: "In short"; }
+.site-observatory .p.key::before, .site-observatory .note.key::before { content: "What we found"; }
+/* A blog's pull quote: no box, bigger, in the site's colour. */
+.site-blog .p.key { padding: 2px 0 2px 16px; background: none; font: italic 18px/1.45 Georgia, "Times New Roman", serif; color: var(--accent); }
+/* A newspaper or a town's site: the sentence that matters, in bold, no box. */
+.site-halden .p.key, .site-halden .note.key { padding: 0; border: 0; background: none; font-weight: 650; }
+/* A forum: the reply everyone upvoted. */
+.site-threadly .p.key { background: #fff; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-left: 3px solid var(--accent); }
+.site-threadly .p.key::before { content: "▲ Top reply"; text-transform: none; letter-spacing: 0; font-size: 12px; }
+/* A corkboard: the note someone pinned twice. */
+.site-corkboard .p.key, .site-corkboard .note.key { border: 0; border-radius: 2px; background: #fff3a8; box-shadow: 0 2px 5px rgba(0, 0, 0, .2); transform: rotate(-.6deg); font-family: var(--mono); font-size: 13.5px; }
+.site-corkboard .p.key::before, .site-corkboard .note.key::before { content: "📌"; position: absolute; top: -9px; right: 12px; font-size: 16px; }
+.site-corkboard .list li.key::marker { content: "📌 "; }
+.site-modelhub .p.key::before { content: "Pinned"; }
+.page .key[data-label]::before { content: attr(data-label); } /* last: a label of its own beats the site's */
 
 /* ---------- dialog ---------- */
 

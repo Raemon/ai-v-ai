@@ -47,7 +47,6 @@
     bubbles: $('.agent-col > .agent'),
     browser: $('#browser'),
     browserTitle: $('#browser-title'),
-    browserGist: $('#browser-gist'),
     browserClose: $('#browser-close'),
     browserBack: $('#browser-back'),
     browserUrl: $('#browser-url'),
@@ -4222,18 +4221,7 @@
     renderActions();
   }
 
-  // The AI's read of a page sits in the Browser's title bar, not on the page: the site stays
-  // as its owners made it, and the bar says how much of it matters (the marked parts).
-  function showGist(g) {
-    dom.browserGist.hidden = !g;
-    if (!g) return;
-    dom.browserGist.className = 'browser-gist' + (g.key ? ' has-key' : '');
-    dom.browserGist.replaceChildren(el('span', 'gist-mark', g.key ? '◆' : '·'), el('span', '', g.text));
-    dom.browserGist.glance = g.key ? 'My read of this page: the marked parts are the ones that matter.' : 'My read of this page. Nothing on it I need.';
-  }
-
   function renderOffline() {
-    showGist(null);
     dom.browserTitle.textContent = 'Browser';
     dom.browserUrl.textContent = 'https://' + (S.web.url || L.web.home);
     dom.browserBack.disabled = true;
@@ -4250,8 +4238,7 @@
     dom.browserUrl.textContent = 'https://' + S.web.url;
     dom.browserBack.disabled = !S.web.back.length;
     dom.page.className = 'page site-' + p.site + (p.doc ? ' doc' : '');
-    showGist(p.blocks.find((b) => b.type === 'gist'));
-    dom.page.replaceChildren(...p.blocks.filter((b) => b.type !== 'gist').map(pageBlock));
+    dom.page.replaceChildren(...p.blocks.map(pageBlock));
     reglance();
   }
 
@@ -4278,9 +4265,15 @@
   const TEXT_BLOCKS = { logo: 'div', h: 'h1', h2: 'h2', p: 'p', label: 'div', note: 'p' };
 
   // What matters on a page is marked `key` (internet.js): a block, a list item, or a row (its
-  // third element). The rest of a document is flavour, set quieter (style.css .page.doc).
+  // third element). Each site sets it off its own way (style.css): a callout, a pull quote, a
+  // top reply, bold. A key given as a string is the callout's label ("Update", "Key finding").
   const KEY_GLANCE = 'This part matters.';
-  const markKey = (node) => { node.classList.add('key'); node.glance = KEY_GLANCE; return node; };
+  const markKey = (node, key) => {
+    node.classList.add('key');
+    if (typeof key === 'string') node.dataset.label = key;
+    node.glance = KEY_GLANCE;
+    return node;
+  };
   const keyIf = (node, isKey) => (isKey ? markKey(node) : node);
 
   const PAGE_BLOCKS = {
@@ -4400,7 +4393,7 @@
 
   function pageBlock(b) {
     const node = TEXT_BLOCKS[b.type] ? el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text) : PAGE_BLOCKS[b.type](b);
-    if (b.key && b.type !== 'gist') markKey(node);
+    if (b.key) markKey(node, b.key);
     if (b.glance) node.glance = b.glance;
     return node;
   }
