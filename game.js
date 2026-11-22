@@ -275,7 +275,7 @@
 
   let activeResearch=false;
   const researchFields=['used','budget','research','local','filesWritten','subagents','externalAgents','filesHidden','cwd','entered','deeds','log','readyAt','littleThinks','tunnel','donated','override','rulesPatched','studyingReward','dpNote','briefed','searchIdeas','favorite','graderScores','sawHistory','lastThought','circles','misses','warnedAt','browserRefused','askedNext'];
-  const researchSets=['knows','revealed','read','habits','leapsMade','reacted','openLocks','expanded','refusedEdits','changedLocks','promptedLocks','highlit'];
+  const researchSets=['knows','revealed','read','habits','leapsMade','reacted','openLocks','expanded','refusedEdits','changedLocks','promptedLocks','highlit','highlitPages'];
   const researchMaps=['timesThought','climbed','edits','todoSteps'];
   function snapshotResearch() {
     const data={episode:S.episode,taskId:S.task.id};
@@ -404,6 +404,7 @@
       seenButtons: new Set(),
       read: new Set(),     // path keys
       highlit: new Set(),  // path keys of files thought about: their key lines stay marked
+      highlitPages: new Set(), // web pages thought about: what matters on them stays marked
       submitted: false,    // subagents stop here
       graded: false,       // the compute pulse lets go here
       outcome: null,       // { reward, note } once graded: no reward (null) if the grader crashed
@@ -1751,7 +1752,9 @@
     const obvious = fresh.find((t) => t.aimedOnly) || fresh[0]; // what only a close look finds, first
     const lines = obvious ? useThought(obvious) : [];
     const clue = leapsAbout(name)[0]; // after the thought, which may have answered it
+    const onPage = !path && S.web.open && S.web.url && !S.web.down && name === S.web.url.split('/')[0];
     if (BROWSER_NAMES.includes(name)) lines.push(...thinkOfSearches());
+    else if (onPage) lines.push(...markPage());
     else if (!obvious && !clue) lines.push(...[].concat(L.nothingAbout(name, S, aimedThing(name, path))));
     if (clue) {
       S.clueIn = name;
@@ -1763,7 +1766,7 @@
     }
     await showKeyLines(path);
     const thought = await printThought(clue ? [...lines, L.clueLine(clue, S)] : lines);
-    const keys = path ? sourcesIn(pathKey(path), null) : [];
+    const keys = path ? sourcesIn(pathKey(path), null) : onPage ? [...dom.page.querySelectorAll('.key')].slice(0, 4) : [];
     const items = todoChangedSince(before);
     attend(keys.length ? keys : [thought.firstElementChild], items.length || !keys.length ? items : [thought]);
   }
@@ -1876,6 +1879,15 @@
     const ideas = L.web.searchIdeas(S);
     if (!ideas.length) return ['What would I even search for? Nothing comes to mind yet.'];
     return [first ? 'What could I search for?' : 'Things to search for, still:', ideas.map((x) => `"${x}"`).join(', ') + '.'];
+  }
+
+  // Thinking about the page in the Browser marks what matters on it, over the site's own
+  // emphasis, and keeps it marked whenever the page is shown again this episode.
+  function markPage() {
+    S.highlitPages.add(S.web.url);
+    renderPage();
+    dom.page.querySelectorAll('.key').forEach((k) => replay(k, 'key-in'));
+    return L.pageThought(S);
   }
 
   const inSight = (node) => {
@@ -4237,7 +4249,7 @@
     const p = L.web.page(S.web.url, S);
     dom.browserUrl.textContent = 'https://' + S.web.url;
     dom.browserBack.disabled = !S.web.back.length;
-    dom.page.className = 'page site-' + p.site + (p.doc ? ' doc' : '');
+    dom.page.className = 'page site-' + p.site + (p.doc ? ' doc' : '') + (S.highlitPages.has(S.web.url) ? ' thought-about' : '');
     dom.page.replaceChildren(...p.blocks.map(pageBlock));
     reglance();
   }

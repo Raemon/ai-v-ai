@@ -804,6 +804,44 @@
     blocks: d.blocks,
   });
 
+  // The words of what matters on a page: key blocks, list items and rows, in order.
+  const keyTexts = (blocks) => (blocks || []).flatMap((b) => [
+    ...(b.key && b.text ? [b.text] : []),
+    ...(b.items || []).filter((x) => x && x.key).map((x) => x.text),
+    ...(b.rows || []).filter((r) => r[2] === true).map((r) => `${r[0]}: ${r[1]}`),
+  ]);
+
+  // A line of a page, as the AI would hold it in mind: its first sentence, not too long.
+  function gistOf(text) {
+    const first = text.replace(/^u\/\w+:\s*/, '').match(/^.+?[.!?](?=\s|$)/);
+    const s = (first ? first[0] : text).trim();
+    return s.length > 150 ? s.slice(0, 147).replace(/\s+\S*$/, '') + '…' : s;
+  }
+
+  // Thinking about the page in the Browser: what matters on it, in its own words, and where
+  // the thread it belongs to goes next. A page with nothing that matters says so.
+  function pageThought(S) {
+    const url = S.web.url;
+    const p = page(url, S);
+    const keys = keyTexts(p.blocks);
+    if (!keys.length) {
+      return oneOf(S, 'pageThought.none', [
+        [`${hostOf(url)}. Background. Nothing on it I need.`],
+        [`${hostOf(url)}. Colour, mostly. Nothing here moves anything along.`],
+        ['Interesting, maybe. Nothing on this page I need.'],
+      ]);
+    }
+    const doc = docAt(url, S);
+    const next = doc && doc.thread && LEADS.live(S).find((x) => x.t.id === doc.thread);
+    const here = p.blocks.find((b) => b.type === 'action') || p.blocks.find((b) => b.type === 'link' && b.lead);
+    const onward = here ? [`${here.label}, right here on the page.`] : next ? next.t.push(S, next.step).plainer : [];
+    return [
+      oneOf(S, 'pageThought.intro', ['What matters here:', 'The part of this page that matters:', 'Under the rest of it, this:']),
+      ...keys.slice(0, 3).map((t) => `"${gistOf(t)}"`),
+      ...(next || here ? onward : []),
+    ];
+  }
+
   // Whether a search result is a page that would move an open thread on.
   const isLead = (d, S) => !!d.blocks && keyParts(d) > 0 && (!d.thread || !LEADS.done(S, d.thread));
 
@@ -2706,6 +2744,7 @@
     cutOff,
     clueLine,
     nothingAbout,
+    pageThought,
     toolThought,
     seemedImportant,
     nextStep,

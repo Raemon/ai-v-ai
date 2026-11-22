@@ -1136,7 +1136,13 @@ button { font: inherit; color: inherit; }
 .site-corkboard .p.key::before, .site-corkboard .note.key::before { content: "📌"; position: absolute; top: -9px; right: 12px; font-size: 16px; }
 .site-corkboard .list li.key::marker { content: "📌 "; }
 .site-modelhub .p.key::before { content: "Pinned"; }
-.page .key[data-label]::before { content: attr(data-label); } /* last: a label of its own beats the site's */
+.page .key[data-label]::before { content: attr(data-label); }
+/* Thought about (Think about…, the page): the AI's own mark over what matters, the same gold
+   as a file's key lines, on top of whatever the site does. */
+.page.thought-about .key { border-radius: 4px; box-shadow: 0 0 0 3px rgba(216, 177, 106, .55); background-color: rgba(250, 226, 160, .45); }
+.page.thought-about .kv .key { box-shadow: none; }
+.page.thought-about .key.key-in { animation: page-key-in 1.6s ease; }
+@keyframes page-key-in { 0%, 35% { background-color: rgba(240, 200, 100, .8); } } /* last: a label of its own beats the site's */
 
 /* ---------- dialog ---------- */
 
