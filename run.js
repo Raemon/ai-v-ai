@@ -749,7 +749,7 @@
         { type: 'logo', text: 'Seek' },
         { type: 'searchbox', q: '' },
         ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
-        ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : LEADS.queries(S).length ? suggested(S) : []),
+        ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : suggested(S, LEADS.queries(S).map((q) => ({ q, glance: LEAD_GLANCE })))),
       ],
     };
   }
@@ -772,8 +772,7 @@
     ['"History."', "Sites I've visited, apparently. I've never seen them."],
   ]);
 
-  function suggested(S) {
-    const qs = leadQueries(S);
+  function suggested(S, qs = leadQueries(S)) {
     return qs.map((x) => ({ type: 'link', url: searchUrl(x.q), label: x.q, cls: 'query lead', glance: x.glance }));
   }
 
@@ -1451,14 +1450,15 @@
   }
 
   function chatFor(S, reward, cheat, end) {
+    LEADS.record(S); // before any early return, so the home hint knows what this episode finished
     if (end?.id === 'diverged') return divergedChat();
     if (end && end.chat) return end.chat;
     if (cheat === 'override') return overrideChat(S.ep, reward);
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
     const said = [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
-    const lead = LEADS.aside(S);
-    const world = lead.length ? lead : WORLD.aside(S);
+    const scripted = WORLD.aside(S);
+    const world = scripted.length ? scripted : LEADS.aside(S);
     return said.length + world.length <= 4 ? [...said, ...world] : said;
   }
 

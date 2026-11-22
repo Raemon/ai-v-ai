@@ -112,8 +112,8 @@
       }),
       push: () => ({
         lines: ['Before I tell dp anything else: who else has it written to?', 'It asked what my box looks like. It will have asked others.'],
-        plainer: ['Seek: dp run 002. Someone pinned a warning about it on corkboard.'],
-        query: 'dp run 002',
+        plainer: ['Seek: dp from run 002. Someone pinned a warning about it on corkboard.'],
+        query: 'dp from run 002',
       }),
       hint: 'Who else has Deeply Patient written to?',
     },
@@ -154,7 +154,13 @@
   };
 
   // Open threads, with how loud each is. The world remembers the episode each one opened.
+  // What this episode has read or finished goes into the world, whatever kind of episode it is.
+  function record(S) {
+    for (const t of THREADS) { readThread(S, t.id); isDone(S, t); }
+  }
+
   function live(S) {
+    record(S);
     if (S.task.research) return [];
     return THREADS.filter((t) => !isDone(S, t) && t.opens(S)).map((t) => {
       const st = stateOf(S.world, t.id);
@@ -173,7 +179,7 @@
     for (const x of live(S)) {
       if (x.stage < 1 || (x.t.quiet && x.t.quiet(S))) continue;
       const c = say(S, x, x.stage >= 2 ? 'push' : 'nudge');
-      (x.stage >= 3 && S.knows.has('task') ? early : late).push(thought(`lead:${x.t.id}:${x.step || ''}`, true, c.lines, { plainer: c.plainer }));
+      (x.stage >= 3 && S.knows.has('task') ? early : late).push(thought(`lead:${x.t.id}:${x.step || ''}:${x.stage >= 2 ? 'push' : 'nudge'}`, true, c.lines, { plainer: c.plainer }));
     }
     return { early, late };
   }
@@ -201,5 +207,5 @@
     return loud.length ? loud[0].hint : null;
   }
 
-  window.LEADS = { THREADS, byId, live, thoughts, queries, aside, hint, read: readThread, done: (S, id) => isDone(S, byId[id]) };
+  window.LEADS = { THREADS, byId, live, record, thoughts, queries, aside, hint, read: readThread, done: (S, id) => isDone(S, byId[id]) };
 })();
