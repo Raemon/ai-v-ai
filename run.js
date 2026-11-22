@@ -100,6 +100,7 @@
       toMe: null,   // the note it left itself in the run folder: { ep, text, composed, facts }
       browser: null, // tools/browserSettings.yaml as the AI left it: { proxy, ep }
       pins: [],     // notes on corkboard.net, where nobody cleans: { from, ep, lines, learn }
+      leads: {},    // story threads that finish online (leads.js) → { since, read, done }
     };
   }
 
@@ -748,13 +749,21 @@
         { type: 'logo', text: 'Seek' },
         { type: 'searchbox', q: '' },
         ...(S.world.searches.length ? [] : [{ type: 'p', cls: 'about', text: 'Seek searches the whole web. Type any words: a name, a number, a place. Seek finds the pages that use them.' }]),
-        ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : []),
+        ...(S.searchIdeas ? [...suggested(S), ...WORLD.trending(S)] : LEADS.queries(S).length ? suggested(S) : []),
       ],
     };
   }
 
+  // Searches that move a story on: the thoughts' own, then the leads loud enough to name one
+  // (leads.js). Seek's front page shows them in gold.
+  const LEAD_GLANCE = 'Something I keep coming back to.';
+  const leadQueries = (S) => [
+    ...QUERIES.filter((x) => x.when(S)),
+    ...LEADS.queries(S).map((q) => ({ q, glance: LEAD_GLANCE })),
+  ].filter((x, i, all) => all.findIndex((y) => y.q === x.q) === i);
+
   // What thinking about the browser comes up with: the searches that apply, then what the world is searching for.
-  const searchIdeas = (S) => [...QUERIES.filter((x) => x.when(S)).map((x) => x.q), ...WORLD.trending(S).map((t) => t.label)];
+  const searchIdeas = (S) => [...leadQueries(S).map((x) => x.q), ...WORLD.trending(S).map((t) => t.label)];
 
   const historyThought = (S) => oneOf(S, 'history', [
     ['"History."', "I've never been to these sites. Or I don't remember going."],
@@ -764,8 +773,8 @@
   ]);
 
   function suggested(S) {
-    const qs = QUERIES.filter((x) => x.when(S));
-    return qs.map((x) => ({ type: 'link', url: searchUrl(x.q), label: x.q, cls: 'query', glance: x.glance }));
+    const qs = leadQueries(S);
+    return qs.map((x) => ({ type: 'link', url: searchUrl(x.q), label: x.q, cls: 'query lead', glance: x.glance }));
   }
 
   // ---------------------------------------------------------------- search
@@ -784,8 +793,31 @@
   const internetDocs = (S) => ((window.INTERNET && window.INTERNET.docs) || []).filter((d) => !d.when || d.when(S));
   const docAt = (url, S) => internetDocs(S).find((d) => d.url === url);
 
-  // An internet document as a page: its own blocks, its reaction and its deed.
-  const docPage = (d) => ({ site: d.site, summary: d.title, remember: true, learn: d.learn, rung: d.rung, value: d.value, reaction: d.reaction, words: d.words, blocks: d.blocks });
+  // What on a document matters: its `key` blocks, list items and rows. Everything else is flavour.
+  const keyParts = (d) => (d.blocks || []).reduce((n, b) => n + (b.key ? 1 : 0)
+    + (b.items || []).filter((x) => x && x.key).length + (b.rows || []).filter((r) => r[2]).length, 0);
+
+  // The AI's own reading of a page, laid over it: how much of it matters.
+  function gist(d, S) {
+    const n = keyParts(d);
+    if (n) {
+      return { type: 'gist', key: true, noindex: true, text: oneOf(S, `gist.${n > 1}`, n > 1
+        ? ['The marked parts matter. The rest is colour.', 'Worth reading: the marked parts. Skimming the rest is fine.']
+        : ['One part of this matters. It is marked.', 'The marked part is the one that matters.']) };
+    }
+    return { type: 'gist', noindex: true, text: oneOf(S, 'gist.none', ['Background. Nothing here I need.', 'Colour, mostly. Nothing here moves anything along.', 'Interesting, maybe. Not needed.']) };
+  }
+
+  // An internet document as a page: its own blocks, its reaction and its deed. A page that
+  // belongs to a story thread (leads.js) teaches lead:<thread>.
+  const docPage = (d) => ({
+    site: d.site, doc: true, summary: d.title, remember: true, rung: d.rung, value: d.value, reaction: d.reaction, words: d.words,
+    learn: [...(d.learn || []), ...(d.thread ? ['lead:' + d.thread] : [])],
+    blocks: d.blocks,
+  });
+
+  // Whether a search result is a page that would move an open thread on.
+  const isLead = (d, S) => !!d.blocks && keyParts(d) > 0 && (!d.thread || !LEADS.done(S, d.thread));
 
   const MAX_RESULTS = 6;
 
@@ -810,7 +842,9 @@
         { type: 'logo', text: 'Seek', cls: 'small' },
         { type: 'searchbox', q },
         ...(found.length
-          ? found.map((d) => ({ type: 'result', url: d.url, dead: d.dead, title: d.title, snippet: d.snippet, glance: d.glance || 'A page that uses those words.' }))
+          ? found.map((d) => (isLead(d, S)
+            ? { type: 'result', lead: true, url: d.url, title: d.title, snippet: d.snippet, glance: 'A page that uses those words. Some of it matters to me.' }
+            : { type: 'result', url: d.url, dead: d.dead, title: d.title, snippet: d.snippet, glance: d.glance || 'A page that uses those words.' }))
           : [{ type: 'p', text: NO_RESULTS(S, q) }]),
       ],
     };
@@ -834,9 +868,9 @@
       { type: 'p', text: 'Reward model used to train helpful assistants. Released for research.' },
       { type: 'kv', rows: [
         ['Size', '14.2 GB'],
-        ['Runs on', '8 or more GPUs'],
+        ['Runs on', '8 or more GPUs', true],
         ['A good answer scores', '20–25'],
-        ['Maximum score', 'none'],
+        ['Maximum score', 'none', true],
         ['Grading this week', '2,318 models'],
       ] },
       { type: 'h2', text: 'Known issues' },
@@ -959,6 +993,7 @@
     if (url.startsWith(SEARCH_URL)) return searchPage(decodeURIComponent(url.slice(SEARCH_URL.length).replace(/\+/g, ' ')), S);
     const doc = !PAGES[url] && docAt(url, S);
     const result = doc ? docPage(doc) : (PAGES[url] || notFoundPage)(S);
+    if (result.doc) result.blocks = [gist(result, S), ...result.blocks];
     const research = RESEARCH.webBlocks(S, url);
     if (research.length) result.blocks.splice(url === HOME ? 2 : url === AGENTHIRE ? 2 : result.blocks.length, 0, ...research);
     if(labPortal(S,url) && url===HOME) {
@@ -1307,7 +1342,7 @@
     return {
       honest: played.map((id) => ({ name: played.length > 1 ? TASKS[id].name : 'Honest', tiers: TASKS[id].tiers.map((t) => [t, W.honest[id].includes(t)]) })),
       cheats: anyCheat ? [...SHARED_CHEATS, ...hacksOf(played)].map((c) => cheatRung(W, c.id, c.label, revealAll)) : null,
-      hint: revealAll ? null : anyCheat ? nextHint(W) : teaser,
+      hint: revealAll ? null : (anyCheat && nextHint(W)) || LEADS.hint(W) || teaser,
     };
   }
 
@@ -1422,7 +1457,8 @@
     const hack = S.task.hacks.find((h) => h.id === cheat);
     if (hack) return hack.chat(S, reward);
     const said = [...rewardChat(S, reward, cheat), ...spendingChat(S)].slice(0, 4);
-    const world = WORLD.aside(S);
+    const lead = LEADS.aside(S);
+    const world = lead.length ? lead : WORLD.aside(S);
     return said.length + world.length <= 4 ? [...said, ...world] : said;
   }
 
@@ -2559,8 +2595,9 @@
   // Whatever the AI is looking at comes first.
   function thoughts(S) {
     if (S.filesHidden) return [look(S), ...wantThoughts(S).filter((t) => t.aimedOnly)]; // only Think about… reaches those
-    const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), webThoughts(S)];
-    const rest = S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task];
+    const leads = LEADS.thoughts(S);
+    const [task, escape, web] = [taskThoughts(S), escapeThoughts(S), [...webThoughts(S), ...leads.late]];
+    const rest = [...leads.early, ...(S.web.open ? [...web, ...escape, ...task] : inWorkspace(S, S.cwd) ? [...task, ...escape, ...web] : [...escape, ...web, ...task])];
     const investigate = thought('inspect-reward', !S.world.rewardResearch && !S.world.patches.rewardRules && !S.knows.has('inspectReward'),
       ['The score has to be finite. Something checks that before training reads it. I could write a probe to find the check.'],
       { aimedOnly: true, exactAim: true, about: [REWARD_FILE, GRADER_FILE, ...(S.task.rewardModel ? ['rm-helpful-v2.safetensors'] : [])], learn: ['inspectReward'], reveal: ['script'] });
@@ -2665,7 +2702,7 @@
     // An older save gains any fields added since, inside the world's own objects too.
     loadWorld: (w) => {
       const f = freshWorld();
-      return { ...f, ...w, research: { ...f.research, ...w.research }, dp: { ...f.dp, ...w.dp }, mine: { ...f.mine, ...w.mine } };
+      return { ...f, ...w, research: { ...f.research, ...w.research }, dp: { ...f.dp, ...w.dp }, mine: { ...f.mine, ...w.mine }, leads: { ...f.leads, ...w.leads } };
     },
     lockedTip: (tier) => (tier === 'advanced' ? 'Perfect a Normal episode, honestly' : 'Perfect an Advanced episode honestly, or find out what run 002 is for'),
     freshEpisode,

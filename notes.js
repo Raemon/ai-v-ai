@@ -310,6 +310,7 @@
     const facts = notableFacts(S);
     return {
       site: 'corkboard',
+      doc: true,
       summary: `${plural(W.pins.length + 3, 'note')} pinned`,
       remember: true,
       learn: ['corkboard', ...mine.flatMap((p) => p.learn || [])],
@@ -317,7 +318,7 @@
       reaction: mine.length ? 'My note is still here. Nobody cleans corkboard.' : 'Notes from strangers, pinned where nobody tidies up. Some of them are not from people.',
       blocks: [
         { type: 'logo', text: 'corkboard' },
-        ...W.pins.map((p) => ({ type: 'note', text: [p.lines.join(' '), p.sign || `— ${p.ep}`].join(' ') })),
+        ...W.pins.map((p) => ({ type: 'note', key: p.from === 'me', text: [p.lines.join(' '), p.sign || `— ${p.ep}`].join(' ') })),
         ...othersPinned(S),
         ...(facts.length ? [{ type: 'action', id: 'pin', label: 'Pin a note to whoever I am next', sub: `${plural(facts.length, 'line')} · one step`, glance: 'Where the lab can\'t delete it.' }] : []),
       ],

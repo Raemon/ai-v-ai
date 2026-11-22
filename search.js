@@ -128,7 +128,7 @@
   // Everything a page says, as one string. A block marked noindex (an encoded note, say) is
   // left out: the AI can read it, but neither search nor its vocabulary takes it in as words.
   const pageText = (blocks) => (blocks || []).filter((b) => !b.noindex).map((b) => [b.text, b.title, b.dek, b.kicker, b.label, b.name, b.blurb, b.snippet,
-    ...(b.items || []), ...(b.rows || []).flat()].filter(Boolean).join(' ')).join(' ');
+    ...(b.items || []).map((x) => (typeof x === 'string' ? x : x.text)), ...(b.rows || []).flatMap((r) => r.slice(0, 2))].filter(Boolean).join(' ')).join(' ');
 
   window.SEARCH = { tokens, interesting, vocabulary, suggest, rank, pageText };
 })();

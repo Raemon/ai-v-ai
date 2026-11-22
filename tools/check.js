@@ -9,7 +9,7 @@ const { scenario, index } = require('../scenario/file.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
-const RUN = ['util.js', 'lab.js', 'skills.js', 'values.js', 'world.js', 'search.js', 'internet.js', 'money.js', 'notes.js', 'research.js', 'run.js', 'scenario.js'];
+const RUN = ['util.js', 'lab.js', 'skills.js', 'values.js', 'world.js', 'search.js', 'internet.js', 'money.js', 'notes.js', 'leads.js', 'research.js', 'run.js', 'scenario.js'];
 
 function loadRun() {
   const page = vm.createContext({ console });

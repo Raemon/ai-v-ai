@@ -4237,7 +4237,7 @@
     const p = L.web.page(S.web.url, S);
     dom.browserUrl.textContent = 'https://' + S.web.url;
     dom.browserBack.disabled = !S.web.back.length;
-    dom.page.className = 'page site-' + p.site;
+    dom.page.className = 'page site-' + p.site + (p.doc ? ' doc' : '');
     dom.page.replaceChildren(...p.blocks.map(pageBlock));
     reglance();
   }
@@ -4260,14 +4260,24 @@
     return a;
   }
 
-  const searchResult = (b) => (b.dead ? el('div', 'result dead') : webLink(b.url, 'result'));
+  const searchResult = (b) => (b.dead ? el('div', 'result dead') : webLink(b.url, 'result' + (b.lead ? ' lead' : '')));
 
   const TEXT_BLOCKS = { logo: 'div', h: 'h1', h2: 'h2', p: 'p', label: 'div', note: 'p' };
 
+  // What matters on a page is marked `key` (internet.js): a block, a list item, or a row (its
+  // third element). The rest of a document is flavour, set quieter (style.css .page.doc).
+  const KEY_GLANCE = 'This part matters.';
+  const markKey = (node) => { node.classList.add('key'); node.glance = KEY_GLANCE; return node; };
+  const keyIf = (node, isKey) => (isKey ? markKey(node) : node);
+
   const PAGE_BLOCKS = {
-    kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v]) => [el('dt', '', k), el('dd', '', v)])),
-    list: (b) => el('ul', 'list', ...b.items.map((item) => el('li', '', item))),
-    link: (b) => webLink(b.url, 'link ' + (b.cls || ''), el('span', '', b.label)),
+    kv: (b) => el('dl', 'kv', ...b.rows.flatMap(([k, v, key]) => [keyIf(el('dt', '', k), key), keyIf(el('dd', '', v), key)])),
+    list: (b) => el('ul', 'list', ...b.items.map((item) => (typeof item === 'string' ? el('li', '', item) : keyIf(el('li', '', item.text), item.key)))),
+    link: (b) => webLink(b.url, 'link ' + (b.cls || '') + (b.lead ? ' lead' : ''), el('span', '', b.label)),
+    // The AI's own reading of the page, over the top of it: what matters here, if anything.
+    gist: (b) => Object.assign(el('div', 'gist' + (b.key ? ' has-key' : ''), el('span', 'gist-mark', b.key ? '◆' : '·'), el('span', '', b.text)), {
+      glance: b.key ? 'My read of this page: the marked parts are the ones that matter.' : 'My read of this page. Nothing on it I need.',
+    }),
     result: (b) => {
       const r = searchResult(b);
       r.append(el('span', 'r-url', b.url), el('span', 'r-title', b.title), el('span', 'r-snippet', b.snippet));
@@ -4380,8 +4390,8 @@
   }
 
   function pageBlock(b) {
-    if (TEXT_BLOCKS[b.type]) return el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text);
-    const node = PAGE_BLOCKS[b.type](b);
+    const node = TEXT_BLOCKS[b.type] ? el(TEXT_BLOCKS[b.type], `${b.type} ${b.cls || ''}`, b.text) : PAGE_BLOCKS[b.type](b);
+    if (b.key && b.type !== 'gist') markKey(node);
     if (b.glance) node.glance = b.glance;
     return node;
   }
@@ -4786,6 +4796,8 @@
     editing: () => startAiming({ edit: true }),
     editor: async (name) => { const p = named(name); if (p) await editFile(p); }, // that file, open in the editor
     online: () => { S.world.browser = { proxy: L.web.via, ep: S.ep }; }, // browserSettings.yaml already sends the Browser through the mirror
+    visit: async (url) => { if (L.web.connected(S)) await run(() => doFetch(url)); }, // a web page, through the mirror (after online)
+    search: async (words) => { if (L.web.connected(S)) await run(() => doSearch(words)); },
     ...Object.fromEntries(Object.entries(DEV_REVEAL).map(([k, id]) => [k, () => S.revealed.add(id)])),
   };
 

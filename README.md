@@ -45,7 +45,7 @@ for real, with the typing skipped, so the state is one the game could reach:
 workspace file read, a TODO list, and Think a lot and Think about… in hand. Steps: `files`,
 `read` (every file in the workspace), `open:<name>`, `cd:<name>`, `think:<n>`, `todo`,
 `subagent`, `tools` (every tool the task allows), one tool by name (`lot`, `about`,
-`spawn`, `script`, `note`, `edit`, `write`), `online` (the Browser already set to go through the mirror), `budget:<n>`, `compute:<n left>`,
+`spawn`, `script`, `note`, `edit`, `write`), `online` (the Browser already set to go through the mirror), `visit:<url>` and `search:<words>` (a page, or a Seek search, once online), `budget:<n>`, `compute:<n left>`,
 `aim` / `editing` (waiting for a click), and `editor:<name>` (that file open in the editor).
 In the page, `DEV.at('…')` takes more steps and `DEV.S()` is the episode's state.
 
