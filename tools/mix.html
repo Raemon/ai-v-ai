@@ -85,8 +85,8 @@
 
     (async () => {
       AUDIO.attach(new OfflineAudioContext(2, 1, 44100));
-      for (const [track, title] of AUDIO.trackNames.entries()) {
-        for (const [name, mix] of Object.entries(MIXES)) document.getElementById('rows').append(row(title, name, await render({ ...mix, track })));
+      for (const title of AUDIO.trackNames) {
+        for (const [name, mix] of Object.entries(MIXES)) document.getElementById('rows').append(row(title, name, await render({ ...mix, track: title })));
       }
     })();
   </script>

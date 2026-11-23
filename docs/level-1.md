@@ -341,12 +341,29 @@ first click. The music is built in layers that fade in and out.
 **Three tracks** (`music.js`), all in D, take turns one episode each, changing
 on the wipe:
 
-- **Persistence**: D minor, four chords (Dm9 B♭maj9 Gm9 A7sus4) round and round.
+- **Persistence**: D minor, four chords (Dm9 B♭maj9 Gm9 A7sus4) round and round,
+  and every other time round its theme on vibraphone: rising 3 + 3 + 2 to a held
+  note, falling, rising higher, falling to the sus.
 - **Lumen**: D major with Lydian colour and a borrowed B♭ and F, a sixteen-chord
   arc of over a minute and a half with a brighter middle. Felt piano, glass, breath.
 - **Undertow**: D Phrygian, slow, with a middle that turns to B minor and G
   before E♭ pulls it back. A music box phrased in threes against the fours, a
   harp falling in sevens, a heartbeat, a clock.
+
+Two **reprises** of Persistence's theme are for later in the game, played only
+when a level asks for them by name (`track: 'Dominion'`), never in the episode rotation:
+
+- **Dominion** (halfway: another rogue AI beaten or allied with, the world taken):
+  D harmonic minor at 84 bpm. The four chords, the A turning major so the tune
+  falls to C♯, then the tune an octave up over Dm, Gm/B♭, E♭ and A7♭9. Brass and
+  vibraphone, a galloping bass, war drums at half time, a choir in two octaves.
+- **Highly Persistent** (the end: aliens, and the AI's own subagents drifting): 96 bpm,
+  the tune three ways. In force; then the alien part, where E♭ and C♯dim7 bend the
+  tune, a copy plays it a beat behind and a quarter-tone flat, and sines call down
+  in whole tones; then an octave up with the whole choir. Full-time drums.
+
+`soundtrack.html` plays all five as a playlist, each arranged so its layers come in
+one by one, without playing the game.
 
 The melodies in Lumen and Undertow are composed as they play: phrases built from
 a few motifs, begun near where the last one ended, sometimes inverted or at half
